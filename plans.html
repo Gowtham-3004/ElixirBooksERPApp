@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Elixir Books pricing plans" />
+    <title>Elixir Books — Plans & Pricing</title>
+    <style>
+      :root { --ink: #14213d; --muted: #687385; --line: #e6eaf0; --blue: #325cff; --navy: #18295d; --mint: #e8fbf3; --bg: #f7f9fc; }
+      * { box-sizing: border-box; }
+      body { margin: 0; color: var(--ink); background: var(--bg); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .wrap { width: min(1160px, calc(100% - 40px)); margin: 0 auto; }
+      nav { height: 72px; display: flex; align-items: center; justify-content: space-between; }
+      .brand { font-weight: 800; letter-spacing: -.55px; font-size: 19px; } .brand span { color: var(--blue); }
+      .nav-link { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 650; }
+      .hero { text-align: center; padding: 68px 0 42px; }
+      .eyebrow { display: inline-block; background: #edf1ff; color: #3455d9; border-radius: 999px; padding: 7px 12px; font-weight: 750; font-size: 12px; letter-spacing: .03em; }
+      h1 { font-size: clamp(34px, 5vw, 56px); letter-spacing: -2.5px; margin: 18px 0 14px; line-height: 1.05; }
+      .hero p { max-width: 620px; margin: 0 auto; color: var(--muted); font-size: 17px; line-height: 1.6; }
+      .plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; align-items: stretch; padding: 18px 0 34px; }
+      .plan { background: white; border: 1px solid var(--line); border-radius: 18px; padding: 28px; display: flex; flex-direction: column; box-shadow: 0 4px 18px rgba(19, 37, 73, .04); }
+      .plan.featured { border: 2px solid var(--blue); box-shadow: 0 14px 35px rgba(50, 92, 255, .16); position: relative; }
+      .tag { position: absolute; top: -13px; right: 22px; background: var(--blue); color: white; padding: 6px 10px; font-size: 11px; font-weight: 800; letter-spacing: .04em; border-radius: 99px; }
+      h2 { margin: 0; font-size: 23px; letter-spacing: -.7px; } .plan > p { color: var(--muted); font-size: 14px; min-height: 42px; line-height: 1.5; }
+      .was-price { margin: 20px 0 -4px; color: #9ba5b5; font-size: 26px; font-weight: 800; letter-spacing: -1px; text-decoration: line-through; text-decoration-thickness: 3px; text-decoration-color: #ef5261; }
+      .save { display: inline-block; margin: 6px 0 0; padding: 4px 8px; background: #fff0f1; color: #cf3345; border-radius: 5px; font-size: 11px; font-weight: 850; letter-spacing: .03em; }
+      .price { margin: 5px 0 5px; font-size: 43px; letter-spacing: -1.8px; font-weight: 800; } .price small { font-size: 14px; font-weight: 600; color: var(--muted); letter-spacing: 0; }
+      .hint { min-height: 36px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+      .button { display: block; border-radius: 9px; text-align: center; padding: 12px; margin: 21px 0; font-size: 14px; font-weight: 750; text-decoration: none; color: var(--blue); border: 1px solid #cdd7ff; background: #f6f8ff; }
+      .featured .button { color: #fff; background: var(--blue); border-color: var(--blue); }
+      .section-label { border-top: 1px solid var(--line); padding-top: 20px; margin: 0 0 10px; font-size: 12px; color: var(--muted); font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+      ul { padding: 0; margin: 0; list-style: none; } li { font-size: 13px; line-height: 1.45; padding: 7px 0 7px 22px; position: relative; } li::before { content: "✓"; color: #14a66b; font-weight: 900; position: absolute; left: 0; }
+      .limits { margin-top: auto; padding-top: 18px; color: var(--muted); font-size: 12px; line-height: 1.8; }
+      .limits strong { color: var(--ink); }
+      .assurance { background: var(--mint); border: 1px solid #c5f0df; border-radius: 14px; padding: 20px 24px; display: grid; grid-template-columns: 28px 1fr; gap: 12px; margin: 0 0 58px; }
+      .assurance b { font-size: 14px; } .assurance p { margin: 4px 0 0; color: #49665a; font-size: 13px; line-height: 1.55; }
+      .comparison { background: white; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; margin-bottom: 56px; }
+      .comparison h2 { padding: 25px 26px 3px; } .comparison .intro { color: var(--muted); font-size: 13px; line-height: 1.5; padding: 0 26px 17px; margin: 0; } table { width: 100%; border-collapse: collapse; font-size: 13px; } th, td { padding: 15px 18px; border-top: 1px solid var(--line); text-align: center; } th:first-child, td:first-child { text-align: left; font-weight: 650; } th { color: var(--muted); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; } td.yes { color: #159b65; font-weight: 800; } td.enterprise { background: #f4f6ff; } .group-row td { background: #f8faff; color: #4e5d77; font-size: 11px; font-weight: 850; text-transform: uppercase; letter-spacing: .07em; text-align: left; }
+      footer { color: var(--muted); font-size: 12px; padding: 0 0 34px; text-align: center; }
+      @media (max-width: 820px) { .plans { grid-template-columns: 1fr; max-width: 440px; margin: auto; } .plan > p { min-height: auto; } .comparison { overflow-x: auto; } table { min-width: 630px; } }
+    </style>
+  </head>
+  <body>
+    <header class="wrap"><nav><div class="brand">elixir<span>books</span></div><a class="nav-link" href="#compare">Compare plans</a></nav></header>
+    <main class="wrap">
+      <section class="hero">
+        <div class="eyebrow">SIMPLE, SCALABLE PRICING</div>
+        <h1>Start simple. Grow into ERP.</h1>
+        <p>Three clear plans for businesses at every operating stage. Upgrade instantly as your needs expand.</p>
+      </section>
+
+      <section class="plans" aria-label="Pricing plans">
+        <article class="plan">
+          <h2>Lite</h2><p>For small businesses ready to move sales and billing into one reliable system.</p>
+          <div class="was-price">₹1,999</div><span class="save">SAVE 50% TODAY</span><div class="price">₹999 <small>/ month</small></div><div class="hint">The essentials to invoice, collect, and stay in control.</div>
+          <a class="button" href="#">Start free trial</a>
+          <div class="section-label">Included modules</div>
+          <ul><li>Sales, quotations, invoices & receipts</li><li>Approvals, activity & document audit trail</li><li>Business reports, masters & administration</li><li><strong>AI:</strong> role-based daily briefing</li><li><strong>AI:</strong> conversational approval responses</li></ul>
+          <div class="limits"><strong>2 users</strong> · 1 company<br><strong>100 invoices/month</strong> · 500 MB storage</div>
+        </article>
+
+        <article class="plan featured">
+          <div class="tag">MOST POPULAR</div>
+          <h2>Growth</h2><p>For growing trading, retail, and service businesses that need connected operations.</p>
+          <div class="was-price">₹15,999</div><span class="save">SAVE 50% TODAY</span><div class="price">₹7,999 <small>/ month</small></div><div class="hint">Everything except factory production and enterprise controls.</div>
+          <a class="button" href="#">Start free trial</a>
+          <div class="section-label">Everything in Lite, plus</div>
+          <ul><li>CRM, purchase, inventory & POS</li><li>Projects, contracts, payroll & fixed assets</li><li>Accounting, banking, taxation & budgets</li><li><strong>AI:</strong> Finance Copilot with cited transactions</li><li><strong>AI:</strong> smart document capture & coding</li><li><strong>AI:</strong> inventory intelligence & reorder recommendations</li><li><strong>AI:</strong> explainable anomaly alerts</li></ul>
+          <div class="limits"><strong>25 users</strong> · 5 companies<br><strong>10,000 invoices/month</strong> · 25 GB storage</div>
+        </article>
+
+        <article class="plan">
+          <h2>ERP Enterprise</h2><p>For manufacturing, multi-entity, and controlled finance operations at scale.</p>
+          <div class="was-price">₹49,999</div><span class="save">SAVE 50% TODAY</span><div class="price">₹24,999 <small>/ month</small></div><div class="hint">The complete ERP suite, implementation support, and room to scale.</div>
+          <a class="button" href="#">Talk to sales</a>
+          <div class="section-label">Everything in Growth, plus</div>
+          <ul><li>Production, BOMs, routings, MRP & quality</li><li>Subcontracting & multi-company consolidation</li><li>Enterprise governance, integrations & priority support</li><li><strong>AI:</strong> Continuous Close readiness score</li><li><strong>AI:</strong> cash-flow forecasting & scenarios</li><li><strong>AI:</strong> India Compliance Copilot</li><li><strong>AI:</strong> process mining & bottleneck analytics</li></ul>
+          <div class="limits"><strong>500 users</strong> · 50 companies<br><strong>1,000,000 invoices/month</strong> · 500 GB storage</div>
+        </article>
+      </section>
+
+      <section class="assurance"><div aria-hidden="true">🛡️</div><div><b>Safe plan switching, by design</b><p>Upgrades unlock features immediately. On a downgrade, module data is retained and simply becomes unavailable. If current usage exceeds the target plan’s limits, the switch is blocked until usage fits—nothing is deleted or changed.</p></div></section>
+
+      <section class="comparison" id="compare"><h2>Full module & AI comparison</h2><p class="intro">Every AI recommendation is explainable and linked back to the relevant transaction, document, or operational exception.</p><table><thead><tr><th>Capability</th><th>Lite</th><th>Growth</th><th>ERP Enterprise</th></tr></thead><tbody>
+        <tr class="group-row"><td colspan="4">Core business modules</td></tr>
+        <tr><td>Sales: quotes, orders, delivery, invoices, returns & collections</td><td class="yes">Included</td><td class="yes">Included</td><td class="yes enterprise">Included</td></tr>
+        <tr><td>Approvals, activity, masters, administration & standard reports</td><td class="yes">Included</td><td class="yes">Included</td><td class="yes enterprise">Included</td></tr>
+        <tr><td>CRM, purchase, inventory, accounting, banking & taxation</td><td>—</td><td class="yes">Included</td><td class="yes enterprise">Included</td></tr>
+        <tr><td>POS, projects & contracts, payroll, fixed assets & budgets</td><td>—</td><td class="yes">Included</td><td class="yes enterprise">Included</td></tr>
+        <tr><td>Production: BOMs, routing, work centres, MRP, QC & subcontracting</td><td>—</td><td>—</td><td class="yes enterprise">Included</td></tr>
+        <tr><td>Multi-company consolidation, enterprise controls & priority support</td><td>—</td><td>—</td><td class="yes enterprise">Included</td></tr>
+        <tr class="group-row"><td colspan="4">AI decision assistance</td></tr>
+        <tr><td>Role-based daily briefing for CFO, sales, buyer, warehouse & accountant</td><td class="yes">Included</td><td class="yes">Included</td><td class="yes enterprise">Included</td></tr>
+        <tr><td>Conversational approvals from email/mobile with an auditable decision trail</td><td class="yes">Included</td><td class="yes">Included</td><td class="yes enterprise">Included</td></tr>
+        <tr><td>AI Finance Copilot: plain-language questions, cited transactions & follow-up drafts</td><td>—</td><td class="yes">Included</td><td class="yes enterprise">Included</td></tr>
+        <tr><td>Smart document capture: extract bills/receipts and propose ledger, tax & item mappings</td><td>—</td><td class="yes">Included</td><td class="yes enterprise">Included</td></tr>
+        <tr><td>Explainable anomaly detection: duplicates, price changes, journals & stock shrinkage</td><td>—</td><td class="yes">Included</td><td class="yes enterprise">Included</td></tr>
+        <tr><td>Inventory intelligence: reorder suggestions, dead-stock signals & transfer recommendations</td><td>—</td><td class="yes">Included</td><td class="yes enterprise">Included</td></tr>
+        <tr><td>Continuous Close: live close-readiness score with linked resolution actions</td><td>—</td><td>—</td><td class="yes enterprise">Included</td></tr>
+        <tr><td>Cash-flow command center: forecasts and "what-if" customer-payment scenarios</td><td>—</td><td>—</td><td class="yes enterprise">Included</td></tr>
+        <tr><td>India Compliance Copilot: GST, e-invoice, e-way bill, TDS & filing checks</td><td>—</td><td>—</td><td class="yes enterprise">Included</td></tr>
+        <tr><td>Process mining: cycle-time bottlenecks and improvement recommendations</td><td>—</td><td>—</td><td class="yes enterprise">Included</td></tr>
+      </tbody></table></section>
+    </main>
+    <footer class="wrap">All prices are monthly and exclusive of applicable taxes. Need a custom rollout? Contact the Elixir Books team.</footer>
+  </body>
+</html>

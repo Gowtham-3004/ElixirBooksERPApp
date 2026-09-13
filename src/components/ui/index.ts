@@ -1,0 +1,7 @@
+// Shared UI library barrel. Import from '@/components/ui' (or relative).
+export * from './primitives';
+export * from './fields';
+export * from './overlays';
+export * from './DataTable';
+export * from './document';
+export * from './composites';

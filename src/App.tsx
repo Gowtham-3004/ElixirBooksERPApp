@@ -1,163 +1,53 @@
-import { useState } from 'react';
-import Login from './pages/Login';
-import CreateAccount from './pages/CreateAccount';
-import Onboarding from './pages/Onboarding';
-import AppShell, { type View } from './components/AppShell';
-import Dashboard from './pages/Dashboard';
-import SalesInvoices from './pages/SalesInvoices';
-import InvoiceDetail from './pages/InvoiceDetail';
-import PurchaseOrders from './pages/PurchaseOrders';
-import Accounting from './pages/Accounting';
-import Banking from './pages/Banking';
-import Reports from './pages/Reports';
-import Approvals from './pages/Approvals';
-import Masters from './pages/Masters';
-import InvoiceDrawer from './components/InvoiceDrawer';
-import SalesModule from './pages/SalesModule';
-import PurchaseModule from './pages/PurchaseModule';
-import InventoryModule from './pages/InventoryModule';
-import TaxationModule from './pages/TaxationModule';
-import PayrollModule from './pages/PayrollModule';
-import FixedAssetsModule from './pages/FixedAssetsModule';
-import BudgetsModule from './pages/BudgetsModule';
-import POSModule from './pages/POSModule';
-import CompanyAdmin from './pages/CompanyAdmin';
-import FinancialReports from './pages/FinancialReports';
+import { Suspense, useEffect } from 'react';
+import { session, useSession, useRoute, nav } from './store';
+import AppShell from './components/AppShell';
+import { ToastProvider } from './components/ui/overlays';
+import { EmptyState, Button, Skeleton } from './components/ui/primitives';
+import { MODULES, moduleById } from './modules/registry';
+import AuthGate from './modules/auth';
 
-type AuthState = 'login' | 'register' | 'onboarding' | 'app';
-
-const BREADCRUMBS: Record<View, string[]> = {
-  dashboard:       ['Home'],
-  crm:             ['Operations', 'CRM'],
-  invoices:        ['Sales', 'Invoices'],
-  'invoice-detail':['Sales', 'Invoices', 'INV/26-27/0118'],
-  purchase:        ['Purchase', 'Orders'],
-  'purchase-detail':['Purchase', 'Orders', 'PO/26-27/0092'],
-  inventory:       ['Operations', 'Inventory'],
-  pos:             ['Operations', 'POS'],
-  accounting:      ['Finance', 'Accounting'],
-  banking:         ['Finance', 'Banking'],
-  taxation:        ['Finance', 'Taxation'],
-  payroll:         ['Finance', 'Payroll'],
-  'fixed-assets':  ['Finance', 'Fixed Assets'],
-  budgets:         ['Finance', 'Budgets & Expenses'],
-  reports:         ['Insight', 'Reports & CFO Dashboard'],
-  approvals:       ['Workspace', 'Approvals & Activity'],
-  masters:         ['Setup', 'Masters & Imports'],
-  'company-admin': ['Setup', 'Company Administration'],
-};
-
-function StubPage({ title, description }: { title: string; description: string }) {
+export default function App() {
   return (
-    <div
-      style={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 12,
-        color: '#5F6368',
-      }}
-    >
-      <div
-        style={{
-          width: 48,
-          height: 48,
-          borderRadius: 12,
-          background: '#F3F5F5',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 22,
-        }}
-      >
-        📋
-      </div>
-      <h2 style={{ fontSize: 18, fontWeight: 600, color: '#0A0A0A' }}>{title}</h2>
-      <p style={{ fontSize: 14, color: '#5F6368', textAlign: 'center', maxWidth: 360, fontFeatureSettings: 'normal' }}>
-        {description}
-      </p>
-    </div>
+    <ToastProvider>
+      <Root />
+    </ToastProvider>
   );
 }
 
-export default function App() {
-  const [auth, setAuth] = useState<AuthState>('login');
-  const [view, setView] = useState<View>('dashboard');
-  const [drawerOpen, setDrawerOpen] = useState(false);
+function Root() {
+  const s = useSession();
+  const route = useRoute();
 
-  if (auth === 'login') {
-    return (
-      <Login
-        onLogin={() => setAuth('app')}
-        onCreateAccount={() => setAuth('register')}
-      />
+  useEffect(() => {
+    if (s.state.auth === 'app' && (!route.path || route.path === 'home') && window.location.hash === '') nav.replace('home');
+  }, [s.state.auth, route.path]);
+
+  if (s.state.auth !== 'app') return <AuthGate />;
+
+  const mod = moduleById(route.module) ?? moduleById('home')!;
+  let body: React.ReactNode;
+  if (!moduleById(route.module)) {
+    body = <EmptyState icon="🧭" title="Page not found" description={`There is no module called "${route.module}".`} action={<Button variant="primary" onClick={() => nav.go('home')}>Go home</Button>} />;
+  } else if (mod.platformOnly && !s.isPlatformAdmin) {
+    body = <EmptyState icon="🔒" title="Platform administration is restricted" description="Only platform users can open this area." action={<Button variant="primary" onClick={() => nav.go('home')}>Go home</Button>} />;
+  } else if (!s.entitled(mod.id)) {
+    body = <EmptyState icon="⚡" title={`${mod.label} is not included in your plan`} description={`Your ${s.plan?.name ?? ''} plan does not include this module (ENTITLEMENT_DENIED). The tenant owner can upgrade under Company administration › Plan & usage.`} action={s.isTenantOwner ? <Button variant="tinted" onClick={() => nav.go('admin/plan')}>View plan & usage</Button> : <Button variant="secondary" onClick={() => nav.go('home')}>Go home</Button>} />;
+  } else if (mod.permission && !s.canModule(mod.permission)) {
+    body = <EmptyState icon="🔒" title={`You don't have access to ${mod.label}`} description="Ask your company administrator to grant access (PERMISSION_DENIED)." action={<Button variant="link" onClick={() => session.setAuth('app')}>Request access</Button>} />;
+  } else {
+    const Comp = mod.component;
+    body = (
+      <Suspense fallback={<Skeleton rows={8} />}>
+        <Comp route={route} />
+      </Suspense>
     );
   }
-
-  if (auth === 'register') {
-    return (
-      <CreateAccount
-        onCreated={() => setAuth('onboarding')}
-        onSignIn={() => setAuth('login')}
-      />
-    );
-  }
-
-  if (auth === 'onboarding') {
-    return <Onboarding onComplete={() => setAuth('app')} />;
-  }
-
-  const navigateTo = (v: string) => setView(v as View);
-
-  const breadcrumb = BREADCRUMBS[view] ?? [view];
 
   return (
-    <AppShell
-      currentView={view}
-      onNavigate={setView}
-      breadcrumb={breadcrumb}
-    >
-      {view === 'dashboard' && (
-        <Dashboard onNavigate={navigateTo} />
-      )}
-      {view === 'invoices' && (
-        <>
-          <SalesInvoices
-            onViewDetail={() => setView('invoice-detail')}
-            onNewInvoice={() => setDrawerOpen(true)}
-          />
-          <InvoiceDrawer
-            open={drawerOpen}
-            onClose={() => setDrawerOpen(false)}
-            onSave={() => setDrawerOpen(false)}
-          />
-        </>
-      )}
-      {view === 'invoice-detail' && (
-        <InvoiceDetail onBack={() => setView('invoices')} />
-      )}
-      {view === 'purchase' && <PurchaseOrders />}
-      {view === 'accounting' && <Accounting />}
-      {view === 'banking' && <Banking />}
-      {view === 'reports' && <FinancialReports />}
-      {view === 'approvals' && <Approvals />}
-      {view === 'masters' && <Masters />}
-      {view === 'crm' && <SalesModule />}
-      {view === 'inventory' && <InventoryModule />}
-      {view === 'pos' && <POSModule />}
-      {view === 'taxation' && <TaxationModule />}
-      {view === 'payroll' && <PayrollModule />}
-      {view === 'fixed-assets' && <FixedAssetsModule />}
-      {view === 'budgets' && <BudgetsModule />}
-      {view === 'company-admin' && <CompanyAdmin />}
-      {view === 'purchase-detail' && (
-        <StubPage
-          title="Purchase Order"
-          description="Purchase order detail view with line items, GRN matching, and approval workflow."
-        />
-      )}
+    <AppShell fullBleed={mod.fullBleed && route.sub !== 'admin' && route.sub !== 'shifts' && route.sub !== 'bills' && route.sub !== 'returns'}>
+      {body}
     </AppShell>
   );
 }
+
+export { MODULES };
