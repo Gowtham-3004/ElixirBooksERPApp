@@ -1,6 +1,7 @@
 // Journal document page (FR-ACC-015/016): rail + Lines / Approvals / Activity tabs, state-driven footer.
 import { useState } from 'react';
 import { db, C, engine, nav, useCollection, useRecord, useSession } from '../../store';
+import { AlertTriangleIcon, CheckCircleIcon } from '../../components/Icons';
 import type { ApprovalRequest, Branch, Journal } from '../../store';
 import { ActivityTab, ApprovalsTab, AttachmentsPanel, Badge, Button, ConfirmDialog, DimChip, DocumentPage, EmptyState, Modal, RailSection, ReasonField, useToast } from '../../components/ui';
 import { fmtDate, fmtDateTime, fmtMoney, fmtPeriod } from '../../lib/format';
@@ -55,7 +56,7 @@ export function JournalPage({ id }: { id: string }) {
           <tfoot><tr><td colSpan={j.currency !== s.currency ? 7 : 5}>Totals · {j.lines.length} lines</td><td className="right money">{fmtMoney(j.totalDr, s.currency)}</td><td className="right money">{fmtMoney(j.totalCr, s.currency)}</td></tr></tfoot>
         </table>
       </div>
-      <div style={{ marginTop: 10, fontSize: 12, color: Math.abs(j.totalDr - j.totalCr) < 0.01 ? 'var(--good)' : 'var(--danger)' }}>{Math.abs(j.totalDr - j.totalCr) < 0.01 ? `✓ Balanced in ${s.currency}` : '⚠ Unbalanced'}{j.currency !== s.currency ? ` · ${j.currency} @ ${j.rate}` : ''}{j.idempotencyKey ? ` · idempotency key ${j.idempotencyKey}` : ''}</div>
+      <div style={{ marginTop: 10, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, color: Math.abs(j.totalDr - j.totalCr) < 0.01 ? 'var(--good)' : 'var(--danger)' }}>{Math.abs(j.totalDr - j.totalCr) < 0.01 ? <CheckCircleIcon size={13} /> : <AlertTriangleIcon size={13} />}<span>{Math.abs(j.totalDr - j.totalCr) < 0.01 ? `Balanced in ${s.currency}` : 'Unbalanced'}{j.currency !== s.currency ? ` · ${j.currency} @ ${j.rate}` : ''}{j.idempotencyKey ? ` · idempotency key ${j.idempotencyKey}` : ''}</span></div>
       <div style={{ marginTop: 18 }}><div className="section-title">Attachments</div><AttachmentsPanel objectType="Journal" objectId={j.id} readOnly={j.status !== 'Draft'} /></div>
     </div>
   );

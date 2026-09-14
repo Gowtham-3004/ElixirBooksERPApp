@@ -7,6 +7,7 @@ import { Drawer } from './overlays';
 import { CheckboxField, SelectField } from './fields';
 import { toCSV, downloadText } from '../../lib/format';
 import type { SubNavItem } from '../../modules/subnav';
+import { AlertTriangleIcon, BanIcon, CheckCircleIcon, ChevronRightIcon, CircleDotIcon, CircleIcon, UploadIcon } from '../Icons';
 
 // ── Module shell (design §6.2 / register anatomy) ──────────────────────────
 // Sub-navigation lives in the sidebar flyout (see AppShell / modules/subnav);
@@ -75,14 +76,16 @@ export function Checklist({ title, rows, action }: { title?: ReactNode; rows: Ch
       )}
       {rows.map((r) => (
         <div key={r.id} className="checklist-row" style={{ cursor: r.link || r.onClick ? 'pointer' : undefined }} onClick={() => (r.onClick ? r.onClick() : r.link ? nav.go(r.link) : undefined)}>
-          <span style={{ width: 20, textAlign: 'center' }}>{r.status === 'Done' ? '✓' : r.status === 'Blocked' ? '⛔' : r.status === 'Warning' ? '⚠' : '○'}</span>
+          <span style={{ width: 20, display: 'inline-flex', justifyContent: 'center', color: r.status === 'Done' ? 'var(--good)' : r.status === 'Blocked' ? 'var(--danger)' : r.status === 'Warning' ? 'var(--warn)' : 'var(--ink-5)' }}>
+            {r.status === 'Done' ? <CheckCircleIcon size={15} /> : r.status === 'Blocked' ? <BanIcon size={15} /> : r.status === 'Warning' ? <AlertTriangleIcon size={15} /> : <CircleIcon size={15} />}
+          </span>
           <span style={{ flex: 1 }}>
             {r.label}
             {r.detail && <div style={{ fontSize: 12, color: r.status === 'Blocked' ? 'var(--danger)' : 'var(--ink-4)' }}>{r.detail}</div>}
           </span>
           {r.count !== undefined && r.count > 0 && <span style={{ background: 'var(--surface-3)', borderRadius: 9999, padding: '0 6px', fontSize: 11 }}>{r.count}</span>}
           <Badge status={r.status === 'Done' ? 'Posted' : r.status === 'Blocked' ? 'Rejected' : r.status === 'Warning' ? 'Returned' : 'Draft'}>{r.status}</Badge>
-          {(r.link || r.onClick) && <span style={{ color: 'var(--ink-5)' }}>›</span>}
+          {(r.link || r.onClick) && <span style={{ color: 'var(--ink-5)', display: 'inline-flex' }}><ChevronRightIcon size={14} /></span>}
         </div>
       ))}
     </div>
@@ -191,7 +194,7 @@ export function ImportWizard({ open, onClose, entity, fields, duplicateKeys = []
   const downloadTemplate = () => downloadText(`${entity.toLowerCase().replace(/\s+/g, '-')}-template.csv`, toCSV(sampleRows ?? [Object.fromEntries(fields.map((f) => [f.label, '']))], fields.map((f) => ({ key: f.label, label: f.label }))));
   const steps = ['Upload', 'Map columns', 'Dry-run', 'Commit'];
   return (
-    <Drawer open={open} onClose={close} title={`Import ${entity}`} subtitle={steps.map((st, i) => (i === step ? `● ${st}` : `○ ${st}`)).join('   ')} width={820}
+    <Drawer open={open} onClose={close} title={`Import ${entity}`} subtitle={<span style={{ display: 'inline-flex', gap: 14, flexWrap: 'wrap' }}>{steps.map((st, i) => <span key={st} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: i === step ? 'var(--ink)' : undefined, fontWeight: i === step ? 500 : 400 }}>{i === step ? <CircleDotIcon size={12} /> : <CircleIcon size={12} />}{st}</span>)}</span>} width={820}
       footer={
         <>
           <Button variant="ghost" onClick={close}>Cancel import</Button>
@@ -208,7 +211,7 @@ export function ImportWizard({ open, onClose, entity, fields, duplicateKeys = []
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <label style={{ border: '2px dashed var(--line-strong)', borderRadius: 12, padding: 40, textAlign: 'center', cursor: 'pointer', color: 'var(--ink-3)' }}>
             <input type="file" accept=".csv,.txt,.xlsx" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (!f) return; f.text().then((t) => load(t, f.name)); }} />
-            <div style={{ fontSize: 28 }}>📥</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8, color: 'var(--ink-4)' }}><UploadIcon size={28} /></div>
             <div style={{ fontSize: 14, color: 'var(--ink)', fontWeight: 500 }}>Drop a CSV here or click to choose</div>
             <div style={{ fontSize: 12, marginTop: 4 }}>UTF-8 CSV · first row must be column headers · max 10,000 rows per file</div>
           </label>

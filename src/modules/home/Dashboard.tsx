@@ -6,7 +6,7 @@ import type { Account, ApprovalRequest, Journal, OpenItem, Period, Company } fro
 import { fmtMoney, fmtMoneyCompact, fmtDate, fmtPct, daysBetween, today, addDays } from '../../lib/format';
 import { Badge, Button, KpiTile, Pill, Identifier, Money, Checklist, EmptyState } from '../../components/ui';
 import { readinessFor } from '../auth/provision';
-import { TrendingUpIcon, TrendingDownIcon, RefreshIcon } from '../../components/Icons';
+import { TrendingUpIcon, TrendingDownIcon, RefreshIcon, PlusIcon } from '../../components/Icons';
 
 const RECENT_SOURCES: { col: string; label: string; path: (r: any) => string }[] = [
   { col: C.salesInvoices, label: 'Invoice', path: (r) => `sales/invoices/${r.id}` },
@@ -114,7 +114,7 @@ export default function Dashboard() {
           <div className="page-subtitle">{meta()}</div>
         </div>
         <div className="page-actions">
-          {s.can('sales.invoice.create') && <Button variant="secondary" onClick={() => nav.go('sales/invoices/new')}>+ New invoice</Button>}
+          {s.can('sales.invoice.create') && <Button variant="secondary" icon={<PlusIcon size={14} />} onClick={() => nav.go('sales/invoices/new')}>New invoice</Button>}
           <Button variant="secondary" icon={<RefreshIcon size={13} />} onClick={() => engine.notify({ type: 'system', title: 'Dashboard refreshed', body: `As of ${new Date().toLocaleTimeString('en-IN')}`, read: true })}>Refresh</Button>
         </div>
       </div>

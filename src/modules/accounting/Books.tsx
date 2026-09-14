@@ -1,6 +1,7 @@
 // Day book (FR-RPT-002), account ledger (FR-ACC-020/023) and trial balance (FR-ACC-022).
 import { useMemo, useState } from 'react';
 import { db, C, nav, useCollection, useRoute, useSession } from '../../store';
+import { AlertTriangleIcon, CheckCircleIcon } from '../../components/Icons';
 import type { Account, Branch, Journal, Period } from '../../store';
 import { Badge, Button, DateField, EntityPicker, KpiTile, Money, PageHeader, ScopeLine, SelectField, Segmented, useAccountOptions } from '../../components/ui';
 import { downloadText, fmtDate, fmtMoney, fmtPeriod, toCSV, today } from '../../lib/format';
@@ -55,7 +56,7 @@ export function DayBook() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
         <KpiTile label="Journals" value={rows.length} sub={`${byDate.size} posting days`} />
         <KpiTile label="Debit turnover" value={<Money value={runDr} currency={s.currency} />} />
-        <KpiTile label="Credit turnover" value={<Money value={runCr} currency={s.currency} />} sub={Math.abs(runDr - runCr) < 0.01 ? '✓ Dr = Cr' : '⚠ Unbalanced'} deltaTone={Math.abs(runDr - runCr) < 0.01 ? 'good' : 'bad'} />
+        <KpiTile label="Credit turnover" value={<Money value={runCr} currency={s.currency} />} sub={Math.abs(runDr - runCr) < 0.01 ? 'Dr = Cr' : 'Unbalanced'} deltaTone={Math.abs(runDr - runCr) < 0.01 ? 'good' : 'bad'} />
       </div>
       <div className="card" style={{ overflow: 'auto' }}>
         <table className="data-table dense">
@@ -176,8 +177,9 @@ export function TrialBalancePage() {
         <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13 }}><input type="checkbox" className="checkbox" checked={zero} onChange={(e) => setZero(e.target.checked)} /> Show zero balances</label>
       </div>
       <div className={`banner ${tb.balanced ? 'success' : 'danger'}`}>
-        {tb.balanced ? `✓ Trial balance reconciles — Dr ${fmtMoney(tb.totalDr, s.currency)} = Cr ${fmtMoney(tb.totalCr, s.currency)} (FR-ACC-022)` : `⚠ Trial balance does not balance — Dr ${fmtMoney(tb.totalDr, s.currency)} ≠ Cr ${fmtMoney(tb.totalCr, s.currency)} (difference ${fmtMoney(tb.totalDr - tb.totalCr, s.currency)})`}
-        {drafts.length > 0 && <span style={{ marginLeft: 8 }}>· {drafts.length} unposted journal{drafts.length === 1 ? '' : 's'} in this range are excluded: {drafts.slice(0, 5).map((d) => <span key={d.id} className="link identifier" style={{ marginLeft: 4 }} onClick={() => nav.go(journalLink(d.id))}>{d.number}</span>)}{drafts.length > 5 ? ` +${drafts.length - 5}` : ''}</span>}
+        <span style={{ display: 'inline-flex', flexShrink: 0 }}>{tb.balanced ? <CheckCircleIcon size={16} /> : <AlertTriangleIcon size={16} />}</span>
+        <span style={{ flex: 1 }}>{tb.balanced ? `Trial balance reconciles — Dr ${fmtMoney(tb.totalDr, s.currency)} = Cr ${fmtMoney(tb.totalCr, s.currency)} (FR-ACC-022)` : `Trial balance does not balance — Dr ${fmtMoney(tb.totalDr, s.currency)} ≠ Cr ${fmtMoney(tb.totalCr, s.currency)} (difference ${fmtMoney(tb.totalDr - tb.totalCr, s.currency)})`}
+        {drafts.length > 0 && <span style={{ marginLeft: 8 }}>· {drafts.length} unposted journal{drafts.length === 1 ? '' : 's'} in this range are excluded: {drafts.slice(0, 5).map((d) => <span key={d.id} className="link identifier" style={{ marginLeft: 4 }} onClick={() => nav.go(journalLink(d.id))}>{d.number}</span>)}{drafts.length > 5 ? ` +${drafts.length - 5}` : ''}</span>}</span>
       </div>
       <div className="card" style={{ overflow: 'auto' }}>
         <table className="data-table dense">

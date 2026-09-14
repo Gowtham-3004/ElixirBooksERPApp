@@ -1,5 +1,6 @@
-import type { CSSProperties, ReactNode } from 'react';
+import type { ComponentType, CSSProperties, ReactNode } from 'react';
 import { fmtMoney, fmtMoneyCompact, splitMoney, fmtDate, fmtDateTime } from '../../lib/format';
+import { AlertCircleIcon, AlertTriangleIcon, ArrowsSwapIcon, BarChartIcon, BookOpenIcon, BuildingIcon, CheckCircleIcon, ClipboardIcon, ClockIcon, CompassIcon, CornerUpLeftIcon, FileTextIcon, FolderIcon, GitBranchIcon, InfoCircleIcon, LayersIcon, LockIcon, ReceiptIcon, RefreshIcon, ScissorsIcon, SearchIcon, ShieldCheckIcon, TrendingUpIcon, UsersIcon, WalletIcon, XIcon, ZapIcon } from '../Icons';
 
 // ── Status badge (design-system §8 taxonomy → badge class) ─────────────────
 
@@ -208,10 +209,19 @@ export function KpiTile({ label, value, amount, currency, compact, tone, delta, 
   );
 }
 
-export function EmptyState({ title, description, action, icon = '📋', compact }: { title: string; description?: string; action?: ReactNode; icon?: ReactNode; compact?: boolean }) {
+// Call sites historically passed an emoji as `icon`; resolve those to the matching line icon so no emoji renders.
+const EMOJI_ICONS: Record<string, ComponentType<{ size?: number }>> = {
+  '📋': ClipboardIcon, '🔒': LockIcon, '🧭': CompassIcon, '📊': BarChartIcon, '👥': UsersIcon, '📄': FileTextIcon, '🧾': ReceiptIcon,
+  '🔍': SearchIcon, '✓': CheckCircleIcon, '⚡': ZapIcon, '🕘': ClockIcon, '⏱️': ClockIcon, '✂': ScissorsIcon, '🏛': BuildingIcon, '🏢': BuildingIcon,
+  '⇄': ArrowsSwapIcon, '🔁': RefreshIcon, '📘': BookOpenIcon, '📈': TrendingUpIcon, '💰': WalletIcon, '📁': FolderIcon, '🌳': GitBranchIcon,
+  '📐': LayersIcon, '🛡️': ShieldCheckIcon, '📦': LayersIcon, '📥': FolderIcon, '↩': CornerUpLeftIcon,
+};
+
+export function EmptyState({ title, description, action, icon, compact }: { title: string; description?: string; action?: ReactNode; icon?: ReactNode; compact?: boolean }) {
+  const Glyph = typeof icon === 'string' ? (EMOJI_ICONS[icon] ?? ClipboardIcon) : icon === undefined ? ClipboardIcon : null;
   return (
     <div className="empty-state" style={compact ? { padding: '24px 16px' } : undefined}>
-      <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{icon}</div>
+      <div className="empty-state-icon">{Glyph ? <Glyph size={20} /> : icon}</div>
       <h3>{title}</h3>
       {description && <p style={{ fontSize: 13, maxWidth: 380 }}>{description}</p>}
       {action && <div style={{ marginTop: 4, display: 'flex', gap: 8 }}>{action}</div>}
@@ -220,7 +230,7 @@ export function EmptyState({ title, description, action, icon = '📋', compact 
 }
 
 export function NoPermission({ what }: { what: string }) {
-  return <EmptyState icon="🔒" title={`You don't have access to ${what}`} description="Ask your company administrator to grant access." action={<Button variant="link">Request access</Button>} />;
+  return <EmptyState icon={<LockIcon size={20} />} title={`You don't have access to ${what}`} description="Ask your company administrator to grant access." action={<Button variant="link">Request access</Button>} />;
 }
 
 export function Skeleton({ rows = 5, height = 44 }: { rows?: number; height?: number }) {
@@ -232,13 +242,13 @@ export function Skeleton({ rows = 5, height = 44 }: { rows?: number; height?: nu
 }
 
 export function Banner({ tone = 'info', children, action, onDismiss, full, style }: { tone?: 'info' | 'warning' | 'danger' | 'success'; children: ReactNode; action?: ReactNode; onDismiss?: () => void; full?: boolean; style?: CSSProperties }) {
-  const icon = tone === 'danger' ? '⚠' : tone === 'warning' ? '⚠' : tone === 'success' ? '✓' : 'ⓘ';
+  const Icon = tone === 'danger' ? AlertCircleIcon : tone === 'warning' ? AlertTriangleIcon : tone === 'success' ? CheckCircleIcon : InfoCircleIcon;
   return (
     <div className={`banner ${tone} ${full ? 'full' : ''}`} style={style}>
-      <span style={{ fontWeight: 600 }}>{icon}</span>
+      <span style={{ display: 'inline-flex', flexShrink: 0 }}><Icon size={16} /></span>
       <span style={{ flex: 1 }}>{children}</span>
       {action}
-      {onDismiss && <button className="btn-icon" onClick={onDismiss} style={{ width: 24, height: 24, color: 'inherit' }}>✕</button>}
+      {onDismiss && <button className="btn-icon" onClick={onDismiss} style={{ width: 24, height: 24, color: 'inherit' }} aria-label="Dismiss"><XIcon size={14} /></button>}
     </div>
   );
 }

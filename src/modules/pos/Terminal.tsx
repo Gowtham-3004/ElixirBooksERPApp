@@ -4,7 +4,7 @@ import { db, C, engine, nav, useCollection, useSession } from '../../store';
 import type { Customer, DocLine, Item } from '../../store';
 import { Button, Segmented, NumberField, TextField, SelectField, EntityPicker, useCustomerOptions, useToast, Modal, PrintSheet, Badge, Banner, Drawer, MoneyField } from '../../components/ui';
 import { fmtMoney, fmtQty, fmtDateTime, uid, today } from '../../lib/format';
-import { SearchIcon, XIcon } from '../../components/Icons';
+import { SearchIcon, XIcon, CheckCircleIcon } from '../../components/Icons';
 import type { PosBill, PosHeldCart, PosShift, PosTerminal, Tender, TenderType } from './types';
 import { openShift, openShiftFor, catalogue, cartLine, computeCart, completeSale, validateCheckout, holdCart, resumeCart, settings } from './actions';
 import { ShiftCloseDialog } from './BackOffice';
@@ -213,7 +213,7 @@ function Register({ shift }: { shift: PosShift }) {
 function ReceiptScreen({ bill, onNew, onPrint, print, onClosePrint }: { bill: PosBill; onNew: () => void; onPrint: () => void; print: boolean; onClosePrint: () => void }) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, background: 'var(--good-bg)' }}>
-      <div style={{ fontSize: 56 }}>✅</div>
+      <div style={{ color: 'var(--good)', display: 'flex' }}><CheckCircleIcon size={56} /></div>
       <h2 style={{ fontSize: 24, fontWeight: 700, color: 'var(--good)', margin: 0 }}>Payment received</h2>
       <div className="money" style={{ fontSize: 34, fontWeight: 700 }} data-testid="pos-receipt-total">{fmtMoney(bill.totals.total)}</div>
       <div style={{ fontSize: 14, color: 'var(--ink-3)' }}><span className="identifier" data-testid="pos-receipt-number">{bill.number}</span> · {bill.tenders.map((t) => `${t.type} ${fmtMoney(t.amount)}`).join(' + ')}{bill.change ? ` · change ${fmtMoney(bill.change)}` : ''} · <Badge status="Posted" /></div>

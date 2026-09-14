@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { XIcon, MoreVertIcon } from '../Icons';
+import { XIcon, MoreVertIcon, ArrowsSwapIcon, PackageIcon, FlagIcon, PieChartIcon, CheckIcon, AlertTriangleIcon, MailIcon, HashIcon, InfoCircleIcon, ChevronDownIcon, CircleDotIcon } from '../Icons';
 import { Button, Spinner, type ButtonVariant } from './primitives';
 import { ReasonField } from './fields';
 import { nav } from '../../store';
@@ -88,7 +88,7 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, statement, cons
   };
   const toneBg: Record<string, string> = { info: 'var(--info-bg)', warning: 'var(--warn-bg)', danger: 'var(--danger-bg)', success: 'var(--good-bg)' };
   const toneFg: Record<string, string> = { info: 'var(--info)', warning: 'var(--warn)', danger: 'var(--danger)', success: 'var(--good)' };
-  const engineIcon: Record<string, string> = { Journal: '⇄', Stock: '▣', Tax: '⚑', 'Open items': '◔', Workflow: '✓', Statutory: '⚠', Notification: '✉', Numbering: '#' };
+  const engineIcon: Record<string, ReactNode> = { Journal: <ArrowsSwapIcon size={13} />, Stock: <PackageIcon size={13} />, Tax: <FlagIcon size={13} />, 'Open items': <PieChartIcon size={13} />, Workflow: <CheckIcon size={13} />, Statutory: <AlertTriangleIcon size={13} />, Notification: <MailIcon size={13} />, Numbering: <HashIcon size={13} /> };
   return (
     <Modal open={open} onClose={onClose} title={title} description={statement}>
       {consequences.length > 0 && (
@@ -97,7 +97,7 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, statement, cons
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {consequences.map((c, i) => (
               <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 13 }}>
-                <span style={{ width: 24, height: 24, borderRadius: 6, background: toneBg[c.tone ?? 'info'], color: toneFg[c.tone ?? 'info'], display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 12 }}>{c.icon ?? engineIcon[c.engine] ?? '•'}</span>
+                <span style={{ width: 24, height: 24, borderRadius: 6, background: toneBg[c.tone ?? 'info'], color: toneFg[c.tone ?? 'info'], display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 12 }}>{c.icon ?? engineIcon[c.engine] ?? <CircleDotIcon size={13} />}</span>
                 <span style={{ color: 'var(--ink)' }}><strong style={{ fontWeight: 600 }}>{c.engine}</strong> · {c.text}</span>
               </div>
             ))}
@@ -139,7 +139,7 @@ export function Popover({ trigger, children, width = 320, align = 'left' }: { tr
 }
 
 export function InfoIcon() {
-  return <span style={{ color: 'var(--ink-3)', fontSize: 11, marginLeft: 3, cursor: 'help' }}>ⓘ</span>;
+  return <span style={{ color: 'var(--ink-3)', marginLeft: 3, cursor: 'help', display: 'inline-flex', verticalAlign: 'middle' }}><InfoCircleIcon size={12} /></span>;
 }
 
 export function Explain({ title, rows, note, link }: { title: string; rows: { k: string; v: ReactNode }[]; note?: ReactNode; link?: { label: string; path: string } }) {
@@ -209,7 +209,7 @@ export function SplitButton({ label, variant = 'secondary', onClick, actions, ic
   return (
     <span style={{ display: 'inline-flex' }}>
       <Button variant={variant} onClick={onClick} icon={icon} style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}>{label}</Button>
-      <ActionMenu actions={actions} trigger={<Button variant={variant} style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, padding: '0 8px', borderLeft: variant === 'secondary' ? 'none' : undefined }}>▾</Button>} />
+      <ActionMenu actions={actions} trigger={<Button variant={variant} style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, padding: '0 8px', borderLeft: variant === 'secondary' ? 'none' : undefined }} aria-label="More actions"><ChevronDownIcon size={12} /></Button>} />
     </span>
   );
 }

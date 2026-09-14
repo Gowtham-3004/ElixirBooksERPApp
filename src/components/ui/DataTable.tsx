@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
-import { SortIcon, SearchIcon, FilterIcon, DownloadIcon, ColumnsIcon, ChevronDownIcon } from '../Icons';
+import { SortIcon, SearchIcon, FilterIcon, DownloadIcon, ColumnsIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon, XIcon } from '../Icons';
 import { Button, CountBadge, EmptyState } from './primitives';
 import { ActionMenu, type MenuAction } from './overlays';
 import { toCSV, downloadText } from '../../lib/format';
@@ -224,7 +224,7 @@ export function RegisterPage<T extends Record<string, any>>(props: RegisterProps
           {actions}
           {importAction && <Button variant="secondary" onClick={importAction}>Import</Button>}
           <ActionMenu trigger={<Button variant="secondary" icon={<DownloadIcon size={14} />}>Export <ChevronDownIcon size={12} /></Button>} actions={[{ label: 'CSV', onClick: () => doExport('CSV') }, { label: 'XLSX', onClick: () => doExport('XLSX') }, { label: 'PDF', onClick: () => doExport('PDF') }]} />
-          {primaryAction && <Button variant="primary" onClick={primaryAction.onClick} disabled={primaryAction.disabled} reason={primaryAction.reason}>+ {primaryAction.label}</Button>}
+          {primaryAction && <Button variant="primary" onClick={primaryAction.onClick} disabled={primaryAction.disabled} reason={primaryAction.reason} icon={<PlusIcon size={14} />}>{primaryAction.label}</Button>}
         </div>
       </div>
       {headerExtra}
@@ -307,7 +307,7 @@ export function RegisterPage<T extends Record<string, any>>(props: RegisterProps
       {activeFilterCount > 0 && !showFilters && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {Object.entries(fv).filter(([, v]) => v !== undefined && v !== '').map(([k, v]) => (
-            <span key={k} className="chip selected" onClick={() => setFv({ ...fv, [k]: '' })}>{k}: {String(v)} <span className="x">✕</span></span>
+            <span key={k} className="chip selected" onClick={() => setFv({ ...fv, [k]: '' })}>{k}: {String(v)} <span className="x" style={{ display: 'inline-flex' }}><XIcon size={11} /></span></span>
           ))}
         </div>
       )}
@@ -332,12 +332,12 @@ export function RegisterPage<T extends Record<string, any>>(props: RegisterProps
             per page · {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, filtered.length)} of {filtered.length}
           </span>
           <div style={{ display: 'flex', gap: 4 }}>
-            <Button size="sm" variant="ghost" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>‹ Prev</Button>
+            <Button size="sm" variant="ghost" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)} icon={<ChevronLeftIcon size={13} />}>Prev</Button>
             {Array.from({ length: Math.min(totalPages, 7) }).map((_, i) => {
               const p = totalPages <= 7 ? i + 1 : Math.max(1, Math.min(totalPages - 6, safePage - 3)) + i;
               return <Button key={p} size="sm" variant={p === safePage ? 'primary' : 'ghost'} onClick={() => setPage(p)}>{p}</Button>;
             })}
-            <Button size="sm" variant="ghost" disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>Next ›</Button>
+            <Button size="sm" variant="ghost" disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>Next <ChevronRightIcon size={13} /></Button>
           </div>
         </div>
       )}

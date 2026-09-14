@@ -7,7 +7,7 @@ import { fmtMoney, fmtDateTime, fmtQty, fmtDate, uid } from '../../lib/format';
 import { Badge, Button, Money, SnapshotTag, TwoLine, Identifier, EmptyState, Pill } from './primitives';
 import { EntityPicker, NumberField, SelectField, useItemOptions, useTaxRateOptions, useWarehouseOptions, TextField } from './fields';
 import { Explain, ActionMenu } from './overlays';
-import { PlusIcon, XIcon, FileTextIcon, ShieldCheckIcon, LockIcon, ArrowLeftIcon, ChevronDownIcon } from '../Icons';
+import { PlusIcon, XIcon, FileTextIcon, ShieldCheckIcon, LockIcon, ArrowLeftIcon, ChevronDownIcon, CheckIcon, ArrowRightIcon, AlertCircleIcon, CircleDotIcon, CheckCircleIcon, AlertTriangleIcon } from '../Icons';
 
 // ── Line item grid (design §7.8) ──────────────────────────────────────────
 
@@ -287,7 +287,7 @@ export function Timeline({ items }: { items: TimelineItem[] }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {items.map((it, i) => (
         <div key={i} className="timeline-item">
-          <div className={`timeline-icon ${it.type}`}><span style={{ fontSize: 12 }}>{it.icon ?? (it.type === 'success' ? '✓' : it.type === 'info' ? '→' : it.type === 'warning' ? '!' : '•')}</span></div>
+          <div className={`timeline-icon ${it.type}`}>{it.icon ?? (it.type === 'success' ? <CheckIcon size={12} /> : it.type === 'info' ? <ArrowRightIcon size={12} /> : it.type === 'warning' ? <AlertCircleIcon size={12} /> : <CircleDotIcon size={12} />)}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
               <div style={{ fontSize: 13 }}>
@@ -347,7 +347,7 @@ export function ApprovalsTab({ approvalId, docId }: { approvalId?: string; docId
         {req.steps.map((s, i) => (
           <div key={s.order} style={{ display: 'flex', gap: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div style={{ width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, background: s.status === 'Approved' ? 'var(--good)' : s.status === 'Rejected' ? 'var(--danger)' : s.status === 'Pending' && req.currentStep === s.order ? 'var(--accent)' : 'var(--surface-3)', color: s.status === 'Approved' || s.status === 'Rejected' || (s.status === 'Pending' && req.currentStep === s.order) ? '#fff' : 'var(--ink-3)', border: s.status === 'Pending' && req.currentStep !== s.order ? '1.5px solid var(--line-strong)' : 'none' }}>{s.status === 'Approved' ? '✓' : s.status === 'Rejected' ? '✕' : s.order}</div>
+              <div style={{ width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, background: s.status === 'Approved' ? 'var(--good)' : s.status === 'Rejected' ? 'var(--danger)' : s.status === 'Pending' && req.currentStep === s.order ? 'var(--accent)' : 'var(--surface-3)', color: s.status === 'Approved' || s.status === 'Rejected' || (s.status === 'Pending' && req.currentStep === s.order) ? '#fff' : 'var(--ink-3)', border: s.status === 'Pending' && req.currentStep !== s.order ? '1.5px solid var(--line-strong)' : 'none' }}>{s.status === 'Approved' ? <CheckIcon size={12} /> : s.status === 'Rejected' ? <XIcon size={12} /> : s.order}</div>
               {i < req.steps.length - 1 && <div style={{ width: 1, flex: 1, minHeight: 24, background: 'var(--line)', margin: '4px 0' }} />}
             </div>
             <div style={{ flex: 1, paddingBottom: 16 }}>
@@ -415,8 +415,8 @@ export function AccountingTab({ journalId, projected, currency = 'INR', title }:
           <tfoot><tr><td colSpan={j && j.currency !== scope.currency ? 4 : 2}>Total</td><td className="right money">{fmtMoney(totalDr, currency)}</td><td className="right money">{fmtMoney(totalCr, currency)}</td></tr></tfoot>
         </table>
       </div>
-      <div style={{ marginTop: 10, fontSize: 12, color: Math.abs(totalDr - totalCr) < 0.01 ? 'var(--good)' : 'var(--danger)' }}>
-        {Math.abs(totalDr - totalCr) < 0.01 ? `✓ Journal is balanced — Dr ${fmtMoney(totalDr, currency)} = Cr ${fmtMoney(totalCr, currency)} · ${currency} base currency` : `⚠ Unbalanced by ${fmtMoney(totalDr - totalCr, currency)}`}
+      <div style={{ marginTop: 10, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, color: Math.abs(totalDr - totalCr) < 0.01 ? 'var(--good)' : 'var(--danger)' }}>
+        {Math.abs(totalDr - totalCr) < 0.01 ? <><CheckCircleIcon size={13} /> Journal is balanced — Dr {fmtMoney(totalDr, currency)} = Cr {fmtMoney(totalCr, currency)} · {currency} base currency</> : <><AlertTriangleIcon size={13} /> Unbalanced by {fmtMoney(totalDr - totalCr, currency)}</>}
       </div>
     </div>
   );
