@@ -1,29 +1,34 @@
 // Shared auth surfaces: gradient backdrop, brand mark and the compact card (design §6.6).
 import type { ReactNode } from 'react';
 import { Logomark } from '../../components/Brand';
+import { Storyset, type StorysetName } from '../../components/ui/storyset';
 
-export const AUTH_BG = 'radial-gradient(1200px 600px at 20% -10%, var(--surface) 0%, var(--bg) 60%)';
+export const AUTH_BG = 'radial-gradient(1200px 600px at 20% -10%, var(--surface) 0%, var(--bg) 60%), radial-gradient(900px 560px at 108% 108%, var(--accent-tint) 0%, transparent 62%)';
 
 export function BrandMark({ size = 36, light }: { size?: number; light?: boolean }) {
   return <Logomark size={size} light={light} />;
 }
 
-export function Backdrop({ children }: { children: ReactNode }) {
+/** Full-viewport canvas behind every auth card: token gradients, a faint Storyset scene, and the licence credit. */
+export function Backdrop({ children, scene = 'investing' }: { children: ReactNode; scene?: StorysetName }) {
   return (
-    <div style={{ minHeight: '100vh', background: AUTH_BG, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontVariantNumeric: 'normal' }}>
+    <div className="auth-backdrop" style={{ minHeight: '100vh', background: AUTH_BG, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontVariantNumeric: 'normal' }}>
+      <Storyset name={scene} className="auth-backdrop-art" bg={false} />
       {children}
+      <div className="auth-attrib">Illustrations by <a href="https://storyset.com" target="_blank" rel="noreferrer">Storyset</a></div>
     </div>
   );
 }
 
-/** Compact single-column auth card (MFA, reset, invitation, company choice). */
-export function Frame({ title, subtitle, children, width = 440 }: { title: string; subtitle?: ReactNode; children: ReactNode; width?: number }) {
+/** Compact single-column auth card (MFA, reset, invitation, company choice); `art` sits beside the brand row. */
+export function Frame({ title, subtitle, children, width = 440, art }: { title: string; subtitle?: ReactNode; children: ReactNode; width?: number; art?: StorysetName }) {
   return (
     <Backdrop>
       <div style={{ width, maxWidth: '100%', background: 'var(--surface)', borderRadius: 16, boxShadow: '0 8px 48px rgba(0,0,0,0.10)', padding: '40px 40px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
           <BrandMark size={32} />
           <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.02em' }}>Elixir Books</span>
+          {art && <Storyset name={art} width={112} bg={false} style={{ marginLeft: 'auto', marginTop: -20, marginBottom: -24 }} />}
         </div>
         <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 4, color: 'var(--ink)' }}>{title}</h1>
         {subtitle && <p style={{ fontSize: 14, color: 'var(--ink-3)', marginBottom: 24, lineHeight: 1.5 }}>{subtitle}</p>}

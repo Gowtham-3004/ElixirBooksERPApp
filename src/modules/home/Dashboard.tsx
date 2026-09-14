@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { db, C, engine, nav, useCollection, useSession } from '../../store';
 import type { Account, ApprovalRequest, Journal, OpenItem, Period, Company } from '../../store';
 import { fmtMoney, fmtMoneyCompact, fmtDate, fmtPct, daysBetween, today, addDays } from '../../lib/format';
-import { Badge, Button, KpiTile, Pill, Identifier, Money, Checklist, EmptyState, BarChart } from '../../components/ui';
+import { Badge, Button, KpiTile, Pill, Identifier, Money, Checklist, EmptyState, BarChart, IllustratedCard } from '../../components/ui';
 import { readinessFor } from '../auth/provision';
 import { TrendingUpIcon, TrendingDownIcon, RefreshIcon, PlusIcon } from '../../components/Icons';
 
@@ -143,11 +143,16 @@ export default function Dashboard() {
       </div>
 
       {showChecklist && (
-        <Checklist
-          title="Company setup checklist"
-          rows={readiness.map((r) => ({ id: r.key, label: r.label, status: r.status, detail: r.detail, link: r.link }))}
-          action={<Button size="sm" variant="link" onClick={() => nav.go('admin/company')}>Open administration</Button>}
-        />
+        <IllustratedCard
+          kind="setup"
+          animated
+          artWidth={220}
+          title={`Let's finish setting up ${company?.tradeName || company?.legalName || 'your company'}`}
+          description={`${readiness.filter((r) => r.status === 'Done').length} of ${readiness.length} setup items done — pending items stay here until they are complete.`}
+          actions={<Button size="sm" variant="secondary" onClick={() => nav.go('admin/company')}>Open administration</Button>}
+        >
+          <Checklist title="Company setup checklist" rows={readiness.map((r) => ({ id: r.key, label: r.label, status: r.status, detail: r.detail, link: r.link }))} />
+        </IllustratedCard>
       )}
 
       <div className="grid-4">
@@ -166,7 +171,7 @@ export default function Dashboard() {
             </div>
           </div>
           {chart.rows.every((r) => r.revenue === 0 && r.expenses === 0) ? (
-            <EmptyState compact icon="📊" title={`No data for the last 7 months`} description="Posted journals on income and expense accounts will appear here." />
+            <EmptyState compact illustration="reports" title={`No data for the last 7 months`} description="Posted journals on income and expense accounts will appear here." />
           ) : (
             <BarChart
               categories={chart.rows.map((r) => monthLabel(r.code))}
@@ -233,7 +238,7 @@ export default function Dashboard() {
               <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>Pending approvals</h3>
               <span className="badge badge-submitted">{pending.length}</span>
             </div>
-            {pending.length === 0 && <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>Nothing waiting for you.</div>}
+            {pending.length === 0 && <EmptyState compact illustration="all-done" title="Nothing waiting for you" description="Requests routed to you will appear here." />}
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {pending.slice(0, 4).map((a) => {
                 const step = a.steps.find((x) => x.order === a.currentStep);

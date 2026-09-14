@@ -6,6 +6,7 @@ import { db, C, session } from '../../store';
 import type { User } from '../../store';
 import { validateEmail, fiscalYearOf, periodCodeOf, today } from '../../lib/format';
 import { Backdrop, BrandMark, GoogleMark, MicrosoftMark, PasswordMeter, passwordStrength } from './Frame';
+import { Storyset } from '../../components/ui/storyset';
 import { COUNTRY_OPTIONS, createWorkspace } from './provision';
 
 interface Props {
@@ -65,7 +66,7 @@ export default function Register({ onCreated, onSignIn }: Props) {
     <Backdrop>
       <div className="auth-split" style={{ width: '100%', maxWidth: 980, background: 'var(--surface)', borderRadius: 16, boxShadow: '0 8px 48px rgba(0,0,0,0.10)', display: 'flex', overflow: 'hidden', minHeight: 580 }}>
         {/* Left — brand + steps */}
-        <div className="auth-aside" style={{ width: 300, flexShrink: 0, background: 'linear-gradient(160deg, #1A3BCC 0%, var(--accent) 60%, #4F74FF 100%)', padding: '40px 32px', display: 'flex', flexDirection: 'column' }}>
+        <div className="auth-aside" style={{ width: 300, flexShrink: 0, background: 'linear-gradient(160deg, var(--accent-active) 0%, var(--accent) 60%, color-mix(in srgb, var(--accent) 78%, white) 100%)', padding: '40px 32px', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 40 }}>
             <BrandMark light />
             <span style={{ fontSize: 18, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em' }}>Elixir Books</span>
@@ -93,7 +94,10 @@ export default function Register({ onCreated, onSignIn }: Props) {
               );
             })}
           </div>
-          <div style={{ marginTop: 'auto', fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Growth · 14-day trial · All non-manufacturing features included</div>
+          <div className="auth-rail-art" style={{ marginTop: 'auto', display: 'flex', justifyContent: 'center', padding: '24px 0 8px' }}>
+            <Storyset name="startup-life" width={200} bg={false} className="storyset--on-accent" />
+          </div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Growth · 14-day trial · All non-manufacturing features included</div>
         </div>
 
         {/* Right — form */}
@@ -167,7 +171,7 @@ export default function Register({ onCreated, onSignIn }: Props) {
                   <p style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 12 }}>Shapes your navigation, modules, and default settings.</p>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     {NATURES.map((n) => (
-                      <button key={n.id} type="button" onClick={() => setNature(n.id)} style={{ padding: '14px 16px', border: `1.5px solid ${nature === n.id ? n.color : 'var(--line)'}`, borderRadius: 10, background: nature === n.id ? `${n.color}12` : '#FFFFFF', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s', display: 'flex', flexDirection: 'column', gap: 6, fontFamily: 'inherit' }}>
+                      <button key={n.id} type="button" onClick={() => setNature(n.id)} style={{ padding: '14px 16px', border: `1.5px solid ${nature === n.id ? n.color : 'var(--line)'}`, borderRadius: 10, background: nature === n.id ? `${n.color}12` : 'var(--surface)', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s', display: 'flex', flexDirection: 'column', gap: 6, fontFamily: 'inherit' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                           <span style={{ display: 'inline-flex', color: n.color }}><n.icon size={20} /></span>
                           {nature === n.id && <div style={{ width: 16, height: 16, borderRadius: '50%', background: n.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ color: '#fff', fontSize: 10 }}>✓</span></div>}

@@ -114,7 +114,9 @@ export default function Inbox({ openId }: { openId?: string }) {
           return [{ label: `Approve ${ids.size} selected`, onClick: () => setAct({ ids: Array.from(ids), action: 'Approve' }), disabled: !allOk, reason: allOk ? undefined : bad ? `${bad.docNumber}: ${bad.status !== 'Pending' ? bad.status.toLowerCase() : canAct(bad).reason}` : 'Select rows' }];
         }}
         emptyTitle="Nothing to approve"
-        emptyDescription="Requests routed to your role or to you directly appear here."
+        emptyDescription="You are all caught up — requests routed to your role or to you directly appear here."
+        emptyIllustration="all-done"
+        emptyAnimated
       />
 
       {/* Row detail drawer */}

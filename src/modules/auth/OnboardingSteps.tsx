@@ -1,12 +1,13 @@
 // Step bodies for the onboarding wizard. Each receives the wizard state + setter and the company.
 import { useMemo, useState } from 'react';
-import { CheckIcon, ShoppingCartIcon, BriefcaseIcon, FactoryIcon, ZapIcon, UploadIcon, StarIcon, EditIcon, SkipForwardIcon, BuildingIcon, MapPinIcon, WalletIcon, CalendarIcon, UsersIcon, PartyIcon } from '../../components/Icons';
+import { CheckIcon, ShoppingCartIcon, BriefcaseIcon, FactoryIcon, ZapIcon, UploadIcon, StarIcon, EditIcon, SkipForwardIcon, BuildingIcon, MapPinIcon, WalletIcon, CalendarIcon, UsersIcon } from '../../components/Icons';
 import type { ComponentType } from 'react';
 import { db, C, useCollection, useSession } from '../../store';
 import type { Company, OperatingProfileTemplate, Registration, Role, Plan, Tenant } from '../../store';
 import { INDIA_STATES, stateNameOf, fmtDate, uid, validateGSTIN } from '../../lib/format';
 import { TextField, SelectField, IdentifierField, ChipGroup, CheckboxField, DateField, Segmented } from '../../components/ui/fields';
 import { Badge, Button, Checklist, Pill } from '../../components/ui';
+import { StorysetAnimated } from '../../components/ui/storyset';
 import type { WizardState } from './Onboarding';
 import { BUSINESS_TYPES, CURRENCIES, LOCALES, TIME_ZONES, buildFyPeriods, readinessFor } from './provision';
 
@@ -348,7 +349,7 @@ export function StepReady({ s, company }: StepProps) {
   ];
   return (
     <div>
-      <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--good-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, color: 'var(--good)' }}><PartyIcon size={28} /></div>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><StorysetAnimated name={done === rows.length ? 'celebration' : 'done'} width={200} label={done === rows.length ? 'Confetti — setup complete' : 'Setup nearly complete'} /></div>
       <H title={done === rows.length ? "You're all set!" : 'Almost there'} sub={`${done} of ${rows.length} setup items complete. Pending items stay on your Home checklist until they are done; blocked items name what clears them.`} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

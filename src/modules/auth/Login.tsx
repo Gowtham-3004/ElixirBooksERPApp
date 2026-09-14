@@ -1,10 +1,10 @@
-// Sign in (FR-IAM-002, design §6.6): split card — form on the left, live role-dashboard preview on the right.
+// Sign in (FR-IAM-002, design §6.6): split card — form on the left, an illustrated product hero on the right.
 import { useMemo, useState } from 'react';
-import { EyeIcon } from '../../components/Icons';
+import { CheckCircleIcon, EyeIcon } from '../../components/Icons';
 import { db, C, session } from '../../store';
 import type { User, Company, Tenant, Plan } from '../../store';
-import { fmtMoneyCompact, fmtMoney, today } from '../../lib/format';
 import { Backdrop, BrandMark, GoogleMark, MicrosoftMark, deviceTrust } from './Frame';
+import { StorysetAnimated } from '../../components/ui/storyset';
 
 interface LoginProps {
   onLogin?: () => void;
@@ -24,13 +24,7 @@ export default function Login({ onLogin, onCreateAccount }: LoginProps) {
     const co = db.find<Company>(C.companies, 'co_acme') ?? db.get<Company>(C.companies)[0];
     const tenant = db.find<Tenant>(C.tenants, co?.tenantId);
     const plan = db.find<Plan>(C.plans, tenant?.planId);
-    const inv = db.get<any>(C.salesInvoices).filter((i) => i.companyId === co?.id).sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 4);
-    const cur = today().slice(0, 7);
-    const posted = db.get<any>(C.salesInvoices).filter((i) => i.companyId === co?.id && i.status === 'Posted');
-    const revenue = posted.filter((i) => String(i.date).startsWith(cur)).reduce((s, i) => s + (i.totals?.baseTotal ?? i.totals?.total ?? 0), 0);
-    const ar = db.get<any>(C.openItems).filter((o) => o.companyId === co?.id && o.partyType === 'Customer' && o.direction === 'Debit').reduce((s, o) => s + (o.baseOutstanding ?? 0), 0);
-    const cash = db.get<any>(C.accounts).filter((a) => a.companyId === co?.id && (a.controlType === 'Bank' || a.controlType === 'Cash')).reduce((s, a) => s + (a.openingBalance ?? 0), 0);
-    return { co, tenant, plan, inv, revenue, ar, cash, cur };
+    return { co, tenant, plan };
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -54,19 +48,11 @@ export default function Login({ onLogin, onCreateAccount }: LoginProps) {
     }, 500);
   };
 
-  const KPI = [
-    { label: `REVENUE (${preview.cur.slice(5)}/${preview.cur.slice(2, 4)})`, value: fmtMoneyCompact(preview.revenue || 4218600), delta: '↑ 8.4%', pos: true },
-    { label: 'AR OUTSTANDING', value: fmtMoneyCompact(preview.ar || 1845200), delta: '↑ 2.1%', pos: false },
-    { label: 'CASH POSITION', value: fmtMoneyCompact(preview.cash || 892150), delta: '↑ 5.3%', pos: true },
+  const pitch = [
+    'GST-ready invoicing, e-invoices and e-way bills',
+    'Approvals, audit trail and period locks on every posting',
+    'Live cash, receivables and payables on one dashboard',
   ];
-  const rows = preview.inv.length ? preview.inv.map((i) => ({ num: i.number, cust: i.partyName ?? '—', amt: fmtMoney(i.totals?.total ?? 0, i.currency ?? 'INR'), status: i.status })) : [
-    { num: 'INV/26-27/0118', cust: 'Arlene Traders', amt: '₹1,18,000.00', status: 'Posted' },
-    { num: 'INV/26-27/0117', cust: 'Rajesh Enterprises', amt: '₹2,45,000.00', status: 'Posted' },
-    { num: 'INV/26-27/0116', cust: 'Global Tech Solutions', amt: '₹89,500.00', status: 'Submitted' },
-    { num: 'INV/26-27/0115', cust: 'Sunrise Industries', amt: '₹1,56,750.00', status: 'Draft' },
-  ];
-  const badge: Record<string, string> = { Posted: 'badge-posted', Submitted: 'badge-submitted', Draft: 'badge-draft', Approved: 'badge-approved', Settled: 'badge-settled' };
-  const th: React.CSSProperties = { padding: '6px 14px', background: 'var(--surface-2)', fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-3)', textAlign: 'left', fontVariantNumeric: 'normal' };
 
   return (
     <Backdrop>
@@ -143,35 +129,23 @@ export default function Login({ onLogin, onCreateAccount }: LoginProps) {
           </p>
         </div>
 
-        {/* Right – preview */}
-        <div className="auth-aside" style={{ flex: 1, background: 'var(--surface-2)', borderLeft: '1px solid var(--hairline)', padding: 32, display: 'flex', flexDirection: 'column', gap: 16, overflow: 'hidden' }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--accent)', marginBottom: 4 }}>Elixir Books {preview.plan?.name ?? 'Growth'} · {preview.co?.legalName ?? 'Acme Private Limited'}</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-            {KPI.map((kpi) => (
-              <div key={kpi.label} style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 10, padding: '12px 14px' }}>
-                <div className="section-label" style={{ marginBottom: 4 }}>{kpi.label}</div>
-                <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{kpi.value}</div>
-                <div style={{ fontSize: 11, color: kpi.pos ? 'var(--good)' : 'var(--danger)', marginTop: 2 }}>{kpi.delta}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 10, overflow: 'hidden' }}>
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)', fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>Recent Invoices</div>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr><th style={th}>Number</th><th style={th}>Customer</th><th style={{ ...th, textAlign: 'right' }}>Amount</th><th style={th}>Status</th></tr></thead>
-              <tbody>
-                {rows.map((row) => (
-                  <tr key={row.num} style={{ borderBottom: '1px solid var(--hairline)' }}>
-                    <td style={{ padding: '7px 14px', fontSize: 12, color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>{row.num}</td>
-                    <td style={{ padding: '7px 14px', fontSize: 12, color: 'var(--ink)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.cust}</td>
-                    <td style={{ padding: '7px 14px', fontSize: 12, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{row.amt}</td>
-                    <td style={{ padding: '7px 14px' }}><span className={`badge ${badge[row.status] ?? 'badge-draft'}`}>{row.status}</span></td>
-                  </tr>
+        {/* Right – hero */}
+        <div className="auth-aside" style={{ flex: 1, background: 'var(--surface-2)', borderLeft: '1px solid var(--hairline)', padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 16, overflow: 'hidden' }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>Elixir Books {preview.plan?.name ?? 'Growth'} · {preview.co?.legalName ?? 'Acme Private Limited'}</div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, minHeight: 0 }}>
+            <StorysetAnimated name="finance" width={300} label="A finance team reviewing charts and coins" />
+            <div style={{ maxWidth: 360 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 600, color: 'var(--ink)', letterSpacing: '-0.01em', lineHeight: 1.3, textAlign: 'center', marginBottom: 12 }}>Books that stay closed</h2>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {pitch.map((line) => (
+                  <li key={line} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.45 }}>
+                    <span style={{ color: 'var(--good)', display: 'inline-flex', marginTop: 1, flexShrink: 0 }}><CheckCircleIcon size={15} /></span>{line}
+                  </li>
                 ))}
-              </tbody>
-            </table>
+              </ul>
+            </div>
           </div>
-          <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center', marginTop: 'auto' }}>{preview.co?.legalName ?? 'Acme Private Limited'} · {preview.co?.address.city ?? 'Mumbai'} · FY {preview.co ? (preview.co.fiscalYearStartMonth === 4 ? '2026–27' : '2026') : '2026–27'} · Sep 2026 ● Open</p>
+          <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center' }}>{preview.co?.legalName ?? 'Acme Private Limited'} · {preview.co?.address.city ?? 'Mumbai'} · FY {preview.co ? (preview.co.fiscalYearStartMonth === 4 ? '2026–27' : '2026') : '2026–27'} · Sep 2026 ● Open</p>
         </div>
       </div>
     </Backdrop>

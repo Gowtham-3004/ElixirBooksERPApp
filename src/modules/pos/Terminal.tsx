@@ -4,6 +4,8 @@ import { db, C, engine, nav, useCollection, useSession } from '../../store';
 import type { Customer, DocLine, Item } from '../../store';
 import { Button, Segmented, NumberField, TextField, SelectField, EntityPicker, useCustomerOptions, useToast, Modal, PrintSheet, Badge, Banner, Drawer, MoneyField } from '../../components/ui';
 import { fmtMoney, fmtQty, fmtDateTime, uid, today } from '../../lib/format';
+import { useOnline } from '../../lib/useOnline';
+import { StorysetAnimated } from '../../components/ui/storyset';
 import { SearchIcon, XIcon, CheckCircleIcon, MonitorIcon } from '../../components/Icons';
 import type { PosBill, PosHeldCart, PosShift, PosTerminal, Tender, TenderType } from './types';
 import { openShift, openShiftFor, catalogue, cartLine, computeCart, completeSale, validateCheckout, holdCart, resumeCart, settings } from './actions';
@@ -77,10 +79,9 @@ function Register({ shift }: { shift: PosShift }) {
   const [print, setPrint] = useState(false);
   const [showHeld, setShowHeld] = useState(false);
   const [closing, setClosing] = useState(false);
-  const [online, setOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
+  const online = useOnline();
   const busy = useRef(false);
   const searchRef = useRef<HTMLInputElement>(null);
-  useEffect(() => { const on = () => setOnline(true), off = () => setOnline(false); window.addEventListener('online', on); window.addEventListener('offline', off); return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); }; }, []);
 
   const items = useMemo(() => catalogue(), [cfg.posPriceListId]);
   const cats = useMemo(() => ['All', ...Array.from(new Set(items.map((i) => i.group ?? 'Other')))], [items]);
@@ -131,7 +132,15 @@ function Register({ shift }: { shift: PosShift }) {
         <button type="button" onClick={() => nav.go('pos/bills')} style={btnDark}>Back office</button>
         <button type="button" onClick={() => setClosing(true)} style={{ ...btnDark, background: 'var(--danger)' }} data-testid="pos-close-shift">Close shift</button>
       </div>
-      {!online && <Banner tone="danger" full>Connection lost — sales are paused until reconnected.</Banner>}
+      {!online && (
+        <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '6px 16px', background: 'var(--danger-bg)', borderBottom: '1px solid var(--danger-line)' }}>
+          <StorysetAnimated name="no-connection" width={64} bg={false} />
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--danger)' }}>Connection lost — sales are paused</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>The register stays open; billing resumes on its own once the connection returns.</div>
+          </div>
+        </div>
+      )}
       <div className="pos-register" style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         {/* catalogue 40% */}
         <div className="pos-catalogue" style={{ flex: '0 0 40%', display: 'flex', flexDirection: 'column', minWidth: 0, borderRight: '1px solid var(--line)', background: 'var(--surface)' }}>

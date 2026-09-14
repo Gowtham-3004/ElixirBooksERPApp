@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { db, C, engine, nav, useSession } from '../../store';
 import type { BackgroundJob } from '../../store';
-import { Button, Card, KV, Kbd, Badge, PageHeader, TextField, TextArea, SelectField, useToast } from '../../components/ui';
+import { Button, Card, KV, Kbd, Badge, PageHeader, TextField, TextArea, SelectField, useToast, IllustratedCard } from '../../components/ui';
 import { fmtDateTime, correlationId } from '../../lib/format';
 
 const DOCS = [
@@ -41,6 +41,15 @@ export default function Help() {
   return (
     <div className="page">
       <PageHeader title="Help & Support" subtitle={`${s.company?.tradeName ?? 'Workspace'} · ${s.plan?.name ?? 'Growth'} plan · support hours 09:00–18:00 IST`} />
+      <IllustratedCard
+        kind="contact"
+        animated
+        artWidth={180}
+        label="Support agent with a headset"
+        title="How can we help?"
+        description="Browse the guides below, report a problem with your current page attached, or reach the support desk between 09:00 and 18:00 IST."
+        actions={<><Button size="sm" variant="secondary" onClick={() => nav.go('admin/jobs')}>My tickets</Button>{s.isTenantOwner && <Button size="sm" variant="tinted" onClick={() => nav.go('admin/plan')}>Plan & usage</Button>}</>}
+      />
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Card title="Documentation">
@@ -92,7 +101,7 @@ export default function Help() {
             </div>
           </Card>
           <Card title="About">
-            <KV items={[{ k: 'Version', v: '2026.9 · build 4118' }, { k: 'Localization', v: `${s.company?.localizationPack ?? 'IN'} pack v${s.company?.localizationVersion ?? '1.4'}` }, { k: 'Data', v: 'In-memory demo store' }]} />
+            <KV items={[{ k: 'Version', v: '2026.9 · build 4118' }, { k: 'Localization', v: `${s.company?.localizationPack ?? 'IN'} pack v${s.company?.localizationVersion ?? '1.4'}` }, { k: 'Data', v: 'In-memory demo store' }, { k: 'Illustrations', v: <a href="https://storyset.com" target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Storyset</a> }]} />
           </Card>
         </div>
       </div>
