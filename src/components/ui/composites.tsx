@@ -29,7 +29,7 @@ export function PageHeader({ title, subtitle, actions, back }: { title: ReactNod
   return (
     <div className="page-header">
       <div>
-        {back && <button type="button" className="btn-link" style={{ color: '#5F6368', marginBottom: 6 }} onClick={() => nav.go(back.path)}>← {back.label}</button>}
+        {back && <button type="button" className="btn-link" style={{ color: 'var(--ink-3)', marginBottom: 6 }} onClick={() => nav.go(back.path)}>← {back.label}</button>}
         <h1 className="page-title">{title}</h1>
         {subtitle && <div className="page-subtitle">{subtitle}</div>}
       </div>
@@ -65,10 +65,10 @@ export function Checklist({ title, rows, action }: { title?: ReactNode; rows: Ch
   return (
     <div className="card" style={{ overflow: 'hidden' }}>
       {(title || action) && (
-        <div style={{ padding: '14px 16px', borderBottom: '1px solid #EFEFEF' }}>
+        <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--hairline)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', rowGap: 6, marginBottom: 8 }}>
             <div className="section-title" style={{ marginBottom: 0 }}>{title}</div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, color: '#5F6368' }}>{done} of {rows.length} complete {action}</div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, color: 'var(--ink-3)' }}>{done} of {rows.length} complete {action}</div>
           </div>
           <Meter value={done} max={rows.length} tone={done === rows.length ? 'good' : undefined} />
         </div>
@@ -78,11 +78,11 @@ export function Checklist({ title, rows, action }: { title?: ReactNode; rows: Ch
           <span style={{ width: 20, textAlign: 'center' }}>{r.status === 'Done' ? '✓' : r.status === 'Blocked' ? '⛔' : r.status === 'Warning' ? '⚠' : '○'}</span>
           <span style={{ flex: 1 }}>
             {r.label}
-            {r.detail && <div style={{ fontSize: 12, color: r.status === 'Blocked' ? '#C0393F' : '#6E6E71' }}>{r.detail}</div>}
+            {r.detail && <div style={{ fontSize: 12, color: r.status === 'Blocked' ? 'var(--danger)' : 'var(--ink-4)' }}>{r.detail}</div>}
           </span>
-          {r.count !== undefined && r.count > 0 && <span style={{ background: '#F3F3F5', borderRadius: 9999, padding: '0 6px', fontSize: 11 }}>{r.count}</span>}
+          {r.count !== undefined && r.count > 0 && <span style={{ background: 'var(--surface-3)', borderRadius: 9999, padding: '0 6px', fontSize: 11 }}>{r.count}</span>}
           <Badge status={r.status === 'Done' ? 'Posted' : r.status === 'Blocked' ? 'Rejected' : r.status === 'Warning' ? 'Returned' : 'Draft'}>{r.status}</Badge>
-          {(r.link || r.onClick) && <span style={{ color: '#B0B5BF' }}>›</span>}
+          {(r.link || r.onClick) && <span style={{ color: 'var(--ink-5)' }}>›</span>}
         </div>
       ))}
     </div>
@@ -206,10 +206,10 @@ export function ImportWizard({ open, onClose, entity, fields, duplicateKeys = []
     >
       {step === 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <label style={{ border: '2px dashed #DADCE0', borderRadius: 12, padding: 40, textAlign: 'center', cursor: 'pointer', color: '#5F6368' }}>
+          <label style={{ border: '2px dashed var(--line-strong)', borderRadius: 12, padding: 40, textAlign: 'center', cursor: 'pointer', color: 'var(--ink-3)' }}>
             <input type="file" accept=".csv,.txt,.xlsx" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (!f) return; f.text().then((t) => load(t, f.name)); }} />
             <div style={{ fontSize: 28 }}>📥</div>
-            <div style={{ fontSize: 14, color: '#0A0A0A', fontWeight: 500 }}>Drop a CSV here or click to choose</div>
+            <div style={{ fontSize: 14, color: 'var(--ink)', fontWeight: 500 }}>Drop a CSV here or click to choose</div>
             <div style={{ fontSize: 12, marginTop: 4 }}>UTF-8 CSV · first row must be column headers · max 10,000 rows per file</div>
           </label>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -221,7 +221,7 @@ export function ImportWizard({ open, onClose, entity, fields, duplicateKeys = []
       )}
       {step === 1 && (
         <div>
-          <div style={{ fontSize: 13, color: '#5F6368', marginBottom: 12 }}>{fileName} · {raw.length} rows · map each field to a column in your file.</div>
+          <div style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 12 }}>{fileName} · {raw.length} rows · map each field to a column in your file.</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             {fields.map((f) => (
               <SelectField key={f.key} label={f.label} required={f.required} value={mapping[f.key] ?? ''} onChange={(v) => setMapping({ ...mapping, [f.key]: v })} options={headers.map((h) => ({ value: h, label: h }))} placeholder="— Not mapped —" size="sm" />
@@ -247,7 +247,7 @@ export function ImportWizard({ open, onClose, entity, fields, duplicateKeys = []
                       const f = fields.find((x) => x.label === e.field);
                       return (
                         <tr key={i} className="error-row">
-                          <td>{e.row}</td><td>{e.field}</td><td className="identifier">{e.code}</td><td style={{ color: '#C0393F' }}>{e.message}</td>
+                          <td>{e.row}</td><td>{e.field}</td><td className="identifier">{e.code}</td><td style={{ color: 'var(--danger)' }}>{e.message}</td>
                           <td>{f && <input className="field-input grid" placeholder="Enter value" value={fixes[`${e.row - 1}:${f.key}`] ?? mapped[e.row - 1]?.[f.key] ?? ''} onChange={(ev) => setFixes({ ...fixes, [`${e.row - 1}:${f.key}`]: ev.target.value })} />}</td>
                         </tr>
                       );

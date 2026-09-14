@@ -62,7 +62,7 @@ export function LeadRegister() {
     { key: 'value', label: 'Value', align: 'right', sortable: true, render: (r) => <Money value={r.value} />, value: (r) => r.value, total: (rs) => <span className="money" style={{ fontWeight: 600 }}>{fmtMoney(rs.reduce((a, x) => a + x.value, 0))}</span> },
     { key: 'probability', label: 'Prob.', align: 'right', render: (r) => `${r.probability}%`, value: (r) => r.probability },
     { key: 'owner', label: 'Owner', render: (r) => r.ownerName },
-    { key: 'expectedClose', label: 'Expected close', sortable: true, render: (r) => r.expectedClose ? <span style={{ color: r.expectedClose < today() && r.stage !== 'Won' && r.stage !== 'Lost' ? '#C0393F' : undefined }}>{fmtDate(r.expectedClose)}</span> : '—', value: (r) => r.expectedClose },
+    { key: 'expectedClose', label: 'Expected close', sortable: true, render: (r) => r.expectedClose ? <span style={{ color: r.expectedClose < today() && r.stage !== 'Won' && r.stage !== 'Lost' ? 'var(--danger)' : undefined }}>{fmtDate(r.expectedClose)}</span> : '—', value: (r) => r.expectedClose },
     { key: 'nextStep', label: 'Next step', render: (r) => r.nextStep ?? '—' },
   ];
   const rowActions = (r: Lead): MenuAction[] => {
@@ -91,8 +91,8 @@ export function LeadRegister() {
             {LEAD_STAGES.map((st) => {
               const col = rows.filter((l) => l.stage === st);
               return (
-                <div key={st} style={{ background: '#F3F5F5', borderRadius: 10, padding: 10, minHeight: 200 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}><span className="section-label" style={{ color: '#0A0A0A' }}>{st}</span><span style={{ fontSize: 11, color: '#5F6368' }}>{col.length} · {fmtMoney(col.reduce((a, l) => a + l.value, 0))}</span></div>
+                <div key={st} style={{ background: 'var(--surface-3)', borderRadius: 10, padding: 10, minHeight: 200 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}><span className="section-label" style={{ color: 'var(--ink)' }}>{st}</span><span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{col.length} · {fmtMoney(col.reduce((a, l) => a + l.value, 0))}</span></div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {col.map((l) => {
                       const idx = LEAD_STAGES.indexOf(l.stage);
@@ -100,9 +100,9 @@ export function LeadRegister() {
                       return (
                         <div key={l.id} className="card" style={{ padding: 10, cursor: 'pointer' }} onClick={() => nav.go(`crm/leads/${l.id}`)}>
                           <div style={{ fontWeight: 600, fontSize: 13 }}>{l.name}</div>
-                          <div style={{ fontSize: 12, color: '#5F6368' }}>{l.company}</div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 12 }}><span className="money" style={{ fontWeight: 500 }}>{fmtMoney(l.value)}</span><span style={{ color: '#6E6E71' }}>{l.probability}% · {l.ownerName.split(' ')[0]}</span></div>
-                          {l.expectedClose && <div style={{ fontSize: 11, color: l.expectedClose < today() && st !== 'Won' && st !== 'Lost' ? '#C0393F' : '#6E6E71', marginTop: 2 }}>Close {fmtDate(l.expectedClose)}</div>}
+                          <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{l.company}</div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 12 }}><span className="money" style={{ fontWeight: 500 }}>{fmtMoney(l.value)}</span><span style={{ color: 'var(--ink-4)' }}>{l.probability}% · {l.ownerName.split(' ')[0]}</span></div>
+                          {l.expectedClose && <div style={{ fontSize: 11, color: l.expectedClose < today() && st !== 'Won' && st !== 'Lost' ? 'var(--danger)' : 'var(--ink-4)', marginTop: 2 }}>Close {fmtDate(l.expectedClose)}</div>}
                           <div style={{ display: 'flex', gap: 4, marginTop: 8 }} onClick={(e) => e.stopPropagation()}>
                             {next && <Button size="sm" variant="secondary" onClick={() => { moveLead(l.id, next); toast.success(`→ ${next}`); }}>→ {next}</Button>}
                             {st === 'Proposal' && <Button size="sm" variant="primary" onClick={() => nav.go(`crm/leads/${l.id}`, { convert: 1 })}>Won</Button>}
@@ -111,7 +111,7 @@ export function LeadRegister() {
                         </div>
                       );
                     })}
-                    {col.length === 0 && <div style={{ fontSize: 12, color: '#B0B5BF', textAlign: 'center', padding: 12 }}>Empty</div>}
+                    {col.length === 0 && <div style={{ fontSize: 12, color: 'var(--ink-5)', textAlign: 'center', padding: 12 }}>Empty</div>}
                   </div>
                 </div>
               );
@@ -183,7 +183,7 @@ export function LeadDetail({ id, convert }: { id: string; convert?: boolean }) {
         <KpiTile label="Value" value={fmtMoney(lead.value)} sub={`${lead.probability}% · weighted ${fmtMoney((lead.value * lead.probability) / 100)}`} />
         <KpiTile label="Days open" value={daysBetween(lead.createdAt.slice(0, 10), today())} sub={`since ${fmtDate(lead.createdAt)}`} />
         <KpiTile label="Activities" value={activities.length} sub={`${activities.filter((a) => a.status === 'Open').length} open`} />
-        <KpiTile label="Customer" value={customer ? <span className="link" style={{ fontSize: 16 }} onClick={() => nav.go(`crm/customers/${customer.id}`)}>{customer.name}</span> : <span style={{ fontSize: 14, color: '#B0B5BF' }}>Not converted</span>} sub={customer?.code} />
+        <KpiTile label="Customer" value={customer ? <span className="link" style={{ fontSize: 16 }} onClick={() => nav.go(`crm/customers/${customer.id}`)}>{customer.name}</span> : <span style={{ fontSize: 14, color: 'var(--ink-5)' }}>Not converted</span>} sub={customer?.code} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
         <Card title="Lead details"><KV items={[{ k: 'Contact', v: lead.contactName ?? '—' }, { k: 'Email', v: lead.email ?? '—' }, { k: 'Phone', v: lead.phone ?? '—' }, { k: 'Location', v: [lead.city, INDIA_STATES.find((x) => x.code === lead.stateCode)?.name].filter(Boolean).join(', ') || '—' }, { k: 'Next step', v: lead.nextStep ?? '—' }, { k: 'Notes', v: lead.notes ?? '—' }, ...(lead.lostReason ? [{ k: 'Lost reason', v: lead.lostReason }] : []), ...(quotes.length ? [{ k: 'Quotations', v: <span>{quotes.map((q) => <span key={q.id} className="link identifier" style={{ marginRight: 8 }} onClick={() => nav.go(`sales/quotations/${q.id}`)}>{q.number}</span>)}</span> }] : [])]} /></Card>

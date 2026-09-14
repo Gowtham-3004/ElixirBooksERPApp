@@ -66,19 +66,19 @@ export default function Login({ onLogin, onCreateAccount }: LoginProps) {
     { num: 'INV/26-27/0115', cust: 'Sunrise Industries', amt: '₹1,56,750.00', status: 'Draft' },
   ];
   const badge: Record<string, string> = { Posted: 'badge-posted', Submitted: 'badge-submitted', Draft: 'badge-draft', Approved: 'badge-approved', Settled: 'badge-settled' };
-  const th: React.CSSProperties = { padding: '6px 14px', background: '#F9FBFC', fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#5F6368', textAlign: 'left', fontFeatureSettings: 'normal' };
+  const th: React.CSSProperties = { padding: '6px 14px', background: 'var(--surface-2)', fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-3)', textAlign: 'left', fontVariantNumeric: 'normal' };
 
   return (
     <Backdrop>
       <div className="auth-split" style={{ width: '100%', maxWidth: 960, background: '#FFFFFF', borderRadius: 16, boxShadow: '0 8px 48px rgba(0,0,0,0.10)', display: 'flex', overflow: 'hidden', minHeight: 560 }}>
         {/* Left – form */}
-        <div className="auth-main" style={{ width: 420, flexShrink: 0, padding: '48px 40px', display: 'flex', flexDirection: 'column', borderRight: '1px solid #EFEFEF' }}>
+        <div className="auth-main" style={{ width: 420, flexShrink: 0, padding: '48px 40px', display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--hairline)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 36 }}>
             <BrandMark />
-            <span style={{ fontSize: 18, fontWeight: 700, color: '#0A0A0A', letterSpacing: '-0.02em' }}>Elixir Books</span>
+            <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.02em' }}>Elixir Books</span>
           </div>
-          <h1 style={{ fontSize: 22, fontWeight: 600, color: '#0A0A0A', marginBottom: 4, lineHeight: 1.3 }}>Welcome back</h1>
-          <p style={{ fontSize: 14, color: '#5F6368', marginBottom: 28 }}>Sign in to {preview.tenant?.name ?? 'your workspace'} · {preview.plan?.name ?? 'Growth'} Edition</p>
+          <h1 style={{ fontSize: 22, fontWeight: 600, color: 'var(--ink)', marginBottom: 4, lineHeight: 1.3 }}>Welcome back</h1>
+          <p style={{ fontSize: 14, color: 'var(--ink-3)', marginBottom: 28 }}>Sign in to {preview.tenant?.name ?? 'your workspace'} · {preview.plan?.name ?? 'Growth'} Edition</p>
 
           <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
             <button type="button" className="btn-secondary" style={{ flex: 1, justifyContent: 'center', gap: 8 }} title="SSO is configured per edition (FR-IAM-007)" onClick={() => setError('Google SSO is not configured for this workspace — sign in with your work email, or ask the tenant owner to enable SSO (FR-IAM-007).')}>
@@ -89,7 +89,7 @@ export default function Login({ onLogin, onCreateAccount }: LoginProps) {
             </button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-            <div style={{ flex: 1, height: 1, background: '#EAEAEA' }} /><span style={{ fontSize: 12, color: '#B0B5BF' }}>or</span><div style={{ flex: 1, height: 1, background: '#EAEAEA' }} />
+            <div style={{ flex: 1, height: 1, background: 'var(--line)' }} /><span style={{ fontSize: 12, color: 'var(--ink-5)' }}>or</span><div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
           </div>
 
           {banner && <div className="banner success" style={{ marginBottom: 14 }}>{banner}</div>}
@@ -101,18 +101,18 @@ export default function Login({ onLogin, onCreateAccount }: LoginProps) {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                 <label className="section-label">Password</label>
-                <button type="button" style={{ background: 'none', border: 'none', fontSize: 12, color: '#325CFF', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }} onClick={() => session.setAuth('forgot', { loginBanner: undefined })}>Forgot password?</button>
+                <button type="button" style={{ background: 'none', border: 'none', fontSize: 12, color: 'var(--accent)', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }} onClick={() => session.setAuth('forgot', { loginBanner: undefined })}>Forgot password?</button>
               </div>
               <div style={{ position: 'relative' }}>
                 <input className="field-input" type={showPw ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter password" style={{ paddingRight: 44 }} autoComplete="current-password" />
-                <button type="button" aria-label={showPw ? 'Hide password' : 'Show password'} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: showPw ? '#325CFF' : '#5F6368', display: 'flex' }} onClick={() => setShowPw(!showPw)}>
+                <button type="button" aria-label={showPw ? 'Hide password' : 'Show password'} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: showPw ? 'var(--accent)' : 'var(--ink-3)', display: 'flex' }} onClick={() => setShowPw(!showPw)}>
                   <EyeIcon size={16} />
                 </button>
               </div>
             </div>
-            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', fontSize: 13, color: '#5F6368' }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', fontSize: 13, color: 'var(--ink-3)' }}>
               <input type="checkbox" className="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ marginTop: 1 }} />
-              <span>I agree to the <a href="#/" onClick={(e) => e.preventDefault()} style={{ color: '#325CFF', textDecoration: 'none' }}>Terms & Conditions</a> and <a href="#/" onClick={(e) => e.preventDefault()} style={{ color: '#325CFF', textDecoration: 'none' }}>Privacy Policy</a></span>
+              <span>I agree to the <a href="#/" onClick={(e) => e.preventDefault()} style={{ color: 'var(--accent)', textDecoration: 'none' }}>Terms & Conditions</a> and <a href="#/" onClick={(e) => e.preventDefault()} style={{ color: 'var(--accent)', textDecoration: 'none' }}>Privacy Policy</a></span>
             </label>
             {error && <div className="banner danger" role="alert">{error}</div>}
             <button type="submit" className="btn-primary" style={{ justifyContent: 'center', height: 44, marginTop: 4 }} disabled={loading}>
@@ -137,41 +137,41 @@ export default function Login({ onLogin, onCreateAccount }: LoginProps) {
               ))}
             </div>
           </div>
-          <p style={{ fontSize: 13, color: '#5F6368', marginTop: 16, textAlign: 'center' }}>
+          <p style={{ fontSize: 13, color: 'var(--ink-3)', marginTop: 16, textAlign: 'center' }}>
             {"Don't have an account? "}
-            <button type="button" onClick={onCreateAccount} style={{ background: 'none', border: 'none', color: '#325CFF', fontWeight: 500, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>Start free trial</button>
+            <button type="button" onClick={onCreateAccount} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 500, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>Start free trial</button>
           </p>
         </div>
 
         {/* Right – preview */}
-        <div className="auth-aside" style={{ flex: 1, background: 'linear-gradient(160deg, #F0F4FF 0%, #F5F8FF 100%)', padding: 32, display: 'flex', flexDirection: 'column', gap: 16, overflow: 'hidden' }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#325CFF', marginBottom: 4 }}>Elixir Books {preview.plan?.name ?? 'Growth'} · {preview.co?.legalName ?? 'Acme Private Limited'}</div>
+        <div className="auth-aside" style={{ flex: 1, background: 'linear-gradient(160deg, var(--accent-tint) 0%, var(--accent-tint) 100%)', padding: 32, display: 'flex', flexDirection: 'column', gap: 16, overflow: 'hidden' }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--accent)', marginBottom: 4 }}>Elixir Books {preview.plan?.name ?? 'Growth'} · {preview.co?.legalName ?? 'Acme Private Limited'}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
             {KPI.map((kpi) => (
-              <div key={kpi.label} style={{ background: '#FFFFFF', border: '1px solid #EAEAEA', borderRadius: 10, padding: '12px 14px' }}>
+              <div key={kpi.label} style={{ background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 10, padding: '12px 14px' }}>
                 <div className="section-label" style={{ marginBottom: 4 }}>{kpi.label}</div>
-                <div style={{ fontSize: 18, fontWeight: 600, color: '#0A0A0A', fontFeatureSettings: '"tnum" 1' }}>{kpi.value}</div>
-                <div style={{ fontSize: 11, color: kpi.pos ? '#12784E' : '#C0393F', marginTop: 2 }}>{kpi.delta}</div>
+                <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{kpi.value}</div>
+                <div style={{ fontSize: 11, color: kpi.pos ? 'var(--good)' : 'var(--danger)', marginTop: 2 }}>{kpi.delta}</div>
               </div>
             ))}
           </div>
-          <div style={{ background: '#FFFFFF', border: '1px solid #EAEAEA', borderRadius: 10, overflow: 'hidden' }}>
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid #EAEAEA', fontSize: 12, fontWeight: 600, color: '#0A0A0A' }}>Recent Invoices</div>
+          <div style={{ background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 10, overflow: 'hidden' }}>
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)', fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>Recent Invoices</div>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr><th style={th}>Number</th><th style={th}>Customer</th><th style={{ ...th, textAlign: 'right' }}>Amount</th><th style={th}>Status</th></tr></thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={row.num} style={{ borderBottom: '1px solid #F5F5F5' }}>
-                    <td style={{ padding: '7px 14px', fontSize: 12, color: '#325CFF', fontFeatureSettings: '"tnum" 1' }}>{row.num}</td>
-                    <td style={{ padding: '7px 14px', fontSize: 12, color: '#0A0A0A', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.cust}</td>
-                    <td style={{ padding: '7px 14px', fontSize: 12, textAlign: 'right', fontFeatureSettings: '"tnum" 1' }}>{row.amt}</td>
+                  <tr key={row.num} style={{ borderBottom: '1px solid var(--hairline)' }}>
+                    <td style={{ padding: '7px 14px', fontSize: 12, color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>{row.num}</td>
+                    <td style={{ padding: '7px 14px', fontSize: 12, color: 'var(--ink)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.cust}</td>
+                    <td style={{ padding: '7px 14px', fontSize: 12, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{row.amt}</td>
                     <td style={{ padding: '7px 14px' }}><span className={`badge ${badge[row.status] ?? 'badge-draft'}`}>{row.status}</span></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p style={{ fontSize: 12, color: '#5F6368', textAlign: 'center', marginTop: 'auto' }}>{preview.co?.legalName ?? 'Acme Private Limited'} · {preview.co?.address.city ?? 'Mumbai'} · FY {preview.co ? (preview.co.fiscalYearStartMonth === 4 ? '2026–27' : '2026') : '2026–27'} · Sep 2026 ● Open</p>
+          <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center', marginTop: 'auto' }}>{preview.co?.legalName ?? 'Acme Private Limited'} · {preview.co?.address.city ?? 'Mumbai'} · FY {preview.co ? (preview.co.fiscalYearStartMonth === 4 ? '2026–27' : '2026') : '2026–27'} · Sep 2026 ● Open</p>
         </div>
       </div>
     </Backdrop>

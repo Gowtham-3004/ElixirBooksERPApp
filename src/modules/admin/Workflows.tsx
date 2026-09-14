@@ -64,11 +64,11 @@ export default function Workflows() {
 
   const columns: Column<WorkflowRule>[] = [
     { key: 'name', label: 'Rule', sortable: true, render: (w) => <TwoLine primary={w.name} secondary={`${w.code} · v${w.ruleVersion}`} /> },
-    { key: 'docType', label: 'Document type', sortable: true, render: (w) => <span style={{ color: '#5F6368' }}>{w.docType}</span> },
-    { key: 'trigger', label: 'Trigger', render: (w) => <span style={{ fontSize: 12, color: '#5F6368' }}>{describe(w)}</span> },
+    { key: 'docType', label: 'Document type', sortable: true, render: (w) => <span style={{ color: 'var(--ink-3)' }}>{w.docType}</span> },
+    { key: 'trigger', label: 'Trigger', render: (w) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{describe(w)}</span> },
     { key: 'steps', label: 'Steps', render: (w) => `${w.steps.length} step${w.steps.length === 1 ? '' : 's'}` },
-    { key: 'approvers', label: 'Approvers', render: (w) => <span style={{ fontSize: 12, color: '#5F6368' }}>{w.steps.map((st) => st.approverLabel).join(' → ')}</span> },
-    { key: 'sla', label: 'SLA · escalation', render: (w) => <span style={{ fontSize: 12, color: '#5F6368' }}>{w.steps.map((st) => `${st.slaHours}h`).join(' / ')}{w.escalation ? ` · ↑ ${roles.find((r) => r.id === w.escalation!.toRole)?.name ?? w.escalation.toRole} after ${w.escalation.afterHours}h` : ''}</span> },
+    { key: 'approvers', label: 'Approvers', render: (w) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{w.steps.map((st) => st.approverLabel).join(' → ')}</span> },
+    { key: 'sla', label: 'SLA · escalation', render: (w) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{w.steps.map((st) => `${st.slaHours}h`).join(' / ')}{w.escalation ? ` · ↑ ${roles.find((r) => r.id === w.escalation!.toRole)?.name ?? w.escalation.toRole} after ${w.escalation.afterHours}h` : ''}</span> },
     { key: 'status', label: 'Status', render: (w) => <Badge status={w.status} /> },
   ];
 
@@ -107,7 +107,7 @@ export default function Workflows() {
             </div>
 
             <Card title="Conditions" actions={<Button size="sm" variant="secondary" onClick={() => setEdit({ ...edit, conditions: [...edit.conditions, { field: 'amount', op: '>', value: 50000 }] })}>+ Add condition</Button>} padding={14}>
-              {edit.conditions.length === 0 && <div style={{ fontSize: 13, color: '#5F6368' }}>No conditions — the rule applies to every {edit.docType}.</div>}
+              {edit.conditions.length === 0 && <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>No conditions — the rule applies to every {edit.docType}.</div>}
               {edit.conditions.map((c, i) => (
                 <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 1.4fr auto', gap: 8, alignItems: 'end', marginBottom: 8 }}>
                   <SelectField label={i === 0 ? 'Field' : undefined} value={c.field} onChange={(v) => setEdit({ ...edit, conditions: edit.conditions.map((x, j) => (j === i ? { ...x, field: v as WorkflowCondition['field'], value: v === 'amount' ? 0 : '' } : x)) })} options={FIELDS} size="sm" />
@@ -125,7 +125,7 @@ export default function Workflows() {
               {edit.steps.map((st, i) => {
                 const upd = (p: Partial<WorkflowStep>) => setEdit({ ...edit, steps: edit.steps.map((x, j) => (j === i ? { ...x, ...p } : x)) });
                 return (
-                  <div key={i} className="card" style={{ padding: 12, marginBottom: 10, background: '#F9FBFC' }}>
+                  <div key={i} className="card" style={{ padding: 12, marginBottom: 10, background: 'var(--surface-2)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                       <span style={{ fontSize: 12, fontWeight: 600 }}>Step {i + 1}</span>
                       <div style={{ display: 'flex', gap: 4 }}>
@@ -195,20 +195,20 @@ export default function Workflows() {
               <SelectField label="Branch" value={test.branchId} onChange={(v) => setTest({ ...test, branchId: v })} options={branches.map((b) => ({ value: b.id, label: b.name }))} allowEmpty placeholder="Any" />
             </div>
             {resolved ? (
-              <div className="card" style={{ padding: 14, background: '#F2F7FF' }}>
+              <div className="card" style={{ padding: 14, background: 'var(--accent-tint)' }}>
                 <div style={{ fontWeight: 600, marginBottom: 6 }}>Resolves to {resolved.code} · {resolved.name} (v{resolved.ruleVersion})</div>
                 <KV items={[{ k: 'Trigger', v: describe(resolved) }, { k: 'Priority', v: resolved.priority }, { k: 'Self-approval', v: resolved.allowSelfApproval ? 'Allowed' : 'Blocked' }]} />
                 <div className="section-label" style={{ margin: '10px 0 6px' }}>Steps that would run</div>
                 {resolved.steps.map((st) => {
                   const skip = st.approverLabel.includes('above') && /₹\s?(\d+)L/.test(st.approverLabel) && test.amount < Number(RegExp.$1) * 100000;
-                  return <div key={st.order} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0', borderBottom: '1px solid #E4EAF5' }}><span>{st.order}. {st.name} · {st.approverLabel}{st.commentRequired ? ' · comment' : ''}</span><span style={{ color: '#5F6368' }}>{skip ? 'skipped (threshold)' : `SLA ${st.slaHours}h`}</span></div>;
+                  return <div key={st.order} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0', borderBottom: '1px solid #E4EAF5' }}><span>{st.order}. {st.name} · {st.approverLabel}{st.commentRequired ? ' · comment' : ''}</span><span style={{ color: 'var(--ink-3)' }}>{skip ? 'skipped (threshold)' : `SLA ${st.slaHours}h`}</span></div>;
                 })}
-                {resolved.escalation && <div style={{ fontSize: 12, color: '#8A4B0F', marginTop: 8 }}>Escalates to {roles.find((r) => r.id === resolved.escalation!.toRole)?.name} after {resolved.escalation.afterHours}h.</div>}
+                {resolved.escalation && <div style={{ fontSize: 12, color: 'var(--warn)', marginTop: 8 }}>Escalates to {roles.find((r) => r.id === resolved.escalation!.toRole)?.name} after {resolved.escalation.afterHours}h.</div>}
               </div>
             ) : (
               <Banner tone="info">No active rule matches — a {test.docType} of {fmtMoney(test.amount, co.baseCurrency)} would post directly without approval.</Banner>
             )}
-            {candidates.length > 0 && <div style={{ fontSize: 12, color: '#6E6E71' }}>Candidates for {test.docType}: {candidates.map((c) => `${c.code} (${c.status}, p${c.priority})`).join(', ')}</div>}
+            {candidates.length > 0 && <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>Candidates for {test.docType}: {candidates.map((c) => `${c.code} (${c.status}, p${c.priority})`).join(', ')}</div>}
           </div>
         )}
       </Drawer>

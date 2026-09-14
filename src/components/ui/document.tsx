@@ -87,7 +87,7 @@ export function LineItemGrid({ lines, onChange, readOnly, direction = 'sale', pa
               const overridden = l.listRate !== undefined && l.rate !== l.listRate;
               return (
                 <tr key={l.id} className={err && !readOnly ? 'error-row' : ''}>
-                  <td style={{ color: '#5F6368' }}>{i + 1}</td>
+                  <td style={{ color: 'var(--ink-3)' }}>{i + 1}</td>
                   <td>
                     {readOnly ? (
                       <TwoLine primary={l.itemName || '—'} secondary={[l.itemCode, l.description].filter(Boolean).join(' · ')} />
@@ -95,9 +95,9 @@ export function LineItemGrid({ lines, onChange, readOnly, direction = 'sale', pa
                       <div>
                         <EntityPicker size="grid" value={l.itemId} onChange={(id) => pickItem(l.id, id)} options={items} placeholder="Search item…" recentKey="items" />
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 2 }}>
-                          <input className="field-input" placeholder="Description (optional)" value={l.description ?? ''} onChange={(e) => update(l.id, { description: e.target.value })} style={{ height: 24, fontSize: 11, border: 'none', background: 'transparent', padding: 0, color: '#5F6368' }} />
-                          {pos && <span style={{ fontSize: 11, color: direction === 'sale' && pos.available < l.qty ? '#C0393F' : '#6E6E71', whiteSpace: 'nowrap' }}>{fmtQty(pos.available)} {item?.baseUom} available</span>}
-                          {sourceLinked && l.remainingQty !== undefined && <span style={{ fontSize: 11, color: '#6E6E71', whiteSpace: 'nowrap' }}>of {l.sourceQty} · {l.remainingQty} remaining</span>}
+                          <input className="field-input" placeholder="Description (optional)" value={l.description ?? ''} onChange={(e) => update(l.id, { description: e.target.value })} style={{ height: 24, fontSize: 11, border: 'none', background: 'transparent', padding: 0, color: 'var(--ink-3)' }} />
+                          {pos && <span style={{ fontSize: 11, color: direction === 'sale' && pos.available < l.qty ? 'var(--danger)' : 'var(--ink-4)', whiteSpace: 'nowrap' }}>{fmtQty(pos.available)} {item?.baseUom} available</span>}
+                          {sourceLinked && l.remainingQty !== undefined && <span style={{ fontSize: 11, color: 'var(--ink-4)', whiteSpace: 'nowrap' }}>of {l.sourceQty} · {l.remainingQty} remaining</span>}
                         </div>
                         {err && <div className="field-error" style={{ marginTop: 0 }}>{err}</div>}
                       </div>
@@ -120,7 +120,7 @@ export function LineItemGrid({ lines, onChange, readOnly, direction = 'sale', pa
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                         <span className="money">{fmtMoney(l.rate, currency)}</span>
                         {(l.priceListName || overridden) && (
-                          <span style={{ fontSize: 11, color: '#6E6E71', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                          <span style={{ fontSize: 11, color: 'var(--ink-4)', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
                             {overridden ? <SnapshotTag label="override" /> : l.priceListName}
                             <Explain title="How this price was resolved" rows={[{ k: 'Source', v: l.priceListName ?? 'Item master' }, { k: 'List rate', v: fmtMoney(l.listRate ?? l.rate, currency) }, { k: 'Applied rate', v: fmtMoney(l.rate, currency) }, { k: 'Discount', v: `${l.discountPct}%` }, ...(l.overrideReason ? [{ k: 'Override reason', v: l.overrideReason }] : [])]} />
                           </span>
@@ -129,8 +129,8 @@ export function LineItemGrid({ lines, onChange, readOnly, direction = 'sale', pa
                     ) : (
                       <div>
                         <NumberField size="grid" value={l.rate} onChange={(v) => update(l.id, { rate: v })} decimals={2} min={0} />
-                        {overridden && <input className="field-input" placeholder="Override reason *" value={l.overrideReason ?? ''} onChange={(e) => update(l.id, { overrideReason: e.target.value })} style={{ height: 24, fontSize: 11, marginTop: 2, borderColor: l.overrideReason ? '#EAEAEA' : '#C0393F' }} />}
-                        {!overridden && l.priceListName && <div style={{ fontSize: 11, color: '#6E6E71', textAlign: 'right' }}>{l.priceListName}</div>}
+                        {overridden && <input className="field-input" placeholder="Override reason *" value={l.overrideReason ?? ''} onChange={(e) => update(l.id, { overrideReason: e.target.value })} style={{ height: 24, fontSize: 11, marginTop: 2, borderColor: l.overrideReason ? 'var(--line)' : 'var(--danger)' }} />}
+                        {!overridden && l.priceListName && <div style={{ fontSize: 11, color: 'var(--ink-4)', textAlign: 'right' }}>{l.priceListName}</div>}
                       </div>
                     )}
                   </td>
@@ -194,20 +194,20 @@ export function LineItemGrid({ lines, onChange, readOnly, direction = 'sale', pa
               );
             })}
             {lines.length === 0 && (
-              <tr><td colSpan={cols} style={{ textAlign: 'center', color: '#5F6368', height: 64 }}>No lines yet{!readOnly && ' — add one below'}</td></tr>
+              <tr><td colSpan={cols} style={{ textAlign: 'center', color: 'var(--ink-3)', height: 64 }}>No lines yet{!readOnly && ' — add one below'}</td></tr>
             )}
           </tbody>
         </table>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderTop: '1px solid #EAEAEA', background: '#F9FBFC', fontSize: 12, color: '#5F6368', borderRadius: '0 0 12px 12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderTop: '1px solid var(--line)', background: 'var(--surface-2)', fontSize: 12, color: 'var(--ink-3)', borderRadius: '0 0 12px 12px' }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           {!readOnly && <button type="button" className="btn-link" onClick={addLine} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><PlusIcon size={12} /> Add line</button>}
           <span>{lines.length} line{lines.length === 1 ? '' : 's'}</span>
-          {errCount > 0 && !readOnly && <span style={{ color: '#C0393F' }}>{errCount} line{errCount === 1 ? '' : 's'} need attention</span>}
+          {errCount > 0 && !readOnly && <span style={{ color: 'var(--danger)' }}>{errCount} line{errCount === 1 ? '' : 's'} need attention</span>}
         </div>
         {totals && (
           <span>
-            Taxable <strong style={{ color: '#0A0A0A' }}>{fmtMoney(totals.taxable, currency)}</strong> · Tax <strong style={{ color: '#0A0A0A' }}>{fmtMoney(totals.tax, currency)}</strong> · <strong style={{ color: '#0A0A0A' }}>{fmtMoney(totals.total, currency)}</strong>
+            Taxable <strong style={{ color: 'var(--ink)' }}>{fmtMoney(totals.taxable, currency)}</strong> · Tax <strong style={{ color: 'var(--ink)' }}>{fmtMoney(totals.tax, currency)}</strong> · <strong style={{ color: 'var(--ink)' }}>{fmtMoney(totals.total, currency)}</strong>
           </span>
         )}
       </div>
@@ -236,15 +236,15 @@ export function TotalsLadder({ totals, currency = 'INR', baseCurrency, rate, ext
           <span className={`ladder-value ${r.tone ?? ''}`}>{fmtMoney(r.value, currency)}</span>
         </div>
       ))}
-      <div style={{ height: 1, background: '#DADCE0', margin: '6px 0' }} />
+      <div style={{ height: 1, background: 'var(--line-strong)', margin: '6px 0' }} />
       <div className="ladder-row">
-        <span className="ladder-label" style={{ fontWeight: 600, color: '#0A0A0A' }}>Total</span>
+        <span className="ladder-label" style={{ fontWeight: 600, color: 'var(--ink)' }}>Total</span>
         <span className="ladder-value" style={{ fontWeight: 600, fontSize: 16 }}>{fmtMoney(totals.total, currency)}</span>
       </div>
       {baseCurrency && baseCurrency !== currency && (
         <div className="ladder-row">
           <span className="ladder-label">Base equivalent</span>
-          <span className="ladder-value" style={{ color: '#5F6368' }}>≈ {fmtMoney(totals.baseTotal, baseCurrency)} @ {rate}</span>
+          <span className="ladder-value" style={{ color: 'var(--ink-3)' }}>≈ {fmtMoney(totals.baseTotal, baseCurrency)} @ {rate}</span>
         </div>
       )}
       {showPaid && (totals.paid > 0 || totals.credited > 0 || totals.writtenOff > 0) && (
@@ -252,8 +252,8 @@ export function TotalsLadder({ totals, currency = 'INR', baseCurrency, rate, ext
           {totals.paid > 0 && <div className="ladder-row"><span className="ladder-label">Paid</span><span className="ladder-value positive">−{fmtMoney(totals.paid, currency)}</span></div>}
           {totals.credited > 0 && <div className="ladder-row"><span className="ladder-label">Credited</span><span className="ladder-value positive">−{fmtMoney(totals.credited, currency)}</span></div>}
           {totals.writtenOff > 0 && <div className="ladder-row"><span className="ladder-label">Written off</span><span className="ladder-value positive">−{fmtMoney(totals.writtenOff, currency)}</span></div>}
-          <div style={{ height: 1, background: '#DADCE0', margin: '6px 0' }} />
-          <div className="ladder-row"><span className="ladder-label" style={{ fontWeight: 600, color: '#0A0A0A' }}>Due</span><span className="ladder-value" style={{ fontWeight: 600, fontSize: 16 }}>{fmtMoney(totals.due, currency)}</span></div>
+          <div style={{ height: 1, background: 'var(--line-strong)', margin: '6px 0' }} />
+          <div className="ladder-row"><span className="ladder-label" style={{ fontWeight: 600, color: 'var(--ink)' }}>Due</span><span className="ladder-value" style={{ fontWeight: 600, fontSize: 16 }}>{fmtMoney(totals.due, currency)}</span></div>
         </>
       )}
     </div>
@@ -261,7 +261,7 @@ export function TotalsLadder({ totals, currency = 'INR', baseCurrency, rate, ext
 }
 
 export function TaxBreakup({ totals, currency = 'INR' }: { totals: DocTotals; currency?: string }) {
-  if (!totals.breakup.length) return <div style={{ fontSize: 13, color: '#5F6368' }}>No tax applies.</div>;
+  if (!totals.breakup.length) return <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>No tax applies.</div>;
   return (
     <div className="card" style={{ overflow: 'hidden' }}>
       <table className="data-table dense">
@@ -282,7 +282,7 @@ export function TaxBreakup({ totals, currency = 'INR' }: { totals: DocTotals; cu
 export interface TimelineItem { type: 'success' | 'info' | 'warning' | 'neutral'; icon?: ReactNode; event: string; predicate?: string; time: string; note?: string; meta?: ReactNode }
 
 export function Timeline({ items }: { items: TimelineItem[] }) {
-  if (!items.length) return <div style={{ fontSize: 13, color: '#5F6368' }}>No activity yet.</div>;
+  if (!items.length) return <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>No activity yet.</div>;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {items.map((it, i) => (
@@ -291,13 +291,13 @@ export function Timeline({ items }: { items: TimelineItem[] }) {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
               <div style={{ fontSize: 13 }}>
-                <span style={{ fontWeight: 600, color: '#0A0A0A' }}>{it.event}</span>
-                {it.predicate && <span style={{ color: '#5F6368' }}> {it.predicate}</span>}
+                <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{it.event}</span>
+                {it.predicate && <span style={{ color: 'var(--ink-3)' }}> {it.predicate}</span>}
               </div>
-              <span style={{ fontSize: 12, color: '#6E6E71', whiteSpace: 'nowrap', fontFeatureSettings: '"tnum" 1' }}>{fmtDateTime(it.time)}</span>
+              <span style={{ fontSize: 12, color: 'var(--ink-4)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{fmtDateTime(it.time)}</span>
             </div>
-            {it.note && <div style={{ marginTop: 6, background: '#F9FBFC', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: '#3C4043' }}>{it.note}</div>}
-            {it.meta && <div style={{ marginTop: 4, fontSize: 11, color: '#6E6E71' }}>{it.meta}</div>}
+            {it.note && <div style={{ marginTop: 6, background: 'var(--surface-2)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--ink-2)' }}>{it.note}</div>}
+            {it.meta && <div style={{ marginTop: 4, fontSize: 11, color: 'var(--ink-4)' }}>{it.meta}</div>}
           </div>
         </div>
       ))}
@@ -320,7 +320,7 @@ export function ActivityTab({ objectId, correlationId, extra }: { objectId: stri
       <div className="section-title">Activity & audit trail</div>
       <Timeline items={items} />
       {correlationId && (
-        <div style={{ marginTop: 16, fontSize: 12, color: '#6E6E71', display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ marginTop: 16, fontSize: 12, color: 'var(--ink-4)', display: 'flex', gap: 8, alignItems: 'center' }}>
           Correlation ID: <span className="identifier">{correlationId}</span>
           <button type="button" className="btn-link" style={{ fontSize: 12 }} onClick={() => navigator.clipboard?.writeText(correlationId)}>Copy</button>
         </div>
@@ -339,7 +339,7 @@ export function ApprovalsTab({ approvalId, docId }: { approvalId?: string; docId
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
         <div>
           <div className="section-title" style={{ marginBottom: 2 }}>Approval workflow</div>
-          <div style={{ fontSize: 12, color: '#5F6368' }}>{req.ruleName} · v{req.ruleVersion} · submitted {fmtDateTime(req.submittedAt)} by {req.requesterName}</div>
+          <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{req.ruleName} · v{req.ruleVersion} · submitted {fmtDateTime(req.submittedAt)} by {req.requesterName}</div>
         </div>
         <Badge status={req.status === 'Pending' ? 'Submitted' : req.status}>{req.status}</Badge>
       </div>
@@ -347,18 +347,18 @@ export function ApprovalsTab({ approvalId, docId }: { approvalId?: string; docId
         {req.steps.map((s, i) => (
           <div key={s.order} style={{ display: 'flex', gap: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div style={{ width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, background: s.status === 'Approved' ? '#12784E' : s.status === 'Rejected' ? '#C0393F' : s.status === 'Pending' && req.currentStep === s.order ? '#325CFF' : '#F3F5F5', color: s.status === 'Approved' || s.status === 'Rejected' || (s.status === 'Pending' && req.currentStep === s.order) ? '#fff' : '#5F6368', border: s.status === 'Pending' && req.currentStep !== s.order ? '1.5px solid #DADCE0' : 'none' }}>{s.status === 'Approved' ? '✓' : s.status === 'Rejected' ? '✕' : s.order}</div>
-              {i < req.steps.length - 1 && <div style={{ width: 1, flex: 1, minHeight: 24, background: '#EAEAEA', margin: '4px 0' }} />}
+              <div style={{ width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, background: s.status === 'Approved' ? 'var(--good)' : s.status === 'Rejected' ? 'var(--danger)' : s.status === 'Pending' && req.currentStep === s.order ? 'var(--accent)' : 'var(--surface-3)', color: s.status === 'Approved' || s.status === 'Rejected' || (s.status === 'Pending' && req.currentStep === s.order) ? '#fff' : 'var(--ink-3)', border: s.status === 'Pending' && req.currentStep !== s.order ? '1.5px solid var(--line-strong)' : 'none' }}>{s.status === 'Approved' ? '✓' : s.status === 'Rejected' ? '✕' : s.order}</div>
+              {i < req.steps.length - 1 && <div style={{ width: 1, flex: 1, minHeight: 24, background: 'var(--line)', margin: '4px 0' }} />}
             </div>
             <div style={{ flex: 1, paddingBottom: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: 13 }}><span style={{ fontWeight: 600 }}>{s.name}</span> <span style={{ color: '#5F6368' }}>· {s.approverLabel}{s.actedBy ? ` · ${s.actedBy}` : ''}</span></div>
+                <div style={{ fontSize: 13 }}><span style={{ fontWeight: 600 }}>{s.name}</span> <span style={{ color: 'var(--ink-3)' }}>· {s.approverLabel}{s.actedBy ? ` · ${s.actedBy}` : ''}</span></div>
                 <Badge status={s.status === 'Pending' ? (req.currentStep === s.order ? 'Submitted' : 'Draft') : s.status}>{s.status === 'Pending' ? (req.currentStep === s.order ? 'Awaiting' : 'Queued') : s.status}</Badge>
               </div>
-              {s.actedAt && <div style={{ fontSize: 12, color: '#6E6E71', marginTop: 2 }}>{fmtDateTime(s.actedAt)}</div>}
-              {s.dueAt && s.status === 'Pending' && req.currentStep === s.order && <div style={{ fontSize: 12, color: new Date(s.dueAt) < new Date() ? '#C0393F' : '#6E6E71', marginTop: 2 }}>SLA {new Date(s.dueAt) < new Date() ? 'breached' : 'due'} {fmtDateTime(s.dueAt)}</div>}
-              {s.comment && <div style={{ marginTop: 6, background: '#F9FBFC', borderRadius: 8, padding: '8px 10px', fontSize: 12 }}>{s.comment}</div>}
-              {s.status === 'Skipped' && <div style={{ fontSize: 12, color: '#6E6E71', marginTop: 2 }}>Threshold not met — step skipped</div>}
+              {s.actedAt && <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 2 }}>{fmtDateTime(s.actedAt)}</div>}
+              {s.dueAt && s.status === 'Pending' && req.currentStep === s.order && <div style={{ fontSize: 12, color: new Date(s.dueAt) < new Date() ? 'var(--danger)' : 'var(--ink-4)', marginTop: 2 }}>SLA {new Date(s.dueAt) < new Date() ? 'breached' : 'due'} {fmtDateTime(s.dueAt)}</div>}
+              {s.comment && <div style={{ marginTop: 6, background: 'var(--surface-2)', borderRadius: 8, padding: '8px 10px', fontSize: 12 }}>{s.comment}</div>}
+              {s.status === 'Skipped' && <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 2 }}>Threshold not met — step skipped</div>}
             </div>
           </div>
         ))}
@@ -387,7 +387,7 @@ export function AccountingTab({ journalId, projected, currency = 'INR', title }:
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div>
           <div className="section-title" style={{ marginBottom: 2 }}>{title ?? (j ? 'Posted journal' : 'Projected journal')}</div>
-          <div style={{ fontSize: 12, color: '#5F6368' }}>{j ? <>{<span className="link identifier" onClick={() => nav.go(`accounting/journals/${j.id}`)}>{j.number}</span>} · {fmtDate(j.date)} · {db.find<any>(C.branches, j.branchId)?.name} · {j.currency}{j.rate !== 1 ? ` @ ${j.rate}` : ''}</> : 'Nothing posted yet — this is what will post'}</div>
+          <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{j ? <>{<span className="link identifier" onClick={() => nav.go(`accounting/journals/${j.id}`)}>{j.number}</span>} · {fmtDate(j.date)} · {db.find<any>(C.branches, j.branchId)?.name} · {j.currency}{j.rate !== 1 ? ` @ ${j.rate}` : ''}</> : 'Nothing posted yet — this is what will post'}</div>
         </div>
         {j && <Badge status={j.status} />}
       </div>
@@ -415,7 +415,7 @@ export function AccountingTab({ journalId, projected, currency = 'INR', title }:
           <tfoot><tr><td colSpan={j && j.currency !== scope.currency ? 4 : 2}>Total</td><td className="right money">{fmtMoney(totalDr, currency)}</td><td className="right money">{fmtMoney(totalCr, currency)}</td></tr></tfoot>
         </table>
       </div>
-      <div style={{ marginTop: 10, fontSize: 12, color: Math.abs(totalDr - totalCr) < 0.01 ? '#12784E' : '#C0393F' }}>
+      <div style={{ marginTop: 10, fontSize: 12, color: Math.abs(totalDr - totalCr) < 0.01 ? 'var(--good)' : 'var(--danger)' }}>
         {Math.abs(totalDr - totalCr) < 0.01 ? `✓ Journal is balanced — Dr ${fmtMoney(totalDr, currency)} = Cr ${fmtMoney(totalCr, currency)} · ${currency} base currency` : `⚠ Unbalanced by ${fmtMoney(totalDr - totalCr, currency)}`}
       </div>
     </div>
@@ -440,21 +440,21 @@ export function AttachmentsPanel({ objectType, objectId, readOnly }: { objectTyp
     <div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {mine.map((a) => (
-          <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', border: '1px solid #EAEAEA', borderRadius: 8 }}>
-            {a.statutory ? <ShieldCheckIcon size={14} color="#12784E" /> : <FileTextIcon size={14} color="#5F6368" />}
+          <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 8 }}>
+            {a.statutory ? <ShieldCheckIcon size={14} color="var(--good)" /> : <FileTextIcon size={14} color="var(--ink-3)" />}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
-              <div style={{ fontSize: 11, color: '#6E6E71' }}>{Math.round(a.size / 1024)} KB · {a.uploadedBy} · {fmtDateTime(a.at)}{a.fileVersion > 1 ? ` · v${a.fileVersion}` : ''}</div>
+              <div style={{ fontSize: 11, color: 'var(--ink-4)' }}>{Math.round(a.size / 1024)} KB · {a.uploadedBy} · {fmtDateTime(a.at)}{a.fileVersion > 1 ? ` · v${a.fileVersion}` : ''}</div>
             </div>
             <Badge status={a.scanState} />
             {a.statutory && <span className="snapshot-tag"><ShieldCheckIcon size={10} /> statutory</span>}
             {!readOnly && !a.statutory && <ActionMenu actions={[{ label: 'Replace (new version)', onClick: () => db.update<Attachment>(C.attachments, a.id, { fileVersion: a.fileVersion + 1, at: new Date().toISOString() }) }, { label: 'Remove', danger: true, onClick: () => { db.remove(C.attachments, a.id); engine.audit({ action: 'attachment.removed', objectType, objectId, detail: a.name }); } }]} />}
           </div>
         ))}
-        {mine.length === 0 && <div style={{ fontSize: 12, color: '#6E6E71' }}>No attachments</div>}
+        {mine.length === 0 && <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>No attachments</div>}
       </div>
       {!readOnly && (
-        <label style={{ display: 'block', marginTop: 8, border: '1px dashed #DADCE0', borderRadius: 8, padding: 12, textAlign: 'center', fontSize: 12, color: '#5F6368', cursor: 'pointer' }}>
+        <label style={{ display: 'block', marginTop: 8, border: '1px dashed var(--line-strong)', borderRadius: 8, padding: 12, textAlign: 'center', fontSize: 12, color: 'var(--ink-3)', cursor: 'pointer' }}>
           <input type="file" multiple style={{ display: 'none' }} onChange={(e) => upload(e.target.files)} />
           + Attach files (PDF, images, XLSX · max 10 MB · executables blocked)
         </label>
@@ -497,10 +497,10 @@ export function DocumentPage({ backLabel, onBack, number, badges, amount, due, r
         <aside className={`doc-rail ${railOpen ? '' : 'rail-collapsed'}`}>
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-              <button type="button" className="btn-link" onClick={onBack} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 12, color: '#5F6368' }}><ArrowLeftIcon size={14} /> {backLabel}</button>
-              {rail && <button type="button" className="btn-link doc-rail-toggle" style={{ marginBottom: 12, color: '#5F6368', alignItems: 'center', gap: 4 }} onClick={() => setRailOpen((v) => !v)} aria-expanded={railOpen}>{railOpen ? 'Hide details' : 'Details'} <ChevronDownIcon size={12} /></button>}
+              <button type="button" className="btn-link" onClick={onBack} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 12, color: 'var(--ink-3)' }}><ArrowLeftIcon size={14} /> {backLabel}</button>
+              {rail && <button type="button" className="btn-link doc-rail-toggle" style={{ marginBottom: 12, color: 'var(--ink-3)', alignItems: 'center', gap: 4 }} onClick={() => setRailOpen((v) => !v)} aria-expanded={railOpen}>{railOpen ? 'Hide details' : 'Details'} <ChevronDownIcon size={12} /></button>}
             </div>
-            <div className="identifier" style={{ fontSize: 20, fontWeight: 600, color: '#0A0A0A', lineHeight: '28px' }}>{number}</div>
+            <div className="identifier" style={{ fontSize: 20, fontWeight: 600, color: 'var(--ink)', lineHeight: '28px' }}>{number}</div>
             {badges && <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>{badges}</div>}
             {(amount || due) && (
               <div className="summary-block" style={{ marginTop: 14 }}>
@@ -512,13 +512,13 @@ export function DocumentPage({ backLabel, onBack, number, badges, amount, due, r
                 )}
                 {due && (
                   <>
-                    <div style={{ height: 1, background: '#DADCE0', margin: '6px 0' }} />
+                    <div style={{ height: 1, background: 'var(--line-strong)', margin: '6px 0' }} />
                     <div className="ladder-row">
                       <span className="ladder-label">{due.label}</span>
-                      <span className="ladder-value" style={{ fontSize: 16, fontWeight: 600, color: due.value > 0 && (due.overdueDays ?? 0) > 0 ? '#C0393F' : '#0A0A0A' }}>{fmtMoney(due.value, due.currency)}</span>
+                      <span className="ladder-value" style={{ fontSize: 16, fontWeight: 600, color: due.value > 0 && (due.overdueDays ?? 0) > 0 ? 'var(--danger)' : 'var(--ink)' }}>{fmtMoney(due.value, due.currency)}</span>
                     </div>
                     {due.dueDate && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: '#5F6368', marginTop: 2 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>
                         <span>{fmtDate(due.dueDate)}</span>
                         {(due.overdueDays ?? 0) > 0 && due.value > 0 && <Pill tone="critical">Overdue {due.overdueDays} d</Pill>}
                       </div>
@@ -562,15 +562,15 @@ export function PartyRail({ snapshot, name, link }: { snapshot?: DocHeader['part
   const addr = tab === 'billing' ? snapshot?.billingAddress : tab === 'shipping' ? snapshot?.shippingAddress : undefined;
   return (
     <div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: '#0A0A0A' }}>{link ? <span className="link" onClick={() => nav.go(link)}>{snapshot?.name ?? name}</span> : snapshot?.name ?? name}</div>
-      {snapshot?.gstin && <div className="identifier" style={{ fontSize: 12, color: '#5F6368' }}>{snapshot.gstin}</div>}
-      <div style={{ fontSize: 12, color: '#5F6368', marginTop: 2 }}>{[snapshot?.taxTreatment, snapshot?.state, snapshot?.priceListName ? `Price list: ${snapshot.priceListName}` : null].filter(Boolean).join(' · ')}</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{link ? <span className="link" onClick={() => nav.go(link)}>{snapshot?.name ?? name}</span> : snapshot?.name ?? name}</div>
+      {snapshot?.gstin && <div className="identifier" style={{ fontSize: 12, color: 'var(--ink-3)' }}>{snapshot.gstin}</div>}
+      <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>{[snapshot?.taxTreatment, snapshot?.state, snapshot?.priceListName ? `Price list: ${snapshot.priceListName}` : null].filter(Boolean).join(' · ')}</div>
       <div style={{ display: 'flex', gap: 10, marginTop: 8, fontSize: 12 }}>
         {(['contact', 'billing', 'shipping'] as const).map((t) => (
-          <button key={t} type="button" className="btn-link" style={{ fontSize: 12, color: tab === t ? '#325CFF' : '#5F6368' }} onClick={() => setTab(t)}>{t === 'contact' ? 'Contact' : t === 'billing' ? 'Billing' : 'Shipping'}</button>
+          <button key={t} type="button" className="btn-link" style={{ fontSize: 12, color: tab === t ? 'var(--accent)' : 'var(--ink-3)' }} onClick={() => setTab(t)}>{t === 'contact' ? 'Contact' : t === 'billing' ? 'Billing' : 'Shipping'}</button>
         ))}
       </div>
-      <div style={{ fontSize: 12, color: '#3C4043', marginTop: 6, lineHeight: 1.5 }}>
+      <div style={{ fontSize: 12, color: 'var(--ink-2)', marginTop: 6, lineHeight: 1.5 }}>
         {tab === 'contact' ? (snapshot?.contact ? <>{snapshot.contact.name}<br />{snapshot.contact.email}<br />{snapshot.contact.phone}</> : '—') : addr ? <>{addr.line1}{addr.line2 ? <><br />{addr.line2}</> : null}<br />{addr.city}, {addr.state} {addr.pin}</> : '—'}
       </div>
     </div>

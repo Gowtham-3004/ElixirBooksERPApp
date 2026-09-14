@@ -24,13 +24,13 @@ export function BomsPage({ id, params }: { id?: string; params: Record<string, s
   useEffect(() => { if (view && !editing) setEditing({ bom: view }); }, [view?.id]);
   const rows = useMemo(() => boms.map((b) => ({ ...b, routingCode: routings.find((r) => r.id === b.routingId)?.code ?? '—', roll: rollupBom(b, routings.find((r) => r.id === b.routingId)).perUnit, itemStd: db.find<Item>(C.items, b.itemId)?.standardCost })).sort((a, b) => a.code.localeCompare(b.code) || b.version - a.version), [boms, routings]);
   const columns: Column<(typeof rows)[number]>[] = [
-    { key: 'code', label: 'BOM', sortable: true, render: (b) => <span className="identifier link" style={{ fontWeight: 500 }}>{b.code} <span style={{ color: '#5F6368' }}>v{b.version}</span></span> },
+    { key: 'code', label: 'BOM', sortable: true, render: (b) => <span className="identifier link" style={{ fontWeight: 500 }}>{b.code} <span style={{ color: 'var(--ink-3)' }}>v{b.version}</span></span> },
     { key: 'itemName', label: 'Output item', sortable: true, render: (b) => <div><div>{b.itemName}</div><div className="cell-secondary identifier">{b.itemCode} · {b.outputQty} {b.uom} · {b.mode}</div></div> },
     { key: 'status', label: 'Status', sortable: true, render: (b) => <Badge status={b.status} /> },
     { key: 'effectiveFrom', label: 'Effective', sortable: true, render: (b) => <span style={{ fontSize: 12 }}>{fmtDate(b.effectiveFrom)}{b.effectiveTo ? ` → ${fmtDate(b.effectiveTo)}` : ' →'}</span> },
-    { key: 'components', label: 'Components', align: 'right', render: (b) => <span className="money">{b.components.length}{b.byProducts.length ? <span style={{ color: '#5F6368' }}> +{b.byProducts.length} by-prod</span> : null}</span>, value: (b) => b.components.length },
+    { key: 'components', label: 'Components', align: 'right', render: (b) => <span className="money">{b.components.length}{b.byProducts.length ? <span style={{ color: 'var(--ink-3)' }}> +{b.byProducts.length} by-prod</span> : null}</span>, value: (b) => b.components.length },
     { key: 'routingCode', label: 'Routing', render: (b) => <span className="identifier">{b.routingCode}</span> },
-    { key: 'roll', label: 'Rolled-up cost / unit', align: 'right', sortable: true, render: (b) => <span className="money">{fmtMoney(b.roll, s.currency)}{b.itemStd !== undefined && Math.abs(b.itemStd - b.roll) > 0.5 && <span title={`Item standard cost ${fmtMoney(b.itemStd, s.currency)}`} style={{ marginLeft: 4, color: '#8A4B0F' }}>≠</span>}</span>, value: (b) => b.roll },
+    { key: 'roll', label: 'Rolled-up cost / unit', align: 'right', sortable: true, render: (b) => <span className="money">{fmtMoney(b.roll, s.currency)}{b.itemStd !== undefined && Math.abs(b.itemStd - b.roll) > 0.5 && <span title={`Item standard cost ${fmtMoney(b.itemStd, s.currency)}`} style={{ marginLeft: 4, color: 'var(--warn)' }}>≠</span>}</span>, value: (b) => b.roll },
   ];
   const rowActions = (b: Bom): MenuAction[] => [
     { label: b.status === 'Draft' ? 'Edit' : b.status === 'Active' ? 'Revise (new version)' : 'View', onClick: () => setEditing({ bom: b }) },
@@ -62,7 +62,7 @@ function WhereUsedPanel({ itemId, onChange, onClose }: { itemId: string; onChang
     <Drawer open onClose={onClose} title="Where-used lookup" subtitle="BOMs containing the item as a component or substitute" width={640}>
       <EntityPicker label="Component item" value={itemId || undefined} onChange={(v) => onChange(v ?? '')} options={items} placeholder="Search components…" autoFocus />
       <div style={{ marginTop: 16 }}>
-        {!itemId ? <div style={{ fontSize: 13, color: '#5F6368' }}>Pick an item to see the BOMs that use it.</div> : used.length === 0 ? <EmptyState compact title="Not used in any BOM" /> : (
+        {!itemId ? <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>Pick an item to see the BOMs that use it.</div> : used.length === 0 ? <EmptyState compact title="Not used in any BOM" /> : (
           <table className="data-table dense"><thead><tr><th>BOM</th><th>Output</th><th>Status</th><th className="right">Qty per</th><th>Role</th></tr></thead><tbody>
             {used.map((b) => { const c = b.components.find((x) => x.itemId === itemId); const sub = b.components.find((x) => x.substitutes.includes(itemId)); return <tr key={b.id} className="clickable" onClick={() => nav.go(`production/boms/${b.id}`)}><td className="identifier link">{b.code} v{b.version}</td><td>{b.itemName}</td><td><Badge status={b.status} /></td><td className="right money">{c ? `${fmtQty(c.qty, c.uom, 4)} / ${b.outputQty} ${b.uom}` : '—'}</td><td>{c ? 'Component' : sub ? `Substitute for ${sub.itemName}` : '—'}</td></tr>; })}
           </tbody></table>
@@ -119,7 +119,7 @@ function BomEditor({ bom, itemId, onClose }: { bom?: Bom; itemId?: string; onClo
   return (
     <Drawer open onClose={onClose} width={960} title={bom ? `${bom.code} v${bom.version} · ${bom.itemName}` : 'New bill of material'} subtitle={readOnly ? 'Superseded version — read-only' : revising ? 'Editing an active BOM creates a new effective-dated version and supersedes this one' : 'Draft'}
       headerRight={bom && <Badge status={bom.status} />}
-      footer={<><div style={{ flex: 1, fontSize: 12, color: '#5F6368' }}>Rolled-up cost <strong className="money">{fmtMoney(roll.perUnit, s.currency)}</strong> per {outputItem?.baseUom ?? 'unit'}</div><Button onClick={onClose}>{readOnly ? 'Close' : 'Cancel'}</Button>{!readOnly && <Button onClick={() => submit('Draft')}>{revising ? 'Save as new draft version' : 'Save draft'}</Button>}{!readOnly && <Button variant="primary" onClick={() => submit('Active')}>{revising ? 'Save & activate new version' : 'Activate BOM'}</Button>}</>}>
+      footer={<><div style={{ flex: 1, fontSize: 12, color: 'var(--ink-3)' }}>Rolled-up cost <strong className="money">{fmtMoney(roll.perUnit, s.currency)}</strong> per {outputItem?.baseUom ?? 'unit'}</div><Button onClick={onClose}>{readOnly ? 'Close' : 'Cancel'}</Button>{!readOnly && <Button onClick={() => submit('Draft')}>{revising ? 'Save as new draft version' : 'Save draft'}</Button>}{!readOnly && <Button variant="primary" onClick={() => submit('Active')}>{revising ? 'Save & activate new version' : 'Activate BOM'}</Button>}</>}>
       {err && <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div>}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 12 }}>
         <EntityPicker label="Output item" required value={f.itemId || undefined} onChange={(v) => setF({ ...f, itemId: v ?? '' })} options={items.filter((i) => ['Finished Good', 'Semi-Finished', 'Goods'].includes(i.raw?.type))} disabled={!!bom || readOnly} help={outputItem ? `${outputItem.code} · tracking ${outputItem.tracking} · std cost ${outputItem.standardCost ?? '—'}` : 'Finished / semi-finished items'} />
@@ -132,7 +132,7 @@ function BomEditor({ bom, itemId, onClose }: { bom?: Bom; itemId?: string; onClo
         <SelectField label="Routing" value={f.routingId ?? ''} onChange={(v) => setF({ ...f, routingId: v || undefined })} options={[{ value: '', label: '— none —' }, ...routings.map((r) => ({ value: r.id, label: `${r.code} · ${r.name}` }))]} disabled={readOnly} />
         <TextField label="Notes / change reason" value={f.notes ?? ''} onChange={(v) => setF({ ...f, notes: v })} disabled={readOnly} placeholder={revising ? 'Why is this version changing?' : ''} />
       </div>
-      <div style={{ display: 'flex', gap: 20, borderBottom: '1px solid #EFEFEF', margin: '16px 0 12px' }}>
+      <div style={{ display: 'flex', gap: 20, borderBottom: '1px solid var(--hairline)', margin: '16px 0 12px' }}>
         {(['components', 'byproducts', 'cost'] as const).map((t) => <button key={t} type="button" className={`doc-tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>{t === 'components' ? `Components (${f.components.length})` : t === 'byproducts' ? `By-products (${f.byProducts.length})` : 'Cost roll-up'}</button>)}
       </div>
       {tab === 'components' && (
@@ -165,7 +165,7 @@ function BomEditor({ bom, itemId, onClose }: { bom?: Bom; itemId?: string; onClo
                 <td className="right money" style={{ fontSize: 12 }}>{b.costSharePct > 0 ? `${b.costSharePct}% of material` : fmtMoney(b.qty * (db.find<Item>(C.items, b.itemId)?.standardCost ?? db.find<Item>(C.items, b.itemId)?.purchasePrice ?? 0), s.currency)}</td>
                 <td>{!readOnly && <button type="button" className="btn-icon" onClick={() => setF({ ...f, byProducts: f.byProducts.filter((_, j) => j !== i) })}>✕</button>}</td>
               </tr>))}
-            {f.byProducts.length === 0 && <tr><td colSpan={6} style={{ color: '#5F6368', fontSize: 13 }}>No by-products. Offcuts / recovered material credited against the order cost go here.</td></tr>}
+            {f.byProducts.length === 0 && <tr><td colSpan={6} style={{ color: 'var(--ink-3)', fontSize: 13 }}>No by-products. Offcuts / recovered material credited against the order cost go here.</td></tr>}
           </tbody></table>
           {!readOnly && <div style={{ padding: 10 }}><Button size="sm" onClick={() => setF({ ...f, byProducts: [...f.byProducts, newByProduct()] })}>+ Add by-product</Button></div>}
         </div>
@@ -175,16 +175,16 @@ function BomEditor({ bom, itemId, onClose }: { bom?: Bom; itemId?: string; onClo
           <div>
             <SectionCard title="Material" padding={0}>
               <table className="data-table dense"><thead><tr><th>Component</th><th className="right">Qty incl. scrap</th><th className="right">Unit cost</th><th>Source</th><th className="right">Extended</th></tr></thead><tbody>
-                {roll.lines.map((l) => <tr key={l.itemId}><td><ItemLink id={l.itemId} name={l.itemName} /></td><td className="right money">{fmtQty(l.qty, undefined, 4)}</td><td className="right money">{fmtMoney(l.unitCost, s.currency)}</td><td style={{ fontSize: 12, color: '#5F6368' }}>{l.source}</td><td className="right money">{fmtMoney(l.extended, s.currency)}</td></tr>)}
+                {roll.lines.map((l) => <tr key={l.itemId}><td><ItemLink id={l.itemId} name={l.itemName} /></td><td className="right money">{fmtQty(l.qty, undefined, 4)}</td><td className="right money">{fmtMoney(l.unitCost, s.currency)}</td><td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{l.source}</td><td className="right money">{fmtMoney(l.extended, s.currency)}</td></tr>)}
               </tbody><tfoot><tr><td colSpan={4}>Material</td><td className="right money">{fmtMoney(roll.material, s.currency)}</td></tr></tfoot></table>
             </SectionCard>
             <div style={{ height: 12 }} />
             <SectionCard title={`Conversion · ${routingOps.length ? routings.find((r) => r.id === f.routingId)?.code : 'no routing'}`} padding={0}>
               <table className="data-table dense"><thead><tr><th>Operation</th><th className="right">Minutes / output</th><th className="right">Labour</th><th className="right">Machine</th><th className="right">Overhead</th><th className="right">Subcontract</th></tr></thead><tbody>
                 {roll.ops.map((o, i) => <tr key={i}><td>{o.name}</td><td className="right money">{o.minutes.toFixed(1)}</td><td className="right money">{fmtMoney(o.labour, s.currency)}</td><td className="right money">{fmtMoney(o.machine, s.currency)}</td><td className="right money">{fmtMoney(o.overhead, s.currency)}</td><td className="right money">{fmtMoney(o.subcontract, s.currency)}</td></tr>)}
-                {roll.ops.length === 0 && <tr><td colSpan={6} style={{ color: '#5F6368', fontSize: 13 }}>Link a routing to include labour, machine and overhead in the standard cost.</td></tr>}
+                {roll.ops.length === 0 && <tr><td colSpan={6} style={{ color: 'var(--ink-3)', fontSize: 13 }}>Link a routing to include labour, machine and overhead in the standard cost.</td></tr>}
               </tbody></table>
-              <div style={{ padding: '8px 12px', fontSize: 11, color: '#6E6E71' }}>Setup time amortised over a standard lot of {Math.max(f.outputQty, outputItem?.reorderQty || 50)} {outputItem?.baseUom ?? ''}.</div>
+              <div style={{ padding: '8px 12px', fontSize: 11, color: 'var(--ink-4)' }}>Setup time amortised over a standard lot of {Math.max(f.outputQty, outputItem?.reorderQty || 50)} {outputItem?.baseUom ?? ''}.</div>
             </SectionCard>
           </div>
           <div>

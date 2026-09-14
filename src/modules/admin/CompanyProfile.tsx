@@ -87,7 +87,7 @@ export default function CompanyProfile() {
               <SelectField label="Business type" value={form.businessType} onChange={(v) => set({ businessType: v })} options={BUSINESS_TYPES} disabled={!canEdit} />
               <div>
                 <label className="field-label">Nature & profiles</label>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center', height: 36 }}><Badge status="Active">{co.nature}</Badge><span style={{ fontSize: 13, color: '#5F6368' }}>{co.profiles.join(' + ')}</span><Button variant="link" size="sm" onClick={() => (window.location.hash = '#/admin/profile')}>Change</Button></div>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', height: 36 }}><Badge status="Active">{co.nature}</Badge><span style={{ fontSize: 13, color: 'var(--ink-3)' }}>{co.profiles.join(' + ')}</span><Button variant="link" size="sm" onClick={() => (window.location.hash = '#/admin/profile')}>Change</Button></div>
               </div>
             </div>
           </div>
@@ -132,21 +132,21 @@ export default function CompanyProfile() {
 
         <Card title="Branding">
           <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-            <div style={{ width: 72, height: 72, borderRadius: 16, background: form.brandColor ?? '#325CFF', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, fontWeight: 700, flexShrink: 0 }}>{form.logoText || form.legalName.charAt(0)}</div>
+            <div style={{ width: 72, height: 72, borderRadius: 16, background: form.brandColor ?? 'var(--accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, fontWeight: 700, flexShrink: 0 }}>{form.logoText || form.legalName.charAt(0)}</div>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div className="grid-2">
                 <TextField label="Logo text" value={form.logoText ?? ''} onChange={(v) => set({ logoText: v.slice(0, 2).toUpperCase() })} maxLength={2} disabled={!canEdit} help="1–2 characters shown in the sidebar and print header" />
                 <div>
                   <label className="field-label">Brand colour</label>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input type="color" value={form.brandColor ?? '#325CFF'} onChange={(e) => set({ brandColor: e.target.value })} disabled={!canEdit} style={{ width: 36, height: 36, border: '1px solid #DADCE0', borderRadius: 8, padding: 2, background: '#fff' }} />
+                    <input type="color" value={form.brandColor ?? '#325CFF'} onChange={(e) => set({ brandColor: e.target.value })} disabled={!canEdit} style={{ width: 36, height: 36, border: '1px solid var(--line-strong)', borderRadius: 8, padding: 2, background: '#fff' }} />
                     <input className="field-input sm" value={form.brandColor ?? ''} onChange={(e) => set({ brandColor: e.target.value })} disabled={!canEdit} style={{ width: 110 }} />
                   </div>
                 </div>
               </div>
-              <div style={{ border: '1px solid #EAEAEA', borderRadius: 8, padding: 10, fontSize: 12 }}>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><span style={{ width: 22, height: 22, borderRadius: 6, background: form.brandColor ?? '#325CFF', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 11 }}>{form.logoText || 'A'}</span><strong>{form.tradeName || form.legalName}</strong><span style={{ color: '#5F6368' }}>· preview of the print header</span></div>
-                <div style={{ marginTop: 6, height: 3, background: form.brandColor ?? '#325CFF', borderRadius: 2 }} />
+              <div style={{ border: '1px solid var(--line)', borderRadius: 8, padding: 10, fontSize: 12 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><span style={{ width: 22, height: 22, borderRadius: 6, background: form.brandColor ?? 'var(--accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 11 }}>{form.logoText || 'A'}</span><strong>{form.tradeName || form.legalName}</strong><span style={{ color: 'var(--ink-3)' }}>· preview of the print header</span></div>
+                <div style={{ marginTop: 6, height: 3, background: form.brandColor ?? 'var(--accent)', borderRadius: 2 }} />
               </div>
             </div>
           </div>
@@ -154,15 +154,15 @@ export default function CompanyProfile() {
       </div>
 
       <Card title={isIN ? 'GST registrations' : 'Tax registrations'} actions={<Button size="sm" variant="secondary" disabled={!canEdit} reason={!canEdit ? 'Requires admin.company.edit' : undefined} onClick={() => setReg({ id: `reg_${Date.now().toString(36)}`, type: isIN ? 'GSTIN' : 'TRN', number: '', status: 'Active', isSez: false })}>+ Add {isIN ? 'GSTIN' : 'registration'}</Button>}>
-        {co.registrations.length === 0 ? <div style={{ fontSize: 13, color: '#5F6368' }}>No registrations yet. Add one per state; branches map to a registration for place-of-supply and e-invoicing.</div> : (
+        {co.registrations.length === 0 ? <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>No registrations yet. Add one per state; branches map to a registration for place-of-supply and e-invoicing.</div> : (
           <table className="data-table dense">
             <thead><tr><th>Number</th><th>State</th><th>Branches</th><th>SEZ</th><th>Status</th><th /></tr></thead>
             <tbody>
               {co.registrations.map((r) => (
                 <tr key={r.id}>
-                  <td><Identifier>{r.number}</Identifier> <span style={{ fontSize: 11, color: '#6E6E71' }}>{r.type}</span></td>
+                  <td><Identifier>{r.number}</Identifier> <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>{r.type}</span></td>
                   <td>{r.state ?? '—'}{r.stateCode ? ` (${r.stateCode})` : ''}</td>
-                  <td style={{ fontSize: 12, color: '#5F6368' }}>{branches.filter((b) => b.registrationId === r.id || b.id === r.branchId).map((b) => b.name).join(', ') || '—'}</td>
+                  <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{branches.filter((b) => b.registrationId === r.id || b.id === r.branchId).map((b) => b.name).join(', ') || '—'}</td>
                   <td>{r.isSez ? <Badge status="Approved">SEZ</Badge> : '—'}</td>
                   <td><Badge status={r.status} /></td>
                   <td style={{ textAlign: 'right' }}><ActionMenu actions={[{ label: 'Edit', onClick: () => setReg({ ...r }), disabled: !canEdit }, { label: r.status === 'Active' ? 'Deactivate' : 'Reactivate', onClick: () => toggleReg(r), disabled: !canEdit, danger: r.status === 'Active' }]} /></td>

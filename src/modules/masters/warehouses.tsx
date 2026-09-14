@@ -38,7 +38,7 @@ export function WarehouseRegister() {
           { key: 'name', label: 'Warehouse', sortable: true, render: (r) => <TwoLine primary={r.name} secondary={r.code} mono /> },
           { key: 'type', label: 'Type', render: (r) => (r.type === 'Standard' ? 'Standard' : <span className="pill pill-neutral">{r.type}</span>) },
           { key: 'branch', label: 'Branch', render: (r) => branches.find((b) => b.id === r.branchId)?.name ?? '—' },
-          { key: 'bins', label: 'Bins', render: (r) => (r.bins.length ? <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>{r.bins.slice(0, 5).map((b) => <span key={b} className="pill pill-neutral">{b}</span>)}{r.bins.length > 5 && <span style={{ fontSize: 12, color: '#5F6368' }}>+{r.bins.length - 5}</span>}</span> : '—'), value: (r) => r.bins.length },
+          { key: 'bins', label: 'Bins', render: (r) => (r.bins.length ? <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>{r.bins.slice(0, 5).map((b) => <span key={b} className="pill pill-neutral">{b}</span>)}{r.bins.length > 5 && <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>+{r.bins.length - 5}</span>}</span> : '—'), value: (r) => r.bins.length },
           { key: 'skus', label: 'SKUs', align: 'right', render: (r) => skus(r.id) || '—' },
           { key: 'value', label: 'Stock value', align: 'right', render: (r) => { const v = value(r.id); return v ? <span className="money">{v.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span> : '—'; } },
           { key: 'status', label: 'Status', render: (r) => <Badge status={r.status} /> },
@@ -99,7 +99,7 @@ function WarehouseForm({ warehouse, onClose }: { warehouse?: Warehouse; onClose:
             <label className="field-label">Bins / locations</label>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
               {f.v.bins.map((b: string) => <span key={b} className="chip selected" onClick={() => f.set('bins', f.v.bins.filter((x: string) => x !== b))}>{b} <span className="x">✕</span></span>)}
-              {!f.v.bins.length && <span style={{ fontSize: 12, color: '#5F6368' }}>No bins — stock is tracked at warehouse level</span>}
+              {!f.v.bins.length && <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>No bins — stock is tracked at warehouse level</span>}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <TextField value={bin} onChange={setBin} placeholder="A-01" size="sm" style={{ width: 200 }} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addBin(); } }} error={f.errors.bins} />

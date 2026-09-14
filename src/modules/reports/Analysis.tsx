@@ -39,7 +39,7 @@ export function TradeAnalysis({ direction }: { direction: 'sale' | 'purchase' })
     { key: 'total', label: 'Gross', align: 'right', render: (r) => <span className="money">{fmtMoney(r.total, s.currency)}</span>, total: () => <span className="money">{fmtMoney(totals.total, s.currency)}</span> },
     ...(direction === 'sale' ? [
       { key: 'cogs', label: 'COGS (avg cost)', align: 'right', render: (r) => <span className="money">{fmtMoney(r.cogs, s.currency)}</span>, total: () => <span className="money">{fmtMoney(totals.cogs, s.currency)}</span> } as Column<AnalysisRow>,
-      { key: 'margin', label: 'Gross margin', align: 'right', render: (r) => <span className="money" style={{ color: r.margin >= 0 ? '#12784E' : '#C0393F', fontWeight: 600 }}>{fmtMoney(r.margin, s.currency)}</span>, total: () => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(totals.margin, s.currency)}</span>, sortable: true } as Column<AnalysisRow>,
+      { key: 'margin', label: 'Gross margin', align: 'right', render: (r) => <span className="money" style={{ color: r.margin >= 0 ? 'var(--good)' : 'var(--danger)', fontWeight: 600 }}>{fmtMoney(r.margin, s.currency)}</span>, total: () => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(totals.margin, s.currency)}</span>, sortable: true } as Column<AnalysisRow>,
       { key: 'marginPct', label: 'GM %', align: 'right', render: (r) => <span className="money">{fmtPct(r.marginPct)}</span>, sortable: true } as Column<AnalysisRow>,
     ] : []),
     { key: 'share', label: 'Share', width: 140, render: (r) => <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ flex: 1 }}><Meter value={totals.taxable ? (r.taxable / totals.taxable) * 100 : 0} tone="good" /></div><span style={{ fontSize: 11, width: 36, textAlign: 'right' }}>{totals.taxable ? fmtPct((r.taxable / totals.taxable) * 100, 0) : '—'}</span></div> },
@@ -73,7 +73,7 @@ export function MarginReport() {
     { key: 'qty', label: 'Qty sold', align: 'right', render: (r) => <span className="money">{fmtQty(r.qty)}</span> },
     { key: 'taxable', label: 'Revenue', align: 'right', render: (r) => <span className="money">{fmtMoney(r.taxable, s.currency)}</span>, total: () => <span className="money">{fmtMoney(totals.taxable, s.currency)}</span>, sortable: true },
     { key: 'cogs', label: 'COGS (avg cost)', align: 'right', render: (r) => <span className="money">{fmtMoney(r.cogs, s.currency)}</span>, total: () => <span className="money">{fmtMoney(totals.cogs, s.currency)}</span> },
-    { key: 'margin', label: 'Gross margin', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600, color: r.margin >= 0 ? '#12784E' : '#C0393F' }}>{fmtMoney(r.margin, s.currency)}</span>, total: () => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(totals.margin, s.currency)}</span>, sortable: true },
+    { key: 'margin', label: 'Gross margin', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600, color: r.margin >= 0 ? 'var(--good)' : 'var(--danger)' }}>{fmtMoney(r.margin, s.currency)}</span>, total: () => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(totals.margin, s.currency)}</span>, sortable: true },
     { key: 'marginPct', label: 'GM %', align: 'right', render: (r) => <span className="money">{fmtPct(r.marginPct)}</span>, sortable: true },
     { key: 'bar', label: '', width: 120, render: (r) => <Meter value={Math.max(0, r.marginPct)} max={100} tone={r.marginPct < 10 ? 'danger' : r.marginPct < 25 ? 'warn' : 'good'} /> },
   ];
@@ -113,7 +113,7 @@ export function ProfitabilityReport() {
     { key: 'grossProfit', label: 'Gross profit', align: 'right', render: (r) => <span className="money">{fmtMoney(r.grossProfit, s.currency)}</span> },
     { key: 'gmPct', label: 'GM %', align: 'right', render: (r) => <span className="money">{fmtPct(r.gmPct)}</span> },
     { key: 'opex', label: 'Opex', align: 'right', render: (r) => <span className="money">{fmtMoney(r.opex, s.currency)}</span> },
-    { key: 'netProfit', label: 'Net profit', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600, color: r.netProfit >= 0 ? '#12784E' : '#C0393F' }}>{fmtMoney(r.netProfit, s.currency)}</span>, total: () => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(total.netProfit, s.currency)}</span>, sortable: true },
+    { key: 'netProfit', label: 'Net profit', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600, color: r.netProfit >= 0 ? 'var(--good)' : 'var(--danger)' }}>{fmtMoney(r.netProfit, s.currency)}</span>, total: () => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(total.netProfit, s.currency)}</span>, sortable: true },
     { key: 'nmPct', label: 'NM %', align: 'right', render: (r) => <span className="money">{fmtPct(r.nmPct)}</span> },
     { key: 'share', label: 'Revenue share', width: 140, render: (r) => <Meter value={total.revenue ? (r.revenue / total.revenue) * 100 : 0} tone="good" /> },
   ];
@@ -136,12 +136,12 @@ export function BudgetVarianceReport() {
   const res = useMemo(() => budgetVsActual(budget, range, { branchId: f.branchId || undefined }), [budget, range, f.branchId, journals]);
   const rows = [...res.rows, res.totals.income, res.totals.expense, res.totals.net];
   const cols: Column<(typeof rows)[number]>[] = [
-    { key: 'name', label: 'Account / cost head', render: (r) => <span style={{ fontWeight: r.kind === 'account' ? 400 : 600, paddingLeft: r.kind === 'account' ? 16 : 0, textTransform: r.kind === 'group' ? 'uppercase' : undefined, fontSize: r.kind === 'group' ? 11 : 13, color: r.kind === 'group' ? '#5F6368' : '#0A0A0A' }}>{r.code && <span className="identifier" style={{ marginRight: 6, color: '#6E6E71' }}>{r.code}</span>}{r.name}</span> },
+    { key: 'name', label: 'Account / cost head', render: (r) => <span style={{ fontWeight: r.kind === 'account' ? 400 : 600, paddingLeft: r.kind === 'account' ? 16 : 0, textTransform: r.kind === 'group' ? 'uppercase' : undefined, fontSize: r.kind === 'group' ? 11 : 13, color: r.kind === 'group' ? 'var(--ink-3)' : 'var(--ink)' }}>{r.code && <span className="identifier" style={{ marginRight: 6, color: 'var(--ink-4)' }}>{r.code}</span>}{r.name}</span> },
     { key: 'budgetFy', label: 'Budget (FY)', align: 'right', render: (r) => <span className="money">{fmtMoney(r.budgetFy, s.currency)}</span> },
     { key: 'budgetPeriod', label: 'Budget (range)', align: 'right', render: (r) => <span className="money">{fmtMoney(r.budgetPeriod, s.currency)}</span> },
     { key: 'actual', label: 'Actual', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600 }}>{fmtMoney(r.actual, s.currency)}</span> },
-    { key: 'committed', label: 'Committed', align: 'right', render: (r) => <span className="money" style={{ color: r.committed ? '#F97316' : '#B0B5BF' }}>{r.committed ? fmtMoney(r.committed, s.currency) : '—'}</span> },
-    { key: 'variance', label: 'Variance', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600, color: r.favorable ? '#12784E' : '#C0393F' }}>{r.favorable ? '+' : ''}{fmtMoney(r.variance, s.currency)}</span> },
+    { key: 'committed', label: 'Committed', align: 'right', render: (r) => <span className="money" style={{ color: r.committed ? '#F97316' : 'var(--ink-5)' }}>{r.committed ? fmtMoney(r.committed, s.currency) : '—'}</span> },
+    { key: 'variance', label: 'Variance', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600, color: r.favorable ? 'var(--good)' : 'var(--danger)' }}>{r.favorable ? '+' : ''}{fmtMoney(r.variance, s.currency)}</span> },
     { key: 'util', label: 'Utilization', width: 150, render: (r) => r.type === 'Expense' && r.kind === 'account' ? <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ flex: 1 }}><Meter value={Math.min(r.utilizationPct, 100)} /></div><span style={{ fontSize: 11, width: 36, textAlign: 'right' }}>{r.utilizationPct === 999 ? '∞' : fmtPct(r.utilizationPct, 0)}</span></div> : null },
   ];
   return (
@@ -154,7 +154,7 @@ export function BudgetVarianceReport() {
         <KpiTile label="Expense utilization" value={fmtPct(res.totals.expense.utilizationPct, 0)} sub="actual + committed ÷ budget" />
       </div>
       <DataTable rows={rows} rowKey={(r) => r.accountId || r.name} columns={cols} dense rowClass={(r) => (r.kind !== 'account' ? 'selected' : undefined)} onRowClick={(r) => r.accountId && drillToLedger(r.accountId, range)} emptyTitle="No budget lines or actuals" emptyDescription="Approve a budget under Budgets & Expenses to compare against actuals." />
-      <div style={{ fontSize: 12, color: '#6E6E71' }}>Committed = unreceived value of approved purchase orders in the range · {db.count(C.purchaseOrders)} POs on file.</div>
+      <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>Committed = unreceived value of approved purchase orders in the range · {db.count(C.purchaseOrders)} POs on file.</div>
     </ReportFrame>
   );
 }

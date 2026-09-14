@@ -80,7 +80,7 @@ export function GenealogyPage({ params, id }: { params: Record<string, string>; 
         <TextField label={dir === 'forward' ? 'Lot / serial / receipt / order number' : 'Component batch or serial'} value={q} onChange={setQ} placeholder={dir === 'forward' ? 'e.g. LOT-PRD-0011-1 or FRM-0001' : 'e.g. HR-2603-A'} autoFocus />
         {suggestions.length > 0 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
-            <span style={{ fontSize: 12, color: '#5F6368', alignSelf: 'center' }}>Recent output lots:</span>
+            <span style={{ fontSize: 12, color: 'var(--ink-3)', alignSelf: 'center' }}>Recent output lots:</span>
             {suggestions.slice(0, 10).map((x) => <span key={x} className={`chip ${q === x ? 'selected' : ''}`} onClick={() => { setQ(x); setDir('forward'); }}>{x}</span>)}
           </div>
         )}
@@ -90,7 +90,7 @@ export function GenealogyPage({ params, id }: { params: Record<string, string>; 
       {dir === 'forward' && forward.map((node) => (
         <div key={node.order.id} className="card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div><div className="section-title" style={{ marginBottom: 2 }}><OrderLink id={node.order.id} number={node.order.number} /> · {node.order.itemName}</div><div style={{ fontSize: 12, color: '#5F6368' }}>BOM {node.order.bomCode} v{node.order.bomVersion} · {fmtQty(node.order.qty, node.order.uom, 3)} planned · {fmtDate(node.order.plannedStart)} → {fmtDate(node.order.actualEnd ?? node.order.plannedEnd)}</div></div>
+            <div><div className="section-title" style={{ marginBottom: 2 }}><OrderLink id={node.order.id} number={node.order.number} /> · {node.order.itemName}</div><div style={{ fontSize: 12, color: 'var(--ink-3)' }}>BOM {node.order.bomCode} v{node.order.bomVersion} · {fmtQty(node.order.qty, node.order.uom, 3)} planned · {fmtDate(node.order.plannedStart)} → {fmtDate(node.order.actualEnd ?? node.order.plannedEnd)}</div></div>
             <Badge status={node.order.status} />
           </div>
           <SummaryBlock items={[{ label: 'Components issued', value: String(node.components.length) }, { label: 'Outputs', value: `${node.outputs.length} receipt(s) · ${fmtQty(node.outputs.reduce((a, r) => a + r.qty, 0), node.order.uom, 3)}` }, { label: 'Scrap', value: fmtQty(node.order.scrapQty, node.order.uom, 3) }, { label: 'Inspections', value: String(node.inspections.length) }, { label: 'Downstream movements', value: String(node.downstream.length) }]} />
@@ -98,7 +98,7 @@ export function GenealogyPage({ params, id }: { params: Record<string, string>; 
             <SectionCard title="① Components consumed" padding={0}>
               <table className="data-table dense"><thead><tr><th>Item</th><th className="right">Qty</th><th>Batch / serials</th><th>Document</th></tr></thead><tbody>
                 {node.components.map((cp, i) => <tr key={i}><td><ItemLink id={cp.itemId} name={cp.itemName} /></td><td className="right money">{fmtQty(cp.qty, undefined, 3)}</td><td className="identifier" style={{ fontSize: 12 }}>{cp.batch ?? cp.serials?.join(', ') ?? '—'}{cp.batch && <Button size="sm" variant="link" style={{ marginLeft: 6 }} onClick={() => { setQ(cp.batch!); setDir('reverse'); }}>trace</Button>}</td><td><DocLink path={cp.source === 'Issue' ? `production/issues/${cp.issueId}` : `production/subcontracting/${cp.issueId}`} number={cp.issueNumber} /></td></tr>)}
-                {node.components.length === 0 && <tr><td colSpan={4} style={{ padding: 12, color: '#5F6368' }}>No components issued.</td></tr>}
+                {node.components.length === 0 && <tr><td colSpan={4} style={{ padding: 12, color: 'var(--ink-3)' }}>No components issued.</td></tr>}
               </tbody></table>
             </SectionCard>
             <SectionCard title="② Outputs produced" padding={0}>
@@ -136,12 +136,12 @@ export function GenealogyPage({ params, id }: { params: Record<string, string>; 
                 <td><Badge status={r.order.status} /></td>
                 <td className="right money">{fmtQty(r.qtyUsed, undefined, 3)}</td>
                 <td className="identifier" style={{ fontSize: 12 }}>{r.lines.map((l: any) => l.issueNumber).join(', ')}</td>
-                <td style={{ fontSize: 12 }}>{r.outputs.map((o) => <span key={o.id} style={{ marginRight: 8 }}><span className="identifier link" onClick={() => { setQ(o.batch ?? o.serials?.[0] ?? ''); setDir('forward'); }}>{o.batch ?? `${o.serials?.length ?? 0} serial(s)`}</span></span>)}{r.outputs.length === 0 && <span style={{ color: '#5F6368' }}>No output yet</span>}</td>
+                <td style={{ fontSize: 12 }}>{r.outputs.map((o) => <span key={o.id} style={{ marginRight: 8 }}><span className="identifier link" onClick={() => { setQ(o.batch ?? o.serials?.[0] ?? ''); setDir('forward'); }}>{o.batch ?? `${o.serials?.length ?? 0} serial(s)`}</span></span>)}{r.outputs.length === 0 && <span style={{ color: 'var(--ink-3)' }}>No output yet</span>}</td>
               </tr>))}
           </tbody></table>
         </SectionCard>
       )}
-      {hasResult && <div style={{ fontSize: 12, color: '#6E6E71' }}>Trace is built from the immutable stock ledger: production issues into WIP, production receipts out of WIP and every later outbound movement carrying the same batch or serial.</div>}
+      {hasResult && <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>Trace is built from the immutable stock ledger: production issues into WIP, production receipts out of WIP and every later outbound movement carrying the same batch or serial.</div>}
     </div>
   );
 }

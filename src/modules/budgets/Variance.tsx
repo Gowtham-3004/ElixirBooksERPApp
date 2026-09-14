@@ -34,19 +34,19 @@ export function VariancePage() {
           <thead><tr><th>Account / cost head</th><th className="right">Budget (FY)</th><th className="right">Budget (range)</th><th className="right">Actual</th><th className="right">Committed</th><th className="right">Available</th><th className="right">Variance</th><th style={{ width: 170 }}>Utilization</th></tr></thead>
           <tbody>
             {rows.map((r, i) => { const isCalc = r.kind !== 'account'; const util = r.utilizationPct; return (
-              <tr key={i} style={{ background: isCalc ? '#F9FBFC' : undefined, fontWeight: isCalc ? 600 : 400, cursor: r.accountId ? 'pointer' : undefined }} onClick={() => r.accountId && drillToLedger(r.accountId, range)}>
-                <td style={{ paddingLeft: isCalc ? 12 : 28, fontSize: r.kind === 'group' ? 11 : 13, textTransform: r.kind === 'group' ? 'uppercase' : undefined, letterSpacing: r.kind === 'group' ? '0.04em' : undefined, color: r.kind === 'group' ? '#5F6368' : '#0A0A0A' }}>{r.code && <span className="identifier" style={{ marginRight: 6, color: '#6E6E71' }}>{r.code}</span>}{r.name}</td>
+              <tr key={i} style={{ background: isCalc ? 'var(--surface-2)' : undefined, fontWeight: isCalc ? 600 : 400, cursor: r.accountId ? 'pointer' : undefined }} onClick={() => r.accountId && drillToLedger(r.accountId, range)}>
+                <td style={{ paddingLeft: isCalc ? 12 : 28, fontSize: r.kind === 'group' ? 11 : 13, textTransform: r.kind === 'group' ? 'uppercase' : undefined, letterSpacing: r.kind === 'group' ? '0.04em' : undefined, color: r.kind === 'group' ? 'var(--ink-3)' : 'var(--ink)' }}>{r.code && <span className="identifier" style={{ marginRight: 6, color: 'var(--ink-4)' }}>{r.code}</span>}{r.name}</td>
                 <td className="right money">{fmtMoney(r.budgetFy, s.currency)}</td><td className="right money">{fmtMoney(r.budgetPeriod, s.currency)}</td><td className="right money">{fmtMoney(r.actual, s.currency)}</td>
-                <td className="right money" style={{ color: r.committed ? '#F97316' : '#B0B5BF' }}>{r.committed ? fmtMoney(r.committed, s.currency) : '—'}</td>
+                <td className="right money" style={{ color: r.committed ? '#F97316' : 'var(--ink-5)' }}>{r.committed ? fmtMoney(r.committed, s.currency) : '—'}</td>
                 <td className="right money">{r.type === 'Expense' ? fmtMoney(r.available, s.currency) : '—'}</td>
-                <td className="right money" style={{ fontWeight: 600, color: r.favorable ? '#12784E' : '#C0393F' }}>{r.favorable ? '+' : ''}{fmtMoney(r.variance, s.currency)}</td>
-                <td>{!isCalc && r.type === 'Expense' && <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ flex: 1, height: 6, background: '#EAEAEA', borderRadius: 9999, overflow: 'hidden' }}><div style={{ height: '100%', width: `${Math.min(100, util)}%`, borderRadius: 9999, background: util > 90 ? '#C0393F' : util > 75 ? '#F97316' : '#12784E' }} /></div><span style={{ fontSize: 11, color: '#5F6368', width: 36, textAlign: 'right', fontFeatureSettings: '"tnum" 1' }}>{util === 999 ? '∞' : fmtPct(util, 0)}</span></div>}</td>
+                <td className="right money" style={{ fontWeight: 600, color: r.favorable ? 'var(--good)' : 'var(--danger)' }}>{r.favorable ? '+' : ''}{fmtMoney(r.variance, s.currency)}</td>
+                <td>{!isCalc && r.type === 'Expense' && <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ flex: 1, height: 6, background: 'var(--line)', borderRadius: 9999, overflow: 'hidden' }}><div style={{ height: '100%', width: `${Math.min(100, util)}%`, borderRadius: 9999, background: util > 90 ? 'var(--danger)' : util > 75 ? '#F97316' : 'var(--good)' }} /></div><span style={{ fontSize: 11, color: 'var(--ink-3)', width: 36, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{util === 999 ? '∞' : fmtPct(util, 0)}</span></div>}</td>
               </tr>); })}
-            {rows.length <= 3 && res.rows.length === 0 && <tr><td colSpan={8} style={{ padding: 24, textAlign: 'center', color: '#6E6E71' }}>No budget lines or actuals in this range.</td></tr>}
+            {rows.length <= 3 && res.rows.length === 0 && <tr><td colSpan={8} style={{ padding: 24, textAlign: 'center', color: 'var(--ink-4)' }}>No budget lines or actuals in this range.</td></tr>}
           </tbody>
         </table>
       </div>
-      <div style={{ fontSize: 12, color: '#6E6E71' }}>Actual = posted journals (ledger) · Committed = approved / partially received POs not yet received · Available = budget − actual − committed · click an account to drill to the ledger.</div>
+      <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>Actual = posted journals (ledger) · Committed = approved / partially received POs not yet received · Available = budget − actual − committed · click an account to drill to the ledger.</div>
     </div>
   );
 }
@@ -80,7 +80,7 @@ export function ControlPage() {
             <div><label className="field-label">Scope</label><Segmented value={test.scope} onChange={(v) => setTest({ ...test, scope: v })} options={[{ value: 'period', label: 'Month' }, { value: 'ytd', label: 'YTD' }, { value: 'fy', label: 'FY' }]} /></div>
           </div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 12 }}><Button variant="primary" size="sm" onClick={run}>Test</Button>{result && <Banner tone={result.mode === 'None' ? 'info' : !result.ok ? 'danger' : result.needsApproval ? 'warning' : result.message?.startsWith('Within') ? 'success' : 'warning'} style={{ flex: 1 }}>{result.message}{result.mode !== 'None' && result.budget > 0 && <span style={{ marginLeft: 8, fontSize: 12 }}>· budget {fmtMoney(result.budget, s.currency)} · actual {fmtMoney(result.actual, s.currency)} · committed {fmtMoney(result.committed, s.currency)} · available {fmtMoney(result.available, s.currency)}</span>}</Banner>}</div>
-          <div style={{ fontSize: 12, color: '#6E6E71', marginTop: 8 }}>Helper: <span className="identifier">checkBudget(accountId, amount, date, {'{ scope }'})</span> from <span className="identifier">src/modules/budgets/control.ts</span> → {'{ ok, mode, message, needsApproval, budget, actual, committed, available, utilizationPct }'}</div>
+          <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 8 }}>Helper: <span className="identifier">checkBudget(accountId, amount, date, {'{ scope }'})</span> from <span className="identifier">src/modules/budgets/control.ts</span> → {'{ ok, mode, message, needsApproval, budget, actual, committed, available, utilizationPct }'}</div>
         </Card>}
         emptyTitle="No control rules" emptyDescription="Without rules, budgets are informational only." />
       <Drawer open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? `Edit rule · ${edit.groupName}` : 'New budget control rule'} width={500} footer={<><Button variant="ghost" onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" onClick={save}>Save rule</Button></>}>

@@ -20,7 +20,7 @@ export function RunsRegister() {
   const canRun = s.can('reports.view') || s.isTenantOwner;
 
   const cols: Column<ConsolidationRun>[] = [
-    { key: 'number', label: 'Run', render: (r) => (<div><span className="identifier link">{r.number}</span>{r.runVersion > 1 && <Pill tone="neutral">v{r.runVersion}</Pill>}<div style={{ fontSize: 12, color: '#5F6368' }}>{r.period ? fmtPeriod(r.period) : `${fmtDate(r.from)} – ${fmtDate(r.to)}`} · {r.plBasis === 'YTD' ? 'P&L year to date' : 'P&L for the period'}</div></div>), value: (r) => r.number },
+    { key: 'number', label: 'Run', render: (r) => (<div><span className="identifier link">{r.number}</span>{r.runVersion > 1 && <Pill tone="neutral">v{r.runVersion}</Pill>}<div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{r.period ? fmtPeriod(r.period) : `${fmtDate(r.from)} – ${fmtDate(r.to)}`} · {r.plBasis === 'YTD' ? 'P&L year to date' : 'P&L for the period'}</div></div>), value: (r) => r.number },
     { key: 'status', label: 'Status', render: (r) => <Badge status={runStatusTone(r.status)}>{r.status}</Badge> },
     { key: 'currency', label: 'Currency', render: (r) => <span className="identifier">{r.currency}</span> },
     { key: 'standard', label: 'Standard', render: (r) => r.accountingStandard },
@@ -29,7 +29,7 @@ export function RunsRegister() {
     { key: 'cta', label: 'CTA', align: 'right', render: (r) => (r.translatedLines.length ? <Money value={-r.cta} currency={r.currency} tone="auto" /> : '—'), value: (r) => -r.cta },
     { key: 'elim', label: 'Eliminations', align: 'right', render: (r) => { const acc = r.eliminations.filter((e) => e.status === 'Accepted').length; const prop = r.eliminations.filter((e) => e.status === 'Proposed').length; return prop ? <Pill tone="warning">{acc} accepted · {prop} proposed</Pill> : acc ? <span>{acc} accepted</span> : '—'; }, value: (r) => r.eliminations.length },
     { key: 'adj', label: 'Adjustments', align: 'right', render: (r) => (r.adjustments.length ? String(r.adjustments.length) : '—'), value: (r) => r.adjustments.length },
-    { key: 'by', label: 'Created', render: (r) => (<div style={{ fontSize: 12 }}>{fmtDate(r.createdAt.slice(0, 10))}<div style={{ color: '#5F6368' }}>{r.createdBy}</div></div>), value: (r) => r.createdAt },
+    { key: 'by', label: 'Created', render: (r) => (<div style={{ fontSize: 12 }}>{fmtDate(r.createdAt.slice(0, 10))}<div style={{ color: 'var(--ink-3)' }}>{r.createdBy}</div></div>), value: (r) => r.createdAt },
   ];
 
   if (!group) {
@@ -200,10 +200,10 @@ export function NewRunWizard({ open, group, supersedes, onClose }: { open: boole
                 ['historical', 'Historical', c.rateHistorical] as const,
               ].map(([kind, label, info], i) => (
                 <tr key={c.companyId + kind}>
-                  {i === 0 && <td rowSpan={3} style={{ verticalAlign: 'top', fontWeight: 600 }}>{c.companyName}<div style={{ fontSize: 12, color: '#5F6368', fontWeight: 400 }}>{c.baseCurrency} → {group.consolidationCurrency}</div></td>}
+                  {i === 0 && <td rowSpan={3} style={{ verticalAlign: 'top', fontWeight: 600 }}>{c.companyName}<div style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 400 }}>{c.baseCurrency} → {group.consolidationCurrency}</div></td>}
                   <td>{label}</td>
                   <td className="right money">{info.rate ? info.rate : <Pill tone="critical">Missing</Pill>}</td>
-                  <td style={{ fontSize: 12, color: '#5F6368' }}>{info.type} · {info.source}{info.note ? ` · ${info.note}` : ''}</td>
+                  <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{info.type} · {info.source}{info.note ? ` · ${info.note}` : ''}</td>
                   <td className="right">{c.baseCurrency === group.consolidationCurrency ? '—' : <NumberField value={rates[c.companyId]?.[kind] ?? 0} onChange={(v) => setRates({ ...rates, [c.companyId]: { ...(rates[c.companyId] ?? { closing: 0, average: 0, historical: 0 }), [kind]: v } })} decimals={4} size="sm" placeholder="—" />}</td>
                 </tr>
               )))) }
@@ -229,7 +229,7 @@ export function NewRunWizard({ open, group, supersedes, onClose }: { open: boole
           </Card>
           <Banner tone="success">Translation reads posted journals only. No journal, period or balance in Acme or Acme Gulf is created, changed or deleted by this run (FR-FX-014, FR-CNS-004).</Banner>
           <CheckboxField checked disabled onChange={() => {}} label="Disclose the translation adjustment (CTA) as its own line" help="Required by FR-RPT-013 — the balancing figure between closing, average and historical rates." />
-          <div style={{ marginTop: 10, fontSize: 12, color: '#6E6E71' }}>Saving as a draft lets you review inputs before translating. You can re-translate a draft as often as you like.</div>
+          <div style={{ marginTop: 10, fontSize: 12, color: 'var(--ink-4)' }}>Saving as a draft lets you review inputs before translating. You can re-translate a draft as often as you like.</div>
         </>
       )}
     </Drawer>

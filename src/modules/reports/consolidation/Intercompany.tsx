@@ -31,17 +31,17 @@ export function IntercompanyPanel({ compact }: { compact?: boolean }) {
   const dues = useMemo(() => dueBalances(), [journals, s.state.companyId]);
 
   const cols: Column<IntercompanyDoc>[] = [
-    { key: 'number', label: 'Document', render: (d) => (<div><span className="identifier link">{d.number}</span><div style={{ fontSize: 12, color: '#5F6368' }}>{d.type} · {fmtDate(d.date)}</div></div>), value: (d) => d.number },
-    { key: 'ref', label: 'Counterparty reference', render: (d) => (<div><span className="identifier">{d.counterpartyRef}</span>{(byRef.get(d.counterpartyRef)?.length ?? 0) > 1 && <div style={{ fontSize: 11, color: '#6E6E71' }}>{byRef.get(d.counterpartyRef)!.length} documents on this reference</div>}</div>), value: (d) => d.counterpartyRef },
-    { key: 'from', label: 'From company', render: (d) => (<div>{companyName(d.fromCompanyId)}<div style={{ fontSize: 11, color: '#6E6E71' }}>Due from · <span className="identifier">{db.find<any>(C.accounts, d.dueFromAccount)?.code ?? '—'}</span></div></div>), value: (d) => companyName(d.fromCompanyId) },
-    { key: 'to', label: 'To company', render: (d) => (<div>{companyName(d.toCompanyId)}<div style={{ fontSize: 11, color: '#6E6E71' }}>Due to · <span className="identifier">{db.find<any>(C.accounts, d.dueToAccount)?.code ?? '—'}</span></div></div>), value: (d) => companyName(d.toCompanyId) },
+    { key: 'number', label: 'Document', render: (d) => (<div><span className="identifier link">{d.number}</span><div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{d.type} · {fmtDate(d.date)}</div></div>), value: (d) => d.number },
+    { key: 'ref', label: 'Counterparty reference', render: (d) => (<div><span className="identifier">{d.counterpartyRef}</span>{(byRef.get(d.counterpartyRef)?.length ?? 0) > 1 && <div style={{ fontSize: 11, color: 'var(--ink-4)' }}>{byRef.get(d.counterpartyRef)!.length} documents on this reference</div>}</div>), value: (d) => d.counterpartyRef },
+    { key: 'from', label: 'From company', render: (d) => (<div>{companyName(d.fromCompanyId)}<div style={{ fontSize: 11, color: 'var(--ink-4)' }}>Due from · <span className="identifier">{db.find<any>(C.accounts, d.dueFromAccount)?.code ?? '—'}</span></div></div>), value: (d) => companyName(d.fromCompanyId) },
+    { key: 'to', label: 'To company', render: (d) => (<div>{companyName(d.toCompanyId)}<div style={{ fontSize: 11, color: 'var(--ink-4)' }}>Due to · <span className="identifier">{db.find<any>(C.accounts, d.dueToAccount)?.code ?? '—'}</span></div></div>), value: (d) => companyName(d.toCompanyId) },
     { key: 'amount', label: 'Amount', align: 'right', render: (d) => <Money value={d.amount} currency={d.currency} code />, value: (d) => d.amount },
-    { key: 'baseFrom', label: 'In from-base', align: 'right', render: (d) => (<div><Money value={d.baseAmountFrom} currency={d.baseCurrencyFrom} code /><div style={{ fontSize: 11, color: '#6E6E71' }}>@ {d.rateFrom}</div></div>), value: (d) => d.baseAmountFrom },
-    { key: 'baseTo', label: 'In to-base', align: 'right', render: (d) => (d.baseAmountTo ? (<div><Money value={d.baseAmountTo} currency={d.baseCurrencyTo} code /><div style={{ fontSize: 11, color: '#6E6E71' }}>@ {d.rateTo}</div></div>) : <Pill tone="warning">Not booked</Pill>), value: (d) => d.baseAmountTo },
+    { key: 'baseFrom', label: 'In from-base', align: 'right', render: (d) => (<div><Money value={d.baseAmountFrom} currency={d.baseCurrencyFrom} code /><div style={{ fontSize: 11, color: 'var(--ink-4)' }}>@ {d.rateFrom}</div></div>), value: (d) => d.baseAmountFrom },
+    { key: 'baseTo', label: 'In to-base', align: 'right', render: (d) => (d.baseAmountTo ? (<div><Money value={d.baseAmountTo} currency={d.baseCurrencyTo} code /><div style={{ fontSize: 11, color: 'var(--ink-4)' }}>@ {d.rateTo}</div></div>) : <Pill tone="warning">Not booked</Pill>), value: (d) => d.baseAmountTo },
     { key: 'journals', label: 'Journals', render: (d) => (
       <div style={{ fontSize: 12 }}>
         <div>{d.sourceJournalNumbers?.from ? <span className="identifier link" onClick={(e) => { e.stopPropagation(); nav.go(`accounting/journals/${d.sourceJournalIds.from}`); }}>{d.sourceJournalNumbers.from}</span> : '—'}</div>
-        <div>{d.sourceJournalNumbers?.to ? <span className="identifier link" onClick={(e) => { e.stopPropagation(); nav.go(`accounting/journals/${d.sourceJournalIds.to}`); }}>{d.sourceJournalNumbers.to}</span> : <span style={{ color: '#8A4B0F' }}>counterparty pending</span>}</div>
+        <div>{d.sourceJournalNumbers?.to ? <span className="identifier link" onClick={(e) => { e.stopPropagation(); nav.go(`accounting/journals/${d.sourceJournalIds.to}`); }}>{d.sourceJournalNumbers.to}</span> : <span style={{ color: 'var(--warn)' }}>counterparty pending</span>}</div>
       </div>
     ) },
     { key: 'matchStatus', label: 'Match', render: (d) => <Badge status={d.matchStatus === 'Matched' ? 'Matched' : d.matchStatus === 'Difference' ? 'Variance' : 'Unmatched'}>{d.matchStatus}</Badge> },
@@ -76,7 +76,7 @@ export function IntercompanyPanel({ compact }: { compact?: boolean }) {
               const payAcc = db.find<any>(C.accounts, d.payableAccountId);
               return (
                 <tr key={d.companyId + d.counterpartyId}>
-                  <td>{companyName(d.companyId)} <span className="identifier" style={{ color: '#6E6E71' }}>{d.currency}</span></td>
+                  <td>{companyName(d.companyId)} <span className="identifier" style={{ color: 'var(--ink-4)' }}>{d.currency}</span></td>
                   <td>{companyName(d.counterpartyId)}</td>
                   <td>{recvAcc ? <span className="link identifier" onClick={() => openCompanyLedger(d.companyId, d.receivableAccountId!, s.state.companyId)}>{recvAcc.code} · {recvAcc.name}</span> : '—'}</td>
                   <td className="right money"><Money value={d.receivable} currency={d.currency} code /></td>
@@ -86,10 +86,10 @@ export function IntercompanyPanel({ compact }: { compact?: boolean }) {
                 </tr>
               );
             })}
-            {!dues.length && <tr><td colSpan={7} style={{ color: '#6E6E71' }}>No company in this tenant has intercompany accounts configured.</td></tr>}
+            {!dues.length && <tr><td colSpan={7} style={{ color: 'var(--ink-4)' }}>No company in this tenant has intercompany accounts configured.</td></tr>}
           </tbody>
         </table>
-        <div style={{ padding: 12, fontSize: 12, color: '#6E6E71' }}>Balances are read with <span className="identifier">engine.accountBalance</span> per company and shown in that company’s own base currency — they are only ever translated inside a consolidation run.</div>
+        <div style={{ padding: 12, fontSize: 12, color: 'var(--ink-4)' }}>Balances are read with <span className="identifier">engine.accountBalance</span> per company and shown in that company’s own base currency — they are only ever translated inside a consolidation run.</div>
       </Card>
 
       {rows.length === 0
@@ -140,13 +140,13 @@ function IcDetail({ doc, pair }: { doc: IntercompanyDoc; pair: IntercompanyDoc[]
   const jf = db.find<Journal>(C.journals, doc.sourceJournalIds.from);
   const jt = db.find<Journal>(C.journals, doc.sourceJournalIds.to);
   return (
-    <div style={{ borderTop: '1px solid #EAEAEA', padding: 16, background: '#F9FBFC' }}>
+    <div style={{ borderTop: '1px solid var(--line)', padding: 16, background: 'var(--surface-2)' }}>
       <div className="grid-2" style={{ alignItems: 'start' }}>
         <div>
           <SectionLabel>FX explanation</SectionLabel>
           {doc.difference
             ? <ul style={{ margin: '8px 0 0 18px', fontSize: 13, lineHeight: 1.7 }}>{doc.difference.explanation.map((e, i) => <li key={i}>{e}</li>)}</ul>
-            : <div style={{ fontSize: 13, color: '#6E6E71', marginTop: 8 }}>Not matched yet — match the document to compute the difference in each base currency.</div>}
+            : <div style={{ fontSize: 13, color: 'var(--ink-4)', marginTop: 8 }}>Not matched yet — match the document to compute the difference in each base currency.</div>}
           {doc.difference && Math.abs(doc.difference.diffTo) >= 0.005 && (
             <div style={{ marginTop: 10 }}><Pill tone="warning">Difference {fmtMoney(doc.difference.diffTo, doc.difference.toCurrency, { code: true })}</Pill></div>
           )}
@@ -180,7 +180,7 @@ function IcDetail({ doc, pair }: { doc: IntercompanyDoc; pair: IntercompanyDoc[]
 
 function JournalCard({ title, journal, companyId }: { title: string; journal?: Journal; companyId: string }) {
   const s = useSession();
-  if (!journal) return (<Card padding={12}><div style={{ fontWeight: 600 }}>{title}</div><div style={{ fontSize: 12, color: '#8A4B0F', marginTop: 6 }}>No journal posted on this side yet.</div></Card>);
+  if (!journal) return (<Card padding={12}><div style={{ fontWeight: 600 }}>{title}</div><div style={{ fontSize: 12, color: 'var(--warn)', marginTop: 6 }}>No journal posted on this side yet.</div></Card>);
   return (
     <Card padding={12}>
       <div style={{ fontWeight: 600, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
@@ -258,11 +258,11 @@ export function CreateIcDrawer({ open, onClose, defaultFrom }: { open: boolean; 
         : side === 'from' ? [[a.receivable, 'Dr'], [a.bank, 'Cr']] : [[a.bank, 'Dr'], [a.payable, 'Cr']];
     return (
       <Card padding={12}>
-        <div style={{ fontWeight: 600 }}>{side === 'from' ? companyName(from) : companyName(to)} <span className="identifier" style={{ color: '#6E6E71' }}>{cur}</span></div>
+        <div style={{ fontWeight: 600 }}>{side === 'from' ? companyName(from) : companyName(to)} <span className="identifier" style={{ color: 'var(--ink-4)' }}>{cur}</span></div>
         <table className="data-table dense" style={{ marginTop: 8 }}>
           <tbody>
             {rows.map(([acc, dc], i) => (
-              <tr key={i}><td>{(acc as any)?.code ? <><span className="identifier">{(acc as any).code}</span> {(acc as any).name}</> : <span style={{ color: '#C0393F' }}>account missing</span>}</td><td className="right money">{dc === 'Dr' ? fmtMoney(amount, currency, { code: true }) : ''}</td><td className="right money">{dc === 'Cr' ? fmtMoney(amount, currency, { code: true }) : ''}</td></tr>
+              <tr key={i}><td>{(acc as any)?.code ? <><span className="identifier">{(acc as any).code}</span> {(acc as any).name}</> : <span style={{ color: 'var(--danger)' }}>account missing</span>}</td><td className="right money">{dc === 'Dr' ? fmtMoney(amount, currency, { code: true }) : ''}</td><td className="right money">{dc === 'Cr' ? fmtMoney(amount, currency, { code: true }) : ''}</td></tr>
             ))}
             <tr style={{ fontWeight: 700 }}><td>In base @ {rate || '—'}</td><td className="right money" colSpan={2}>{rate ? fmtMoney(amount * rate, cur ?? 'INR', { code: true }) : '—'}</td></tr>
           </tbody>
@@ -304,7 +304,7 @@ export function CreateIcDrawer({ open, onClose, defaultFrom }: { open: boolean; 
         <SectionLabel>Journals that will be posted</SectionLabel>
         <div className="grid-2" style={{ marginTop: 8 }}>
           {preview('from')}
-          {postCounterparty ? preview('to') : <Card padding={12}><div style={{ fontWeight: 600 }}>{companyName(to)}</div><div style={{ fontSize: 12, color: '#8A4B0F', marginTop: 8 }}>No journal will be posted now. The intercompany document is created as Unmatched and appears in {companyName(to)}’s matching queue.</div></Card>}
+          {postCounterparty ? preview('to') : <Card padding={12}><div style={{ fontWeight: 600 }}>{companyName(to)}</div><div style={{ fontSize: 12, color: 'var(--warn)', marginTop: 8 }}>No journal will be posted now. The intercompany document is created as Unmatched and appears in {companyName(to)}’s matching queue.</div></Card>}
         </div>
       </div>
 

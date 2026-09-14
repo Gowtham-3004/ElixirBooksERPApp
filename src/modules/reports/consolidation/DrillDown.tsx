@@ -69,7 +69,7 @@ export function DrillDown() {
                 {contributors.map((c) => {
                   const l = run.translatedLines.find((x) => x.companyId === c.companyId && x.accountCode === row.code);
                   return (
-                    <tr key={c.companyId} className="clickable" onClick={() => setCompanyId(c.companyId)} style={{ background: c.companyId === selectedCompany?.companyId ? '#F3F6FF' : undefined }}>
+                    <tr key={c.companyId} className="clickable" onClick={() => setCompanyId(c.companyId)} style={{ background: c.companyId === selectedCompany?.companyId ? 'var(--accent-soft)' : undefined }}>
                       <td>{c.companyName}</td>
                       <td><span className="identifier">{row.code}</span> {l?.accountName ?? row.name}</td>
                       <td><span className="identifier">{l?.sourceCurrency ?? c.baseCurrency}</span></td>
@@ -80,7 +80,7 @@ export function DrillDown() {
                     </tr>
                   );
                 })}
-                {!contributors.length && <tr><td colSpan={7} style={{ color: '#6E6E71' }}>Consolidation-only account — the figure comes from eliminations or consolidation adjustments, not from a company ledger.</td></tr>}
+                {!contributors.length && <tr><td colSpan={7} style={{ color: 'var(--ink-4)' }}>Consolidation-only account — the figure comes from eliminations or consolidation adjustments, not from a company ledger.</td></tr>}
               </tbody>
             </table>
           </Card>
@@ -125,22 +125,22 @@ export function DrillDown() {
                         <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(j.date)}</td>
                         <td><span className="identifier link">{j.number}</span></td>
                         <td>{j.sourceType}</td>
-                        <td style={{ color: '#5F6368' }}>{j.narration}</td>
+                        <td style={{ color: 'var(--ink-3)' }}>{j.narration}</td>
                         <td className="right money">{dr ? fmtMoney(dr, j.currency, { code: j.currency !== selectedCompany.baseCurrency }) : '—'}</td>
                         <td className="right money">{cr ? fmtMoney(cr, j.currency, { code: j.currency !== selectedCompany.baseCurrency }) : '—'}</td>
                         <td><Badge status={j.status} /></td>
                       </tr>
                     );
                   })}
-                  {!srcJournals.length && <tr><td colSpan={7} style={{ color: '#6E6E71' }}>No journal in {selectedCompany.companyName} touches this account in the range — the balance comes from the opening balance loaded at go-live.</td></tr>}
+                  {!srcJournals.length && <tr><td colSpan={7} style={{ color: 'var(--ink-4)' }}>No journal in {selectedCompany.companyName} touches this account in the range — the balance comes from the opening balance loaded at go-live.</td></tr>}
                 </tbody>
               </table>
-              {srcJournals.length > 60 && <div style={{ padding: 10, fontSize: 12, color: '#6E6E71' }}>Showing the 60 most recent of {srcJournals.length} journals — open the ledger for the full list.</div>}
+              {srcJournals.length > 60 && <div style={{ padding: 10, fontSize: 12, color: 'var(--ink-4)' }}>Showing the 60 most recent of {srcJournals.length} journals — open the ledger for the full list.</div>}
             </Card>
           )}
 
           <Banner tone="success">Everything shown here is read from {selectedCompany?.companyName ?? 'the company'}’s own journals. Opening the ledger switches your working company; it never merges the two sets of books (FR-ORG-011, FR-FX-014).</Banner>
-          <div style={{ fontSize: 12, color: '#6E6E71' }}>
+          <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>
             Consolidated <span className="money">{fmtMoney(row.consolidated * sign, run.currency)}</span> = {contributors.map((c) => `${c.companyName} ${fmtMoney((row.byCompany[c.companyId] ?? 0) * sign, run.currency)}`).join(' + ')}
             {row.eliminations ? ` + eliminations ${fmtMoney(row.eliminations * sign, run.currency)}` : ''}
             {row.adjustments ? ` + adjustments ${fmtMoney(row.adjustments * sign, run.currency)}` : ''}

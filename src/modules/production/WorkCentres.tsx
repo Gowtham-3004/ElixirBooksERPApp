@@ -27,7 +27,7 @@ export function WorkCentresPage({ id }: { id?: string }) {
     { key: 'calendar', label: 'Calendar', render: (w) => <span style={{ fontSize: 12 }}>{w.workingDays.length} d/wk · {w.hoursPerDay} h/d · cap {w.capacityHrsPerDay} h · eff {w.efficiencyPct}%</span> },
     { key: 'rates', label: 'Rates / h', render: (w) => <span className="money" style={{ fontSize: 12 }}>L {fmtMoney(w.costRateLabour, s.currency)} · M {fmtMoney(w.costRateMachine, s.currency)} · OH {fmtMoney(w.overheadRate, s.currency)}</span> },
     { key: 'warehouseId', label: 'WIP location', render: (w) => whName(w.warehouseId) },
-    { key: 'util', label: 'Load · 4 wks', sortable: true, render: (w) => <div style={{ minWidth: 140 }}><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}><span>{w.load.toFixed(0)} / {w.cap.toFixed(0)} h</span><span style={{ color: w.util >= 100 ? '#C0393F' : w.util >= 80 ? '#8A4B0F' : '#5F6368' }}>{fmtPct(w.util, 0)}</span></div><Meter value={w.load} max={w.cap} /></div>, value: (w) => w.util },
+    { key: 'util', label: 'Load · 4 wks', sortable: true, render: (w) => <div style={{ minWidth: 140 }}><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}><span>{w.load.toFixed(0)} / {w.cap.toFixed(0)} h</span><span style={{ color: w.util >= 100 ? 'var(--danger)' : w.util >= 80 ? 'var(--warn)' : 'var(--ink-3)' }}>{fmtPct(w.util, 0)}</span></div><Meter value={w.load} max={w.cap} /></div>, value: (w) => w.util },
     { key: 'status', label: 'Status', render: (w) => <Badge status={w.status} /> },
   ];
   const rowActions = (w: WorkCentre): MenuAction[] => [{ label: 'Edit', onClick: () => setEditing({ w }) }, { label: 'Open orders at this centre', onClick: () => nav.go('production/orders') }];
@@ -50,12 +50,12 @@ function CapacityBoard({ rows }: { rows: (WorkCentre & { weeks: ReturnType<typeo
             <td><div style={{ fontWeight: 500 }}>{w.name}</div><div className="cell-secondary">{w.capacityHrsPerDay} h/d × {w.workingDays.length} d × {w.efficiencyPct}%</div></td>
             {w.weeks.map((k) => { const pct = k.capacity ? (k.load / k.capacity) * 100 : 0; return (
               <td key={k.weekStart} style={{ minWidth: 160 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 3 }}><span className="money">{k.load.toFixed(1)} / {k.capacity.toFixed(0)} h</span><span style={{ color: pct >= 100 ? '#C0393F' : pct >= 80 ? '#8A4B0F' : '#5F6368', fontWeight: 500 }}>{fmtPct(pct, 0)}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 3 }}><span className="money">{k.load.toFixed(1)} / {k.capacity.toFixed(0)} h</span><span style={{ color: pct >= 100 ? 'var(--danger)' : pct >= 80 ? 'var(--warn)' : 'var(--ink-3)', fontWeight: 500 }}>{fmtPct(pct, 0)}</span></div>
                 <Meter value={k.load} max={k.capacity} />
-                {k.orders.length > 0 && <div style={{ fontSize: 11, color: '#6E6E71', marginTop: 3, display: 'flex', gap: 6, flexWrap: 'wrap' }}>{k.orders.slice(0, 3).map((o) => <span key={o.id}><OrderLink id={o.id} number={o.number.replace('PRD/26-27/', '#')} /> {o.hours.toFixed(1)}h</span>)}{k.orders.length > 3 && <span>+{k.orders.length - 3}</span>}</div>}
+                {k.orders.length > 0 && <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 3, display: 'flex', gap: 6, flexWrap: 'wrap' }}>{k.orders.slice(0, 3).map((o) => <span key={o.id}><OrderLink id={o.id} number={o.number.replace('PRD/26-27/', '#')} /> {o.hours.toFixed(1)}h</span>)}{k.orders.length > 3 && <span>+{k.orders.length - 3}</span>}</div>}
               </td>); })}
           </tr>))}
-        {rows.length === 0 && <tr><td colSpan={5} style={{ padding: 16, color: '#5F6368' }}>No work centres yet.</td></tr>}
+        {rows.length === 0 && <tr><td colSpan={5} style={{ padding: 16, color: 'var(--ink-3)' }}>No work centres yet.</td></tr>}
       </tbody></table>
     </SectionCard>
   );
@@ -72,7 +72,7 @@ function WorkCentreEditor({ wc, onClose }: { wc?: WorkCentre; onClose: () => voi
   const addOp = () => { const v = opInput.trim(); if (v && !f.permittedOperations.includes(v)) setF({ ...f, permittedOperations: [...f.permittedOperations, v] }); setOpInput(''); };
   return (
     <Drawer open onClose={onClose} width={760} title={wc ? `${wc.code} · ${wc.name}` : 'New work centre'} subtitle="Calendar, capacity, efficiency and cost rates" headerRight={<Toggle on={f.status === 'Active'} onChange={(v) => setF({ ...f, status: v ? 'Active' : 'Inactive' })} label={f.status} />}
-      footer={<><div style={{ flex: 1, fontSize: 12, color: '#5F6368' }}>Effective capacity <strong>{weekly.toFixed(1)} h / week</strong></div><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={submit}>Save work centre</Button></>}>
+      footer={<><div style={{ flex: 1, fontSize: 12, color: 'var(--ink-3)' }}>Effective capacity <strong>{weekly.toFixed(1)} h / week</strong></div><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={submit}>Save work centre</Button></>}>
       {err && <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div>}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12 }}>
         <TextField label="Code" required value={f.code} onChange={(v) => setF({ ...f, code: v })} uppercase />

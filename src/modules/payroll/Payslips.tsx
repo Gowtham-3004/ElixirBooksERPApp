@@ -24,7 +24,7 @@ export function PayslipsPage({ id }: { id?: string }) {
     { key: 'employeeName', label: 'Employee', render: (p) => <div><div className="cell-primary">{p.employeeName}</div><div className="cell-secondary identifier">{p.employeeCode} · {p.department}</div></div>, sortable: true },
     { key: 'period', label: 'Month', render: (p) => <span>{periodLabel(p.period)}<div className="cell-secondary identifier">{p.runNumber}</div></span>, sortable: true },
     { key: 'gross', label: 'Gross', align: 'right', render: (p) => <span className="money">{money(p.line.gross)}</span>, total: (rs) => <span className="money">{money(rs.reduce((x, p) => x + p.line.gross, 0))}</span> },
-    { key: 'deductions', label: 'Deductions', align: 'right', render: (p) => <span className="money" style={{ color: '#C0393F' }}>{money(p.line.deductions)}</span> },
+    { key: 'deductions', label: 'Deductions', align: 'right', render: (p) => <span className="money" style={{ color: 'var(--danger)' }}>{money(p.line.deductions)}</span> },
     { key: 'net', label: 'Net', align: 'right', render: (p) => <span className="money" style={{ fontWeight: 600 }}>{money(p.line.net)}</span>, total: (rs) => <span className="money" style={{ fontWeight: 700 }}>{money(rs.reduce((x, p) => x + p.line.net, 0))}</span> },
     { key: 'status', label: 'Status', render: (p) => <Badge status={p.status === 'Void' ? 'Cancelled' : p.status === 'Emailed' ? 'Sent' : p.status}>{p.status}</Badge> },
     { key: 'act', label: '', render: (p) => <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setOpen(p); }}>PDF</Button> },
@@ -44,9 +44,9 @@ export function PayslipsPage({ id }: { id?: string }) {
         footer={open && <><Button variant="ghost" onClick={() => setOpen(null)}>Close</Button><div style={{ display: 'flex', gap: 8 }}><Button variant="secondary" onClick={() => email([open])} disabled={open.status === 'Void'}>Email</Button><Button variant="primary" onClick={() => window.print()}>Print / PDF</Button></div></>}>
         {open && l && (
           <div className="print-sheet" style={{ width: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #0A0A0A', paddingBottom: 10, marginBottom: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid var(--ink)', paddingBottom: 10, marginBottom: 10 }}>
               <div><div style={{ fontSize: 16, fontWeight: 700 }}>{s.company?.legalName}</div><div>{s.company?.address.line1}, {s.company?.address.city} {s.company?.address.pin}</div></div>
-              <div style={{ textAlign: 'right' }}><div style={{ fontSize: 14, fontWeight: 700 }}>PAYSLIP — {periodLabel(open.period).toUpperCase()}</div><div>{open.number}</div>{open.status === 'Void' && <div style={{ color: '#C0393F', fontWeight: 700 }}>VOID — {open.voidReason}</div>}</div>
+              <div style={{ textAlign: 'right' }}><div style={{ fontSize: 14, fontWeight: 700 }}>PAYSLIP — {periodLabel(open.period).toUpperCase()}</div><div>{open.number}</div>{open.status === 'Void' && <div style={{ color: 'var(--danger)', fontWeight: 700 }}>VOID — {open.voidReason}</div>}</div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12, fontSize: 11 }}>
               <div><div><strong>{open.employeeName}</strong> · {open.employeeCode}</div><div>{open.designation} · {open.department}</div><div>PAN {canView ? open.pan ?? '—' : '••••'} · UAN {open.uan ?? '—'}</div><div>Bank {open.bankMasked ?? '—'}{emp?.bankDetail?.bankName ? ' · ' + emp.bankDetail.bankName : ''}</div></div>
@@ -62,9 +62,9 @@ export function PayslipsPage({ id }: { id?: string }) {
                 <tr style={{ fontWeight: 700 }}><td>Total deductions</td><td style={{ textAlign: 'right' }}>{fmtMoney(l.deductions, s.currency)}</td></tr>
               </tbody></table>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, padding: '8px 10px', background: '#F9FBFC', border: '1px solid #DADCE0', fontWeight: 700, fontSize: 13 }}><span>Net pay</span><span>{fmtMoney(l.net, s.currency)}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, padding: '8px 10px', background: 'var(--surface-2)', border: '1px solid var(--line-strong)', fontWeight: 700, fontSize: 13 }}><span>Net pay</span><span>{fmtMoney(l.net, s.currency)}</span></div>
             <div style={{ fontSize: 10, marginTop: 4 }}>{amountInWords(l.net, s.currency)}</div>
-            <div style={{ fontSize: 10, marginTop: 8, color: '#5F6368' }}>Employer contributions (not part of net pay): PF {fmtMoney(l.employerPf, s.currency)} · ESI {fmtMoney(l.employerEsi, s.currency)} · This is a system-generated payslip; no signature required. Period {fmtDate(open.period + '-01')}.</div>
+            <div style={{ fontSize: 10, marginTop: 8, color: 'var(--ink-3)' }}>Employer contributions (not part of net pay): PF {fmtMoney(l.employerPf, s.currency)} · ESI {fmtMoney(l.employerEsi, s.currency)} · This is a system-generated payslip; no signature required. Period {fmtDate(open.period + '-01')}.</div>
           </div>
         )}
       </Drawer>

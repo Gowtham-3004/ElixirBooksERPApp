@@ -61,15 +61,15 @@ export default function Companies() {
           const open = periods.filter((p) => p.status === 'Open' || p.status === 'Reopened').length;
           const current = c.id === s.state.companyId;
           return (
-            <Card key={c.id} style={{ borderColor: current ? '#325CFF' : undefined }}>
+            <Card key={c.id} style={{ borderColor: current ? 'var(--accent)' : undefined }}>
               <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                <div style={{ width: 44, height: 44, borderRadius: 10, background: c.brandColor ?? '#325CFF', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 18, flexShrink: 0 }}>{c.logoText ?? c.legalName[0]}</div>
+                <div style={{ width: 44, height: 44, borderRadius: 10, background: c.brandColor ?? 'var(--accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 18, flexShrink: 0 }}>{c.logoText ?? c.legalName[0]}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                     <div style={{ fontSize: 15, fontWeight: 600 }}>{c.legalName}</div>
                     <div style={{ display: 'flex', gap: 6 }}>{current && <Badge status="Active">Current</Badge>}<Badge status={c.status} /></div>
                   </div>
-                  <div style={{ fontSize: 12, color: '#5F6368', marginBottom: 10 }}>{c.code} · {c.country} · {c.baseCurrency}{c.reportingCurrency ? ` (reports ${c.reportingCurrency})` : ''} · {c.nature}</div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 10 }}>{c.code} · {c.country} · {c.baseCurrency}{c.reportingCurrency ? ` (reports ${c.reportingCurrency})` : ''} · {c.nature}</div>
                   <KV columns={2} items={[{ k: 'Pack', v: `${c.localizationPack} v${c.localizationVersion}` }, { k: 'Profiles', v: c.profiles.join(' + ') }, { k: 'Branches', v: br }, { k: 'Periods', v: `${periods.length} · ${open} open` }, { k: 'FY starts', v: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][c.fiscalYearStartMonth - 1] }, { k: 'Books from', v: fmtDate(c.booksFrom) }]} />
                   <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                     {!current && <Button size="sm" variant="primary" onClick={() => { session.switchCompany(c.id); nav.go('home'); }}>Switch to {c.tradeName}</Button>}
@@ -82,7 +82,7 @@ export default function Companies() {
           );
         })}
       </div>
-      <div style={{ fontSize: 12, color: '#6E6E71' }}>Companies under one tenant may use different countries, currencies and profiles; ledgers, periods, statutory books, banks and number series stay company-specific (FRD §3.5). No transaction can mix companies (FR-ORG-011).</div>
+      <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>Companies under one tenant may use different countries, currencies and profiles; ledgers, periods, statutory books, banks and number series stay company-specific (FRD §3.5). No transaction can mix companies (FR-ORG-011).</div>
 
       <Drawer open={open} onClose={() => setOpen(false)} title="Add company" subtitle="Creates the legal entity with its own base currency, localization pack, default branch, fiscal periods and number series." width={560} footer={<><Button variant="secondary" onClick={() => setOpen(false)}>Discard</Button><Button variant="primary" onClick={create}>Create company</Button></>}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

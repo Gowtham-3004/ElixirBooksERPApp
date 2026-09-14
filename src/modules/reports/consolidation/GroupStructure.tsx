@@ -49,7 +49,7 @@ export function GroupStructure() {
   };
 
   const cols: Column<{ member: GroupMember; check: ReturnType<typeof booksCheck> }>[] = [
-    { key: 'company', label: 'Company', render: (r) => { const co = db.find<Company>(C.companies, r.member.companyId); return (<div><div style={{ fontWeight: 600 }}>{co?.tradeName ?? r.member.companyId}</div><div style={{ fontSize: 12, color: '#5F6368' }}>{co?.legalName}{co?.code ? ` · ${co.code}` : ''}{r.member.companyId === group.parentCompanyId ? ' · Parent' : ''}</div></div>); }, value: (r) => companyName(r.member.companyId) },
+    { key: 'company', label: 'Company', render: (r) => { const co = db.find<Company>(C.companies, r.member.companyId); return (<div><div style={{ fontWeight: 600 }}>{co?.tradeName ?? r.member.companyId}</div><div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{co?.legalName}{co?.code ? ` · ${co.code}` : ''}{r.member.companyId === group.parentCompanyId ? ' · Parent' : ''}</div></div>); }, value: (r) => companyName(r.member.companyId) },
     { key: 'country', label: 'Country', render: (r) => db.find<Company>(C.companies, r.member.companyId)?.country ?? '—' },
     { key: 'pack', label: 'Localization', render: (r) => { const co = db.find<Company>(C.companies, r.member.companyId); return co ? `${co.localizationPack} ${co.localizationVersion}` : '—'; } },
     { key: 'currency', label: 'Base currency', render: (r) => <span className="identifier">{db.find<Company>(C.companies, r.member.companyId)?.baseCurrency ?? '—'}</span> },
@@ -61,7 +61,7 @@ export function GroupStructure() {
     { key: 'tb', label: 'Independent trial balance', render: (r) => (
       <div style={{ fontSize: 12 }}>
         <div>{r.check.balanced ? <Pill tone="good">Balanced</Pill> : <Pill tone="critical">Out by {fmtMoney(r.check.difference, db.find<Company>(C.companies, r.member.companyId)?.baseCurrency ?? 'INR')}</Pill>}</div>
-        <div style={{ color: '#5F6368', marginTop: 2 }}>Dr {fmtMoney(r.check.totalDr, db.find<Company>(C.companies, r.member.companyId)?.baseCurrency ?? 'INR')} · {r.check.accounts} accounts · {r.check.journals} journals</div>
+        <div style={{ color: 'var(--ink-3)', marginTop: 2 }}>Dr {fmtMoney(r.check.totalDr, db.find<Company>(C.companies, r.member.companyId)?.baseCurrency ?? 'INR')} · {r.check.accounts} accounts · {r.check.journals} journals</div>
       </div>
     ) },
   ];
@@ -90,7 +90,7 @@ export function GroupStructure() {
         ? <Banner tone="warning">{unbalanced.map((u) => companyName(u.member.companyId)).join(', ')} does not balance independently — a group may only consolidate companies whose own trial balance balances (FR-CNS-001).</Banner>
         : <Banner tone="success">Every member balances independently: each company keeps its own ledgers, periods, banks and number series and is consolidated read-only (FR-CNS-001, FR-FX-014).</Banner>}
 
-      <Card title={<span>{group.name} <span className="identifier" style={{ fontSize: 12, color: '#6E6E71', marginLeft: 6 }}>{group.code}</span></span>} padding={0}>
+      <Card title={<span>{group.name} <span className="identifier" style={{ fontSize: 12, color: 'var(--ink-4)', marginLeft: 6 }}>{group.code}</span></span>} padding={0}>
         <DataTable
           rows={checks}
           columns={cols}
@@ -112,14 +112,14 @@ export function GroupStructure() {
             { k: 'Equity', v: <>{group.ratePolicy.equity} rate</> },
             { k: 'Account overrides', v: Object.keys(group.ratePolicy.accountOverrides ?? {}).length ? Object.entries(group.ratePolicy.accountOverrides).map(([code, t]) => <span key={code} className="dim-chip" style={{ marginRight: 6 }}>{code} → {t}</span>) : '—' },
           ]} />
-          <div style={{ fontSize: 12, color: '#6E6E71', marginTop: 10 }}>The translation adjustment arising from using different rates for different lines is disclosed as its own CTA line on every run (FR-RPT-013).</div>
+          <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 10 }}>The translation adjustment arising from using different rates for different lines is disclosed as its own CTA line on every run (FR-RPT-013).</div>
         </Card>
         <Card title="Legal-entity boundary">
-          <div style={{ fontSize: 13, color: '#0A0A0A', lineHeight: 1.6 }}>{IC_RULE}</div>
+          <div style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.6 }}>{IC_RULE}</div>
           <div style={{ marginTop: 12 }}>
             <Button variant="secondary" size="sm" onClick={() => nav.go('reports/consolidation/intercompany')}>Open intercompany matching</Button>
           </div>
-          {group.notes && <div style={{ fontSize: 12, color: '#6E6E71', marginTop: 12 }}>{group.notes}</div>}
+          {group.notes && <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 12 }}>{group.notes}</div>}
         </Card>
       </div>
 
@@ -263,7 +263,7 @@ function RatePolicyDrawer({ open, group, onClose }: { open: boolean; group: Grou
                 <td><Button variant="ghost" size="sm" onClick={() => { const o = { ...overrides }; delete o[code]; setOverrides(o); }}>Remove</Button></td>
               </tr>
             ))}
-            {!Object.keys(overrides).length && <tr><td colSpan={3} style={{ color: '#6E6E71' }}>No overrides — every account uses the policy above.</td></tr>}
+            {!Object.keys(overrides).length && <tr><td colSpan={3} style={{ color: 'var(--ink-4)' }}>No overrides — every account uses the policy above.</td></tr>}
           </tbody>
         </table>
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginTop: 10 }}>

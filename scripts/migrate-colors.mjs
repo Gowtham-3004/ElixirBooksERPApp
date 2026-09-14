@@ -42,8 +42,9 @@ const FEATURES = [
 ];
 
 const EXCLUDE = ['src/components/ui/printsheet.tsx', 'src/modules/admin/Templates.tsx', 'src/imports/'];
-// lines never rewritten: palette arrays, opt-out marker, the print sheet, data URLs
-const SKIP_LINE = [/\[\s*['"`]#[0-9A-Fa-f]{6}/, /no-token/, /\.print-sheet/, /data:image/];
+// lines never rewritten: palette arrays, opt-out marker, the print sheet, data URLs, colour values that are
+// stored as data or fed to <input type="color"> (those must stay real hex)
+const SKIP_LINE = [/\[\s*['"`]#[0-9A-Fa-f]{6}/, /no-token/, /\.print-sheet/, /data:image/, /type="color"/, /brandColor: '#/];
 // alpha-suffix compositions (`${color}20`) break once `color` is a var(): flag for review
 const WARN_LINE = /\$\{[^}]+\}[0-9A-Fa-f]{2}\b/;
 const HEX = /#([0-9A-Fa-f]{6})\b/g;

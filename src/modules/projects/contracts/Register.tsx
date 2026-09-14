@@ -37,7 +37,7 @@ export default function ContractRegister({ tab }: { tab?: string }) {
     { key: 'status', label: 'Status', sortable: true, render: (r) => <Badge status={r.status} /> },
     { key: 'amount', label: 'Value', align: 'right', sortable: true, render: (r) => <Money value={r.billingMethod === 'Recurring' ? (r.recurrence?.amount ?? 0) : r.amount} currency={r.currency} code={r.currency !== s.currency} />, value: (r) => r.amount, total: (rs) => <span className="money" style={{ fontWeight: 600 }}>{fmtMoney(rs.filter((x) => x.currency === s.currency && x.status !== 'Cancelled').reduce((a, x) => a + (x.billingMethod === 'Recurring' ? (x.recurrence?.amount ?? 0) : x.amount), 0), s.currency)}</span> },
     { key: 'billed', label: 'Billed', align: 'right', render: (r) => <Money value={summaries[r.id]?.billed ?? 0} currency={r.currency} />, value: (r) => summaries[r.id]?.billed ?? 0 },
-    { key: 'unbilled', label: 'Unbilled', align: 'right', render: (r) => (summaries[r.id]?.unbilledValue ?? 0) > 0 ? <span className="money" style={{ color: '#8A4B0F' }}>{fmtMoney(summaries[r.id].unbilledValue, s.currency)}</span> : <span style={{ color: '#B0B5BF' }}>—</span>, value: (r) => summaries[r.id]?.unbilledValue ?? 0 },
+    { key: 'unbilled', label: 'Unbilled', align: 'right', render: (r) => (summaries[r.id]?.unbilledValue ?? 0) > 0 ? <span className="money" style={{ color: 'var(--warn)' }}>{fmtMoney(summaries[r.id].unbilledValue, s.currency)}</span> : <span style={{ color: 'var(--ink-5)' }}>—</span>, value: (r) => summaries[r.id]?.unbilledValue ?? 0 },
   ];
   const run = (fn: () => void, ok: string) => { try { fn(); toast.success(ok); } catch (e: any) { toast.error(e.message); } };
   const rowActions = (r: Contract): MenuAction[] => {

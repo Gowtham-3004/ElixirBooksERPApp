@@ -27,7 +27,7 @@ export function AgeingReport({ partyType }: { partyType: 'Customer' | 'Supplier'
   const currencies = Array.from(new Set(items.filter((i) => i.partyType === partyType).map((i) => i.currency)));
   const cols: Column<AgeingRow>[] = [
     { key: 'partyName', label: partyType, render: (r) => <div><div className="cell-primary">{r.partyName}</div><div className="cell-secondary">{r.items.length} open item{r.items.length === 1 ? '' : 's'}{r.overdueDays > 0 ? ` · oldest overdue ${r.overdueDays} d` : ''}</div></div>, sortable: true },
-    ...BUCKETS.map<Column<AgeingRow>>((b) => ({ key: b.key, label: b.label, align: 'right', render: (r) => <span className="money" style={{ color: r[b.key] ? b.color : '#D0D5DD' }}>{r[b.key] ? fmtMoney(r[b.key], s.currency) : '—'}</span>, total: () => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(res.totals[b.key], s.currency)}</span> })),
+    ...BUCKETS.map<Column<AgeingRow>>((b) => ({ key: b.key, label: b.label, align: 'right', render: (r) => <span className="money" style={{ color: r[b.key] ? b.color : 'var(--line-strong)' }}>{r[b.key] ? fmtMoney(r[b.key], s.currency) : '—'}</span>, total: () => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(res.totals[b.key], s.currency)}</span> })),
     { key: 'total', label: 'Total', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600 }}>{fmtMoney(r.total, s.currency)}</span>, total: () => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(res.totals.total, s.currency)}</span>, sortable: true },
   ];
   const title = partyType === 'Customer' ? 'AR ageing' : 'AP ageing';
@@ -36,7 +36,7 @@ export function AgeingReport({ partyType }: { partyType: 'Customer' | 'Supplier'
       exportColumns={[{ key: 'partyName', label: partyType }, ...BUCKETS.map((b) => ({ key: b.key, label: b.label })), { key: 'total', label: 'Total' }]} exportRows={() => res.rows as any}
       filters={<><div><label className="field-label">As at</label><input type="date" className="field-input sm" value={f.asOf} onChange={(e) => set({ asOf: e.target.value })} /></div><BranchPicker value={f.branchId} onChange={(v) => set({ branchId: v })} /><div><label className="field-label">Currency</label><select className="field-input sm" value={f.currency} onChange={(e) => set({ currency: e.target.value })}><option value="">All (base equivalent)</option>{currencies.map((c) => <option key={c}>{c}</option>)}</select></div></>}>
       <div style={{ display: 'flex', gap: 10 }}>
-        {BUCKETS.map((b) => <div key={b.key} className="card" style={{ flex: 1, padding: '10px 14px', borderLeft: `3px solid ${b.color}` }}><div style={{ fontSize: 11, color: '#5F6368' }}>{b.label}</div><div className="money" style={{ fontSize: 16, fontWeight: 700, color: b.color }}>{fmtMoney(res.totals[b.key], s.currency)}</div></div>)}
+        {BUCKETS.map((b) => <div key={b.key} className="card" style={{ flex: 1, padding: '10px 14px', borderLeft: `3px solid ${b.color}` }}><div style={{ fontSize: 11, color: 'var(--ink-3)' }}>{b.label}</div><div className="money" style={{ fontSize: 16, fontWeight: 700, color: b.color }}>{fmtMoney(res.totals[b.key], s.currency)}</div></div>)}
       </div>
       <DataTable rows={res.rows} rowKey={(r) => r.partyId} columns={cols} showTotals onRowClick={(r) => nav.go(partyType === 'Customer' ? `sales/ar?party=${r.partyId}` : `purchase/ap?party=${r.partyId}`)} emptyTitle={`No open ${partyType.toLowerCase()} items`} emptyDescription="Open items appear here once invoices are posted." />
       <div className="grid-3">
@@ -44,7 +44,7 @@ export function AgeingReport({ partyType }: { partyType: 'Customer' | 'Supplier'
         <KpiTile label={`Control account ${partyType === 'Customer' ? '1100' : '2100'}`} value={fmtMoney(recon.control, s.currency)} sub={`As at ${fmtDate(f.asOf)}`} onClick={() => nav.go(`accounting/ledger?account=${CONTROL_ACCOUNTS[partyType].control[0]}`)} />
         <KpiTile label="Difference" value={fmtMoney(recon.diff, s.currency)} deltaTone={Math.abs(recon.diff) < 1 ? 'good' : 'bad'} delta={Math.abs(recon.diff) < 1 ? 'Reconciled' : 'Sub-ledger ≠ GL'} sub="FR-RPT-009 exception if non-zero" />
       </div>
-      <div style={{ fontSize: 12, color: '#6E6E71' }}>
+      <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>
         Amounts in {s.currency} base equivalent · foreign items carried at booked rate · click a row to open the party ledger.
         {advances.totals.total !== 0 && <> Unapplied {partyType === 'Customer' ? 'receipts and retainers' : 'advances'} of {fmtMoney(-advances.totals.total, s.currency)} are held on {partyType === 'Customer' ? 'accounts 2150 / 2160' : 'account 1450'} and are not part of this ageing.</>}
       </div>
@@ -98,7 +98,7 @@ export function CollectionsReport({ partyType }: { partyType: 'Customer' | 'Supp
     { key: 'number', label: partyType === 'Customer' ? 'Receipt' : 'Payment', render: (r) => <span className="identifier link">{r.number}</span> },
     { key: 'date', label: 'Date', render: (r) => fmtDate(r.date), sortable: true },
     { key: 'partyName', label: partyType, render: (r) => r.partyName ?? r.partySnapshot?.name ?? '—' },
-    { key: 'reference', label: 'Mode / reference', render: (r) => <span style={{ fontSize: 12, color: '#5F6368' }}>{(r as any).mode ?? (r as any).method ?? ''} {r.reference ?? ''}</span> },
+    { key: 'reference', label: 'Mode / reference', render: (r) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{(r as any).mode ?? (r as any).method ?? ''} {r.reference ?? ''}</span> },
     { key: 'total', label: 'Amount', align: 'right', render: (r) => <span className="money">{fmtMoney(r.totals?.total ?? (r as any).amount ?? 0, r.currency, { code: r.currency !== s.currency })}</span>, total: (rows) => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(rows.reduce((x, r) => x + (r.totals?.baseTotal || r.totals?.total || (r as any).amount || 0), 0), s.currency)}</span> },
     { key: 'status', label: 'Status', render: (r) => <Badge status={String(r.status)} /> },
   ];

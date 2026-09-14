@@ -62,7 +62,7 @@ export default function Localization() {
           ) : <Banner tone="danger">No approved pack is active for {co.country}. Statutory actions will fail explicitly until one is activated.</Banner>}
         </Card>
         <Card title="Unsupported actions fail explicitly">
-          <div style={{ fontSize: 13, color: '#5F6368', marginBottom: 10 }}>Try a statutory action to see how the pack contract responds (FR-L10N-005).</div>
+          <div style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 10 }}>Try a statutory action to see how the pack contract responds (FR-L10N-005).</div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {['e-Invoice (IRP)', 'GSTR-1/3B', 'VAT return', 'MTD submission', 'Form 26Q'].map((a) => <Button key={a} size="sm" variant="secondary" onClick={() => tryUnsupported(a)}>{a}</Button>)}
           </div>
@@ -77,13 +77,13 @@ export default function Localization() {
               const isActive = p.code === co.localizationPack && p.packVersion === co.localizationVersion;
               const c = compat(p, co);
               return (
-                <tr key={p.id} style={{ background: isActive ? '#F9FBFF' : undefined }}>
-                  <td style={{ fontWeight: 500 }}>{p.name} <span style={{ color: '#6E6E71', fontSize: 11 }}>{p.code}</span></td>
+                <tr key={p.id} style={{ background: isActive ? 'var(--accent-tint)' : undefined }}>
+                  <td style={{ fontWeight: 500 }}>{p.name} <span style={{ color: 'var(--ink-4)', fontSize: 11 }}>{p.code}</span></td>
                   <td className="identifier">v{p.packVersion}{isActive && <Badge status="Active" style={{ marginLeft: 6 }}>active</Badge>}</td>
                   <td><Badge status={p.status} /></td>
                   <td style={{ fontSize: 12 }}>{p.compatibleFrom}</td>
-                  <td style={{ fontSize: 12, color: '#5F6368' }}>{p.capabilities.length} · {p.capabilities.slice(0, 3).join(', ')}{p.capabilities.length > 3 ? '…' : ''}</td>
-                  <td style={{ fontSize: 12, color: '#5F6368' }}>{p.releaseNotes}</td>
+                  <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{p.capabilities.length} · {p.capabilities.slice(0, 3).join(', ')}{p.capabilities.length > 3 ? '…' : ''}</td>
+                  <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{p.releaseNotes}</td>
                   <td style={{ textAlign: 'right' }}>
                     {!isActive && <Button size="sm" variant={c.ok ? 'primary' : 'secondary'} onClick={() => setTarget(p)} disabled={!canUpgrade || p.country !== co.country} reason={p.country !== co.country ? `For ${p.country} companies` : canUpgrade ? undefined : 'Requires admin.company.edit'}>{c.ok ? 'Upgrade' : 'Check compatibility'}</Button>}
                   </td>
@@ -93,7 +93,7 @@ export default function Localization() {
           </tbody>
         </table>
       </Card>
-      <div style={{ fontSize: 12, color: '#6E6E71' }}>Every posted statutory document retains the pack version used at posting; upgrades validate compatibility and never recalculate posted history (FR-L10N-003/006).</div>
+      <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>Every posted statutory document retains the pack version used at posting; upgrades validate compatibility and never recalculate posted history (FR-L10N-003/006).</div>
 
       <ConfirmDialog open={!!target} onClose={() => setTarget(null)} title={target ? `Upgrade to ${target.name} v${target.packVersion}?` : ''} statement="Pack upgrades change validation, tax rules and statutory formats for new documents only. Posted history is never recalculated." consequences={[{ engine: 'Tax', text: 'New documents use the upgraded rules and rule versions' }, { engine: 'Statutory', text: `Documents posted under v${co.localizationVersion} keep that version for reproduction`, tone: 'info' }, { engine: 'Workflow', text: 'Recorded as an audited company change' }]} confirmLabel="Upgrade pack" cancelLabel="Keep current pack" disabled={!check?.ok} onConfirm={upgrade}>
         {check && <div style={{ marginBottom: 12 }}><Checklist title="Compatibility check" rows={check.rows} />{!check.ok && <div className="banner danger" style={{ marginTop: 8 }}>Upgrade is blocked until every check passes.</div>}</div>}

@@ -157,7 +157,7 @@ export default function ContractForm({ id, customerId, projectId, method }: { id
             </div>
           </Card>
           <Card title="What happens next">
-            <ol style={{ fontSize: 12, color: '#3C4043', paddingLeft: 18, margin: 0, lineHeight: 1.7 }}>
+            <ol style={{ fontSize: 12, color: 'var(--ink-2)', paddingLeft: 18, margin: 0, lineHeight: 1.7 }}>
               <li>Save & submit routes to a <strong>Contract</strong> workflow when one exists; otherwise the contract is auto-approved.</li>
               <li><strong>Activate</strong> the approved contract — timesheets, milestones, usage and billing runs then apply.</li>
               <li>Billing runs create <strong>Draft sales invoices</strong>; post them in Sales › Invoices.</li>
@@ -187,7 +187,7 @@ export function ScheduleEditor({ rows, onChange, currency, label, total, onAdd, 
         <table className="data-table dense">
           <thead><tr><th style={{ width: 32 }}>#</th><th>Name</th>{deliverable && <th>Deliverable</th>}<th style={{ width: 150 }}>Due</th><th className="right" style={{ width: 160 }}>Amount</th><th style={{ width: 90 }}>Status</th><th style={{ width: 40 }} /></tr></thead>
           <tbody>
-            {rows.length === 0 && <tr><td colSpan={7} style={{ color: '#5F6368', textAlign: 'center', padding: 16 }}>No rows yet — add instalments or split the value evenly.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={7} style={{ color: 'var(--ink-3)', textAlign: 'center', padding: 16 }}>No rows yet — add instalments or split the value evenly.</td></tr>}
             {rows.map((m, i) => {
               const locked = m.status === 'Invoiced';
               return (
@@ -203,7 +203,7 @@ export function ScheduleEditor({ rows, onChange, currency, label, total, onAdd, 
               );
             })}
           </tbody>
-          <tfoot><tr><td colSpan={deliverable ? 4 : 3}>Schedule total</td><td className="right money" style={{ color: Math.abs(sum - total) > 0.5 ? '#C0393F' : '#12784E' }}>{fmtMoney(sum, currency)}</td><td colSpan={2} style={{ fontSize: 11, color: '#5F6368' }}>{Math.abs(sum - total) > 0.5 ? `≠ ${fmtMoney(total, currency)}` : '= contract value'}</td></tr></tfoot>
+          <tfoot><tr><td colSpan={deliverable ? 4 : 3}>Schedule total</td><td className="right money" style={{ color: Math.abs(sum - total) > 0.5 ? 'var(--danger)' : 'var(--good)' }}>{fmtMoney(sum, currency)}</td><td colSpan={2} style={{ fontSize: 11, color: 'var(--ink-3)' }}>{Math.abs(sum - total) > 0.5 ? `≠ ${fmtMoney(total, currency)}` : '= contract value'}</td></tr></tfoot>
         </table>
       </div>
       {error && <div className="field-error">{error}</div>}
@@ -218,7 +218,7 @@ function RatesEditor({ rows, onChange, currency }: { rows: RateRow[]; onChange: 
         <span className="field-label" style={{ marginBottom: 0 }}>Per-role rates ({currency}/h)</span>
         <Button size="sm" variant="secondary" onClick={() => onChange([...rows, { role: ROLES.find((r) => !rows.some((x) => x.role === r)) ?? '', rate: 0 }])}>+ Add role</Button>
       </div>
-      {rows.length === 0 ? <div style={{ fontSize: 12, color: '#5F6368' }}>None — the rate card applies to every role.</div> : (
+      {rows.length === 0 ? <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>None — the rate card applies to every role.</div> : (
         <div className="card" style={{ overflow: 'hidden' }}>
           <table className="data-table dense">
             <thead><tr><th>Role</th><th className="right" style={{ width: 160 }}>Rate / h</th><th style={{ width: 40 }} /></tr></thead>
@@ -245,7 +245,7 @@ function TiersEditor({ tiers, onChange, currency, unit }: { tiers: { upTo: numbe
         <span className="field-label" style={{ marginBottom: 0 }}>Volume tiers (optional)</span>
         <Button size="sm" variant="secondary" onClick={() => onChange([...tiers, { upTo: (tiers[tiers.length - 1]?.upTo ?? 0) + 100, rate: 0 }])}>+ Add tier</Button>
       </div>
-      {tiers.length === 0 ? <div style={{ fontSize: 12, color: '#5F6368' }}>No tiers — the unit rate applies to all volumes.</div> : (
+      {tiers.length === 0 ? <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>No tiers — the unit rate applies to all volumes.</div> : (
         <div className="card" style={{ overflow: 'hidden' }}>
           <table className="data-table dense">
             <thead><tr><th>Up to ({unit || 'units'})</th><th className="right">Rate ({currency})</th><th style={{ width: 40 }} /></tr></thead>
@@ -261,7 +261,7 @@ function TiersEditor({ tiers, onChange, currency, unit }: { tiers: { upTo: numbe
           </table>
         </div>
       )}
-      <div style={{ fontSize: 11, color: '#6E6E71', marginTop: 4 }}>Quantities above the last tier bill at the unit rate.</div>
+      <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 4 }}>Quantities above the last tier bill at the unit rate.</div>
     </div>
   );
 }

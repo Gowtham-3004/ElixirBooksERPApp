@@ -20,7 +20,7 @@ export function QuotationRegister() {
   const columns: Column<Quotation>[] = [
     { key: 'number', label: 'Quotation #', sortable: true, render: (r) => <Identifier link onClick={(e) => { e.stopPropagation(); nav.go(`sales/quotations/${r.id}`); }}>{r.number}</Identifier>, value: (r) => r.number },
     { key: 'date', label: 'Date', sortable: true, render: (r) => fmtDate(r.date), value: (r) => r.date },
-    { key: 'validUntil', label: 'Valid until', sortable: true, render: (r) => <span style={{ color: r.validUntil && r.validUntil < today() && (r.status === 'Sent' || r.status === 'Draft') ? '#C0393F' : undefined }}>{fmtDate(r.validUntil)}</span>, value: (r) => r.validUntil },
+    { key: 'validUntil', label: 'Valid until', sortable: true, render: (r) => <span style={{ color: r.validUntil && r.validUntil < today() && (r.status === 'Sent' || r.status === 'Draft') ? 'var(--danger)' : undefined }}>{fmtDate(r.validUntil)}</span>, value: (r) => r.validUntil },
     { key: 'partyName', label: 'Customer', sortable: true, render: (r) => <TwoLine primary={r.partyName} secondary={r.partySnapshot?.gstin} mono />, value: (r) => r.partyName },
     { key: 'items', label: 'Items', render: (r) => `${r.lines.length} item${r.lines.length === 1 ? '' : 's'}`, value: (r) => r.lines.length },
     { key: 'total', label: 'Amount', align: 'right', sortable: true, render: (r) => <Money value={r.totals.total} currency={r.currency} code={r.currency !== s.currency} />, value: (r) => r.totals.total, total: (rs) => <span className="money" style={{ fontWeight: 600 }}>{fmtMoney(rs.filter((x) => x.currency === s.currency).reduce((a, x) => a + x.totals.total, 0), s.currency)}</span> },
@@ -135,7 +135,7 @@ export function QuotationDetail({ id }: { id: string }) {
     <>
       <DocumentPage backLabel="Quotations" onBack={() => nav.go('sales/quotations')} number={q.number} badges={<><Badge status={q.status} />{(q.revision ?? 1) > 1 && <Badge status="Draft">Rev {q.revision}</Badge>}{expired && <Badge status="Expired">Past validity</Badge>}</>}
         amount={{ label: 'Total', value: q.totals.total, currency: q.currency, base: q.currency !== s.currency ? q.totals.baseTotal : undefined, baseCurrency: s.currency, rate: q.rate }}
-        rail={<SalesRail doc={q}>{q.validUntil && <RailSection label="Validity"><div style={{ fontSize: 12, color: expired ? '#C0393F' : '#5F6368' }}>Until {fmtDate(q.validUntil)}{q.sentAt ? ` · sent ${fmtDate(q.sentAt)} to ${q.sentTo}` : ''}</div></RailSection>}</SalesRail>}
+        rail={<SalesRail doc={q}>{q.validUntil && <RailSection label="Validity"><div style={{ fontSize: 12, color: expired ? 'var(--danger)' : 'var(--ink-3)' }}>Until {fmtDate(q.validUntil)}{q.sentAt ? ` · sent ${fmtDate(q.sentAt)} to ${q.sentTo}` : ''}</div></RailSection>}</SalesRail>}
         banner={superseded ? <Banner tone="info" full>Superseded by a newer revision — <span className="link" onClick={() => nav.go(`sales/quotations/${q.supersededById}`)}>open it</span>.</Banner> : q.status === 'Declined' ? <Banner tone="warning" full>Declined: {q.declinedReason}</Banner> : undefined}
         tabs={[
           { id: 'details', label: 'Details', content: <DocDetailsTab doc={q} header={docHeaderRows(q)} /> },

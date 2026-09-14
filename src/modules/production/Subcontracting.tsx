@@ -26,12 +26,12 @@ function SubcontractRegister() {
     { key: 'number', label: 'Order', sortable: true, render: (x) => <span className="identifier link" style={{ fontWeight: 500 }}>{x.number}</span> },
     { key: 'date', label: 'Date', sortable: true, render: (x) => fmtDate(x.date) },
     { key: 'supplierName', label: 'Subcontractor', sortable: true, render: (x) => <div><div>{x.supplierName}</div><div className="cell-secondary">{x.operationName}</div></div> },
-    { key: 'orderNumber', label: 'Production order', render: (x) => x.orderNumber ? <OrderLink id={x.orderId} number={x.orderNumber} /> : <span style={{ color: '#5F6368' }}>Standalone</span> },
+    { key: 'orderNumber', label: 'Production order', render: (x) => x.orderNumber ? <OrderLink id={x.orderId} number={x.orderNumber} /> : <span style={{ color: 'var(--ink-3)' }}>Standalone</span> },
     { key: 'qty', label: 'Qty', align: 'right', render: (x) => <span className="money">{fmtQty(x.receivedQty, undefined, 3)} / {fmtQty(x.qty, undefined, 3)}</span> },
     { key: 'itemsSent', label: 'Materials sent', render: (x) => <span style={{ fontSize: 12 }}>{x.itemsSent.map((l) => `${l.itemName} ${fmtQty(l.qty, l.uom, 3)}`).join(', ') || '—'}</span> },
     { key: 'rate', label: 'Rate', align: 'right', render: (x) => <span className="money">{fmtMoney(x.rate, s.currency)}</span> },
     { key: 'charges', label: 'Charges', align: 'right', render: (x) => <span className="money">{fmtMoney(x.charges, s.currency)}</span>, total: (r) => <span className="money">{fmtMoney(r.reduce((a, x) => a + x.charges, 0), s.currency)}</span> },
-    { key: 'variance', label: 'Consumption variance', align: 'right', render: (x) => { const v = x.consumptionVariance.reduce((a, y) => a + y.value, 0); return <span className="money" style={{ color: v > 0 ? '#C0393F' : undefined }}>{v ? fmtMoney(v, s.currency) : '—'}</span>; } },
+    { key: 'variance', label: 'Consumption variance', align: 'right', render: (x) => { const v = x.consumptionVariance.reduce((a, y) => a + y.value, 0); return <span className="money" style={{ color: v > 0 ? 'var(--danger)' : undefined }}>{v ? fmtMoney(v, s.currency) : '—'}</span>; } },
     { key: 'expectedDate', label: 'Expected', render: (x) => <span style={{ fontSize: 12 }}>{fmtDate(x.expectedDate)}{x.status === 'Sent' && x.expectedDate < today() && <Pill tone="critical">Late</Pill>}</span> },
     { key: 'status', label: 'Status', render: (x) => <Badge status={x.status === 'Sent' ? 'In Transit' : x.status} /> },
   ];
@@ -110,12 +110,12 @@ function SubcontractForm({ orderId, opId }: { orderId?: string; opId?: string })
             <tr key={i}>
               <td><EntityPicker value={l.itemId || undefined} onChange={(v) => setLine(i, { itemId: v ?? '' })} options={db.where<Item>(C.items, (x) => x.isStock && x.status === 'Active').map((x) => ({ id: x.id, primary: x.name, secondary: x.code, raw: x }))} size="grid" /></td>
               <td><NumberField value={l.qty} onChange={(v) => setLine(i, { qty: v })} decimals={3} size="grid" /></td>
-              <td>{it?.tracking === 'Batch' ? <SelectField value={l.batch ?? ''} onChange={(v) => setLine(i, { batch: v || undefined })} options={[{ value: '', label: 'Pick batch…' }, ...batchesOnHand(l.itemId, whId).map((b) => ({ value: b.batch, label: `${b.batch} · ${fmtQty(b.qty, undefined, 3)}` }))]} size="grid" /> : <span style={{ fontSize: 12, color: '#B0B5BF' }}>Not tracked</span>}</td>
+              <td>{it?.tracking === 'Batch' ? <SelectField value={l.batch ?? ''} onChange={(v) => setLine(i, { batch: v || undefined })} options={[{ value: '', label: 'Pick batch…' }, ...batchesOnHand(l.itemId, whId).map((b) => ({ value: b.batch, label: `${b.batch} · ${fmtQty(b.qty, undefined, 3)}` }))]} size="grid" /> : <span style={{ fontSize: 12, color: 'var(--ink-5)' }}>Not tracked</span>}</td>
               <td style={{ fontSize: 12 }}>{whName(whId)}<div className="cell-secondary">{fmtQty(pos.available, undefined, 3)} available</div></td>
               <td className="right money">{fmtMoney(l.qty * pos.avgRate, s.currency)}</td>
               <td><button type="button" className="btn-icon" onClick={() => setLines(lines.filter((_, j) => j !== i))}>✕</button></td>
             </tr>); })}
-          {lines.length === 0 && <tr><td colSpan={6} style={{ padding: 16, color: '#5F6368' }}>Add the materials the subcontractor will process.</td></tr>}
+          {lines.length === 0 && <tr><td colSpan={6} style={{ padding: 16, color: 'var(--ink-3)' }}>Add the materials the subcontractor will process.</td></tr>}
         </tbody></table>
         <div style={{ padding: 10 }}><Button size="sm" onClick={() => setLines([...lines, { itemId: '', qty: 0 }])}>+ Add material</Button></div>
       </SectionCard>
@@ -164,7 +164,7 @@ function SubcontractDetail({ id }: { id: string }) {
           {sc.consumptionVariance.length > 0 && (
             <SectionCard title="Consumption variance" padding={0}>
               <table className="data-table dense"><thead><tr><th>Item</th><th className="right">Sent</th><th className="right">Consumed</th><th className="right">Returned</th><th className="right">Variance</th><th className="right">Value</th></tr></thead><tbody>
-                {sc.consumptionVariance.map((v) => <tr key={v.itemId}><td><ItemLink id={v.itemId} name={v.itemName} /></td><td className="right money">{fmtQty(v.sent, undefined, 3)}</td><td className="right money">{fmtQty(v.consumed, undefined, 3)}</td><td className="right money">{fmtQty(v.returned, undefined, 3)}</td><td className="right money" style={{ color: v.variance > 0 ? '#C0393F' : '#12784E' }}>{fmtQty(v.variance, undefined, 3)}</td><td className="right money">{fmtMoney(v.value, s.currency)}</td></tr>)}
+                {sc.consumptionVariance.map((v) => <tr key={v.itemId}><td><ItemLink id={v.itemId} name={v.itemName} /></td><td className="right money">{fmtQty(v.sent, undefined, 3)}</td><td className="right money">{fmtQty(v.consumed, undefined, 3)}</td><td className="right money">{fmtQty(v.returned, undefined, 3)}</td><td className="right money" style={{ color: v.variance > 0 ? 'var(--danger)' : 'var(--good)' }}>{fmtQty(v.variance, undefined, 3)}</td><td className="right money">{fmtMoney(v.value, s.currency)}</td></tr>)}
               </tbody><tfoot><tr><td colSpan={5}>Written off to Production Variances 5710</td><td className="right money">{fmtMoney(varianceValue, s.currency)}</td></tr></tfoot></table>
             </SectionCard>
           )}
@@ -175,7 +175,7 @@ function SubcontractDetail({ id }: { id: string }) {
           </SectionCard>
           <SectionCard title="Cost effect">
             <SummaryBlock style={{ flexDirection: 'column', gap: 6 }} items={[{ label: 'Charges (Dr WIP / Cr AP)', value: fmtMoney(sc.charges, s.currency) }, { label: 'Materials consumed to WIP', value: fmtMoney(sc.received.reduce((a, r) => a + r.consumed.reduce((b, x) => b + x.qty * (sc.itemsSent.find((l) => l.itemId === x.itemId)?.rate ?? 0), 0), 0), s.currency) }, { label: 'Consumption variance', value: fmtMoney(varianceValue, s.currency), tone: varianceValue ? 'danger' : undefined }]} />
-            {order && <div style={{ marginTop: 8, fontSize: 12, color: '#6E6E71' }}>Reflected in {order.number} costing under Subcontract.</div>}
+            {order && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--ink-4)' }}>Reflected in {order.number} costing under Subcontract.</div>}
           </SectionCard>
           <SectionCard title="Activity"><ActivityTab objectId={sc.id} correlationId={sc.correlationId} /></SectionCard>
         </div>
@@ -218,9 +218,9 @@ function ReceiveModal({ sc, atSupplier, onClose }: { sc: SubcontractOrder; atSup
             <tr key={l.itemId}><td>{l.itemName}</td><td className="right money">{fmtQty(l.remaining, l.uom, 3)}</td>
               <td><NumberField value={c} onChange={(x) => setConsumed({ ...consumed, [l.itemId]: x })} decimals={3} size="grid" /></td>
               <td><NumberField value={r} onChange={(x) => setReturned({ ...returned, [l.itemId]: x })} decimals={3} size="grid" /></td>
-              <td className="right money" style={{ color: v > 0 ? '#C0393F' : undefined }}>{fmtQty(v, undefined, 3)}</td></tr>); })}
+              <td className="right money" style={{ color: v > 0 ? 'var(--danger)' : undefined }}>{fmtQty(v, undefined, 3)}</td></tr>); })}
         </tbody></table>
-        <div style={{ marginTop: 8, fontSize: 12, color: '#6E6E71' }}>Consumed material moves into WIP; returned material goes back to your warehouse. On the final receipt any remaining quantity is written off to Production Variances.</div>
+        <div style={{ marginTop: 8, fontSize: 12, color: 'var(--ink-4)' }}>Consumed material moves into WIP; returned material goes back to your warehouse. On the final receipt any remaining quantity is written off to Production Variances.</div>
       </div>
     </Modal>
   );

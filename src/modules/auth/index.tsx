@@ -53,7 +53,7 @@ function MfaChallenge() {
   return (
     <Frame title="Two-factor verification" subtitle={`Enter the 6-digit code from your authenticator app for ${user?.email ?? ''}.`}>
       <TextField label="Verification code" value={code} onChange={(v) => { setCode(v.replace(/\D/g, '').slice(0, 6)); setErr(null); }} placeholder="123456" autoFocus error={err} inputStyle={{ fontSize: 22, letterSpacing: '0.3em', textAlign: 'center' }} onKeyDown={(e) => { if (e.key === 'Enter') verify(); }} />
-      <p style={{ fontSize: 12, color: '#6E6E71', marginTop: 8 }}>Demo: any 6 digits are accepted; 000000 simulates a wrong code.</p>
+      <p style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 8 }}>Demo: any 6 digits are accepted; 000000 simulates a wrong code.</p>
       <div style={{ marginTop: 16 }}>
         <Toggle on={remember} onChange={setRemember} label="Remember this device for 30 days" help="You will not be asked for a code on this browser until the trust expires or you sign out other sessions." />
       </div>
@@ -135,7 +135,7 @@ function AcceptInvitation() {
   }
   return (
     <Frame title="Accept your invitation" subtitle={<>{inviter} invited you to join <strong>{tenant?.name ?? 'the workspace'}</strong>.</>}>
-      <div className="card" style={{ padding: 12, marginBottom: 16, background: '#F9FBFC' }}>
+      <div className="card" style={{ padding: 12, marginBottom: 16, background: 'var(--surface-2)' }}>
         <div className="kv" style={{ gridTemplateColumns: '110px 1fr', fontSize: 12 }}>
           <span className="k">Email</span><span className="v">{invited.email}</span>
           <span className="k">Role{roles.length > 1 ? 's' : ''}</span><span className="v">{roles.join(', ') || '—'}</span>
@@ -173,12 +173,12 @@ function ChooseCompany() {
       <TextField value={q} onChange={setQ} placeholder="Search companies…" autoFocus />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 12 }}>
         {list.map((c) => (
-          <button key={c.id} type="button" className="menu-item" style={{ height: 'auto', padding: '10px 12px', border: '1px solid #EAEAEA' }} onClick={() => session.chooseCompany(c.id)}>
-            <div style={{ width: 28, height: 28, borderRadius: 7, background: c.brandColor ?? '#325CFF', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, marginRight: 8 }}>{c.logoText ?? c.legalName[0]}</div>
+          <button key={c.id} type="button" className="menu-item" style={{ height: 'auto', padding: '10px 12px', border: '1px solid var(--line)' }} onClick={() => session.chooseCompany(c.id)}>
+            <div style={{ width: 28, height: 28, borderRadius: 7, background: c.brandColor ?? 'var(--accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, marginRight: 8 }}>{c.logoText ?? c.legalName[0]}</div>
             <TwoLine primary={c.legalName} secondary={`${c.country} · ${c.baseCurrency} · ${c.nature}`} />
           </button>
         ))}
-        {list.length === 0 && <div style={{ fontSize: 13, color: '#5F6368', padding: 8 }}>No company matches "{q}".</div>}
+        {list.length === 0 && <div style={{ fontSize: 13, color: 'var(--ink-3)', padding: 8 }}>No company matches "{q}".</div>}
       </div>
       <Button variant="link" style={{ marginTop: 16 }} onClick={() => session.logout()}>Sign out</Button>
     </Frame>

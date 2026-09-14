@@ -22,12 +22,12 @@ export default function Notifications() {
     toast.success('Delivery retried');
   };
   const cols: Column<Notification>[] = [
-    { key: 'at', label: 'When', render: (n) => <span style={{ fontSize: 12, color: '#5F6368', whiteSpace: 'nowrap' }}>{fmtDateTime(n.at)}</span> },
+    { key: 'at', label: 'When', render: (n) => <span style={{ fontSize: 12, color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>{fmtDateTime(n.at)}</span> },
     { key: 'title', label: 'Notification', render: (n) => <TwoLine primary={n.title} secondary={n.body} /> },
     { key: 'type', label: 'Event', render: (n) => <Badge status="Draft">{n.type}</Badge> },
     { key: 'channel', label: 'Channel', render: (n) => <span style={{ fontSize: 12 }}>{n.channel ?? 'in-app'}</span> },
-    { key: 'userId', label: 'Recipient', render: (n) => <span style={{ fontSize: 12, color: '#5F6368' }}>{n.userId ? db.find<any>(C.users, n.userId)?.name ?? n.userId : 'Company'}</span> },
-    { key: 'read', label: 'Read', render: (n) => <span style={{ fontSize: 12, color: n.read ? '#12784E' : '#5F6368' }}>{n.read ? 'Read' : 'Unread'}</span> },
+    { key: 'userId', label: 'Recipient', render: (n) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{n.userId ? db.find<any>(C.users, n.userId)?.name ?? n.userId : 'Company'}</span> },
+    { key: 'read', label: 'Read', render: (n) => <span style={{ fontSize: 12, color: n.read ? 'var(--good)' : 'var(--ink-3)' }}>{n.read ? 'Read' : 'Unread'}</span> },
     { key: 'status', label: 'Delivery', render: (n) => <Badge status={n.status === 'delivered' ? 'Delivered' : n.status === 'failed' ? 'Failed' : n.status === 'sent' ? 'Sent' : 'Queued'}>{n.status ?? 'delivered'}</Badge> },
   ];
   return (
@@ -42,7 +42,7 @@ export default function Notifications() {
               {settings.map((n) => (
                 <tr key={n.id} style={{ opacity: n.enabled ? 1 : 0.6 }}>
                   <td><TwoLine primary={n.label} secondary={<span className="identifier">{n.event} · {n.category}</span>} /></td>
-                  <td style={{ fontSize: 12, color: '#5F6368', maxWidth: 360 }}>{n.template}</td>
+                  <td style={{ fontSize: 12, color: 'var(--ink-3)', maxWidth: 360 }}>{n.template}</td>
                   {(['inApp', 'email', 'sms'] as const).map((ch) => <td key={ch} style={{ textAlign: 'center' }}><input type="checkbox" className="checkbox" checked={n.channels[ch]} disabled={!canEdit} onChange={(e) => upd(n, { channels: { ...n.channels, [ch]: e.target.checked } })} /></td>)}
                   <td><Toggle on={n.enabled} onChange={(v) => upd(n, { enabled: v })} disabled={!canEdit} /></td>
                   <td style={{ textAlign: 'right' }}><Button size="sm" variant="ghost" onClick={() => setEdit(n)} disabled={!canEdit}>Edit template</Button></td>

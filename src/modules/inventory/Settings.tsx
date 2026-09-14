@@ -26,7 +26,7 @@ export function InventorySettingsPage() {
           <div className="section-title">Default warehouses</div>
           <SelectField label="Transit warehouse (transfers in flight)" value={v.transitWarehouseId} onChange={(x) => setV({ ...v, transitWarehouseId: x })} options={whs.map((w) => ({ value: w.id, label: `${w.name}${w.type !== 'Standard' ? ' · ' + w.type : ''}` }))} disabled={!canEdit} />
           <SelectField label="Scrap warehouse (transit damage / shortage, QC scrap)" value={v.scrapWarehouseId} onChange={(x) => setV({ ...v, scrapWarehouseId: x })} options={whs.map((w) => ({ value: w.id, label: `${w.name}${w.type !== 'Standard' ? ' · ' + w.type : ''}` }))} disabled={!canEdit} />
-          <div style={{ fontSize: 12, color: '#5F6368' }}>Warehouses and bins are maintained under Masters › Warehouses.</div>
+          <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Warehouses and bins are maintained under Masters › Warehouses.</div>
         </div>
       </div>
     </div>

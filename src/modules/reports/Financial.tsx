@@ -35,7 +35,7 @@ export function ProfitLoss() {
       </div>
       {reconDiff === 0 ? <Banner tone="success">Reconciles: P&L net profit equals the change in unappropriated profit on the balance sheet at the same cut-off (FR-RPT-009).</Banner> : <Banner tone="warning">Reconciliation difference of {fmtMoney(reconDiff, s.currency)} between P&L net profit and the balance-sheet movement — check journals posted outside the range or opening balances.</Banner>}
       <StatementTable rows={pl.lines} currency={s.currency} valueLabel={rangeLabel(range)} compareLabel={compareRange ? rangeLabel(compareRange) : undefined} onDrill={(id) => drillToLedger(id, range)} />
-      <div style={{ fontSize: 12, color: '#6E6E71' }}>Computed live from posted journals · click an account to open its ledger · amounts in {s.currency}.</div>
+      <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>Computed live from posted journals · click an account to open its ledger · amounts in {s.currency}.</div>
     </ReportFrame>
   );
 }
@@ -66,8 +66,8 @@ export function BalanceSheetPage() {
       </div>
       {bs.difference !== 0 && <Banner tone="warning" action={<Button variant="link" onClick={() => nav.go('accounting/opening-balances')}>Review opening balances</Button>}>Balance sheet is out of balance by {fmtMoney(bs.difference, s.currency)} at this cut-off — usually opening balances loaded without a balancing equity entry (FR-RPT-009 exception).</Banner>}
       <div className="grid-2" style={{ alignItems: 'start' }}>
-        <div><div className="section-title" style={{ color: '#325CFF' }}>Assets</div>{cols(bs.assets)}<div style={{ padding: '8px 12px', fontWeight: 700, display: 'flex', justifyContent: 'space-between' }}><span>Total assets</span><span className="money">{fmtMoney(bs.totalAssets, s.currency)}</span></div></div>
-        <div><div className="section-title" style={{ color: '#12784E' }}>Equity & liabilities</div>{cols(bs.liabilities)}<div style={{ padding: '8px 12px', fontWeight: 700, display: 'flex', justifyContent: 'space-between' }}><span>Total equity & liabilities</span><span className="money">{fmtMoney(bs.totalLE, s.currency)}</span></div></div>
+        <div><div className="section-title" style={{ color: 'var(--accent)' }}>Assets</div>{cols(bs.assets)}<div style={{ padding: '8px 12px', fontWeight: 700, display: 'flex', justifyContent: 'space-between' }}><span>Total assets</span><span className="money">{fmtMoney(bs.totalAssets, s.currency)}</span></div></div>
+        <div><div className="section-title" style={{ color: 'var(--good)' }}>Equity & liabilities</div>{cols(bs.liabilities)}<div style={{ padding: '8px 12px', fontWeight: 700, display: 'flex', justifyContent: 'space-between' }}><span>Total equity & liabilities</span><span className="money">{fmtMoney(bs.totalLE, s.currency)}</span></div></div>
       </div>
     </ReportFrame>
   );
@@ -79,13 +79,13 @@ export function CashFlowPage() {
   const range = useRange(f);
   const journals = useCollection<Journal>(C.journals);
   const cf = useMemo(() => cashFlow(range, { branchId: f.branchId || undefined }), [range, f.branchId, journals]);
-  const section = (title: string, rows: typeof cf.operating, total: number, color: string) => (
+  const section = (title: string, rows: typeof cf.operating, total: number) => (
     <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-      <div style={{ padding: '10px 14px', fontWeight: 700, color, borderBottom: `2px solid ${color}20`, fontSize: 13 }}>{title}</div>
+      <div style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--ink)', borderBottom: '1px solid var(--line-strong)', fontSize: 13 }}>{title}</div>
       <table className="data-table dense"><tbody>
-        {rows.map((r, i) => <tr key={i}><td style={{ paddingLeft: 14 + r.level * 20, fontWeight: r.level === 0 ? 600 : 400 }}>{r.label}</td><td className="right money" style={{ width: 180, color: r.amount < 0 ? '#C0393F' : '#0A0A0A' }}>{r.amount < 0 ? `(${fmtMoney(-r.amount, s.currency)})` : fmtMoney(r.amount, s.currency)}</td></tr>)}
-        {rows.length === 0 && <tr><td colSpan={2} style={{ color: '#6E6E71' }}>No movements in this range</td></tr>}
-        <tr style={{ background: '#F9FBFC', fontWeight: 700 }}><td>Net cash from {title.split('from ')[1] ?? title.toLowerCase()}</td><td className="right money" style={{ color: total < 0 ? '#C0393F' : '#12784E' }}>{fmtMoney(total, s.currency)}</td></tr>
+        {rows.map((r, i) => <tr key={i}><td style={{ paddingLeft: 14 + r.level * 20, fontWeight: r.level === 0 ? 600 : 400 }}>{r.label}</td><td className="right money" style={{ width: 180, color: r.amount < 0 ? 'var(--danger)' : 'var(--ink)' }}>{r.amount < 0 ? `(${fmtMoney(-r.amount, s.currency)})` : fmtMoney(r.amount, s.currency)}</td></tr>)}
+        {rows.length === 0 && <tr><td colSpan={2} style={{ color: 'var(--ink-4)' }}>No movements in this range</td></tr>}
+        <tr style={{ background: 'var(--surface-2)', fontWeight: 700 }}><td>Net cash from {title.split('from ')[1] ?? title.toLowerCase()}</td><td className="right money" style={{ color: total < 0 ? 'var(--danger)' : 'var(--good)' }}>{fmtMoney(total, s.currency)}</td></tr>
       </tbody></table>
     </div>
   );
@@ -100,12 +100,12 @@ export function CashFlowPage() {
         <KpiTile label="Closing cash & bank" value={fmtMoney(cf.closingCash, s.currency)} sub={`actual change ${fmtMoney(cf.actualChange, s.currency)}`} />
         <KpiTile label="Unexplained difference" value={fmtMoney(cf.difference, s.currency)} deltaTone={cf.difference === 0 ? 'good' : 'bad'} delta={cf.difference === 0 ? 'Reconciled to bank & cash ledgers' : 'Investigate'} />
       </div>
-      {section('A. Cash flow from operating activities', cf.operating, cf.netOperating, '#325CFF')}
-      {section('B. Cash flow from investing activities', cf.investing, cf.netInvesting, '#12784E')}
-      {section('C. Cash flow from financing activities', cf.financing, cf.netFinancing, '#F97316')}
-      <div style={{ background: '#F9FBFC', border: '2px solid #EAEAEA', borderRadius: 8, padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {section('A. Cash flow from operating activities', cf.operating, cf.netOperating)}
+      {section('B. Cash flow from investing activities', cf.investing, cf.netInvesting)}
+      {section('C. Cash flow from financing activities', cf.financing, cf.netFinancing)}
+      <div style={{ background: 'var(--surface-2)', border: '2px solid var(--line)', borderRadius: 8, padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 14, fontWeight: 700 }}>Net increase / (decrease) in cash</span>
-        <span className="money" style={{ fontSize: 20, fontWeight: 700, color: cf.netChange >= 0 ? '#12784E' : '#C0393F' }}>{fmtMoney(cf.netChange, s.currency)}</span>
+        <span className="money" style={{ fontSize: 20, fontWeight: 700, color: cf.netChange >= 0 ? 'var(--good)' : 'var(--danger)' }}>{fmtMoney(cf.netChange, s.currency)}</span>
       </div>
     </ReportFrame>
   );
@@ -120,13 +120,13 @@ export function TrialBalancePage() {
   const cols: Column<(typeof tb.rows)[number]>[] = [
     { key: 'code', label: 'Code', render: (r) => <span className="identifier">{r.code}</span>, sortable: true, width: 80 },
     { key: 'name', label: 'Account', sortable: true },
-    { key: 'group', label: 'Group', render: (r) => <span style={{ fontSize: 12, color: '#5F6368' }}>{r.group}</span> },
+    { key: 'group', label: 'Group', render: (r) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{r.group}</span> },
     { key: 'openingDr', label: 'Opening Dr', align: 'right', render: (r) => <span className="money">{r.openingDr ? fmtMoney(r.openingDr, s.currency) : '—'}</span> },
     { key: 'openingCr', label: 'Opening Cr', align: 'right', render: (r) => <span className="money">{r.openingCr ? fmtMoney(r.openingCr, s.currency) : '—'}</span> },
     { key: 'dr', label: 'Debit', align: 'right', render: (r) => <span className="money">{r.dr ? fmtMoney(r.dr, s.currency) : '—'}</span>, total: (rows) => <span className="money">{fmtMoney(rows.reduce((x, r) => x + r.dr, 0), s.currency)}</span> },
     { key: 'cr', label: 'Credit', align: 'right', render: (r) => <span className="money">{r.cr ? fmtMoney(r.cr, s.currency) : '—'}</span>, total: (rows) => <span className="money">{fmtMoney(rows.reduce((x, r) => x + r.cr, 0), s.currency)}</span> },
     { key: 'closingDr', label: 'Closing Dr', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600 }}>{r.closingDr ? fmtMoney(r.closingDr, s.currency) : '—'}</span>, total: () => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(tb.totalDr, s.currency)}</span> },
-    { key: 'closingCr', label: 'Closing Cr', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600 }}>{r.closingCr ? fmtMoney(r.closingCr, s.currency) : '—'}</span>, total: () => <span className="money" style={{ fontWeight: 700, color: tb.difference === 0 ? '#12784E' : '#C0393F' }}>{fmtMoney(tb.totalCr, s.currency)}</span> },
+    { key: 'closingCr', label: 'Closing Cr', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600 }}>{r.closingCr ? fmtMoney(r.closingCr, s.currency) : '—'}</span>, total: () => <span className="money" style={{ fontWeight: 700, color: tb.difference === 0 ? 'var(--good)' : 'var(--danger)' }}>{fmtMoney(tb.totalCr, s.currency)}</span> },
   ];
   return (
     <ReportFrame id="trial-balance" title="Trial balance" rangeLabel={rangeLabel(range)} filterState={f}
@@ -150,8 +150,8 @@ export function JournalRegister() {
   const cols: Column<Journal>[] = [
     { key: 'number', label: 'Journal', render: (j) => <span className="identifier link">{j.number}</span>, sortable: true },
     { key: 'date', label: 'Date', render: (j) => fmtDate(j.date), sortable: true },
-    { key: 'sourceType', label: 'Source', render: (j) => <span>{j.sourceType}{j.sourceNumber ? <span className="identifier" style={{ color: '#6E6E71', marginLeft: 6, fontSize: 11 }}>{j.sourceNumber}</span> : null}</span> },
-    { key: 'narration', label: 'Narration', render: (j) => <span style={{ fontSize: 12, color: '#3C4043' }}>{j.narration}</span> },
+    { key: 'sourceType', label: 'Source', render: (j) => <span>{j.sourceType}{j.sourceNumber ? <span className="identifier" style={{ color: 'var(--ink-4)', marginLeft: 6, fontSize: 11 }}>{j.sourceNumber}</span> : null}</span> },
+    { key: 'narration', label: 'Narration', render: (j) => <span style={{ fontSize: 12, color: 'var(--ink-2)' }}>{j.narration}</span> },
     { key: 'type', label: 'Type', render: (j) => <Badge status="Draft">{j.type}</Badge> },
     { key: 'totalDr', label: 'Debit', align: 'right', render: (j) => <span className="money">{fmtMoney(j.totalDr, s.currency)}</span>, total: (r) => <span className="money">{fmtMoney(r.reduce((x, j) => x + j.totalDr, 0), s.currency)}</span> },
     { key: 'totalCr', label: 'Credit', align: 'right', render: (j) => <span className="money">{fmtMoney(j.totalCr, s.currency)}</span>, total: (r) => <span className="money">{fmtMoney(r.reduce((x, j) => x + j.totalCr, 0), s.currency)}</span> },

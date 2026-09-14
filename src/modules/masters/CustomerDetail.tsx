@@ -110,8 +110,8 @@ export default function CustomerDetail({ id }: { id: string }) {
       {tab === 'docs' && <RecentDocsTable docs={docs} currency={s.currency} />}
       {tab === 'contacts' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          <div><div className="section-title">Addresses</div><div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{c.addresses.length ? c.addresses.map((a) => <AddressCard key={a.id} a={a} />) : <span style={{ fontSize: 13, color: '#5F6368' }}>No addresses</span>}</div></div>
-          <div><div className="section-title">Contacts</div><div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{c.contacts.length ? c.contacts.map((ct) => <ContactCard key={ct.id} c={ct} />) : <span style={{ fontSize: 13, color: '#5F6368' }}>No contacts</span>}</div></div>
+          <div><div className="section-title">Addresses</div><div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{c.addresses.length ? c.addresses.map((a) => <AddressCard key={a.id} a={a} />) : <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>No addresses</span>}</div></div>
+          <div><div className="section-title">Contacts</div><div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{c.contacts.length ? c.contacts.map((ct) => <ContactCard key={ct.id} c={ct} />) : <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>No contacts</span>}</div></div>
         </div>
       )}
       {tab === 'history' && <ChangeHistory objectId={id} />}

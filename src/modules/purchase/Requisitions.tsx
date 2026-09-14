@@ -61,7 +61,7 @@ function RequisitionForm({ existing }: { existing?: Requisition }) {
   return (
     <div className="page">
       <div className="page-header">
-        <div><button type="button" className="btn-link" style={{ color: '#5F6368' }} onClick={() => nav.back('purchase/requisitions')}>← Requisitions</button><h1 className="page-title">{existing ? `Edit ${existing.number}` : 'New purchase requisition'}</h1><div className="page-subtitle">Requester {doc.requesterName} · {fmtDate(doc.date)}</div></div>
+        <div><button type="button" className="btn-link" style={{ color: 'var(--ink-3)' }} onClick={() => nav.back('purchase/requisitions')}>← Requisitions</button><h1 className="page-title">{existing ? `Edit ${existing.number}` : 'New purchase requisition'}</h1><div className="page-subtitle">Requester {doc.requesterName} · {fmtDate(doc.date)}</div></div>
         <div style={{ display: 'flex', gap: 8 }}><Button onClick={() => save(false)}>Save draft</Button><Button variant="primary" onClick={() => save(true)}>Submit requisition</Button></div>
       </div>
       {errors && <Banner tone="danger" onDismiss={() => setErrors(null)}>{errors}</Banner>}
@@ -78,7 +78,7 @@ function RequisitionForm({ existing }: { existing?: Requisition }) {
           <tbody>
             {doc.lines.map((l, i) => (
               <tr key={l.id}>
-                <td style={{ color: '#5F6368' }}>{i + 1}</td>
+                <td style={{ color: 'var(--ink-3)' }}>{i + 1}</td>
                 <td><EntityPicker size="grid" value={l.itemId} onChange={(iid) => { if (!iid) return updLine(l.id, { itemId: undefined, itemName: '' }); const fresh = A.purchaseLine(iid, { qty: l.qty || 1, warehouseId: l.warehouseId }); updLine(l.id, { ...fresh, id: l.id }); }} options={items} placeholder="Search item…" recentKey="items" /></td>
                 <td><NumberField size="grid" value={l.qty} onChange={(v) => updLine(l.id, { qty: v })} decimals={3} min={0} /></td>
                 <td style={{ fontSize: 12 }}>{l.uom}</td>
@@ -89,12 +89,12 @@ function RequisitionForm({ existing }: { existing?: Requisition }) {
                 <td><button type="button" className="btn-icon" onClick={() => update({ lines: doc.lines.filter((x) => x.id !== l.id) })}>✕</button></td>
               </tr>
             ))}
-            {doc.lines.length === 0 && <tr><td colSpan={9} style={{ textAlign: 'center', color: '#5F6368', height: 64 }}>No lines yet — add one below</td></tr>}
+            {doc.lines.length === 0 && <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ink-3)', height: 64 }}>No lines yet — add one below</td></tr>}
           </tbody>
         </table>
-        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 16px', borderTop: '1px solid #EAEAEA', background: '#F9FBFC', fontSize: 12, color: '#5F6368' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 16px', borderTop: '1px solid var(--line)', background: 'var(--surface-2)', fontSize: 12, color: 'var(--ink-3)' }}>
           <button type="button" className="btn-link" onClick={addLine}>+ Add line</button>
-          <span>Estimated total <strong style={{ color: '#0A0A0A' }}>{fmtMoney(total)}</strong></span>
+          <span>Estimated total <strong style={{ color: 'var(--ink)' }}>{fmtMoney(total)}</strong></span>
         </div>
       </div>
       <div className="card" style={{ padding: 16 }}><div className="section-title">Attachments</div><AttachmentsPanel objectType="Requisition" objectId={doc.id} /></div>
@@ -119,7 +119,7 @@ function RequisitionDetail({ id }: { id: string }) {
   const run = (fn: () => void, msg: string) => { try { fn(); toast.success(msg); } catch (e: any) { toast.error(e.message); } };
   const footer = (
     <>
-      <div style={{ flex: 1, fontSize: 12, color: '#5F6368' }}>{doc.status === 'Submitted' ? 'Awaiting approval' : doc.status === 'Approved' ? 'Ready to convert' : ''}</div>
+      <div style={{ flex: 1, fontSize: 12, color: 'var(--ink-3)' }}>{doc.status === 'Submitted' ? 'Awaiting approval' : doc.status === 'Approved' ? 'Ready to convert' : ''}</div>
       {doc.status === 'Draft' && <Button onClick={() => nav.go(`purchase/requisitions/${id}?edit=1`)}>Edit</Button>}
       {doc.status === 'Draft' && <Button variant="primary" onClick={() => run(() => A.submitRequisition(id), 'Submitted')}>Submit requisition</Button>}
       {doc.status === 'Submitted' && <Button variant="danger" disabled={!canApprove} reason={!canApprove ? 'Requires approver role' : undefined} onClick={() => confirm.open({ title: `Reject ${doc.number}?`, reasonRequired: true, confirmLabel: 'Reject requisition', danger: true, onConfirm: (r) => A.decideRequisition(id, 'Rejected', r) })}>Reject</Button>}
@@ -139,7 +139,7 @@ function RequisitionDetail({ id }: { id: string }) {
         tabs={[
           { id: 'lines', label: 'Lines', content: (
             <div className="card" style={{ overflow: 'hidden' }}><table className="data-table dense"><thead><tr><th>#</th><th>Item</th><th className="right">Qty</th><th>UOM</th><th className="right">Expected price</th><th>Warehouse</th><th>Purpose</th><th className="right">Amount</th></tr></thead>
-              <tbody>{doc.lines.map((l, i) => <tr key={l.id}><td>{i + 1}</td><td><ItemLink id={l.itemId} name={l.itemName} /></td><td className="right money">{fmtQty(l.qty)}</td><td>{l.uom}</td><td className="right money">{fmtMoney(l.rate)}</td><td>{whName(l.warehouseId)}</td><td style={{ color: '#5F6368' }}>{(l as any).purpose ?? '—'}</td><td className="right money">{fmtMoney(l.qty * l.rate)}</td></tr>)}</tbody>
+              <tbody>{doc.lines.map((l, i) => <tr key={l.id}><td>{i + 1}</td><td><ItemLink id={l.itemId} name={l.itemName} /></td><td className="right money">{fmtQty(l.qty)}</td><td>{l.uom}</td><td className="right money">{fmtMoney(l.rate)}</td><td>{whName(l.warehouseId)}</td><td style={{ color: 'var(--ink-3)' }}>{(l as any).purpose ?? '—'}</td><td className="right money">{fmtMoney(l.qty * l.rate)}</td></tr>)}</tbody>
               <tfoot><tr><td colSpan={7}>Estimated total</td><td className="right money">{fmtMoney(doc.totals.total)}</td></tr></tfoot></table></div>) },
           { id: 'approvals', label: 'Approvals', content: <ApprovalsTab approvalId={doc.approvalId} docId={doc.id} /> },
           { id: 'activity', label: 'Activity', content: <ActivityTab objectId={doc.id} correlationId={doc.correlationId} /> },
@@ -152,7 +152,7 @@ function RequisitionDetail({ id }: { id: string }) {
       </Modal>
       <Modal open={rfqOpen} onClose={() => setRfqOpen(false)} title={`Create RFQ from ${doc.number}`} description="Select the suppliers to invite. You can add more on the RFQ." footer={<><Button onClick={() => setRfqOpen(false)}>Cancel</Button><Button variant="primary" disabled={!rfqSuppliers.length} onClick={() => run(() => { const r = A.saveRfq({ ...A.newRfq(doc), supplierIds: rfqSuppliers }); setRfqOpen(false); nav.go(`purchase/rfqs/${r.id}`); }, 'RFQ created')}>Create RFQ</Button></>}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 320, overflow: 'auto' }}>
-          {suppliers.filter((o) => !o.disabled).map((o) => <label key={o.id} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, padding: '6px 8px', border: '1px solid #EAEAEA', borderRadius: 8 }}><input type="checkbox" className="checkbox" checked={rfqSuppliers.includes(o.id)} onChange={() => setRfqSuppliers((x) => (x.includes(o.id) ? x.filter((y) => y !== o.id) : [...x, o.id]))} /><TwoLine primary={o.primary} secondary={o.secondary} /></label>)}
+          {suppliers.filter((o) => !o.disabled).map((o) => <label key={o.id} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 8 }}><input type="checkbox" className="checkbox" checked={rfqSuppliers.includes(o.id)} onChange={() => setRfqSuppliers((x) => (x.includes(o.id) ? x.filter((y) => y !== o.id) : [...x, o.id]))} /><TwoLine primary={o.primary} secondary={o.secondary} /></label>)}
         </div>
       </Modal>
     </>

@@ -109,9 +109,9 @@ export function WipPage({ params }: { params: Record<string, string> }) {
               { key: 'materialOut', label: 'Returns', align: 'right', render: (x) => <span className="money">{x.materialOut ? fmtMoney(x.materialOut, s.currency) : '—'}</span> },
               { key: 'conversion', label: 'Conversion', align: 'right', render: (x) => <span className="money">{fmtMoney(x.conversion, s.currency)}</span>, total: (r) => <span className="money">{fmtMoney(r.reduce((a, x) => a + x.conversion, 0), s.currency)}</span> },
               { key: 'output', label: 'Output out', align: 'right', render: (x) => <span className="money">{fmtMoney(x.output, s.currency)}</span>, total: (r) => <span className="money">{fmtMoney(r.reduce((a, x) => a + x.output, 0), s.currency)}</span> },
-              { key: 'scrap', label: 'Scrap', align: 'right', render: (x) => <span className="money" style={{ color: x.scrap ? '#C0393F' : undefined }}>{x.scrap ? fmtMoney(x.scrap, s.currency) : '—'}</span> },
+              { key: 'scrap', label: 'Scrap', align: 'right', render: (x) => <span className="money" style={{ color: x.scrap ? 'var(--danger)' : undefined }}>{x.scrap ? fmtMoney(x.scrap, s.currency) : '—'}</span> },
               { key: 'variance', label: 'Variance on close', align: 'right', render: (x) => <span className="money">{x.variance ? fmtMoney(x.variance, s.currency) : '—'}</span> },
-              { key: 'balance', label: 'WIP balance', align: 'right', sortable: true, render: (x) => <span className="money" style={{ fontWeight: 600, color: Math.abs(x.balance) < 0.01 ? '#12784E' : '#8A4B0F' }}>{fmtMoney(x.balance, s.currency)}</span>, total: (r) => <span className="money">{fmtMoney(r.reduce((a, x) => a + x.balance, 0), s.currency)}</span> },
+              { key: 'balance', label: 'WIP balance', align: 'right', sortable: true, render: (x) => <span className="money" style={{ fontWeight: 600, color: Math.abs(x.balance) < 0.01 ? 'var(--good)' : 'var(--warn)' }}>{fmtMoney(x.balance, s.currency)}</span>, total: (r) => <span className="money">{fmtMoney(r.reduce((a, x) => a + x.balance, 0), s.currency)}</span> },
             ] as Column<(typeof perOrder)[number]>[]} onRowClick={(x) => nav.go(`production/orders/${x.order.id}?tab=costing`)} showTotals emptyTitle="Nothing in WIP" />
           </SectionCard>
           <SectionCard title="WIP ledger entries" padding={0}>
@@ -120,7 +120,7 @@ export function WipPage({ params }: { params: Record<string, string> }) {
               { key: 'orderNumber', label: 'Order', render: (w) => <OrderLink id={w.orderId} number={w.orderNumber} /> },
               { key: 'type', label: 'Type', render: (w) => <Badge status={w.type === 'Variance' ? 'Returned' : w.type === 'Scrap' ? 'Rejected' : w.amount > 0 ? 'In Progress' : 'Posted'}>{w.type}</Badge> },
               { key: 'sourceNumber', label: 'Source', render: (w) => <span className="identifier" style={{ fontSize: 12 }}>{w.sourceNumber}</span> },
-              { key: 'description', label: 'Description', render: (w) => <span style={{ fontSize: 12, color: '#5F6368' }}>{w.description ?? '—'}</span> },
+              { key: 'description', label: 'Description', render: (w) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{w.description ?? '—'}</span> },
               { key: 'journalNumber', label: 'Journal', render: (w) => <JournalLink id={w.journalId} /> },
               { key: 'amount', label: 'Amount', align: 'right', render: (w) => <span className={`money ${w.amount > 0 ? '' : 'money-positive'}`}>{fmtMoney(w.amount, s.currency)}</span> },
             ] as Column<WipEntry>[]} emptyTitle="No WIP entries" />
@@ -145,14 +145,14 @@ export function WipPage({ params }: { params: Record<string, string> }) {
               { key: 'usageVar', label: 'Material usage', align: 'right', render: (v) => <span className={`money ${v.usageVar > 0 ? 'money-negative' : 'money-positive'}`}>{fmtMoney(v.usageVar, s.currency)}</span> },
               { key: 'labourEff', label: 'Labour efficiency', align: 'right', render: (v) => <span className={`money ${v.labourEff > 0 ? 'money-negative' : 'money-positive'}`}>{fmtMoney(v.labourEff, s.currency)}</span> },
               { key: 'overheadVar', label: 'Overhead', align: 'right', render: (v) => <span className={`money ${v.overheadVar > 0 ? 'money-negative' : 'money-positive'}`}>{fmtMoney(v.overheadVar, s.currency)}</span> },
-              { key: 'yieldVar', label: 'Yield', align: 'right', render: (v) => <span className="money" style={{ color: v.yieldVar ? '#C0393F' : undefined }}>{v.yieldVar ? fmtMoney(v.yieldVar, s.currency) : '—'}</span> },
+              { key: 'yieldVar', label: 'Yield', align: 'right', render: (v) => <span className="money" style={{ color: v.yieldVar ? 'var(--danger)' : undefined }}>{v.yieldVar ? fmtMoney(v.yieldVar, s.currency) : '—'}</span> },
               { key: 'total', label: 'Total variance', align: 'right', sortable: true, render: (v) => <VarianceCell std={v.order.costs.totalStd} actual={v.order.costs.totalActual} currency={s.currency} />, total: (r) => <span className="money">{fmtMoney(r.reduce((a, v) => a + v.total, 0), s.currency)}</span> },
             ] as Column<(typeof variances)[number]>[]} onRowClick={(v) => setDrill(drill === v.order.id ? null : v.order.id)} showTotals emptyTitle="No orders with cost history" />
           </SectionCard>
           {drillOrder && (
             <SectionCard title={`Drill-down · ${drillOrder.number}`} padding={0} actions={<Button size="sm" variant="link" onClick={() => nav.go(`production/orders/${drillOrder.id}?tab=costing`)}>Open costing tab</Button>}>
               <table className="data-table dense"><thead><tr><th>Date</th><th>Type</th><th>Source</th><th>Description</th><th>Journal</th><th className="right">Amount</th></tr></thead><tbody>
-                {wipRows.filter((w) => w.orderId === drillOrder.id).sort((a, b) => a.date.localeCompare(b.date)).map((w) => <tr key={w.id}><td>{fmtDate(w.date)}</td><td>{w.type}</td><td className="identifier" style={{ fontSize: 12 }}>{w.sourceNumber}</td><td style={{ fontSize: 12, color: '#5F6368' }}>{w.description ?? '—'}</td><td><JournalLink id={w.journalId} /></td><td className="right money">{fmtMoney(w.amount, s.currency)}</td></tr>)}
+                {wipRows.filter((w) => w.orderId === drillOrder.id).sort((a, b) => a.date.localeCompare(b.date)).map((w) => <tr key={w.id}><td>{fmtDate(w.date)}</td><td>{w.type}</td><td className="identifier" style={{ fontSize: 12 }}>{w.sourceNumber}</td><td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{w.description ?? '—'}</td><td><JournalLink id={w.journalId} /></td><td className="right money">{fmtMoney(w.amount, s.currency)}</td></tr>)}
               </tbody></table>
             </SectionCard>
           )}
@@ -183,13 +183,13 @@ export function WipPage({ params }: { params: Record<string, string> }) {
               { key: 'completedAt', label: 'Completed', render: (o) => fmtDate(o.actualEnd ?? o.completedAt) },
               { key: 'std', label: 'Standard', align: 'right', render: (o) => <span className="money">{fmtMoney(o.costs.totalStd, s.currency)}</span> },
               { key: 'actual', label: 'Actual', align: 'right', render: (o) => <span className="money">{fmtMoney(o.costs.totalActual, s.currency)}</span> },
-              { key: 'wip', label: 'WIP to clear', align: 'right', render: (o) => <span className="money" style={{ color: '#8A4B0F' }}>{fmtMoney(o.costs.wipBalance, s.currency)}</span>, total: (r) => <span className="money">{fmtMoney(r.reduce((a, o) => a + o.costs.wipBalance, 0), s.currency)}</span> },
+              { key: 'wip', label: 'WIP to clear', align: 'right', render: (o) => <span className="money" style={{ color: 'var(--warn)' }}>{fmtMoney(o.costs.wipBalance, s.currency)}</span>, total: (r) => <span className="money">{fmtMoney(r.reduce((a, o) => a + o.costs.wipBalance, 0), s.currency)}</span> },
               { key: 'act', label: '', render: (o) => <Button size="sm" variant="tinted" onClick={(e) => { e.stopPropagation(); nav.go(`production/orders/${o.id}?action=close`); }}>Close</Button> },
             ] as Column<ProductionOrder>[]} onRowClick={(o) => nav.go(`production/orders/${o.id}?tab=costing`)} showTotals emptyTitle="Nothing to close" emptyDescription="All completed orders have been closed." />
           </SectionCard>
           <SectionCard title="Reconciliation">
             <SummaryBlock items={[{ label: 'Order WIP ledger', value: fmtMoney(wipTotal, s.currency) }, { label: 'GL 1220', value: fmtMoney(glWip.net, s.currency) }, { label: 'Difference', value: fmtMoney(difference, s.currency), tone: Math.abs(difference) < 0.01 ? 'good' : 'warn' }, { label: 'Open orders carrying WIP', value: String(perOrder.filter((x) => Math.abs(x.balance) > 0.01).length) }]} />
-            <div style={{ marginTop: 10, fontSize: 12, color: '#6E6E71' }}>Material issues and conversion postings debit 1220; receipts, by-products and scrap credit it. Closing an order posts the residual to 5710 Production Variances.</div>
+            <div style={{ marginTop: 10, fontSize: 12, color: 'var(--ink-4)' }}>Material issues and conversion postings debit 1220; receipts, by-products and scrap credit it. Closing an order posts the residual to 5710 Production Variances.</div>
           </SectionCard>
         </>
       )}

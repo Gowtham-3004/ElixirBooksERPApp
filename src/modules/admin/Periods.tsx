@@ -138,14 +138,14 @@ export default function Periods({ initialPeriod }: { initialPeriod?: string }) {
               const bl = p.status === 'Open' || p.status === 'Reopened' || p.status === 'Soft Closed' ? closeChecklist(p).filter((b) => b.count > 0) : [];
               const primary = p.status === 'Open' || p.status === 'Reopened' ? { label: 'Soft-close', kind: 'soft' as const } : p.status === 'Soft Closed' ? { label: 'Lock', kind: 'lock' as const } : p.status === 'Locked' ? { label: 'Reopen', kind: 'reopen' as const } : { label: 'Open', kind: 'open' as const };
               return (
-                <tr key={p.id} style={{ opacity: p.status === 'Future' ? 0.7 : 1, background: p.code === s.period?.code ? '#F9FBFF' : undefined }}>
-                  <td><span style={{ fontSize: 14, fontWeight: 600 }}>{p.label}</span>{p.code === s.period?.code && <span style={{ fontSize: 11, color: '#6E6E71', marginLeft: 6 }}>current</span>}</td>
-                  <td style={{ color: '#5F6368' }}>{fmtDate(p.start)}</td>
-                  <td style={{ color: '#5F6368' }}>{fmtDate(p.end)}</td>
+                <tr key={p.id} style={{ opacity: p.status === 'Future' ? 0.7 : 1, background: p.code === s.period?.code ? 'var(--accent-tint)' : undefined }}>
+                  <td><span style={{ fontSize: 14, fontWeight: 600 }}>{p.label}</span>{p.code === s.period?.code && <span style={{ fontSize: 11, color: 'var(--ink-4)', marginLeft: 6 }}>current</span>}</td>
+                  <td style={{ color: 'var(--ink-3)' }}>{fmtDate(p.start)}</td>
+                  <td style={{ color: 'var(--ink-3)' }}>{fmtDate(p.end)}</td>
                   <td><span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><Badge status={p.status} />{req && <Pill tone="warning" title={`Awaiting ${req.steps[req.currentStep - 1]?.approverLabel}`}>Reopen requested</Pill>}</span></td>
-                  <td style={{ fontSize: 12, color: '#5F6368' }}>{p.lockedAt ? fmtDateTime(p.lockedAt) : '—'}</td>
-                  <td style={{ fontSize: 12, color: '#5F6368' }}>{p.lockedBy ?? '—'}</td>
-                  <td style={{ fontSize: 12 }}>{bl.length ? <span style={{ color: '#8A4B0F' }}>{bl.reduce((a, b) => a + b.count, 0)} in {bl.length} area{bl.length === 1 ? '' : 's'}</span> : p.status === 'Locked' ? <span style={{ color: '#B0B5BF' }}>—</span> : <span style={{ color: '#12784E' }}>Clear</span>}</td>
+                  <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{p.lockedAt ? fmtDateTime(p.lockedAt) : '—'}</td>
+                  <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{p.lockedBy ?? '—'}</td>
+                  <td style={{ fontSize: 12 }}>{bl.length ? <span style={{ color: 'var(--warn)' }}>{bl.reduce((a, b) => a + b.count, 0)} in {bl.length} area{bl.length === 1 ? '' : 's'}</span> : p.status === 'Locked' ? <span style={{ color: 'var(--ink-5)' }}>—</span> : <span style={{ color: 'var(--good)' }}>Clear</span>}</td>
                   <td style={{ textAlign: 'right' }}>
                     <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
                       <Button size="sm" variant={primary.kind === 'lock' ? 'danger' : 'secondary'} onClick={() => { setAck(false); setAction({ p, kind: primary.kind }); }} disabled={primary.kind === 'reopen' ? !canReopen || !!req : !canManage} reason={primary.kind === 'reopen' ? (req ? 'Awaiting approval' : canReopen ? undefined : 'Requires Finance Admin / CFO') : canManage ? undefined : 'Requires admin.periods permission'}>{primary.label}</Button>
@@ -158,7 +158,7 @@ export default function Periods({ initialPeriod }: { initialPeriod?: string }) {
           </tbody>
         </table>
       </Card>
-      <div style={{ fontSize: 12, color: '#6E6E71' }}>Open → Soft-closed (Finance Admin may still post) → Locked (nobody posts) → Reopened via approval. Every transition records who, when and why (FR-ORG-005).</div>
+      <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>Open → Soft-closed (Finance Admin may still post) → Locked (nobody posts) → Reopened via approval. Every transition records who, when and why (FR-ORG-005).</div>
 
       <ConfirmDialog open={!!action} onClose={() => setAction(null)} title={titleFor()} statement={action?.kind === 'lock' ? 'Locking freezes the ledger for this period. This is reversible only through the reopen workflow.' : action?.kind === 'reopen' ? 'Reopening a closed period is a controlled exception and is audited.' : action?.kind === 'soft' ? 'Soft-close signals month-end; blockers below should be resolved before locking.' : undefined}
         consequences={consequences} reasonRequired confirmLabel={action ? ({ open: 'Open period', soft: 'Soft-close period', lock: 'Lock period', reopen: engine.resolveWorkflow('Period Reopen', { amount: 0 }) ? 'Request reopen' : 'Reopen period' })[action.kind] : ''} cancelLabel="Keep as is" danger={action?.kind === 'lock' || action?.kind === 'reopen'} disabled={lockDisabled} onConfirm={confirm}>

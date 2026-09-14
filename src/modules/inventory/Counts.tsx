@@ -23,10 +23,10 @@ function CountRegister() {
       columns={[
         { key: 'number', label: 'Count #', sortable: true, render: (r) => <span className="identifier link">{r.number}</span> },
         { key: 'date', label: 'Date', sortable: true, render: (r) => fmtDate(r.date) },
-        { key: 'warehouseName', label: 'Warehouse', sortable: true }, { key: 'itemGroup', label: 'Scope', render: (r) => <span style={{ fontSize: 12, color: '#5F6368' }}>{r.itemGroup ?? 'All items'}</span> },
+        { key: 'warehouseName', label: 'Warehouse', sortable: true }, { key: 'itemGroup', label: 'Scope', render: (r) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{r.itemGroup ?? 'All items'}</span> },
         { key: 'lines', label: 'Lines', align: 'right', render: (r) => r.countLines.length },
-        { key: 'progress', label: 'Progress', render: (r) => { const v = A.countVariance(r); return <span style={{ fontSize: 12 }}><span style={{ color: '#12784E', fontWeight: 600 }}>{v.matched}</span> matched · <span style={{ color: '#C0393F', fontWeight: 600 }}>{v.variances}</span> variances · <span style={{ color: '#B0B5BF', fontWeight: 600 }}>{v.pending}</span> pending</span>; } },
-        { key: 'net', label: 'Net variance', align: 'right', render: (r) => { const v = A.countVariance(r); return <span className="money" style={{ color: v.netValue < 0 ? '#C0393F' : v.netValue > 0 ? '#12784E' : undefined }}>{fmtMoney(v.netValue)}</span>; } },
+        { key: 'progress', label: 'Progress', render: (r) => { const v = A.countVariance(r); return <span style={{ fontSize: 12 }}><span style={{ color: 'var(--good)', fontWeight: 600 }}>{v.matched}</span> matched · <span style={{ color: 'var(--danger)', fontWeight: 600 }}>{v.variances}</span> variances · <span style={{ color: 'var(--ink-5)', fontWeight: 600 }}>{v.pending}</span> pending</span>; } },
+        { key: 'net', label: 'Net variance', align: 'right', render: (r) => { const v = A.countVariance(r); return <span className="money" style={{ color: v.netValue < 0 ? 'var(--danger)' : v.netValue > 0 ? 'var(--good)' : undefined }}>{fmtMoney(v.netValue)}</span>; } },
         { key: 'adjustmentNumber', label: 'Adjustment', render: (r) => <DocLink path={r.adjustmentId ? `inventory/adjustments/${r.adjustmentId}` : undefined} number={r.adjustmentNumber} /> },
         { key: 'status', label: 'Status', sortable: true, render: (r) => <Badge status={r.status === 'Submitted' ? 'Pending Approval' : r.status}>{r.status === 'Submitted' ? 'Pending approval' : r.status}</Badge> },
       ]}
@@ -51,7 +51,7 @@ function CountCreate() {
         <DateField label="Count date" value={form.date} onChange={(v) => setForm({ ...form, date: v })} checkPeriod />
         <TextArea label="Instructions" value={form.notes} onChange={(v) => setForm({ ...form, notes: v })} style={{ gridColumn: 'span 3' }} rows={2} />
       </div>
-      <div className="card" style={{ padding: 16 }}><div className="section-title">{preview.length} item(s) with stock will be frozen</div><div style={{ fontSize: 12, color: '#5F6368' }}>{preview.map((i) => i.name).join(' · ') || 'Nothing in stock for this selection'}</div></div>
+      <div className="card" style={{ padding: 16 }}><div className="section-title">{preview.length} item(s) with stock will be frozen</div><div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{preview.map((i) => i.name).join(' · ') || 'Nothing in stock for this selection'}</div></div>
     </div>
   );
 }
@@ -80,7 +80,7 @@ function CountSheet({ id }: { id: string }) {
     <>
       <div className="page">
         <div className="page-header">
-          <div><button type="button" className="btn-link" style={{ color: '#5F6368' }} onClick={() => nav.go('inventory/counts')}>← Stock counts</button><h1 className="page-title" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>{sc.number} <Badge status={sc.status === 'Submitted' ? 'Pending Approval' : sc.status}>{sc.status === 'Submitted' ? 'Pending approval' : sc.status}</Badge></h1><div className="page-subtitle">{sc.warehouseName} · {fmtDate(sc.date)} · frozen {fmtDateTime(sc.frozenAt)} · {sc.itemGroup ?? 'all items'}</div></div>
+          <div><button type="button" className="btn-link" style={{ color: 'var(--ink-3)' }} onClick={() => nav.go('inventory/counts')}>← Stock counts</button><h1 className="page-title" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>{sc.number} <Badge status={sc.status === 'Submitted' ? 'Pending Approval' : sc.status}>{sc.status === 'Submitted' ? 'Pending approval' : sc.status}</Badge></h1><div className="page-subtitle">{sc.warehouseName} · {fmtDate(sc.date)} · frozen {fmtDateTime(sc.frozenAt)} · {sc.itemGroup ?? 'all items'}</div></div>
           <div style={{ display: 'flex', gap: 8 }}>
             {editable && <Button onClick={save} disabled={!dirty}>Save progress</Button>}
             {editable && <Button variant="primary" disabled={v.pending > 0 && !dirty} reason={v.pending > 0 ? `${v.pending} line(s) pending` : undefined} onClick={() => { if (dirty) save(); confirm.open({ title: `Submit ${sc.number} for approval?`, statement: `${v.variances} variance(s) · net ${fmtMoney(v.netValue)} · gross ${fmtMoney(v.absValue)}`, consequences: [{ engine: 'Workflow', text: v.absValue > 5000 ? 'Operations Manager approval (variance above ₹5,000)' : 'Auto-approved — below the adjustment threshold' }], confirmLabel: 'Submit count', onConfirm: () => { A.submitCount(id); toast.success('Submitted'); } }); }}>Submit for approval</Button>}
@@ -93,17 +93,17 @@ function CountSheet({ id }: { id: string }) {
         <Tabs variant="filter" value={tab} onChange={setTab} tabs={[{ id: 'sheet', label: 'Count sheet' }, { id: 'approvals', label: 'Approvals' }, { id: 'activity', label: 'Activity' }]} />
         {tab === 'sheet' && (
           <div className="card" style={{ overflow: 'hidden' }}>
-            <div style={{ display: 'flex', gap: 6, padding: '8px 12px', borderBottom: '1px solid #EAEAEA' }}>{(['all', 'pending', 'variance'] as const).map((k) => <button key={k} type="button" className={`chip ${showOnly === k ? 'selected' : ''}`} onClick={() => setShowOnly(k)}>{k === 'all' ? 'All' : k === 'pending' ? 'Pending' : 'Variances'}</button>)}</div>
+            <div style={{ display: 'flex', gap: 6, padding: '8px 12px', borderBottom: '1px solid var(--line)' }}>{(['all', 'pending', 'variance'] as const).map((k) => <button key={k} type="button" className={`chip ${showOnly === k ? 'selected' : ''}`} onClick={() => setShowOnly(k)}>{k === 'all' ? 'All' : k === 'pending' ? 'Pending' : 'Variances'}</button>)}</div>
             <table className="data-table">
               <thead><tr><th>SKU</th><th>Item</th><th>Batch</th><th className="right">System qty (frozen)</th><th className="right" style={{ width: 150 }}>Counted qty</th><th className="right">Variance</th><th className="right">Value</th><th>Counted by</th><th>Status</th></tr></thead>
               <tbody>{rows.map((l) => (
-                <tr key={l.id} style={{ background: l.variance !== null && l.variance !== 0 ? '#FFF7E8' : l.variance === null ? '#FAFAFA' : undefined }}>
-                  <td className="identifier" style={{ fontSize: 12, color: '#325CFF' }}>{l.itemCode}</td><td>{l.itemName}</td><td className="identifier">{l.batch ?? '—'}</td>
+                <tr key={l.id} style={{ background: l.variance !== null && l.variance !== 0 ? 'var(--warn-bg)' : l.variance === null ? 'var(--surface-2)' : undefined }}>
+                  <td className="identifier" style={{ fontSize: 12, color: 'var(--accent)' }}>{l.itemCode}</td><td>{l.itemName}</td><td className="identifier">{l.batch ?? '—'}</td>
                   <td className="right money">{fmtQty(l.systemQty)}</td>
-                  <td className="right">{editable ? <input type="number" step="any" className="field-input grid num" style={{ width: 120, border: l.countedQty === null ? '1px solid #325CFF' : undefined }} value={l.countedQty ?? ''} placeholder="Enter count" onChange={(e) => setCounts({ ...counts, [l.id]: e.target.value === '' ? null : Number(e.target.value) })} /> : <span className="money">{l.countedQty ?? '—'}</span>}</td>
-                  <td className="right">{l.variance !== null ? <span className="money" style={{ fontWeight: 600, color: l.variance === 0 ? '#12784E' : '#C0393F' }}>{l.variance > 0 ? '+' : ''}{fmtQty(l.variance)}</span> : <span style={{ color: '#B0B5BF' }}>—</span>}</td>
-                  <td className="right money" style={{ color: l.varianceValue < 0 ? '#C0393F' : undefined }}>{l.variance ? fmtMoney(l.varianceValue) : '—'}</td>
-                  <td style={{ fontSize: 12, color: '#5F6368' }}>{l.countedBy ? <TwoLine primary={l.countedBy} secondary={fmtDateTime(l.countedAt)} /> : '—'}</td>
+                  <td className="right">{editable ? <input type="number" step="any" className="field-input grid num" style={{ width: 120, border: l.countedQty === null ? '1px solid var(--accent)' : undefined }} value={l.countedQty ?? ''} placeholder="Enter count" onChange={(e) => setCounts({ ...counts, [l.id]: e.target.value === '' ? null : Number(e.target.value) })} /> : <span className="money">{l.countedQty ?? '—'}</span>}</td>
+                  <td className="right">{l.variance !== null ? <span className="money" style={{ fontWeight: 600, color: l.variance === 0 ? 'var(--good)' : 'var(--danger)' }}>{l.variance > 0 ? '+' : ''}{fmtQty(l.variance)}</span> : <span style={{ color: 'var(--ink-5)' }}>—</span>}</td>
+                  <td className="right money" style={{ color: l.varianceValue < 0 ? 'var(--danger)' : undefined }}>{l.variance ? fmtMoney(l.varianceValue) : '—'}</td>
+                  <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{l.countedBy ? <TwoLine primary={l.countedBy} secondary={fmtDateTime(l.countedAt)} /> : '—'}</td>
                   <td><Badge status={l.variance === null ? 'Pending' : l.variance === 0 ? 'Matched' : 'Variance'}>{l.variance === null ? 'Pending' : l.variance === 0 ? 'Matched' : 'Variance'}</Badge></td>
                 </tr>))}</tbody>
             </table>

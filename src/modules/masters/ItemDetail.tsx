@@ -48,7 +48,7 @@ export default function ItemDetail({ id }: { id: string }) {
       <Tabs value={tab} onChange={setTab} tabs={[{ id: 'stock', label: 'Stock by warehouse' }, { id: 'prices', label: 'Price list entries' }, { id: 'moves', label: 'Recent movements' }, { id: 'history', label: 'Change history' }]} />
       {tab === 'stock' && (item.isStock ? (
         <DataTable rows={stock} rowKey={(r) => r.w.id} dense emptyTitle="No stock yet" columns={[
-          { key: 'w', label: 'Warehouse', render: (r) => <span>{r.w.name} <span style={{ color: '#5F6368', fontSize: 12 }}>{r.w.code}{r.w.type !== 'Standard' ? ` · ${r.w.type}` : ''}</span></span> },
+          { key: 'w', label: 'Warehouse', render: (r) => <span>{r.w.name} <span style={{ color: 'var(--ink-3)', fontSize: 12 }}>{r.w.code}{r.w.type !== 'Standard' ? ` · ${r.w.type}` : ''}</span></span> },
           { key: 'onHand', label: 'On hand', align: 'right', render: (r) => fmtQty(r.pos.onHand, item.baseUom), total: (rows) => fmtQty(rows.reduce((a, r) => a + r.pos.onHand, 0), item.baseUom) },
           { key: 'reserved', label: 'Reserved', align: 'right', render: (r) => fmtQty(r.pos.reserved) },
           { key: 'available', label: 'Available', align: 'right', render: (r) => <strong>{fmtQty(r.pos.available)}</strong> },
@@ -73,7 +73,7 @@ export default function ItemDetail({ id }: { id: string }) {
           { key: 'sourceNumber', label: 'Source', render: (m) => <span className="identifier">{m.sourceNumber}</span> },
           { key: 'warehouseName', label: 'Warehouse' },
           { key: 'batch', label: 'Batch / serial', render: (m) => m.batch ?? (m.serials?.length ? `${m.serials.length} serials` : '—') },
-          { key: 'baseQty', label: 'Qty', align: 'right', render: (m) => <span className="money" style={{ color: m.baseQty < 0 ? '#C0393F' : '#12784E' }}>{m.baseQty > 0 ? '+' : ''}{fmtQty(m.baseQty, item.baseUom)}</span> },
+          { key: 'baseQty', label: 'Qty', align: 'right', render: (m) => <span className="money" style={{ color: m.baseQty < 0 ? 'var(--danger)' : 'var(--good)' }}>{m.baseQty > 0 ? '+' : ''}{fmtQty(m.baseQty, item.baseUom)}</span> },
           { key: 'rate', label: 'Rate', align: 'right', render: (m) => <Money value={m.rate} currency={s.currency} /> },
           { key: 'balanceAfter', label: 'Balance', align: 'right', render: (m) => (m.balanceAfter !== undefined ? fmtQty(m.balanceAfter) : '—') },
         ]} />

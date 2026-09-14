@@ -86,10 +86,10 @@ export function FxExposurePage() {
                 <tr key={i.id} className="clickable" onClick={() => nav.go(i.kind === 'Bank' ? `accounting/ledger?account=${i.accountId}` : docLinkFor(db.find<OpenItem>(C.openItems, i.id)?.docType ?? '', i.id))}>
                   <td><span className="pill pill-neutral">{i.kind}</span></td><td className="identifier">{i.ref}</td><td>{i.partyName ?? '—'}</td><td><span className="currency-tag">{i.currency}</span></td>
                   <td className="right money">{fmtMoney(i.amount, i.currency, { code: true })}</td><td className="right money">{i.bookRate}</td><td className="right money">{fmtMoney(i.bookBase, exp.base)}</td><td className="right money">{exp.latest[i.currency]?.rate}</td><td className="right money">{fmtMoney(i.closingBase, exp.base)}</td>
-                  <td className="right money" style={{ color: i.difference > 0 ? '#12784E' : i.difference < 0 ? '#C0393F' : undefined, fontWeight: 600 }}>{fmtMoney(i.difference, exp.base)}</td>
+                  <td className="right money" style={{ color: i.difference > 0 ? 'var(--good)' : i.difference < 0 ? 'var(--danger)' : undefined, fontWeight: 600 }}>{fmtMoney(i.difference, exp.base)}</td>
                 </tr>
               ))}
-              {!exp.items.length && <tr><td colSpan={10} style={{ textAlign: 'center', color: '#5F6368', padding: 28 }}>No foreign-currency open items or bank balances as of {fmtDate(asOf)}</td></tr>}
+              {!exp.items.length && <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ink-3)', padding: 28 }}>No foreign-currency open items or bank balances as of {fmtDate(asOf)}</td></tr>}
             </tbody>
             {exp.items.length > 0 && <tfoot><tr><td colSpan={6}>Totals · {exp.items.length} items</td><td className="right money">{fmtMoney(exp.items.reduce((x, i) => x + i.bookBase, 0), exp.base)}</td><td /><td className="right money">{fmtMoney(exp.items.reduce((x, i) => x + i.closingBase, 0), exp.base)}</td><td className="right money">{fmtMoney(unreal, exp.base)}</td></tr></tfoot>}
           </table>
@@ -99,14 +99,14 @@ export function FxExposurePage() {
           <table className="data-table dense">
             <thead><tr><th>Date</th><th>Settlement</th><th>Open item</th><th>Party</th><th>Ccy</th><th className="right">Amount</th><th className="right">Invoice rate</th><th className="right">Settlement rate</th><th className="right">Gain / (loss)</th></tr></thead>
             <tbody>
-              {realized.map((r) => <tr key={r.id} className="clickable" onClick={() => nav.go(docLinkFor(r.docType, r.docId))}><td>{fmtDate(r.date)}</td><td className="identifier link">{r.docNumber}</td><td className="identifier">{r.item.docNumber}</td><td>{r.item.partyName}</td><td>{r.item.currency}</td><td className="right money">{fmtMoney(r.amount, r.item.currency, { code: true })}</td><td className="right money">{r.item.rate}</td><td className="right money">{r.rate}</td><td className="right money" style={{ color: r.fxGainLoss > 0 ? '#12784E' : '#C0393F', fontWeight: 600 }}>{fmtMoney(r.fxGainLoss, exp.base)}</td></tr>)}
-              {fxJournals.map((j) => { const g = j.lines.filter((l) => l.accountId === s.company?.defaults.fxGainAccountId).reduce((x, l) => x + l.crBase - l.drBase, 0); const lo = j.lines.filter((l) => l.accountId === s.company?.defaults.fxLossAccountId).reduce((x, l) => x + l.drBase - l.crBase, 0); return <tr key={j.id} className="clickable" onClick={() => nav.go(journalLink(j.id))}><td>{fmtDate(j.date)}</td><td className="identifier link">{j.sourceNumber ?? j.number}</td><td className="identifier">{j.number}</td><td>{j.lines.find((l) => l.partyName)?.partyName ?? '—'}</td><td>{j.currency}</td><td className="right">—</td><td className="right">—</td><td className="right">—</td><td className="right money" style={{ color: g - lo > 0 ? '#12784E' : '#C0393F', fontWeight: 600 }}>{fmtMoney(g - lo, exp.base)}</td></tr>; })}
-              {!realized.length && !fxJournals.length && <tr><td colSpan={9} style={{ textAlign: 'center', color: '#5F6368', padding: 28 }}>No realised FX differences yet — they post automatically when a foreign-currency open item settles at a different rate (FR-FX-009)</td></tr>}
+              {realized.map((r) => <tr key={r.id} className="clickable" onClick={() => nav.go(docLinkFor(r.docType, r.docId))}><td>{fmtDate(r.date)}</td><td className="identifier link">{r.docNumber}</td><td className="identifier">{r.item.docNumber}</td><td>{r.item.partyName}</td><td>{r.item.currency}</td><td className="right money">{fmtMoney(r.amount, r.item.currency, { code: true })}</td><td className="right money">{r.item.rate}</td><td className="right money">{r.rate}</td><td className="right money" style={{ color: r.fxGainLoss > 0 ? 'var(--good)' : 'var(--danger)', fontWeight: 600 }}>{fmtMoney(r.fxGainLoss, exp.base)}</td></tr>)}
+              {fxJournals.map((j) => { const g = j.lines.filter((l) => l.accountId === s.company?.defaults.fxGainAccountId).reduce((x, l) => x + l.crBase - l.drBase, 0); const lo = j.lines.filter((l) => l.accountId === s.company?.defaults.fxLossAccountId).reduce((x, l) => x + l.drBase - l.crBase, 0); return <tr key={j.id} className="clickable" onClick={() => nav.go(journalLink(j.id))}><td>{fmtDate(j.date)}</td><td className="identifier link">{j.sourceNumber ?? j.number}</td><td className="identifier">{j.number}</td><td>{j.lines.find((l) => l.partyName)?.partyName ?? '—'}</td><td>{j.currency}</td><td className="right">—</td><td className="right">—</td><td className="right">—</td><td className="right money" style={{ color: g - lo > 0 ? 'var(--good)' : 'var(--danger)', fontWeight: 600 }}>{fmtMoney(g - lo, exp.base)}</td></tr>; })}
+              {!realized.length && !fxJournals.length && <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ink-3)', padding: 28 }}>No realised FX differences yet — they post automatically when a foreign-currency open item settles at a different rate (FR-FX-009)</td></tr>}
             </tbody>
           </table>
         </div>
       )}
-      <div style={{ fontSize: 12, color: '#6E6E71' }}>Acceptance example (FRD 9A): USD 10,000 invoiced at 83.20 (₹8,32,000) and settled at 84.00 (₹8,40,000) posts ₹8,000 realised gain. Rates used are audited under Masters › Exchange rates.</div>
+      <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>Acceptance example (FRD 9A): USD 10,000 invoiced at 83.20 (₹8,32,000) and settled at 84.00 (₹8,40,000) posts ₹8,000 realised gain. Rates used are audited under Masters › Exchange rates.</div>
     </div>
   );
 }
@@ -201,8 +201,8 @@ export function RevaluationPage() {
             <table className="data-table dense">
               <thead><tr><th>Type</th><th>Reference</th><th>Party / account</th><th className="right">{currency} amount</th><th className="right">Book rate</th><th className="right">Book base</th><th className="right">Closing base</th><th className="right">Gain / (loss)</th></tr></thead>
               <tbody>
-                {preview.map((i) => <tr key={i.id}><td><span className="pill pill-neutral">{i.kind}</span></td><td className="identifier">{i.ref}</td><td>{i.partyName ?? '—'}</td><td className="right money">{fmtMoney(i.amount, i.currency, { code: true })}</td><td className="right money">{i.bookRate}</td><td className="right money">{fmtMoney(i.bookBase, s.currency)}</td><td className="right money">{fmtMoney(i.closingBase, s.currency)}</td><td className="right money" style={{ color: i.difference > 0 ? '#12784E' : i.difference < 0 ? '#C0393F' : undefined, fontWeight: 600 }}>{fmtMoney(i.difference, s.currency)}</td></tr>)}
-                {!preview.length && <tr><td colSpan={8} style={{ textAlign: 'center', color: '#5F6368', padding: 24 }}>No {currency} items in scope as of {fmtDate(asOf)}</td></tr>}
+                {preview.map((i) => <tr key={i.id}><td><span className="pill pill-neutral">{i.kind}</span></td><td className="identifier">{i.ref}</td><td>{i.partyName ?? '—'}</td><td className="right money">{fmtMoney(i.amount, i.currency, { code: true })}</td><td className="right money">{i.bookRate}</td><td className="right money">{fmtMoney(i.bookBase, s.currency)}</td><td className="right money">{fmtMoney(i.closingBase, s.currency)}</td><td className="right money" style={{ color: i.difference > 0 ? 'var(--good)' : i.difference < 0 ? 'var(--danger)' : undefined, fontWeight: 600 }}>{fmtMoney(i.difference, s.currency)}</td></tr>)}
+                {!preview.length && <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ink-3)', padding: 24 }}>No {currency} items in scope as of {fmtDate(asOf)}</td></tr>}
               </tbody>
               {preview.length > 0 && <tfoot><tr><td colSpan={5}>Preview · net</td><td className="right money">{fmtMoney(preview.reduce((x, i) => x + i.bookBase, 0), s.currency)}</td><td className="right money">{fmtMoney(preview.reduce((x, i) => x + i.closingBase, 0), s.currency)}</td><td className="right money">{fmtMoney(net, s.currency)}</td></tr></tfoot>}
             </table>
@@ -218,18 +218,18 @@ export function RevaluationPage() {
               {runs.map((r) => { const rev = db.find<Journal>(C.journals, r.reversalJournalId); return (
                 <tr key={r.id}>
                   <td className="identifier" style={{ fontWeight: 500 }}>{r.number}</td><td>{fmtDate(r.asOf)}</td><td><span className="currency-tag">{r.currency}</span></td><td className="right money">{r.closingRate}</td><td>{r.scope.join(' / ')}</td><td className="right">{r.items.length}</td>
-                  <td className="right money" style={{ color: '#12784E' }}>{r.gain ? fmtMoney(r.gain, s.currency) : '—'}</td><td className="right money" style={{ color: '#C0393F' }}>{r.loss ? fmtMoney(r.loss, s.currency) : '—'}</td>
+                  <td className="right money" style={{ color: 'var(--good)' }}>{r.gain ? fmtMoney(r.gain, s.currency) : '—'}</td><td className="right money" style={{ color: 'var(--danger)' }}>{r.loss ? fmtMoney(r.loss, s.currency) : '—'}</td>
                   <td>{r.journalId ? <span className="identifier link" onClick={() => nav.go(journalLink(r.journalId!))}>{r.journalNumber}</span> : '—'}</td>
-                  <td>{rev ? <span className="identifier link" onClick={() => nav.go(journalLink(rev.id))}>{rev.number} · {fmtDate(rev.date)}</span> : r.autoReverse ? <span style={{ color: '#5F6368' }}>auto on {fmtDate(addDays(r.asOf, 1))}</span> : '—'}</td>
+                  <td>{rev ? <span className="identifier link" onClick={() => nav.go(journalLink(rev.id))}>{rev.number} · {fmtDate(rev.date)}</span> : r.autoReverse ? <span style={{ color: 'var(--ink-3)' }}>auto on {fmtDate(addDays(r.asOf, 1))}</span> : '—'}</td>
                   <td><Badge status={r.status} /></td>
                   <td>{r.status === 'Posted' && <Button size="sm" variant="secondary" disabled={!canPost} onClick={() => setReverse(r)}>Reverse</Button>}</td>
                 </tr>
               ); })}
-              {!runs.length && <tr><td colSpan={12} style={{ textAlign: 'center', color: '#5F6368', padding: 24 }}>No revaluation runs yet</td></tr>}
+              {!runs.length && <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ink-3)', padding: 24 }}>No revaluation runs yet</td></tr>}
             </tbody>
           </table>
         </div>
-        <div style={{ fontSize: 12, color: '#6E6E71', marginTop: 8 }}>Rates come from Masters › Exchange rates (approved only). Auto-reverse posts a linked reversal on the first day of the next period — run it from this table. Later rate corrections never change posted runs (FR-FX-013).</div>
+        <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 8 }}>Rates come from Masters › Exchange rates (approved only). Auto-reverse posts a linked reversal on the first day of the next period — run it from this table. Later rate corrections never change posted runs (FR-FX-013).</div>
       </div>
       <ConfirmDialog open={confirm} onClose={() => setConfirm(false)} title={`Post revaluation of ${currency} for ${period}?`} statement="An itemised revaluation journal is posted at the closing rate. It can be reversed next period." confirmLabel="Post revaluation" cancelLabel="Keep preview"
         consequences={[{ engine: 'Journal', text: `${preview.filter((i) => Math.abs(i.difference) >= 0.005).length * 2} lines dated ${fmtDate(asOf)} · gain ${fmtMoney(gain, s.currency)} → ${gainAcc?.code} · loss ${fmtMoney(loss, s.currency)} → ${lossAcc?.code}` }, { engine: 'Open items', text: 'Open-item original amounts and base carrying values are untouched; realised differences post on settlement' }, { engine: 'Numbering', text: `Run number ${engine.previewNumber('Revaluation', { date: asOf })}` }, ...(autoReverse ? [{ engine: 'Workflow', text: `Reversal expected on ${fmtDate(addDays(asOf, 1))}` }] : [])]}

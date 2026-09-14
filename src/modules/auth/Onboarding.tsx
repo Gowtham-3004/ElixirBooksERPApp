@@ -65,7 +65,7 @@ export default function Onboarding({ onComplete }: { onComplete?: () => void }) 
       <Backdrop>
         <div style={{ width: 440, maxWidth: '100%', background: '#fff', borderRadius: 16, padding: 40, boxShadow: '0 8px 48px rgba(0,0,0,0.10)' }}>
           <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>No workspace to set up</h1>
-          <p style={{ fontSize: 13, color: '#5F6368', marginBottom: 20 }}>Create a workspace first, or sign in to an existing company.</p>
+          <p style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 20 }}>Create a workspace first, or sign in to an existing company.</p>
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="button" className="btn-primary" onClick={() => session.setAuth('register')}>Start free trial</button>
             <button type="button" className="btn-secondary" onClick={() => session.setAuth('login')}>Sign in</button>
@@ -173,7 +173,7 @@ export default function Onboarding({ onComplete }: { onComplete?: () => void }) 
     <Backdrop>
       <div className="auth-split" style={{ width: '100%', maxWidth: 1160, background: '#FFFFFF', borderRadius: 20, boxShadow: '0 12px 64px rgba(0,0,0,0.12)', display: 'flex', overflow: 'hidden', minHeight: 660, maxHeight: 'calc(100vh - 48px)' }}>
         {/* Left — explainer rail with vertical stepper */}
-        <div className="auth-aside" style={{ width: 280, flexShrink: 0, background: '#0A0A0A', padding: '36px 28px', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+        <div className="auth-aside" style={{ width: 280, flexShrink: 0, background: 'var(--ink)', padding: '36px 28px', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
             <BrandMark size={34} />
             <span style={{ fontSize: 16, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em' }}>Elixir Books</span>
@@ -189,10 +189,10 @@ export default function Onboarding({ onComplete }: { onComplete?: () => void }) 
               return (
                 <div key={st.id} style={{ display: 'flex', gap: 12, cursor: done ? 'pointer' : 'default' }} onClick={() => done && setStep(st.id)}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 22 }}>
-                    <div style={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: done ? '#325CFF' : current ? '#FFFFFF' : 'transparent', border: done || current ? 'none' : '1.5px solid rgba(255,255,255,0.2)', fontSize: 11, fontWeight: 700, color: done ? '#FFFFFF' : current ? '#0A0A0A' : 'rgba(255,255,255,0.3)', transition: 'all 0.2s' }}>
+                    <div style={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: done ? 'var(--accent)' : current ? '#FFFFFF' : 'transparent', border: done || current ? 'none' : '1.5px solid rgba(255,255,255,0.2)', fontSize: 11, fontWeight: 700, color: done ? '#FFFFFF' : current ? 'var(--ink)' : 'rgba(255,255,255,0.3)', transition: 'all 0.2s' }}>
                       {done ? <CheckIcon size={11} color="#FFFFFF" /> : st.id}
                     </div>
-                    {i < STEPS.length - 1 && <div style={{ width: 1, flex: 1, minHeight: 18, background: done ? '#325CFF' : 'rgba(255,255,255,0.1)', margin: '3px 0' }} />}
+                    {i < STEPS.length - 1 && <div style={{ width: 1, flex: 1, minHeight: 18, background: done ? 'var(--accent)' : 'rgba(255,255,255,0.1)', margin: '3px 0' }} />}
                   </div>
                   <div style={{ paddingBottom: i < STEPS.length - 1 ? 14 : 0, paddingTop: 2, flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: current ? 600 : 400, color: st.id > step ? 'rgba(255,255,255,0.35)' : current ? '#FFFFFF' : 'rgba(255,255,255,0.65)' }}>
@@ -207,15 +207,15 @@ export default function Onboarding({ onComplete }: { onComplete?: () => void }) 
           <div style={{ marginTop: 20, padding: '10px 14px', background: 'rgba(255,255,255,0.06)', borderRadius: 8, fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>
             Step {step} of {totalSteps}
             <div style={{ marginTop: 8, height: 2, background: 'rgba(255,255,255,0.1)', borderRadius: 9999, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${((step - 1) / (totalSteps - 1)) * 100}%`, background: '#325CFF', borderRadius: 9999, transition: 'width 0.3s ease' }} />
+              <div style={{ height: '100%', width: `${((step - 1) / (totalSteps - 1)) * 100}%`, background: 'var(--accent)', borderRadius: 9999, transition: 'width 0.3s ease' }} />
             </div>
           </div>
         </div>
 
         {/* Right — step content */}
         <div className="auth-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-          <div className="auth-main-head" style={{ padding: '14px 44px', borderBottom: '1px solid #EAEAEA', fontSize: 12, color: '#5F6368', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-            <span>Step {step} of {totalSteps}: <strong style={{ color: '#0A0A0A' }}>{cur.label}</strong></span>
+          <div className="auth-main-head" style={{ padding: '14px 44px', borderBottom: '1px solid var(--line)', fontSize: 12, color: 'var(--ink-3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+            <span>Step {step} of {totalSteps}: <strong style={{ color: 'var(--ink)' }}>{cur.label}</strong></span>
             <span>{company.legalName} · {company.country} · {company.baseCurrency}</span>
           </div>
           <div className="auth-main-body" style={{ flex: 1, padding: '32px 44px', overflow: 'auto' }}>
@@ -230,10 +230,10 @@ export default function Onboarding({ onComplete }: { onComplete?: () => void }) 
             {step === 9 && <StepReady {...stepProps} />}
             {err && <div className="banner danger" style={{ marginTop: 20 }}>{err}</div>}
           </div>
-          <div style={{ padding: '14px 44px', borderTop: '1px solid #EAEAEA', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#FFFFFF' }}>
+          <div style={{ padding: '14px 44px', borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#FFFFFF' }}>
             <div>{step > 1 && <button type="button" className="btn-secondary" onClick={() => { setErr(null); setStep((x) => Math.max(1, x - 1)); }}>← Back</button>}</div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              {!cur.mandatory && <button type="button" className="btn-link" style={{ color: '#5F6368' }} onClick={skip}>Set this up later</button>}
+              {!cur.mandatory && <button type="button" className="btn-link" style={{ color: 'var(--ink-3)' }} onClick={skip}>Set this up later</button>}
               {step < totalSteps ? (
                 <button type="button" className="btn-primary" style={{ gap: 6 }} onClick={next}>Continue <ChevronRightIcon size={14} color="currentColor" /></button>
               ) : (

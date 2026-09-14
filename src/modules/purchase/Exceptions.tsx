@@ -17,9 +17,9 @@ export function ExceptionsWorkbench({ id }: { id?: string }) {
     { key: 'poNumber', label: 'PO / GRN', render: (r) => <span style={{ fontSize: 12 }}><DocLink path={`purchase/orders/${r.poId}`} number={r.poNumber} />{r.grnNumber ? <> · <DocLink path={`purchase/grn/${r.grnId}`} number={r.grnNumber} /></> : null}</span> },
     { key: 'poValue', label: 'PO', align: 'right', render: (r) => r.poValue !== undefined ? fmtMoney(r.poValue) : '—' },
     { key: 'invoiceValue', label: 'Invoice', align: 'right', render: (r) => fmtMoney(r.invoiceValue) },
-    { key: 'variance', label: 'Variance', align: 'right', sortable: true, render: (r) => <span className="money" style={{ color: '#C0393F', fontWeight: 600 }}>{fmtMoney(r.variance)} <span style={{ fontWeight: 400 }}>({r.variancePct}%)</span></span>, total: (rs) => fmtMoney(rs.reduce((x, r) => x + r.variance, 0)) },
-    { key: 'tolerance', label: 'Tolerance', render: (r) => <span style={{ fontSize: 12, color: '#5F6368' }}>{r.tolerance}</span> },
-    { key: 'assignedToName', label: 'Assigned to', sortable: true, render: (r) => r.assignedToName ?? <span style={{ color: '#B0B5BF' }}>Unassigned</span> },
+    { key: 'variance', label: 'Variance', align: 'right', sortable: true, render: (r) => <span className="money" style={{ color: 'var(--danger)', fontWeight: 600 }}>{fmtMoney(r.variance)} <span style={{ fontWeight: 400 }}>({r.variancePct}%)</span></span>, total: (rs) => fmtMoney(rs.reduce((x, r) => x + r.variance, 0)) },
+    { key: 'tolerance', label: 'Tolerance', render: (r) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{r.tolerance}</span> },
+    { key: 'assignedToName', label: 'Assigned to', sortable: true, render: (r) => r.assignedToName ?? <span style={{ color: 'var(--ink-5)' }}>Unassigned</span> },
     { key: 'raisedAt', label: 'Raised', sortable: true, render: (r) => fmtDateTime(r.raisedAt) },
     { key: 'status', label: 'Status', sortable: true, render: (r) => <Badge status={r.status} /> },
   ];
@@ -68,7 +68,7 @@ function ExceptionDrawer({ x, onClose }: { x: MatchException; onClose: () => voi
         <SummaryBlock items={[{ label: 'PO value', value: live.poValue !== undefined ? fmtMoney(live.poValue) : '—' }, { label: 'GRN value', value: live.grnValue !== undefined ? fmtMoney(live.grnValue) : '—' }, { label: 'Invoice value', value: fmtMoney(live.invoiceValue) }, { label: 'Variance', value: `${fmtMoney(live.variance)} (${live.variancePct}%)`, tone: 'danger' }, { label: 'Tolerance', value: live.tolerance, tone: 'warn' }]} />
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 16 }}>
           <div className="card" style={{ padding: 12 }}><div className="section-label" style={{ marginBottom: 6 }}>Purchase order {po ? <DocLink path={`purchase/orders/${po.id}`} number={po.number} /> : ''}</div><KV items={[cell('Item', pl?.itemName ?? live.itemName), cell('Qty', pl?.qty), cell('Rate', pl ? fmtMoney(pl.rate) : undefined), cell('Tax', pl ? `${pl.taxRate}%` : undefined), cell('Charges', po ? fmtMoney(po.totals.charges) : undefined), cell('Status', po?.status)]} /></div>
-          <div className="card" style={{ padding: 12 }}><div className="section-label" style={{ marginBottom: 6 }}>Goods receipt {grn ? <DocLink path={`purchase/grn/${grn.id}`} number={grn.number} /> : ''}</div>{grn ? <KV items={[cell('Received', gl?.receivedQty), cell('Accepted', gl?.acceptedQty), cell('Rejected', gl?.rejectedQty), cell('Invoiced', gl?.invoicedQty ?? 0), cell('QC', grn.qcStatus), cell('Date', fmtDate(grn.date))]} /> : <div style={{ fontSize: 12, color: '#C0393F' }}>No GRN — {A.purchaseSettings().matchingMode} matching needs a posted receipt.</div>}</div>
+          <div className="card" style={{ padding: 12 }}><div className="section-label" style={{ marginBottom: 6 }}>Goods receipt {grn ? <DocLink path={`purchase/grn/${grn.id}`} number={grn.number} /> : ''}</div>{grn ? <KV items={[cell('Received', gl?.receivedQty), cell('Accepted', gl?.acceptedQty), cell('Rejected', gl?.rejectedQty), cell('Invoiced', gl?.invoicedQty ?? 0), cell('QC', grn.qcStatus), cell('Date', fmtDate(grn.date))]} /> : <div style={{ fontSize: 12, color: 'var(--danger)' }}>No GRN — {A.purchaseSettings().matchingMode} matching needs a posted receipt.</div>}</div>
           <div className="card" style={{ padding: 12, borderColor: '#F97316' }}><div className="section-label" style={{ marginBottom: 6 }}>Vendor invoice <DocLink path={`purchase/vendor-invoices/${live.invoiceId}`} number={inv?.supplierInvoiceNumber} /></div><KV items={[cell('Item', il?.itemName ?? live.itemName), cell('Qty', il?.qty), cell('Rate', il ? fmtMoney(il.rate) : undefined), cell('Tax', il ? `${il.taxRate}%` : undefined), cell('Charges', inv ? fmtMoney(inv.totals.charges) : undefined), cell('Total', inv ? fmtMoney(inv.totals.total) : undefined)]} /></div>
         </div>
         {(live.status === 'Open' || live.status === 'Assigned') && (
@@ -77,7 +77,7 @@ function ExceptionDrawer({ x, onClose }: { x: MatchException; onClose: () => voi
               <div className="section-title">Assign</div>
               <EntityPicker label="Assignee" value={assignTo} onChange={setAssignTo} options={users} />
               <Button size="sm" style={{ marginTop: 8 }} disabled={!assignTo || assignTo === live.assignedToId} onClick={() => run(() => A.assignException(live.id, assignTo!), 'Assigned')}>Assign</Button>
-              <div style={{ fontSize: 12, color: '#5F6368', marginTop: 8 }}>Currently: {live.assignedToName ?? 'unassigned'}</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 8 }}>Currently: {live.assignedToName ?? 'unassigned'}</div>
             </div>
             <div className="card" style={{ padding: 12 }}>
               <div className="section-title">Resolve</div>

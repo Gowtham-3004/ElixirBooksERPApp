@@ -323,7 +323,7 @@ export function RegisterPage<T extends Record<string, any>>(props: RegisterProps
         totalsLabel={`Totals for ${filtered.length} filtered row${filtered.length === 1 ? '' : 's'}`}
       />
       {filtered.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13, color: '#5F6368' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13, color: 'var(--ink-3)' }}>
           <span>
             Show{' '}
             <select className="field-input sm" style={{ width: 70, display: 'inline-block', height: 30 }} value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}>

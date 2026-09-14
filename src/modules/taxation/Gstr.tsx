@@ -27,7 +27,7 @@ function SectionTable({ sections, currency, onDrill }: { sections: ReturnSection
       <table className="data-table"><thead><tr><th>Section</th><th>Description</th><th className="right">Records</th><th className="right">Taxable value</th><th className="right">CGST</th><th className="right">SGST</th><th className="right">IGST</th><th className="right">Cess</th><th className="right">Tax</th></tr></thead>
         <tbody>{sections.map((x) => { const na = x.count === 0 && x.taxable === 0 && x.tax === 0; return (
           <tr key={x.code} style={{ opacity: na ? 0.45 : 1, cursor: onDrill && !na ? 'pointer' : undefined }} onClick={() => !na && onDrill?.(x.code)}>
-            <td><span style={{ fontWeight: 700, fontSize: 13, color: '#325CFF' }}>{x.code}</span></td><td style={{ fontSize: 13 }}>{x.desc}</td><td className="right">{x.count || '—'}</td>
+            <td><span style={{ fontWeight: 700, fontSize: 13, color: 'var(--accent)' }}>{x.code}</span></td><td style={{ fontSize: 13 }}>{x.desc}</td><td className="right">{x.count || '—'}</td>
             <td className="right money">{x.taxable ? fmtMoney(x.taxable, currency) : '—'}</td><td className="right money">{x.cgst ? fmtMoney(x.cgst, currency) : '—'}</td><td className="right money">{x.sgst ? fmtMoney(x.sgst, currency) : '—'}</td><td className="right money">{x.igst ? fmtMoney(x.igst, currency) : '—'}</td><td className="right money">{x.cess ? fmtMoney(x.cess, currency) : '—'}</td><td className="right money" style={{ fontWeight: 600 }}>{x.tax ? fmtMoney(x.tax, currency) : '—'}</td>
           </tr>); })}</tbody>
       </table>
@@ -39,9 +39,9 @@ function History({ rows, currency }: { rows: StatutoryReturn[]; currency: string
   if (!rows.length) return null;
   return (
     <div className="card" style={{ overflow: 'hidden' }}>
-      <div style={{ padding: '10px 14px', fontWeight: 600, fontSize: 13, borderBottom: '1px solid #EFEFEF' }}>Generation & filing history</div>
+      <div style={{ padding: '10px 14px', fontWeight: 600, fontSize: 13, borderBottom: '1px solid var(--hairline)' }}>Generation & filing history</div>
       <table className="data-table dense"><thead><tr><th>Version</th><th>Generated</th><th className="right">Taxable</th><th className="right">Tax</th><th className="right">Recon. diff</th><th>Status</th><th>Filed</th><th>ARN</th><th /></tr></thead><tbody>
-        {rows.map((r) => <tr key={r.id}><td><span className="identifier">v{r.version}</span></td><td>{fmtDateTime(r.generatedAt)} · {r.generatedBy}</td><td className="right money">{fmtMoney(r.totals.taxable, currency)}</td><td className="right money">{fmtMoney(r.totals.tax, currency)}</td><td className="right money" style={{ color: r.reconciliation?.difference ? '#C0393F' : '#12784E' }}>{fmtMoney(r.reconciliation?.difference ?? 0, currency)}</td><td><Badge status={r.status === 'Superseded' ? 'Cancelled' : r.status === 'Generated' ? 'Draft' : r.status}>{r.status}</Badge></td><td>{r.filedAt ? `${fmtDateTime(r.filedAt)} · ${r.filedBy}` : '—'}</td><td><span className="identifier">{r.arn ?? '—'}</span></td><td><Button size="sm" variant="ghost" onClick={() => downloadText(`${r.type}-${r.period}-v${r.version}.json`, r.json ?? JSON.stringify(r, null, 2), 'application/json')}>JSON</Button></td></tr>)}
+        {rows.map((r) => <tr key={r.id}><td><span className="identifier">v{r.version}</span></td><td>{fmtDateTime(r.generatedAt)} · {r.generatedBy}</td><td className="right money">{fmtMoney(r.totals.taxable, currency)}</td><td className="right money">{fmtMoney(r.totals.tax, currency)}</td><td className="right money" style={{ color: r.reconciliation?.difference ? 'var(--danger)' : 'var(--good)' }}>{fmtMoney(r.reconciliation?.difference ?? 0, currency)}</td><td><Badge status={r.status === 'Superseded' ? 'Cancelled' : r.status === 'Generated' ? 'Draft' : r.status}>{r.status}</Badge></td><td>{r.filedAt ? `${fmtDateTime(r.filedAt)} · ${r.filedBy}` : '—'}</td><td><span className="identifier">{r.arn ?? '—'}</span></td><td><Button size="sm" variant="ghost" onClick={() => downloadText(`${r.type}-${r.period}-v${r.version}.json`, r.json ?? JSON.stringify(r, null, 2), 'application/json')}>JSON</Button></td></tr>)}
       </tbody></table>
     </div>
   );
@@ -93,11 +93,11 @@ export function Gstr1() {
         <KpiTile label="IGST" value={fmtMoney(totals.igst, s.currency)} />
         <KpiTile label="Total tax" value={fmtMoney(totals.tax, s.currency)} sub={`ledger ${fmtMoney(ledger.tax, s.currency)}`} deltaTone={diff === 0 ? 'good' : 'bad'} delta={diff === 0 ? 'Reconciled' : `Diff ${fmtMoney(diff, s.currency)}`} />
       </div>
-      <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #EFEFEF' }}>{(['sections', 'hsn'] as const).map((t) => <button key={t} type="button" className={`filter-tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>{t === 'sections' ? 'Sections' : `HSN summary (${data.hsn.length})`}</button>)}</div>
+      <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--hairline)' }}>{(['sections', 'hsn'] as const).map((t) => <button key={t} type="button" className={`filter-tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>{t === 'sections' ? 'Sections' : `HSN summary (${data.hsn.length})`}</button>)}</div>
       {tab === 'sections' ? <SectionTable sections={data.sections} currency={s.currency} onDrill={(code) => nav.go(code.startsWith('4A') || code === '6A' ? 'taxation/b2b' : code.startsWith('9B') ? 'taxation/cdn' : 'taxation/b2c')} /> : (
         <div className="card" style={{ overflow: 'hidden' }}><table className="data-table dense"><thead><tr><th>HSN / SAC</th><th>Description</th><th className="right">Rate</th><th className="right">Qty</th><th className="right">Taxable</th><th className="right">Tax</th></tr></thead><tbody>
           {data.hsn.map((h) => <tr key={h.hsn}><td className="identifier">{h.hsn}</td><td>{h.description}</td><td className="right">{h.rate}%</td><td className="right money">{h.qty}</td><td className="right money">{fmtMoney(h.taxable, s.currency)}</td><td className="right money">{fmtMoney(h.tax, s.currency)}</td></tr>)}
-          {data.hsn.length === 0 && <tr><td colSpan={6} style={{ color: '#6E6E71' }}>No outward supplies in {fmtPeriod(period)}</td></tr>}
+          {data.hsn.length === 0 && <tr><td colSpan={6} style={{ color: 'var(--ink-4)' }}>No outward supplies in {fmtPeriod(period)}</td></tr>}
         </tbody></table></div>
       )}
       <History rows={history} currency={s.currency} />
@@ -175,12 +175,12 @@ export function Gstr3b() {
       <SectionTable sections={data.sections} currency={s.currency} onDrill={(code) => nav.go(code.startsWith('4') || code === '5' ? 'taxation/itc' : 'taxation/b2b')} />
       <div className="grid-2" style={{ alignItems: 'start' }}>
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '10px 14px', fontWeight: 600, fontSize: 13, borderBottom: '1px solid #EFEFEF' }}>6.1 ITC set-off calculator</div>
+          <div style={{ padding: '10px 14px', fontWeight: 600, fontSize: 13, borderBottom: '1px solid var(--hairline)' }}>6.1 ITC set-off calculator</div>
           <table className="data-table dense"><thead><tr><th>Head</th><th className="right">Output liability</th><th className="right">ITC available</th><th className="right">Paid via ITC</th><th className="right">Cash payable</th><th className="right">ITC carried</th></tr></thead><tbody>
-            {(['igst', 'cgst', 'sgst', 'cess'] as const).map((k) => <tr key={k}><td style={{ fontWeight: 600 }}>{k.toUpperCase()}</td>{cell(data.output[k])}{cell(data.itc[k])}{cell(data.output[k] - so.payable[k], '#12784E')}{cell(so.payable[k], so.payable[k] ? '#C0393F' : undefined)}{cell(so.carried[k])}</tr>)}
-            <tr style={{ background: '#F9FBFC', fontWeight: 700 }}><td>Total</td>{cell(outputTax)}{cell(itcTax)}{cell(outputTax - so.payable.total, '#12784E')}{cell(so.payable.total, so.payable.total ? '#C0393F' : '#12784E')}{cell(so.carried.cgst + so.carried.sgst + so.carried.igst + so.carried.cess)}</tr>
+            {(['igst', 'cgst', 'sgst', 'cess'] as const).map((k) => <tr key={k}><td style={{ fontWeight: 600 }}>{k.toUpperCase()}</td>{cell(data.output[k])}{cell(data.itc[k])}{cell(data.output[k] - so.payable[k], 'var(--good)')}{cell(so.payable[k], so.payable[k] ? 'var(--danger)' : undefined)}{cell(so.carried[k])}</tr>)}
+            <tr style={{ background: 'var(--surface-2)', fontWeight: 700 }}><td>Total</td>{cell(outputTax)}{cell(itcTax)}{cell(outputTax - so.payable.total, 'var(--good)')}{cell(so.payable.total, so.payable.total ? 'var(--danger)' : 'var(--good)')}{cell(so.carried.cgst + so.carried.sgst + so.carried.igst + so.carried.cess)}</tr>
           </tbody></table>
-          <div style={{ padding: '8px 14px', fontSize: 12, color: '#6E6E71' }}>{so.steps.length ? so.steps.map((x) => `${x.label}: ${fmtMoney(x.amount, s.currency)}`).join(' · ') : 'No ITC utilised'} · order: IGST → CGST → SGST; CGST/SGST credit cannot cross-utilise.</div>
+          <div style={{ padding: '8px 14px', fontSize: 12, color: 'var(--ink-4)' }}>{so.steps.length ? so.steps.map((x) => `${x.label}: ${fmtMoney(x.amount, s.currency)}`).join(' · ') : 'No ITC utilised'} · order: IGST → CGST → SGST; CGST/SGST credit cannot cross-utilise.</div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <SummaryBlock items={[{ label: 'Output tax', value: fmtMoney(outputTax, s.currency) }, { label: 'ITC utilised', value: fmtMoney(outputTax - so.payable.total, s.currency), tone: 'good' }, { label: 'Net payable (cash)', value: fmtMoney(so.payable.total, s.currency), tone: so.payable.total ? 'danger' : 'good' }, { label: 'Ledger closing (2300–2302)', value: fmtMoney(out.closing, s.currency) }]} />

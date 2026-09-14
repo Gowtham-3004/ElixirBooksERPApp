@@ -55,7 +55,7 @@ export default function ContractDetail({ id, tab, onTab }: { id: string; tab?: s
         <Button variant="danger" onClick={() => run(() => engine.actOnApproval(req!.id, 'Reject', { comment: 'Rejected from contract page' }), 'Rejected')}>Reject</Button>
         <Button variant="primary" onClick={() => run(() => engine.actOnApproval(req!.id, 'Approve'), 'Approved')}>Approve</Button>
       </>
-    ) : <span style={{ fontSize: 12, color: '#5F6368' }}>Awaiting {req?.steps.find((x) => x.order === req.currentStep)?.approverLabel ?? 'approver'}{canAct.reason ? ` · ${canAct.reason}` : ''}</span>;
+    ) : <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Awaiting {req?.steps.find((x) => x.order === req.currentStep)?.approverLabel ?? 'approver'}{canAct.reason ? ` · ${canAct.reason}` : ''}</span>;
   } else if (c.status === 'Approved') {
     overflow.push({ label: 'Cancel contract', danger: true, separator: true, onClick: () => setDialog('cancel'), disabled: !can });
     footer = (
@@ -86,9 +86,9 @@ export default function ContractDetail({ id, tab, onTab }: { id: string; tab?: s
   const msCols: Column<Milestone>[] = [
     { key: 'order', label: '#', width: 40 },
     { key: 'name', label: c.billingMethod === 'Fixed price' ? 'Instalment' : 'Milestone', render: (m) => <div><div className="cell-primary">{m.name}</div>{m.deliverable && <Muted>{m.deliverable}</Muted>}</div> },
-    { key: 'due', label: 'Due', render: (m) => <span style={{ color: m.status === 'Pending' && m.due < today() ? '#C0393F' : undefined }}>{fmtDate(m.due)}</span> },
+    { key: 'due', label: 'Due', render: (m) => <span style={{ color: m.status === 'Pending' && m.due < today() ? 'var(--danger)' : undefined }}>{fmtDate(m.due)}</span> },
     { key: 'status', label: 'Status', render: (m) => <div><Badge status={m.status === 'Achieved' ? 'Ready' : m.status}>{m.status === 'Achieved' ? 'Ready to bill' : m.status}</Badge>{m.achievedAt && <div><Muted>Achieved {fmtDate(m.achievedAt)} · {m.achievedBy}</Muted></div>}</div> },
-    { key: 'invoice', label: 'Invoice', render: (m) => m.invoiceId ? <InvoiceLink id={m.invoiceId} number={m.invoiceNumber} /> : <span style={{ color: '#B0B5BF' }}>—</span> },
+    { key: 'invoice', label: 'Invoice', render: (m) => m.invoiceId ? <InvoiceLink id={m.invoiceId} number={m.invoiceNumber} /> : <span style={{ color: 'var(--ink-5)' }}>—</span> },
     { key: 'amount', label: 'Amount', align: 'right', render: (m) => <Money value={m.amount} currency={c.currency} code={c.currency !== s.currency} />, total: (rs) => <span className="money" style={{ fontWeight: 600 }}>{fmtMoney(rs.reduce((a, m) => a + m.amount, 0), c.currency)}</span> },
   ];
   const msActions = (m: Milestone): MenuAction[] => {
@@ -105,7 +105,7 @@ export default function ContractDetail({ id, tab, onTab }: { id: string; tab?: s
     { key: 'reference', label: 'Period / ref', render: (i) => <Muted>{i.reference ?? '—'}</Muted> },
     { key: 'taxable', label: 'Taxable', align: 'right', render: (i) => <Money value={i.totals?.taxable ?? 0} currency={i.currency} /> },
     { key: 'total', label: 'Total', align: 'right', render: (i) => <Money value={i.totals?.total ?? 0} currency={i.currency} code={i.currency !== s.currency} />, total: (rs) => <span className="money" style={{ fontWeight: 600 }}>{fmtMoney(rs.filter((x) => x.status !== 'Cancelled').reduce((a, x) => a + (x.totals?.total ?? 0), 0), c.currency)}</span> },
-    { key: 'due', label: 'Due', align: 'right', render: (i) => i.status === 'Posted' || i.status === 'Settled' ? <Money value={i.totals?.due ?? 0} currency={i.currency} /> : <span style={{ color: '#B0B5BF' }}>—</span> },
+    { key: 'due', label: 'Due', align: 'right', render: (i) => i.status === 'Posted' || i.status === 'Settled' ? <Money value={i.totals?.due ?? 0} currency={i.currency} /> : <span style={{ color: 'var(--ink-5)' }}>—</span> },
   ];
   const usage = usageOf(c.id);
   const banner = c.status === 'Cancelled' ? <Banner tone="warning" full>Cancelled: {c.cancelReason}</Banner>
@@ -125,7 +125,7 @@ export default function ContractDetail({ id, tab, onTab }: { id: string; tab?: s
             <RailSection label="Customer" snapshot={c.status !== 'Draft'}><PartyRail snapshot={c.partySnapshot} name={c.partyName} link={`crm/customers/${c.customerId}`} /></RailSection>
             <RailSection label="Position">
               <div className="summary-block" style={{ padding: '10px 12px' }}>
-                {[{ k: 'Billed (excl. tax)', v: fmtMoney(summary.billed, c.currency) }, { k: 'Unbilled work', v: fmtMoney(summary.unbilledValue, s.currency), tone: summary.unbilledValue > 0 ? '#8A4B0F' : undefined }, { k: 'Recognised to date', v: fmtMoney(summary.recognized, s.currency) }, { k: 'Accrued (unbilled)', v: fmtMoney(summary.unbilled, s.currency) }, { k: 'Deferred', v: fmtMoney(summary.deferred, s.currency) }, { k: 'Retainer available', v: fmtMoney(summary.retainerRemaining, c.currency) }].map((r) => (
+                {[{ k: 'Billed (excl. tax)', v: fmtMoney(summary.billed, c.currency) }, { k: 'Unbilled work', v: fmtMoney(summary.unbilledValue, s.currency), tone: summary.unbilledValue > 0 ? 'var(--warn)' : undefined }, { k: 'Recognised to date', v: fmtMoney(summary.recognized, s.currency) }, { k: 'Accrued (unbilled)', v: fmtMoney(summary.unbilled, s.currency) }, { k: 'Deferred', v: fmtMoney(summary.deferred, s.currency) }, { k: 'Retainer available', v: fmtMoney(summary.retainerRemaining, c.currency) }].map((r) => (
                   <div key={r.k} className="ladder-row"><span className="ladder-label">{r.k}</span><span className="ladder-value" style={{ color: r.tone }}>{r.v}</span></div>
                 ))}
               </div>
@@ -159,13 +159,13 @@ export default function ContractDetail({ id, tab, onTab }: { id: string; tab?: s
               </Card>
               {c.rates && c.rates.length > 0 && <Card title="Per-role rates"><table className="data-table dense"><thead><tr><th>Role</th><th className="right">Rate / h</th></tr></thead><tbody>{c.rates.map((r) => <tr key={r.role}><td>{r.role}</td><td className="right money">{fmtMoney(r.rate, c.currency)}</td></tr>)}</tbody></table></Card>}
               {(c.billingMethod === 'Time & material' || c.billingMethod === 'Cost plus') && projects.length > 0 && <Card title="Effective bill rates (team)"><table className="data-table dense"><thead><tr><th>Resource</th><th>Role</th><th className="right">Bill rate</th><th>Source</th></tr></thead><tbody>{Array.from(new Set(projects.flatMap((p) => p.teamEmployeeIds))).map((e) => { const r = billRateFor(c, e); return <tr key={e}><td>{db.find<any>(C.employees, e)?.name}</td><td>{resourceOf(e)?.role ?? '—'}</td><td className="right money">{fmtMoney(r.rate, c.currency)}</td><td><Muted>{r.source}</Muted></td></tr>; })}</tbody></table></Card>}
-              {(c.terms || c.notes) && <Card title="Terms & notes"><div style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{c.terms}{c.terms && c.notes ? '\n\n' : ''}<span style={{ color: '#5F6368' }}>{c.notes}</span></div></Card>}
+              {(c.terms || c.notes) && <Card title="Terms & notes"><div style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{c.terms}{c.terms && c.notes ? '\n\n' : ''}<span style={{ color: 'var(--ink-3)' }}>{c.notes}</span></div></Card>}
             </div>
           ) },
           { id: 'milestones', label: c.billingMethod === 'Usage' ? 'Usage' : 'Milestones', content: (
             c.billingMethod === 'Usage' ? (
               <Card title="Usage records" actions={<Button size="sm" variant="secondary" onClick={() => nav.go('projects/milestones', { tab: 'usage', contract: c.id })}>Record usage</Button>}>
-                <table className="data-table dense"><thead><tr><th>Period</th><th>Metric</th><th className="right">Qty</th><th className="right">Rate</th><th className="right">Amount</th><th>Invoice</th></tr></thead><tbody>{usage.map((u) => <tr key={u.id}><td>{fmtPeriod(u.period)}</td><td>{u.metric}</td><td className="right money">{u.qty}</td><td className="right money">{fmtMoney(u.rate, c.currency)}</td><td className="right money">{fmtMoney(u.amount, c.currency)}</td><td>{u.invoiceId ? <InvoiceLink id={u.invoiceId} /> : <Badge status="Unbilled" />}</td></tr>)}{!usage.length && <tr><td colSpan={6} style={{ textAlign: 'center', color: '#5F6368', padding: 16 }}>No usage recorded yet</td></tr>}</tbody></table>
+                <table className="data-table dense"><thead><tr><th>Period</th><th>Metric</th><th className="right">Qty</th><th className="right">Rate</th><th className="right">Amount</th><th>Invoice</th></tr></thead><tbody>{usage.map((u) => <tr key={u.id}><td>{fmtPeriod(u.period)}</td><td>{u.metric}</td><td className="right money">{u.qty}</td><td className="right money">{fmtMoney(u.rate, c.currency)}</td><td className="right money">{fmtMoney(u.amount, c.currency)}</td><td>{u.invoiceId ? <InvoiceLink id={u.invoiceId} /> : <Badge status="Unbilled" />}</td></tr>)}{!usage.length && <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ink-3)', padding: 16 }}>No usage recorded yet</td></tr>}</tbody></table>
               </Card>
             ) : (c.billingMethod === 'Fixed price' || c.billingMethod === 'Milestone') ? (
               <DataTable rows={ms} columns={msCols} rowActions={msActions} dense emptyTitle="No schedule" emptyDescription="Edit the contract to add milestones or instalments." />
@@ -199,7 +199,7 @@ export default function ContractDetail({ id, tab, onTab }: { id: string; tab?: s
                         <td>{p.posted?.journalId ? <span className="identifier link" onClick={() => nav.go(`accounting/journals/${p.posted!.journalId}`)}>{p.posted.journalNumber}</span> : <Muted>{p.adjustmentType === 'None' ? 'No adjustment' : '—'}</Muted>}</td>
                       </tr>
                     ))}
-                    {!sched.length && <tr><td colSpan={7} style={{ textAlign: 'center', color: '#5F6368', padding: 16 }}>Contract has not started</td></tr>}
+                    {!sched.length && <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ink-3)', padding: 16 }}>Contract has not started</td></tr>}
                   </tbody>
                 </table>
                 <Muted>Current period recognised so far: {fmtMoney(recognizedFor(c, currentPeriod()).amount, s.currency)} · {recognizedFor(c, currentPeriod()).basis}</Muted>
@@ -237,7 +237,7 @@ function SowSheet({ c, milestones }: { c: Contract; milestones: Milestone[] }) {
   const value = c.billingMethod === 'Recurring' ? (c.recurrence?.amount ?? 0) : c.amount;
   return (
     <div className="print-sheet" style={{ width: '100%' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #0A0A0A', paddingBottom: 12, marginBottom: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid var(--ink)', paddingBottom: 12, marginBottom: 12 }}>
         <div><div style={{ fontSize: 18, fontWeight: 700 }}>{co?.legalName}</div><div>{co?.address.line1}, {co?.address.city} {co?.address.pin}</div><div>{co?.email}</div></div>
         <div style={{ textAlign: 'right' }}><div style={{ fontSize: 16, fontWeight: 700 }}>STATEMENT OF WORK</div><div>{c.number}</div><div>Dated {fmtDate(c.date)} · {c.status}</div></div>
       </div>

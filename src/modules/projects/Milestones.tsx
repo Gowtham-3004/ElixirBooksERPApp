@@ -41,7 +41,7 @@ function Board({ contractId }: { contractId?: string }) {
       {!all.length ? <EmptyState title="No milestones" description="Milestones come from Milestone and Fixed price contracts." action={<Button variant="primary" onClick={() => nav.go('projects/contracts/new', { method: 'Milestone' })}>New milestone contract</Button>} /> : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, alignItems: 'start' }}>
           {cols.map((col) => (
-            <div key={col} style={{ background: '#F9FBFC', borderRadius: 12, padding: 12, minHeight: 200 }}>
+            <div key={col} style={{ background: 'var(--surface-2)', borderRadius: 12, padding: 12, minHeight: 200 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}><span className="section-title" style={{ marginBottom: 0 }}>{col === 'Achieved' ? 'Ready to bill' : col}</span><Muted>{all.filter((x) => x.m.status === col).length}</Muted></div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {all.filter((x) => x.m.status === col).sort((a, b) => a.m.due.localeCompare(b.m.due)).map(({ m, c }) => {
@@ -50,17 +50,17 @@ function Board({ contractId }: { contractId?: string }) {
                   if (m.status === 'Pending' && c.billingMethod === 'Milestone') actions.push({ label: 'Mark achieved', onClick: () => setDialog({ kind: 'achieve', m }), disabled: c.status !== 'Active', reason: c.status !== 'Active' ? `Contract ${c.status}` : undefined });
                   if (m.status === 'Achieved') actions.push({ label: 'Reopen', onClick: () => setDialog({ kind: 'reopen', m }) });
                   return (
-                    <div key={m.id} className="card" style={{ padding: 12, borderLeft: `3px solid ${late ? '#C0393F' : m.status === 'Achieved' ? '#12784E' : m.status === 'Invoiced' ? '#325CFF' : '#DADCE0'}` }}>
+                    <div key={m.id} className="card" style={{ padding: 12, borderLeft: `3px solid ${late ? 'var(--danger)' : m.status === 'Achieved' ? 'var(--good)' : m.status === 'Invoiced' ? 'var(--accent)' : 'var(--line-strong)'}` }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                         <div style={{ fontWeight: 600, fontSize: 13 }}>{m.name}</div>
                         <Money value={m.amount} currency={c.currency} code={c.currency !== s.currency} />
                       </div>
-                      <div style={{ fontSize: 12, color: '#5F6368', marginTop: 4 }}><ContractLink id={c.id} /> · {c.partyName} · <ProjectLink id={m.projectId} /></div>
+                      <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 4 }}><ContractLink id={c.id} /> · {c.partyName} · <ProjectLink id={m.projectId} /></div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, fontSize: 12 }}>
-                        <span style={{ color: late ? '#C0393F' : '#5F6368' }}>{m.kind === 'Instalment' ? 'Due' : m.status === 'Pending' ? 'Due' : 'Achieved'} {fmtDate(m.status === 'Pending' ? m.due : m.achievedAt ?? m.due)}{late ? ` · ${daysBetween(m.due, today())} d late` : ''}</span>
+                        <span style={{ color: late ? 'var(--danger)' : 'var(--ink-3)' }}>{m.kind === 'Instalment' ? 'Due' : m.status === 'Pending' ? 'Due' : 'Achieved'} {fmtDate(m.status === 'Pending' ? m.due : m.achievedAt ?? m.due)}{late ? ` · ${daysBetween(m.due, today())} d late` : ''}</span>
                         {m.status === 'Invoiced' ? <InvoiceLink id={m.invoiceId} number={m.invoiceNumber} /> : m.kind === 'Instalment' ? <Pill tone="neutral">Instalment</Pill> : m.status === 'Achieved' ? <Pill tone="good">Ready</Pill> : null}
                       </div>
-                      {m.deliverable && <div style={{ fontSize: 11, color: '#6E6E71', marginTop: 4 }}>{m.deliverable}</div>}
+                      {m.deliverable && <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 4 }}>{m.deliverable}</div>}
                       {actions.length > 0 && <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>{actions.map((a) => <Button key={a.label} size="sm" variant={a.label === 'Reopen' ? 'ghost' : 'tinted'} onClick={a.onClick} disabled={a.disabled} reason={a.reason}>{a.label}</Button>)}</div>}
                       {m.status === 'Pending' && m.kind === 'Instalment' && m.due <= today() && c.status === 'Active' && <div style={{ marginTop: 8 }}><Button size="sm" variant="tinted" onClick={() => nav.go('projects/billing', { contract: c.id })}>Bill instalment</Button></div>}
                     </div>

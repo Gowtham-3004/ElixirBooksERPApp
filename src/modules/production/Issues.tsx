@@ -111,7 +111,7 @@ function IssueForm({ orderId, mode }: { orderId?: string; mode: 'Issue' | 'Retur
                   <td>
                     {it?.tracking === 'Batch' ? <SelectField value={l.batch ?? ''} onChange={(v) => setLine(i, { batch: v || undefined })} options={[{ value: '', label: 'Pick batch…' }, ...batches.map((b) => ({ value: b.batch, label: `${b.batch} · ${fmtQty(b.qty, undefined, 3)} avail` }))]} size="grid" />
                       : it?.tracking === 'Serial' ? <SelectField value={(l.serials ?? []).join(',')} onChange={(v) => setLine(i, { serials: v ? v.split(',') : [] })} options={[{ value: '', label: 'Pick serials…' }, ...(kind === 'Issue' ? serialsOnHand(l.itemId, whId) : batches.flatMap(() => [])).slice(0, 20).map((sn) => ({ value: sn, label: sn }))]} size="grid" />
-                      : <span style={{ fontSize: 12, color: '#B0B5BF' }}>Not tracked</span>}
+                      : <span style={{ fontSize: 12, color: 'var(--ink-5)' }}>Not tracked</span>}
                     {it?.tracking === 'Batch' && !l.batch && <div className="field-error">Batch required</div>}
                   </td>
                   <td style={{ fontSize: 12 }}>{whName(whId)}<div className="cell-secondary">{fmtQty(pos.available, undefined, 3)} available</div></td>
@@ -119,7 +119,7 @@ function IssueForm({ orderId, mode }: { orderId?: string; mode: 'Issue' | 'Retur
                   <td className="right money">{fmtMoney(l.qty * pos.avgRate, s.currency)}</td>
                 </tr>);
             })}
-            {lines.length === 0 && <tr><td colSpan={9} style={{ padding: 16, color: '#5F6368' }}>{kind === 'Issue' ? 'Everything planned has been issued.' : 'No floor stock to return.'}</td></tr>}
+            {lines.length === 0 && <tr><td colSpan={9} style={{ padding: 16, color: 'var(--ink-3)' }}>{kind === 'Issue' ? 'Everything planned has been issued.' : 'No floor stock to return.'}</td></tr>}
           </tbody><tfoot><tr><td colSpan={8}>Total {kind === 'Issue' ? 'to WIP' : 'from WIP'}</td><td className="right money">{fmtMoney(value, s.currency)}</td></tr></tfoot></table>
         </SectionCard>
       ) : <EmptyState title="Pick a production order" description="Only Released / In Progress orders accept material issues." icon="🧾" />}
@@ -127,7 +127,7 @@ function IssueForm({ orderId, mode }: { orderId?: string; mode: 'Issue' | 'Retur
         <SectionCard title="Notes"><TextArea value={notes} onChange={setNotes} rows={2} placeholder="Optional note recorded on the issue" /></SectionCard>
         <SectionCard title="Projected journal">
           <SummaryBlock style={{ flexDirection: 'column', gap: 6 }} items={kind === 'Issue' ? [{ label: 'Dr 1220 Work in Progress', value: fmtMoney(value, s.currency) }, { label: 'Cr inventory (1210 / 1200)', value: fmtMoney(value, s.currency) }] : [{ label: 'Dr inventory (1210 / 1200)', value: fmtMoney(value, s.currency) }, { label: 'Cr 1220 Work in Progress', value: fmtMoney(value, s.currency) }]} />
-          <div style={{ marginTop: 8, fontSize: 12, color: '#6E6E71' }}>Valued at the warehouse moving-average rate. Duplicate postings of the same lines within a minute are blocked.</div>
+          <div style={{ marginTop: 8, fontSize: 12, color: 'var(--ink-4)' }}>Valued at the warehouse moving-average rate. Duplicate postings of the same lines within a minute are blocked.</div>
         </SectionCard>
       </div>
     </div>

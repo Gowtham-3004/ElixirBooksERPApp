@@ -70,18 +70,18 @@ export function InputsPage() {
                 <td><Badge status={i.status === 'Locked' ? 'Locked' : i.status} /></td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={11} style={{ padding: 24, textAlign: 'center', color: '#6E6E71' }}>No input rows for {periodLabel(period)} — click “Prepare rows” to create one per payroll employee.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={11} style={{ padding: 24, textAlign: 'center', color: 'var(--ink-4)' }}>No input rows for {periodLabel(period)} — click “Prepare rows” to create one per payroll employee.</td></tr>}
           </tbody>
         </table>
       </div>
       <ConfirmDialog open={approveOpen} onClose={() => setApproveOpen(false)} title={`Approve payroll inputs for ${periodLabel(period)}`} statement="Approved inputs feed the payroll calculation. They are frozen when the run is finalized." confirmLabel="Approve inputs" cancelLabel="Keep editing" consequences={[{ engine: 'Workflow', text: `${rows.filter((r) => r.status !== 'Locked').length} rows marked Approved by ${s.user?.name}`, tone: 'success' }]} onConfirm={approve} />
       <Modal open={!!claimFor} onClose={() => setClaimFor(null)} title={`Link expense claims · ${claimFor?.employeeName ?? ''}`} description="Approved, posted personal claims not yet reimbursed. Linked claims are paid with salary and marked reimbursed when the run is finalized." footer={<Button variant="primary" onClick={() => setClaimFor(null)}>Done</Button>}>
-        {claimFor && (claimsFor.length === 0 ? <div style={{ fontSize: 13, color: '#6E6E71' }}>No reimbursable claims for this employee.</div> : claimsFor.map((c) => (
-          <div key={c.id} style={{ padding: '8px 0', borderBottom: '1px solid #F5F5F5' }}>
+        {claimFor && (claimsFor.length === 0 ? <div style={{ fontSize: 13, color: 'var(--ink-4)' }}>No reimbursable claims for this employee.</div> : claimsFor.map((c) => (
+          <div key={c.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--hairline)' }}>
             <CheckboxField checked={claimFor.reimbursementClaimIds.includes(c.id)} onChange={(v) => { const ids = v ? [...claimFor.reimbursementClaimIds, c.id] : claimFor.reimbursementClaimIds.filter((x) => x !== c.id); const total = ids.reduce((x, id) => x + (db.find<any>(C.expenseClaims, id)?.totals.total ?? 0), 0); const next = { ...claimFor, reimbursementClaimIds: ids, reimbursements: total }; upd(claimFor, { reimbursementClaimIds: ids, reimbursements: total }); setClaimFor(next); }} label={<span><span className="identifier">{c.number}</span> · {c.purpose} · <strong>{fmtMoney(c.totals.total, s.currency)}</strong></span>} />
           </div>
         )))}
-        <div style={{ fontSize: 12, color: '#6E6E71', marginTop: 8 }}>{claims.length} claims on file</div>
+        <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 8 }}>{claims.length} claims on file</div>
       </Modal>
     </div>
   );

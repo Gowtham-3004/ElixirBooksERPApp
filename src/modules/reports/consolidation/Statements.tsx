@@ -100,7 +100,7 @@ export function TranslatedStatements() {
           <thead>
             <tr>
               <th style={{ minWidth: 260 }}>Particulars</th>
-              {companies.map((c) => <th key={c.companyId} className="right" style={{ minWidth: 150 }}>{c.companyName}<div style={{ fontWeight: 400, fontSize: 11, color: '#6E6E71' }}>{c.baseCurrency} → {run.currency}</div></th>)}
+              {companies.map((c) => <th key={c.companyId} className="right" style={{ minWidth: 150 }}>{c.companyName}<div style={{ fontWeight: 400, fontSize: 11, color: 'var(--ink-4)' }}>{c.baseCurrency} → {run.currency}</div></th>)}
               <th className="right" style={{ minWidth: 130 }}>Eliminations</th>
               <th className="right" style={{ minWidth: 130 }}>Adjustments</th>
               <th className="right" style={{ minWidth: 150 }}>Consolidated ({run.currency})</th>
@@ -111,8 +111,8 @@ export function TranslatedStatements() {
               const rs = visible.filter((r) => r.groupCode === g);
               return (
                 <Fragment key={g}>
-                  <tr style={{ background: '#F9FBFC' }}>
-                    <td style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, color: '#5F6368' }}>{groupName(g)}</td>
+                  <tr style={{ background: 'var(--surface-2)' }}>
+                    <td style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, color: 'var(--ink-3)' }}>{groupName(g)}</td>
                     {companies.map((c) => <td key={c.companyId} className="right money" style={{ fontWeight: 600 }}>{cell(sum(rs, (r) => present(r, r.byCompany[c.companyId] ?? 0)))}</td>)}
                     <td className="right money" style={{ fontWeight: 600 }}>{cell(sum(rs, (r) => present(r, r.eliminations)))}</td>
                     <td className="right money" style={{ fontWeight: 600 }}>{cell(sum(rs, (r) => present(r, r.adjustments)))}</td>
@@ -120,11 +120,11 @@ export function TranslatedStatements() {
                   </tr>
                   {rs.map((r) => (
                     <tr key={g + r.code}>
-                      <td style={{ paddingLeft: 24 }}><span className="identifier" style={{ color: '#6E6E71', marginRight: 8, fontSize: 11 }}>{r.code}</span>{r.name}</td>
+                      <td style={{ paddingLeft: 24 }}><span className="identifier" style={{ color: 'var(--ink-4)', marginRight: 8, fontSize: 11 }}>{r.code}</span>{r.name}</td>
                       {companies.map((c) => {
                         const v = present(r, r.byCompany[c.companyId] ?? 0);
                         const has = Math.abs(r.byCompany[c.companyId] ?? 0) >= 0.005;
-                        return <td key={c.companyId} className="right money" style={{ cursor: has ? 'pointer' : undefined, color: has ? '#325CFF' : undefined }} onClick={() => has && openLedger(r, c.companyId)} title={has ? `Drill to ${companyName(c.companyId)} ledger for ${r.code}` : undefined}>{cell(v)}</td>;
+                        return <td key={c.companyId} className="right money" style={{ cursor: has ? 'pointer' : undefined, color: has ? 'var(--accent)' : undefined }} onClick={() => has && openLedger(r, c.companyId)} title={has ? `Drill to ${companyName(c.companyId)} ledger for ${r.code}` : undefined}>{cell(v)}</td>;
                       })}
                       <td className="right money">{cell(present(r, r.eliminations))}</td>
                       <td className="right money">{cell(present(r, r.adjustments))}</td>
@@ -135,7 +135,7 @@ export function TranslatedStatements() {
               );
             })}
             {view === 'pl' && (
-              <tr style={{ background: '#F3F6FF', fontWeight: 700 }}>
+              <tr style={{ background: 'var(--accent-soft)', fontWeight: 700 }}>
                 <td>Net profit before tax</td>
                 {companies.map((c) => {
                   const v = sum(rows.filter((r) => PL_GROUPS.includes(r.groupCode)), (r) => -(r.byCompany[c.companyId] ?? 0));
@@ -148,14 +148,14 @@ export function TranslatedStatements() {
             )}
             {view === 'bs' && (
               <>
-                <tr style={{ background: '#F3F6FF', fontWeight: 700 }}>
+                <tr style={{ background: 'var(--accent-soft)', fontWeight: 700 }}>
                   <td>Profit for the period (unappropriated)</td>
                   {companies.map((c) => <td key={c.companyId} className="right money">{cell(sum(rows.filter((r) => PL_GROUPS.includes(r.groupCode)), (r) => -(r.byCompany[c.companyId] ?? 0)))}</td>)}
                   <td className="right money">{cell(sum(rows.filter((r) => PL_GROUPS.includes(r.groupCode)), (r) => -r.eliminations))}</td>
                   <td className="right money">{cell(sum(rows.filter((r) => PL_GROUPS.includes(r.groupCode)), (r) => -r.adjustments))}</td>
                   <td className="right money">{cell(netProfit)}</td>
                 </tr>
-                <tr style={{ background: '#F3F6FF', fontWeight: 700 }}>
+                <tr style={{ background: 'var(--accent-soft)', fontWeight: 700 }}>
                   <td>Total assets</td>
                   {companies.map((c) => <td key={c.companyId} className="right money">{cell(sum(rows.filter((r) => r.groupCode === 'CA' || r.groupCode === 'FA'), (r) => r.byCompany[c.companyId] ?? 0))}</td>)}
                   <td className="right money">{cell(sum(rows.filter((r) => r.groupCode === 'CA' || r.groupCode === 'FA'), (r) => r.eliminations))}</td>
@@ -175,11 +175,11 @@ export function TranslatedStatements() {
             <tbody>
               {companies.flatMap((c) => ([['Closing', c.rateClosing], ['Average', c.rateAverage], ['Historical', c.rateHistorical]] as const).map(([label, i], idx) => (
                 <tr key={c.companyId + label}>
-                  {idx === 0 ? <td rowSpan={3} style={{ verticalAlign: 'top' }}>{c.companyName}<div style={{ fontSize: 11, color: '#6E6E71' }}>{c.baseCurrency} → {run.currency}</div></td> : null}
+                  {idx === 0 ? <td rowSpan={3} style={{ verticalAlign: 'top' }}>{c.companyName}<div style={{ fontSize: 11, color: 'var(--ink-4)' }}>{c.baseCurrency} → {run.currency}</div></td> : null}
                   <td>{label}</td>
                   <td className="right money">{i.rate}{i.overridden ? <Pill tone="warning">override</Pill> : null}</td>
-                  <td style={{ fontSize: 12, color: '#5F6368' }}>{i.type} · {i.source}</td>
-                  <td style={{ fontSize: 12, color: '#5F6368' }}>{fmtDateTime(i.at)}</td>
+                  <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{i.type} · {i.source}</td>
+                  <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{fmtDateTime(i.at)}</td>
                 </tr>
               )))}
             </tbody>
@@ -193,14 +193,14 @@ export function TranslatedStatements() {
             <thead><tr><th>Company</th><th className="right">CTA ({run.currency})</th></tr></thead>
             <tbody>
               {companies.map((c) => <tr key={c.companyId}><td>{c.companyName}{c.baseCurrency === run.currency ? ' (no translation)' : ''}</td><td className="right money">{cell(-(run.ctaByCompany?.[c.companyId] ?? 0))}</td></tr>)}
-              <tr style={{ background: '#F9FBFC', fontWeight: 700 }}><td>Total</td><td className="right money">{cell(-run.cta)}</td></tr>
+              <tr style={{ background: 'var(--surface-2)', fontWeight: 700 }}><td>Total</td><td className="right money">{cell(-run.cta)}</td></tr>
             </tbody>
           </table>
         </Card>
       </div>
 
       <DrillModal drill={drill} run={run} onClose={() => setDrill(null)} />
-      <div style={{ fontSize: 12, color: '#6E6E71' }}>Click any company figure to drill through to the journals that produced it. Scope: {s.company?.tradeName} session · group statements are always presented in {run.currency}.</div>
+      <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>Click any company figure to drill through to the journals that produced it. Scope: {s.company?.tradeName} session · group statements are always presented in {run.currency}.</div>
     </ReportFrame>
   );
 }

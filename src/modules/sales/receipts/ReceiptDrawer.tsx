@@ -115,18 +115,18 @@ export default function ReceiptDrawer({ open, onClose, customerId, invoiceId, re
                     </tr>
                   );
                 })}
-                {invoices.length === 0 && <tr><td colSpan={5} style={{ textAlign: 'center', color: '#5F6368', height: 56 }}>{r.partyId ? `No open ${r.currency} invoices — the full amount will be held as an advance` : 'Choose a customer to see open invoices'}</td></tr>}
+                {invoices.length === 0 && <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ink-3)', height: 56 }}>{r.partyId ? `No open ${r.currency} invoices — the full amount will be held as an advance` : 'Choose a customer to see open invoices'}</td></tr>}
               </tbody>
-              {invoices.length > 0 && <tfoot><tr><td colSpan={3}>Allocated</td><td className="right money">{fmtMoney(invoices.reduce((x, o) => x + o.outstanding, 0), r.currency)}</td><td className="right money" style={{ fontWeight: 600, color: allocated > r.amount + 0.005 ? '#C0393F' : undefined }}>{fmtMoney(allocated, r.currency)}</td></tr></tfoot>}
+              {invoices.length > 0 && <tfoot><tr><td colSpan={3}>Allocated</td><td className="right money">{fmtMoney(invoices.reduce((x, o) => x + o.outstanding, 0), r.currency)}</td><td className="right money" style={{ fontWeight: 600, color: allocated > r.amount + 0.005 ? 'var(--danger)' : undefined }}>{fmtMoney(allocated, r.currency)}</td></tr></tfoot>}
             </table>
           </div>
-          {unapplied > 0.005 && r.partyId && <div style={{ fontSize: 12, color: '#8A4B0F', marginTop: 6 }}>{fmtMoney(unapplied, r.currency)} will be recorded as an advance (Cr 2150 Advances from customers) and can be applied to future invoices.</div>}
+          {unapplied > 0.005 && r.partyId && <div style={{ fontSize: 12, color: 'var(--warn)', marginTop: 6 }}>{fmtMoney(unapplied, r.currency)} will be recorded as an advance (Cr 2150 Advances from customers) and can be applied to future invoices.</div>}
         </div>
         <TextArea label="Notes" value={r.notes ?? ''} onChange={(v) => setR((p) => ({ ...p, notes: v }))} rows={2} />
         <div>
           <div className="section-title">Projected journal</div>
           <div className="card" style={{ overflow: 'hidden' }}>
-            <table className="data-table dense"><thead><tr><th>Account</th><th className="right">Dr</th><th className="right">Cr</th></tr></thead><tbody>{projected.map((l, i) => { const a = db.find<Account>(C.accounts, l.accountId); return <tr key={i}><td><span className="identifier">{a?.code}</span> · {a?.name}{l.partyName ? <span style={{ color: '#5F6368' }}> · {l.partyName}</span> : null}</td><td className="right money">{l.dr ? fmtMoney(l.dr, r.currency) : '—'}</td><td className="right money">{l.cr ? fmtMoney(l.cr, r.currency) : '—'}</td></tr>; })}</tbody></table>
+            <table className="data-table dense"><thead><tr><th>Account</th><th className="right">Dr</th><th className="right">Cr</th></tr></thead><tbody>{projected.map((l, i) => { const a = db.find<Account>(C.accounts, l.accountId); return <tr key={i}><td><span className="identifier">{a?.code}</span> · {a?.name}{l.partyName ? <span style={{ color: 'var(--ink-3)' }}> · {l.partyName}</span> : null}</td><td className="right money">{l.dr ? fmtMoney(l.dr, r.currency) : '—'}</td><td className="right money">{l.cr ? fmtMoney(l.cr, r.currency) : '—'}</td></tr>; })}</tbody></table>
           </div>
         </div>
         {receiptId && <div><Badge status={r.status} /></div>}

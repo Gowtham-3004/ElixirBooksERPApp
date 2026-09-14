@@ -31,7 +31,7 @@ function ReceiptRegister() {
     { key: 'orderNumber', label: 'Order', render: (r) => <OrderLink id={r.orderId} number={r.orderNumber} /> },
     { key: 'itemName', label: 'Item', render: (r) => <div><div>{r.itemName}</div><div className="cell-secondary identifier">{r.itemCode}</div></div> },
     { key: 'qty', label: 'Good qty', align: 'right', sortable: true, render: (r) => <span className="money">{fmtQty(r.qty, r.uom, 3)}</span>, total: (rs) => <span className="money">{fmtQty(rs.filter((x) => x.status === 'Posted').reduce((a, x) => a + x.qty, 0), undefined, 3)}</span> },
-    { key: 'scrapQty', label: 'Scrap', align: 'right', render: (r) => <span className="money" style={{ color: r.scrapQty ? '#C0393F' : undefined }}>{r.scrapQty || '—'}</span> },
+    { key: 'scrapQty', label: 'Scrap', align: 'right', render: (r) => <span className="money" style={{ color: r.scrapQty ? 'var(--danger)' : undefined }}>{r.scrapQty || '—'}</span> },
     { key: 'batch', label: 'Lot / serials', render: (r) => <span className="identifier" style={{ fontSize: 12 }}>{r.batch ?? (r.serials?.length ? `${r.serials.length} serial(s)` : '—')}</span> },
     { key: 'warehouseId', label: 'Warehouse', render: (r) => whName(r.warehouseId) },
     { key: 'unitCost', label: 'Unit cost', align: 'right', render: (r) => <span className="money">{fmtMoney(r.unitCost, s.currency)}<div className="cell-secondary">{r.costBasis}</div></span> },
@@ -128,7 +128,7 @@ function ReceiptForm({ orderId, backflush }: { orderId?: string; backflush?: boo
             <SectionCard title={`Backflush preview (${bfLines.length} line(s))`} padding={0}>
               <table className="data-table dense"><thead><tr><th>Component</th><th className="right">Qty</th><th>Batch</th></tr></thead><tbody>
                 {bfLines.map((l, i) => <tr key={i}><td>{db.find<Item>(C.items, l.itemId)?.name}</td><td className="right money">{fmtQty(l.qty, undefined, 3)}</td><td className="identifier" style={{ fontSize: 12 }}>{l.batch ?? '—'}</td></tr>)}
-                {bfLines.length === 0 && <tr><td colSpan={3} style={{ padding: 12, color: '#5F6368' }}>Nothing to backflush — the floor already holds enough material.</td></tr>}
+                {bfLines.length === 0 && <tr><td colSpan={3} style={{ padding: 12, color: 'var(--ink-3)' }}>Nothing to backflush — the floor already holds enough material.</td></tr>}
               </tbody></table>
             </SectionCard>
           )}

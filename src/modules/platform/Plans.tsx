@@ -47,8 +47,8 @@ export default function Plans() {
 
   const columns: Column<Plan>[] = [
     { key: 'name', label: 'Plan', sortable: true, render: (p) => <TwoLine primary={p.name} secondary={`${p.code} · v${p.planVersion} · ${p.tier}`} /> },
-    { key: 'modules', label: 'Modules', render: (p) => <span style={{ fontSize: 12, color: '#5F6368' }}>{p.modules.includes('*') ? 'All modules' : `${p.modules.length}: ${p.modules.slice(0, 5).join(', ')}${p.modules.length > 5 ? '…' : ''}`}</span> },
-    { key: 'limits', label: 'Limits', render: (p) => <span style={{ fontSize: 12, color: '#5F6368' }}>{LIMITS.map((l) => `${l.label} ${p.limits[l.key]?.toLocaleString('en-IN') ?? '—'}`).join(' · ')}</span> },
+    { key: 'modules', label: 'Modules', render: (p) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{p.modules.includes('*') ? 'All modules' : `${p.modules.length}: ${p.modules.slice(0, 5).join(', ')}${p.modules.length > 5 ? '…' : ''}`}</span> },
+    { key: 'limits', label: 'Limits', render: (p) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{LIMITS.map((l) => `${l.label} ${p.limits[l.key]?.toLocaleString('en-IN') ?? '—'}`).join(' · ')}</span> },
     { key: 'priceMonthly', label: 'Price / month', align: 'right', sortable: true, render: (p) => <span className="money">{fmtMoney(p.priceMonthly, p.currency)}</span> },
     { key: 'tenants', label: 'Tenants', align: 'right', render: (p) => tenantsOn(p) },
     { key: 'status', label: 'Status', render: (p) => <Badge status={p.status} /> },

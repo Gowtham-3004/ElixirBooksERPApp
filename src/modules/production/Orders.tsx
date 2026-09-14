@@ -23,10 +23,10 @@ export function OrderRegister() {
     { key: 'qty', label: 'Qty', align: 'right', sortable: true, render: (o) => <span className="money">{o.qty} {o.uom}</span> },
     { key: 'status', label: 'Status', sortable: true, render: (o) => <StatusBadge order={o} /> },
     { key: 'plannedStart', label: 'Planned', sortable: true, render: (o) => <span style={{ fontSize: 12 }}>{fmtDate(o.plannedStart)} → {fmtDate(o.plannedEnd)}</span> },
-    { key: 'progress', label: 'Output', render: (o) => ['Draft', 'Planned', 'Submitted', 'Approved', 'Cancelled'].includes(o.status) ? <span style={{ color: '#B0B5BF' }}>—</span> : <Progress done={o.receivedQty} total={o.qty} />, value: (o) => o.receivedQty },
+    { key: 'progress', label: 'Output', render: (o) => ['Draft', 'Planned', 'Submitted', 'Approved', 'Cancelled'].includes(o.status) ? <span style={{ color: 'var(--ink-5)' }}>—</span> : <Progress done={o.receivedQty} total={o.qty} />, value: (o) => o.receivedQty },
     { key: 'totalStd', label: 'Std cost', align: 'right', render: (o) => <span className="money">{fmtMoney(o.costs.totalStd, s.currency)}</span>, value: (o) => o.costs.totalStd, total: (r) => <span className="money">{fmtMoney(r.reduce((a, o) => a + o.costs.totalStd, 0), s.currency)}</span> },
     { key: 'totalActual', label: 'Actual', align: 'right', render: (o) => <span className="money">{o.costs.totalActual ? fmtMoney(o.costs.totalActual, s.currency) : '—'}</span>, value: (o) => o.costs.totalActual, total: (r) => <span className="money">{fmtMoney(r.reduce((a, o) => a + o.costs.totalActual, 0), s.currency)}</span> },
-    { key: 'variance', label: 'Variance', align: 'right', render: (o) => o.costs.totalActual ? <VarianceCell std={o.costs.totalStd} actual={o.costs.totalActual} currency={s.currency} /> : <span style={{ color: '#B0B5BF' }}>—</span>, value: (o) => o.costs.variance },
+    { key: 'variance', label: 'Variance', align: 'right', render: (o) => o.costs.totalActual ? <VarianceCell std={o.costs.totalStd} actual={o.costs.totalActual} currency={s.currency} /> : <span style={{ color: 'var(--ink-5)' }}>—</span>, value: (o) => o.costs.variance },
   ];
   const run = (fn: () => unknown, msg: string) => { try { fn(); toast.success(msg); } catch (e: any) { toast.error(e.message); } };
   const rowActions = (o: ProductionOrder): MenuAction[] => {

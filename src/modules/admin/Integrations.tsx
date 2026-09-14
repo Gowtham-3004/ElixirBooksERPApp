@@ -98,30 +98,30 @@ export default function Integrations({ initialTab }: { initialTab?: string }) {
     { key: 'label', label: 'Credential', render: (c) => <TwoLine primary={c.label} secondary={`${c.provider}${c.registrationId ? ' · ' + (regs.find((r) => r.id === c.registrationId)?.number ?? c.registrationId) : ' · company-wide'}`} /> },
     { key: 'username', label: 'Username', render: (c) => <span className="identifier" style={{ fontSize: 12 }}>{c.username}</span> },
     { key: 'secret', label: 'Secret', render: (c) => <span className="identifier" style={{ fontSize: 12 }}>{c.secretMasked}</span> },
-    { key: 'rotatedAt', label: 'Rotated', render: (c) => <span style={{ fontSize: 12, color: '#5F6368' }}>{fmtDateTime(c.rotatedAt)}</span> },
-    { key: 'expiresAt', label: 'Expires', render: (c) => <span style={{ fontSize: 12, color: c.expiresAt && c.expiresAt < new Date().toISOString() ? '#C0393F' : '#5F6368' }}>{c.expiresAt ? fmtDateTime(c.expiresAt).slice(7) : '—'}</span> },
-    { key: 'access', label: 'Last access', render: (c) => { const last = c.accessLog[c.accessLog.length - 1]; return <span style={{ fontSize: 12, color: '#5F6368' }}>{last ? `${last.action} · ${last.by}` : '—'}</span>; } },
+    { key: 'rotatedAt', label: 'Rotated', render: (c) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{fmtDateTime(c.rotatedAt)}</span> },
+    { key: 'expiresAt', label: 'Expires', render: (c) => <span style={{ fontSize: 12, color: c.expiresAt && c.expiresAt < new Date().toISOString() ? 'var(--danger)' : 'var(--ink-3)' }}>{c.expiresAt ? fmtDateTime(c.expiresAt).slice(7) : '—'}</span> },
+    { key: 'access', label: 'Last access', render: (c) => { const last = c.accessLog[c.accessLog.length - 1]; return <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{last ? `${last.action} · ${last.by}` : '—'}</span>; } },
     { key: 'status', label: 'Status', render: (c) => <Badge status={c.status} /> },
   ];
   const keyCols: Column<ApiKey>[] = [
     { key: 'name', label: 'Key', render: (k) => <TwoLine primary={k.name} secondary={<span className="identifier">{k.keyMasked}</span>} /> },
     { key: 'scopes', label: 'Scopes', render: (k) => <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>{k.scopes.map((sc) => <span key={sc} className="chip" style={{ fontSize: 10 }}>{sc}</span>)}</div> },
-    { key: 'lastUsedAt', label: 'Last used', render: (k) => <span style={{ fontSize: 12, color: '#5F6368' }}>{k.lastUsedAt ? fmtDateTime(k.lastUsedAt) : 'never'}</span> },
-    { key: 'expiresAt', label: 'Expires', render: (k) => <span style={{ fontSize: 12, color: '#5F6368' }}>{k.expiresAt ? fmtDateTime(k.expiresAt).slice(7) : 'never'}</span> },
-    { key: 'status', label: 'Status', render: (k) => <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><Badge status={k.status} />{k.revokedReason && <span style={{ fontSize: 11, color: '#6E6E71' }}>{k.revokedReason}</span>}</span> },
+    { key: 'lastUsedAt', label: 'Last used', render: (k) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{k.lastUsedAt ? fmtDateTime(k.lastUsedAt) : 'never'}</span> },
+    { key: 'expiresAt', label: 'Expires', render: (k) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{k.expiresAt ? fmtDateTime(k.expiresAt).slice(7) : 'never'}</span> },
+    { key: 'status', label: 'Status', render: (k) => <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><Badge status={k.status} />{k.revokedReason && <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>{k.revokedReason}</span>}</span> },
   ];
   const hookCols: Column<Webhook>[] = [
     { key: 'url', label: 'Endpoint', render: (w) => <TwoLine primary={<span className="identifier">{w.url}</span>} secondary={w.description} /> },
-    { key: 'events', label: 'Events', render: (w) => <span style={{ fontSize: 12, color: '#5F6368' }}>{w.events.length} · {w.events.slice(0, 3).join(', ')}{w.events.length > 3 ? '…' : ''}</span> },
+    { key: 'events', label: 'Events', render: (w) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{w.events.length} · {w.events.slice(0, 3).join(', ')}{w.events.length > 3 ? '…' : ''}</span> },
     { key: 'secret', label: 'Signing secret', render: (w) => <span className="identifier" style={{ fontSize: 12 }}>{w.secretMasked}</span> },
     { key: 'last', label: 'Last delivery', render: (w) => <span style={{ fontSize: 12, display: 'inline-flex', gap: 6, alignItems: 'center' }}>{w.lastDeliveryAt ? fmtDateTime(w.lastDeliveryAt) : '—'}{w.lastStatus && <Badge status={w.lastStatus === 'Success' ? 'Success' : 'Failed'} />}{w.failures > 0 && <Pill tone="critical">{w.failures} failed</Pill>}</span> },
     { key: 'status', label: 'Status', render: (w) => <Badge status={w.status === 'Paused' ? 'Hold' : w.status === 'Disabled' ? 'Inactive' : 'Active'}>{w.status}</Badge> },
   ];
   const logCols: Column<IntegrationLog>[] = [
-    { key: 'at', label: 'When', render: (l) => <span style={{ fontSize: 12, color: '#5F6368', whiteSpace: 'nowrap' }}>{fmtDateTime(l.at)}</span> },
+    { key: 'at', label: 'When', render: (l) => <span style={{ fontSize: 12, color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>{fmtDateTime(l.at)}</span> },
     { key: 'provider', label: 'Provider · action', render: (l) => <TwoLine primary={`${l.provider} · ${l.action}`} secondary={`${l.objectType} ${l.objectNumber ?? ''}`} /> },
     { key: 'ref', label: 'Provider ref', render: (l) => <span className="identifier" style={{ fontSize: 12 }}>{l.providerRef ?? '—'}</span> },
-    { key: 'error', label: 'Error', render: (l) => <span style={{ fontSize: 12, color: '#C0393F' }}>{l.errorCode ? `${l.errorCode} · ${l.errorMessage}` : ''}</span> },
+    { key: 'error', label: 'Error', render: (l) => <span style={{ fontSize: 12, color: 'var(--danger)' }}>{l.errorCode ? `${l.errorCode} · ${l.errorMessage}` : ''}</span> },
     { key: 'corr', label: 'Correlation', render: (l) => <Identifier style={{ fontSize: 11 }}>{l.correlationId}</Identifier> },
     { key: 'status', label: 'Status', render: (l) => <Badge status={l.status} /> },
   ];
@@ -185,12 +185,12 @@ export default function Integrations({ initialTab }: { initialTab?: string }) {
             <TextField label="Name" required value={key.name} onChange={(v) => setKey({ ...key, name: v })} placeholder="e.g. warehouse-sync" autoFocus />
             <ChipGroup label="Scopes" multiple value={key.scopes} onChange={(v: string[]) => setKey({ ...key, scopes: v })} options={API_SCOPES} />
             <SelectField label="Expires" value={String(key.expiresDays)} onChange={(v) => setKey({ ...key, expiresDays: Number(v) })} options={[{ value: '30', label: '30 days' }, { value: '90', label: '90 days' }, { value: '365', label: '1 year' }, { value: '0', label: 'Never' }]} />
-            <div style={{ fontSize: 12, color: '#6E6E71' }}>Keys carry the same entitlement and permission checks as the UI (FR-PLT-004, FR-IAM-005).</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>Keys carry the same entitlement and permission checks as the UI (FR-PLT-004, FR-IAM-005).</div>
           </div>
         )}
       </Drawer>
       <ConfirmDialog open={!!shown} onClose={() => setShown(null)} title={shown?.name ?? ''} statement="Copy this secret now — it is stored hashed and cannot be shown again." confirmLabel="I have copied it" cancelLabel="Close" onConfirm={() => setShown(null)}>
-        {shown && <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}><code style={{ flex: 1, padding: '10px 12px', background: '#F3F5F5', borderRadius: 8, fontSize: 13, wordBreak: 'break-all' }}>{shown.key}</code><Button size="sm" variant="secondary" onClick={() => { navigator.clipboard?.writeText(shown.key); toast.success('Copied'); }}>Copy</Button></div>}
+        {shown && <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}><code style={{ flex: 1, padding: '10px 12px', background: 'var(--surface-3)', borderRadius: 8, fontSize: 13, wordBreak: 'break-all' }}>{shown.key}</code><Button size="sm" variant="secondary" onClick={() => { navigator.clipboard?.writeText(shown.key); toast.success('Copied'); }}>Copy</Button></div>}
       </ConfirmDialog>
 
       {/* Webhook drawer */}
@@ -207,12 +207,12 @@ export default function Integrations({ initialTab }: { initialTab?: string }) {
 
       {/* Integration log detail */}
       <Drawer open={!!log} onClose={() => setLog(null)} title={log ? `${log.provider} · ${log.action}` : ''} subtitle={log ? `${fmtDateTime(log.at)} · ${log.objectType} ${log.objectNumber ?? ''}` : ''} width={640} headerRight={log && <Badge status={log.status} />}
-        footer={log && (log.status === 'Failed' || log.status === 'Timeout' || log.status === 'Rejected') ? <><span style={{ fontSize: 12, color: '#6E6E71' }}>Retry reuses idempotency key {log.idempotencyKey}</span><Button variant="primary" onClick={() => retry(log)}>Retry</Button></> : undefined}>
+        footer={log && (log.status === 'Failed' || log.status === 'Timeout' || log.status === 'Rejected') ? <><span style={{ fontSize: 12, color: 'var(--ink-4)' }}>Retry reuses idempotency key {log.idempotencyKey}</span><Button variant="primary" onClick={() => retry(log)}>Retry</Button></> : undefined}>
         {log && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <KV items={[{ k: 'Correlation ID', v: <span style={{ display: 'inline-flex', gap: 8 }}><Identifier>{log.correlationId}</Identifier><button type="button" className="btn-link" style={{ fontSize: 12 }} onClick={() => navigator.clipboard?.writeText(log.correlationId)}>Copy</button></span> }, { k: 'Idempotency key', v: <Identifier>{log.idempotencyKey}</Identifier> }, { k: 'Fingerprint', v: <Identifier>{log.requestFingerprint}</Identifier> }, { k: 'Provider ref', v: log.providerRef ?? '—' }, { k: 'Error', v: log.errorCode ? `${log.errorCode} · ${log.errorMessage}` : '—' }]} />
-            <div><div className="section-label" style={{ marginBottom: 4 }}>Request</div><pre style={{ background: '#F9FBFC', padding: 10, borderRadius: 8, fontSize: 11, overflow: 'auto', maxHeight: 200 }}>{JSON.stringify(log.request, null, 2)}</pre></div>
-            <div><div className="section-label" style={{ marginBottom: 4 }}>Response</div><pre style={{ background: '#F9FBFC', padding: 10, borderRadius: 8, fontSize: 11, overflow: 'auto', maxHeight: 200 }}>{log.response ? JSON.stringify(log.response, null, 2) : '— no response (timeout)'}</pre></div>
+            <div><div className="section-label" style={{ marginBottom: 4 }}>Request</div><pre style={{ background: 'var(--surface-2)', padding: 10, borderRadius: 8, fontSize: 11, overflow: 'auto', maxHeight: 200 }}>{JSON.stringify(log.request, null, 2)}</pre></div>
+            <div><div className="section-label" style={{ marginBottom: 4 }}>Response</div><pre style={{ background: 'var(--surface-2)', padding: 10, borderRadius: 8, fontSize: 11, overflow: 'auto', maxHeight: 200 }}>{log.response ? JSON.stringify(log.response, null, 2) : '— no response (timeout)'}</pre></div>
             <MaskedValue value={log.idempotencyKey} canReveal={false} />
           </div>
         )}

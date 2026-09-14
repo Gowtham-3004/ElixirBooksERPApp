@@ -27,17 +27,17 @@ export default function DataDemo() {
       <PageHeader title="Data & demo" subtitle={`${total.toLocaleString('en-IN')} records in ${collections.length} collections · ${(bytes / 1024).toFixed(0)} KB in browser storage`} />
       <div className="grid-2">
         <Card title="Export">
-          <p style={{ fontSize: 13, color: '#5F6368', marginBottom: 12 }}>Download every record visible to {s.company?.tradeName} as JSON — masters, documents, journals, audit. Exports respect company scope and are audited (FR-EXPORT-001).</p>
+          <p style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 12 }}>Download every record visible to {s.company?.tradeName} as JSON — masters, documents, journals, audit. Exports respect company scope and are audited (FR-EXPORT-001).</p>
           <Button variant="primary" onClick={exportAll} disabled={!canManage} reason={canManage ? undefined : 'Requires admin.data permission'}>Export all data (JSON)</Button>
         </Card>
         <Card title="Reset demo data">
-          <p style={{ fontSize: 13, color: '#5F6368', marginBottom: 12 }}>Clears everything you changed and reseeds the demo dataset (Acme Group, two companies, {db.get(C.users).length} users). You will be signed out.</p>
+          <p style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 12 }}>Clears everything you changed and reseeds the demo dataset (Acme Group, two companies, {db.get(C.users).length} users). You will be signed out.</p>
           <Button variant="danger" onClick={() => setReset(true)} disabled={!canManage} reason={canManage ? undefined : 'Requires admin.data permission'}>Reset demo data</Button>
         </Card>
       </div>
       <Card title="Collections">
         <div style={{ columns: 3, fontSize: 12 }}>
-          {collections.map((c) => <div key={c.k} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 12px 3px 0', breakInside: 'avoid' }}><span className="identifier">{c.k}</span><span style={{ fontFeatureSettings: '"tnum" 1', color: '#5F6368' }}>{c.n}</span></div>)}
+          {collections.map((c) => <div key={c.k} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 12px 3px 0', breakInside: 'avoid' }}><span className="identifier">{c.k}</span><span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--ink-3)' }}>{c.n}</span></div>)}
         </div>
       </Card>
       <Card title="About this environment">

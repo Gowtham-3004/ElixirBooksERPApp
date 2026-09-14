@@ -31,11 +31,11 @@ export function Pill({ tone = 'neutral', children, title }: { tone?: 'critical' 
 }
 
 export function CountBadge({ n }: { n: number }) {
-  return <span style={{ background: '#F3F3F5', borderRadius: 9999, padding: '0 6px', fontSize: 11, color: '#5F6368', minWidth: 18, textAlign: 'center', lineHeight: '18px', display: 'inline-block', fontFeatureSettings: 'normal' }}>{n}</span>;
+  return <span style={{ background: 'var(--surface-3)', borderRadius: 9999, padding: '0 6px', fontSize: 11, color: 'var(--ink-3)', minWidth: 18, textAlign: 'center', lineHeight: '18px', display: 'inline-block', fontVariantNumeric: 'normal' }}>{n}</span>;
 }
 
 export function DimChip({ label, color }: { label: string; color?: string }) {
-  return <span className="dim-chip" style={{ ['--dot' as string]: color ?? '#325CFF' }}>{label}</span>;
+  return <span className="dim-chip" style={{ ['--dot' as string]: color ?? 'var(--accent)' }}>{label}</span>;
 }
 
 export function CurrencyTag({ code }: { code: string }) {
@@ -60,7 +60,7 @@ export function Money({ value, currency = 'INR', base, baseCurrency, rate, compa
     return (
       <span className={cls} style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2, ...style }} title={rate ? `Rate ${rate}` : undefined}>
         <span>{fmtMoney(value, currency, { code: true })}</span>
-        <span style={{ fontSize: 11, color: '#6E6E71' }}>≈ {fmtMoney(base, baseCurrency)}{rate ? ` @ ${rate}` : ''}</span>
+        <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>≈ {fmtMoney(base, baseCurrency)}{rate ? ` @ ${rate}` : ''}</span>
       </span>
     );
   }
@@ -137,7 +137,7 @@ export function SectionLabel({ children, style }: { children: ReactNode; style?:
 }
 
 export function Divider({ style }: { style?: CSSProperties }) {
-  return <div style={{ height: 1, background: '#EFEFEF', ...style }} />;
+  return <div style={{ height: 1, background: 'var(--hairline)', ...style }} />;
 }
 
 export function KV({ items, columns = 1 }: { items: { k: ReactNode; v: ReactNode }[]; columns?: 1 | 2 }) {
@@ -159,7 +159,7 @@ export function SummaryBlock({ items, style }: { items: { label: string; value: 
       {items.map((it) => (
         <div key={it.label}>
           <div className="section-label" style={{ marginBottom: 2 }}>{it.label}</div>
-          <div style={{ fontSize: 15, fontWeight: 600, fontFeatureSettings: '"tnum" 1', color: it.tone === 'warn' ? '#8A4B0F' : it.tone === 'danger' ? '#C0393F' : it.tone === 'good' ? '#12784E' : '#0A0A0A' }}>{it.value}</div>
+          <div style={{ fontSize: 15, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: it.tone === 'warn' ? 'var(--warn)' : it.tone === 'danger' ? 'var(--danger)' : it.tone === 'good' ? 'var(--good)' : 'var(--ink)' }}>{it.value}</div>
         </div>
       ))}
     </div>
@@ -183,14 +183,14 @@ export function KpiTile({ label, value, delta, deltaTone = 'good', sub, meta, on
         <span className="section-label">{label}</span>
         {stale && <Pill tone="warning">Stale</Pill>}
       </div>
-      <div style={{ fontSize: 24, fontWeight: 600, lineHeight: '32px', fontFeatureSettings: '"tnum" 1', color: '#0A0A0A' }}>{value}</div>
+      <div style={{ fontSize: 24, fontWeight: 600, lineHeight: '32px', fontVariantNumeric: 'tabular-nums', color: 'var(--ink)' }}>{value}</div>
       {(delta || sub) && (
         <div style={{ fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
-          {delta && <span style={{ color: deltaTone === 'good' ? '#12784E' : deltaTone === 'bad' ? '#C0393F' : '#5F6368', fontWeight: 500 }}>{delta}</span>}
-          {sub && <span style={{ color: '#5F6368' }}>{sub}</span>}
+          {delta && <span style={{ color: deltaTone === 'good' ? 'var(--good)' : deltaTone === 'bad' ? 'var(--danger)' : 'var(--ink-3)', fontWeight: 500 }}>{delta}</span>}
+          {sub && <span style={{ color: 'var(--ink-3)' }}>{sub}</span>}
         </div>
       )}
-      {meta && <div style={{ fontSize: 11, color: '#6E6E71', marginTop: 6, borderTop: '1px solid #F3F5F5', paddingTop: 8, fontFeatureSettings: 'normal' }}>{meta}</div>}
+      {meta && <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 6, borderTop: '1px solid var(--surface-3)', paddingTop: 8, fontVariantNumeric: 'normal' }}>{meta}</div>}
     </div>
   );
 }
@@ -198,7 +198,7 @@ export function KpiTile({ label, value, delta, deltaTone = 'good', sub, meta, on
 export function EmptyState({ title, description, action, icon = '📋', compact }: { title: string; description?: string; action?: ReactNode; icon?: ReactNode; compact?: boolean }) {
   return (
     <div className="empty-state" style={compact ? { padding: '24px 16px' } : undefined}>
-      <div style={{ width: 44, height: 44, borderRadius: 12, background: '#F3F5F5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{icon}</div>
+      <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{icon}</div>
       <h3>{title}</h3>
       {description && <p style={{ fontSize: 13, maxWidth: 380 }}>{description}</p>}
       {action && <div style={{ marginTop: 4, display: 'flex', gap: 8 }}>{action}</div>}
@@ -233,7 +233,7 @@ export function Banner({ tone = 'info', children, action, onDismiss, full, style
 export function Tabs<T extends string>({ tabs, value, onChange, counts, variant = 'doc' }: { tabs: { id: T; label: string; count?: number }[]; value: T; onChange: (v: T) => void; counts?: Partial<Record<T, number>>; variant?: 'doc' | 'filter' }) {
   const cls = variant === 'doc' ? 'doc-tab' : 'filter-tab';
   return (
-    <div style={{ display: 'flex', gap: variant === 'doc' ? 20 : 0, borderBottom: '1px solid #EFEFEF' }}>
+    <div style={{ display: 'flex', gap: variant === 'doc' ? 20 : 0, borderBottom: '1px solid var(--hairline)' }}>
       {tabs.map((t) => (
         <button key={t.id} type="button" className={`${cls} ${value === t.id ? 'active' : ''}`} onClick={() => onChange(t.id)}>
           {t.label}
@@ -244,9 +244,9 @@ export function Tabs<T extends string>({ tabs, value, onChange, counts, variant 
   );
 }
 
-export function Avatar({ name, size = 28, color = '#325CFF' }: { name: string; size?: number; color?: string }) {
+export function Avatar({ name, size = 28, color = 'var(--accent)' }: { name: string; size?: number; color?: string }) {
   const ini = name.split(' ').filter(Boolean).map((n) => n[0]).join('').slice(0, 2).toUpperCase();
-  return <div style={{ width: size, height: size, borderRadius: '50%', background: color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.4, fontWeight: 600, flexShrink: 0, fontFeatureSettings: 'normal' }}>{ini}</div>;
+  return <div style={{ width: size, height: size, borderRadius: '50%', background: color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.4, fontWeight: 600, flexShrink: 0, fontVariantNumeric: 'normal' }}>{ini}</div>;
 }
 
 export function TwoLine({ primary, secondary, mono }: { primary: ReactNode; secondary?: ReactNode; mono?: boolean }) {

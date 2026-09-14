@@ -80,8 +80,8 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
         <button type="button" className={`nav-item ${o.active ? 'active' : ''}`} title={collapsed && !hasSub ? label : undefined} aria-label={label} aria-haspopup={hasSub ? 'menu' : undefined} aria-expanded={hasSub ? open : undefined} style={{ width: '100%', border: 'none', textAlign: 'left', background: o.active ? undefined : 'transparent', justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined, position: 'relative' }} onClick={toggle}>
           <Icon size={16} />
           {!collapsed && <span style={{ flex: 1 }}>{label}</span>}
-          {!!o.badge && <span style={{ background: '#325CFF', color: '#FFFFFF', fontSize: 11, fontWeight: 600, borderRadius: 9999, padding: '0 6px', minWidth: 18, textAlign: 'center', lineHeight: '18px', fontFeatureSettings: 'normal', ...(collapsed ? { position: 'absolute' as const, top: 2, right: 4, fontSize: 9, minWidth: 14, lineHeight: '14px', padding: '0 4px' } : {}) }}>{o.badge}</span>}
-          {!collapsed && hasSub && <span style={{ display: 'inline-flex', color: '#B0B5BF', transform: isMobile ? (open ? 'rotate(180deg)' : undefined) : 'rotate(-90deg)' }}><ChevronDownIcon size={12} /></span>}
+          {!!o.badge && <span style={{ background: 'var(--accent)', color: '#FFFFFF', fontSize: 11, fontWeight: 600, borderRadius: 9999, padding: '0 6px', minWidth: 18, textAlign: 'center', lineHeight: '18px', fontVariantNumeric: 'normal', ...(collapsed ? { position: 'absolute' as const, top: 2, right: 4, fontSize: 9, minWidth: 14, lineHeight: '14px', padding: '0 4px' } : {}) }}>{o.badge}</span>}
+          {!collapsed && hasSub && <span style={{ display: 'inline-flex', color: 'var(--ink-5)', transform: isMobile ? (open ? 'rotate(180deg)' : undefined) : 'rotate(-90deg)' }}><ChevronDownIcon size={12} /></span>}
         </button>
         {open && flyout && (isMobile
           ? <SubNavList items={o.items} activeId={o.activeId} onPick={o.go} inline />
@@ -122,7 +122,7 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
 
   const mod = moduleById(route.module);
   const crumbs = [mod?.group ? mod.group.charAt(0) + mod.group.slice(1).toLowerCase() : 'Workspace', mod?.label ?? route.module, ...(route.sub ? [route.sub.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())] : []), ...(route.params.crumb ? [route.params.crumb] : [])];
-  const periodTone = s.period?.status === 'Open' ? { bg: '#E0F9EC', fg: '#12784E' } : s.period?.status === 'Locked' ? { bg: '#E7E9EB', fg: '#3C4043' } : { bg: '#FEF4EC', fg: '#8A4B0F' };
+  const periodTone = s.period?.status === 'Open' ? { bg: 'var(--good-bg)', fg: 'var(--good)' } : s.period?.status === 'Locked' ? { bg: 'var(--neutral-bg)', fg: 'var(--ink-2)' } : { bg: 'var(--warn-bg)', fg: 'var(--warn)' };
   const isWin = typeof navigator !== 'undefined' && /Win/.test(navigator.platform);
 
   // branch · FY · period — in the header on desktop, in a scrollable strip under it on phones
@@ -130,23 +130,23 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
     <>
             {s.branches.length > 1 && (
               <span style={{ position: 'relative' }}>
-                <button type="button" className="btn-secondary btn-sm" style={{ gap: 6, fontFeatureSettings: 'normal' }} onClick={() => setBranchOpen(!branchOpen)}>
+                <button type="button" className="btn-secondary btn-sm" style={{ gap: 6, fontVariantNumeric: 'normal' }} onClick={() => setBranchOpen(!branchOpen)}>
                   {s.branch?.name ?? 'Branch'} <ChevronDownIcon size={12} />
                 </button>
                 {branchOpen && (
                   <Dropdown onClose={() => setBranchOpen(false)} sheet={compact}>
                     {s.branches.map((b) => (
-                      <button key={b.id} type="button" className="menu-item" style={{ background: b.id === s.branch?.id ? '#F2F5FF' : undefined }} onClick={() => { session.setBranch(b.id); setBranchOpen(false); }}>
-                        {b.name} <span style={{ color: '#B0B5BF', fontSize: 11, marginLeft: 'auto' }}>{b.type}</span>
+                      <button key={b.id} type="button" className="menu-item" style={{ background: b.id === s.branch?.id ? 'var(--accent-soft)' : undefined }} onClick={() => { session.setBranch(b.id); setBranchOpen(false); }}>
+                        {b.name} <span style={{ color: 'var(--ink-5)', fontSize: 11, marginLeft: 'auto' }}>{b.type}</span>
                       </button>
                     ))}
                   </Dropdown>
                 )}
               </span>
             )}
-            <span style={{ padding: '2px 8px', background: '#F3F5F5', borderRadius: 9999, fontSize: 12, color: '#5F6368', fontFeatureSettings: 'normal' }}>FY {s.state.fy ?? '—'}</span>
+            <span style={{ padding: '2px 8px', background: 'var(--surface-3)', borderRadius: 9999, fontSize: 12, color: 'var(--ink-3)', fontVariantNumeric: 'normal' }}>FY {s.state.fy ?? '—'}</span>
             <span style={{ position: 'relative' }}>
-              <button type="button" onClick={() => setPeriodOpen(!periodOpen)} style={{ padding: '2px 8px', background: periodTone.bg, borderRadius: 9999, fontSize: 12, color: periodTone.fg, display: 'flex', alignItems: 'center', gap: 5, fontFeatureSettings: 'normal', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+              <button type="button" onClick={() => setPeriodOpen(!periodOpen)} style={{ padding: '2px 8px', background: periodTone.bg, borderRadius: 9999, fontSize: 12, color: periodTone.fg, display: 'flex', alignItems: 'center', gap: 5, fontVariantNumeric: 'normal', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
                 {s.period?.status === 'Locked' ? <LockIcon size={10} /> : <span style={{ width: 6, height: 6, borderRadius: '50%', background: periodTone.fg, display: 'inline-block' }} />}
                 {s.period?.label ?? fmtPeriod(s.state.periodCode)}
               </button>
@@ -155,14 +155,14 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
                   <div className="section-label" style={{ padding: '6px 10px' }}>Periods · {s.state.fy}</div>
                   <div style={{ maxHeight: 300, overflow: 'auto' }}>
                     {s.periods.map((p: Period) => (
-                      <button key={p.id} type="button" className="menu-item" style={{ background: p.code === s.period?.code ? '#F2F5FF' : undefined }} onClick={() => { session.setPeriod(p.code); setPeriodOpen(false); }}>
+                      <button key={p.id} type="button" className="menu-item" style={{ background: p.code === s.period?.code ? 'var(--accent-soft)' : undefined }} onClick={() => { session.setPeriod(p.code); setPeriodOpen(false); }}>
                         <span style={{ flex: 1 }}>{p.label}</span>
                         <Badge status={p.status} />
                       </button>
                     ))}
                   </div>
                   <div className="menu-sep" />
-                  <button type="button" className="menu-item" style={{ color: '#325CFF' }} onClick={() => { setPeriodOpen(false); nav.go('admin/periods'); }}>Manage periods →</button>
+                  <button type="button" className="menu-item" style={{ color: 'var(--accent)' }} onClick={() => { setPeriodOpen(false); nav.go('admin/periods'); }}>Manage periods →</button>
                 </Dropdown>
               )}
             </span>
@@ -171,7 +171,7 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
 
   if (fullBleed) {
     return (
-      <div style={{ height: '100%', background: '#F7F7F7', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ height: '100%', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
         {children}
       </div>
     );
@@ -182,8 +182,8 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
       {isMobile && navOpen && <div className="sidebar-scrim" onClick={() => setNavOpen(false)} />}
       {/* Sidebar — fixed rail on desktop/tablet, off-canvas drawer on phones */}
       <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${navOpen ? 'open' : ''}`} aria-label="Sidebar" aria-hidden={isMobile && !navOpen ? true : undefined}>
-        <div style={{ padding: collapsed ? '14px 0 12px' : '14px 16px 12px', borderBottom: '1px solid #EFEFEF', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : undefined, gap: 10, cursor: 'pointer', position: 'relative' }} onClick={() => setSidebarCompanyOpen(!sidebarCompanyOpen)} title={collapsed ? `${s.tenant?.name ?? ''} · ${s.company?.legalName ?? ''} — switch company` : 'Switch company'}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: s.company?.brandColor ?? '#325CFF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontWeight: 700 }}>
+        <div style={{ padding: collapsed ? '14px 0 12px' : '14px 16px 12px', borderBottom: '1px solid var(--hairline)', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : undefined, gap: 10, cursor: 'pointer', position: 'relative' }} onClick={() => setSidebarCompanyOpen(!sidebarCompanyOpen)} title={collapsed ? `${s.tenant?.name ?? ''} · ${s.company?.legalName ?? ''} — switch company` : 'Switch company'}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: s.company?.brandColor ?? 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontWeight: 700 }}>
             {s.company?.logoText ?? 'E'}
           </div>
           {!collapsed && (
@@ -201,12 +201,12 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
               <Dropdown onClose={() => setSidebarCompanyOpen(false)} width={260} align="left" top={collapsed ? 56 : undefined} sheet={isMobile}>
                 <div className="section-label" style={{ padding: '6px 10px' }}>Switch company</div>
                 {s.companies.map((c) => (
-                  <button key={c.id} type="button" className="menu-item" style={{ height: 'auto', padding: '6px 10px', background: c.id === s.company?.id ? '#F2F5FF' : undefined }} onClick={() => { setSidebarCompanyOpen(false); if (c.id !== s.company?.id) { session.switchCompany(c.id); nav.go('home'); } }}>
+                  <button key={c.id} type="button" className="menu-item" style={{ height: 'auto', padding: '6px 10px', background: c.id === s.company?.id ? 'var(--accent-soft)' : undefined }} onClick={() => { setSidebarCompanyOpen(false); if (c.id !== s.company?.id) { session.switchCompany(c.id); nav.go('home'); } }}>
                     <TwoLine primary={c.legalName} secondary={`${c.country} · ${c.baseCurrency} · ${c.nature}`} />
                   </button>
                 ))}
-                {s.companies.length === 0 && <div style={{ padding: '8px 10px', fontSize: 12, color: '#5F6368' }}>No companies</div>}
-                {s.isTenantOwner && (<><div className="menu-sep" /><button type="button" className="menu-item" style={{ color: '#325CFF' }} onClick={() => { setSidebarCompanyOpen(false); nav.go('admin/companies'); }}>+ Add company</button></>)}
+                {s.companies.length === 0 && <div style={{ padding: '8px 10px', fontSize: 12, color: 'var(--ink-3)' }}>No companies</div>}
+                {s.isTenantOwner && (<><div className="menu-sep" /><button type="button" className="menu-item" style={{ color: 'var(--accent)' }} onClick={() => { setSidebarCompanyOpen(false); nav.go('admin/companies'); }}>+ Add company</button></>)}
               </Dropdown>
             </div>
           )}
@@ -217,7 +217,7 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
             if (!items.length) return null;
             return (
               <div key={g} style={{ marginBottom: 4 }}>
-                {collapsed ? <div style={{ height: 1, background: '#F3F3F5', margin: '6px 8px' }} /> : <div className="section-label" style={{ padding: '8px 12px 4px', display: 'block' }}>{g}</div>}
+                {collapsed ? <div style={{ height: 1, background: 'var(--surface-3)', margin: '6px 8px' }} /> : <div className="section-label" style={{ padding: '8px 12px 4px', display: 'block' }}>{g}</div>}
                 {items.map((m) => {
                   const subItems = (subNavs[m.id] ?? []).filter((i) => !i.hidden);
                   return sidebarEntry(m.id, m.label, m.icon, { items: subItems, active: route.module === m.id, activeId: activeSubNav(route, m.id, subItems), go: (id) => nav.go(`${m.id}/${id}`), fallback: () => nav.go(m.id), badge: m.id === 'approvals' ? pendingApprovals : 0 });
@@ -226,12 +226,12 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
             );
           })}
         </nav>
-        <div style={{ borderTop: '1px solid #EFEFEF', padding: '8px 8px' }}>
+        <div style={{ borderTop: '1px solid var(--hairline)', padding: '8px 8px' }}>
           <button type="button" className="nav-item" title="Help & Support" style={{ width: '100%', border: 'none', textAlign: 'left', background: 'transparent', justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined }} onClick={() => nav.go('home/help')}>
             <HelpCircleIcon size={16} />{!collapsed && <span>Help & Support</span>}
           </button>
           {sidebarEntry('settings', 'Settings', CogIcon, { items: settingsItems, active: false, activeId: settingsItems.find((i) => route.path === i.id || route.path.startsWith(`${i.id}/`))?.id, go: (id) => nav.go(id) })}
-          {!isMobile && <button type="button" className="nav-item" title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} style={{ width: '100%', border: 'none', textAlign: 'left', background: 'transparent', justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined, color: '#5F6368' }} onClick={toggleRail}>
+          {!isMobile && <button type="button" className="nav-item" title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} style={{ width: '100%', border: 'none', textAlign: 'left', background: 'transparent', justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined, color: 'var(--ink-3)' }} onClick={toggleRail}>
             <span style={{ display: 'inline-flex', transform: collapsed ? 'rotate(180deg)' : undefined }}><ArrowLeftIcon size={16} /></span>{!collapsed && <span>Collapse</span>}
           </button>}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : undefined, gap: 8, padding: collapsed ? '8px 0' : '8px 12px', borderRadius: 8, marginTop: 4, cursor: 'pointer' }} onClick={() => setUserOpen(true)} title={s.user?.name}>
@@ -256,8 +256,8 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
           <div className="crumbs">
             {crumbs.map((crumb, i) => (
               <span key={i} className="crumb" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                {i > 0 && <span className="crumb-sep" style={{ fontSize: 12, color: '#B0B5BF' }}>›</span>}
-                <span style={{ fontSize: 13, fontWeight: i === crumbs.length - 1 ? 500 : 400, color: i === crumbs.length - 1 ? '#0A0A0A' : '#5F6368', fontFeatureSettings: 'normal', cursor: i === 1 ? 'pointer' : undefined }} onClick={() => i === 1 && mod && nav.go(mod.id)}>{crumb}</span>
+                {i > 0 && <span className="crumb-sep" style={{ fontSize: 12, color: 'var(--ink-5)' }}>›</span>}
+                <span style={{ fontSize: 13, fontWeight: i === crumbs.length - 1 ? 500 : 400, color: i === crumbs.length - 1 ? 'var(--ink)' : 'var(--ink-3)', fontVariantNumeric: 'normal', cursor: i === 1 ? 'pointer' : undefined }} onClick={() => i === 1 && mod && nav.go(mod.id)}>{crumb}</span>
               </span>
             ))}
           </div>
@@ -279,7 +279,7 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
             <span style={{ position: 'relative' }}>
               <button type="button" className="btn-ghost" style={{ padding: '0 8px', position: 'relative' }} onClick={() => setNotifOpen(!notifOpen)}>
                 <BellIcon size={16} />
-                {unread > 0 && <span style={{ position: 'absolute', top: 2, right: 2, minWidth: 16, height: 16, padding: '0 4px', background: '#325CFF', color: '#fff', borderRadius: 9999, fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #F9FBFC' }}>{unread}</span>}
+                {unread > 0 && <span style={{ position: 'absolute', top: 2, right: 2, minWidth: 16, height: 16, padding: '0 4px', background: 'var(--accent)', color: '#fff', borderRadius: 9999, fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid var(--surface-2)' }}>{unread}</span>}
               </button>
               {notifOpen && (
                 <Dropdown onClose={() => setNotifOpen(false)} width={380} sheet={compact}>
@@ -288,14 +288,14 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
                     {unread > 0 && <button type="button" className="btn-link" style={{ fontSize: 12 }} onClick={() => myNotifs.filter((n) => !n.read).forEach((n) => db.patchSilent<Notification>(C.notifications, n.id, { read: true }))}>Mark all read</button>}
                   </div>
                   <div style={{ maxHeight: 420, overflow: 'auto' }}>
-                    {myNotifs.length === 0 && <div style={{ padding: 16, fontSize: 13, color: '#5F6368' }}>You're all caught up.</div>}
+                    {myNotifs.length === 0 && <div style={{ padding: 16, fontSize: 13, color: 'var(--ink-3)' }}>You're all caught up.</div>}
                     {myNotifs.slice(0, 30).map((n) => (
-                      <button key={n.id} type="button" className="menu-item" style={{ height: 'auto', padding: '8px 10px', alignItems: 'flex-start', background: n.read ? undefined : '#F9FBFC' }} onClick={() => { db.patchSilent<Notification>(C.notifications, n.id, { read: true }); setNotifOpen(false); if (n.link) nav.go(n.link); }}>
-                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: n.read ? 'transparent' : '#325CFF', marginTop: 6, flexShrink: 0 }} />
+                      <button key={n.id} type="button" className="menu-item" style={{ height: 'auto', padding: '8px 10px', alignItems: 'flex-start', background: n.read ? undefined : 'var(--surface-2)' }} onClick={() => { db.patchSilent<Notification>(C.notifications, n.id, { read: true }); setNotifOpen(false); if (n.link) nav.go(n.link); }}>
+                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: n.read ? 'transparent' : 'var(--accent)', marginTop: 6, flexShrink: 0 }} />
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <div style={{ fontSize: 13, fontWeight: n.read ? 400 : 600, whiteSpace: 'normal' }}>{n.title}</div>
-                          {n.body && <div style={{ fontSize: 12, color: '#5F6368', whiteSpace: 'normal' }}>{n.body}</div>}
-                          <div style={{ fontSize: 11, color: '#B0B5BF', marginTop: 2 }}>{n.type} · {fmtDateTime(n.at)}{n.status && n.status !== 'delivered' ? ` · ${n.status}` : ''}</div>
+                          {n.body && <div style={{ fontSize: 12, color: 'var(--ink-3)', whiteSpace: 'normal' }}>{n.body}</div>}
+                          <div style={{ fontSize: 11, color: 'var(--ink-5)', marginTop: 2 }}>{n.type} · {fmtDateTime(n.at)}{n.status && n.status !== 'delivered' ? ` · ${n.status}` : ''}</div>
                         </div>
                       </button>
                     ))}
@@ -328,9 +328,9 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
             <div>
               <div className="section-label" style={{ marginBottom: 6 }}>Active sessions</div>
               {(s.user?.sessions ?? []).map((ss) => (
-                <div key={ss.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #F5F5F5' }}>
+                <div key={ss.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--hairline)' }}>
                   <span>{ss.device}{ss.current ? ' · this device' : ''}</span>
-                  <span style={{ color: '#5F6368' }}>{fmtDateTime(ss.at)}</span>
+                  <span style={{ color: 'var(--ink-3)' }}>{fmtDateTime(ss.at)}</span>
                 </div>
               ))}
             </div>
@@ -346,7 +346,7 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
         <Modal open onClose={() => setHelpOpen(false)} title="Keyboard shortcuts" description="Press ? anywhere to toggle this list." width={480}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
             {[[`${isWin ? 'Ctrl' : '⌘'} K`, 'Global search — documents, parties, items, menu'], ['?', 'Show / hide keyboard shortcuts'], ['Esc', 'Close drawer, dialog or menu'], ['↑ ↓ Enter', 'Move and pick in lists and pickers'], ['Tab', 'Next field; in a line grid moves across the row'], ['Enter', 'Confirm the primary action in a form']].map(([k, v]) => (
-              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #F5F5F5' }}><span style={{ color: '#5F6368' }}>{v}</span><span style={{ display: 'flex', gap: 4 }}>{k.split(' ').map((x, i) => <Kbd key={i}>{x}</Kbd>)}</span></div>
+              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--hairline)' }}><span style={{ color: 'var(--ink-3)' }}>{v}</span><span style={{ display: 'flex', gap: 4 }}>{k.split(' ').map((x, i) => <Kbd key={i}>{x}</Kbd>)}</span></div>
             ))}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
               <Button variant="secondary" onClick={() => { setHelpOpen(false); nav.go('home/help'); }}>Help & Support</Button>
@@ -382,7 +382,7 @@ function SubNavList({ items, activeId, onPick, inline }: { items: SubNavItem[]; 
           {items.filter((i) => (i.group ?? '') === g).map((i) => (
             <button key={i.id} type="button" role="menuitem" className={`menu-item ${i.id === activeId ? 'active' : ''}`} onClick={() => onPick(i.id)}>
               <span style={{ flex: 1 }}>{i.label}</span>
-              {i.badge !== undefined && i.badge > 0 && <span style={{ background: '#325CFF', color: '#fff', fontSize: 11, fontWeight: 600, borderRadius: 9999, padding: '0 6px', minWidth: 18, textAlign: 'center', lineHeight: '18px' }}>{i.badge}</span>}
+              {i.badge !== undefined && i.badge > 0 && <span style={{ background: 'var(--accent)', color: '#fff', fontSize: 11, fontWeight: 600, borderRadius: 9999, padding: '0 6px', minWidth: 18, textAlign: 'center', lineHeight: '18px' }}>{i.badge}</span>}
             </button>
           ))}
         </div>
@@ -401,7 +401,7 @@ function ModuleFlyout({ label, anchor, items, activeId, onPick }: { label: strin
   }, [anchor, items.length]);
   return (
     <div ref={ref} className="menu sidebar-flyout" role="menu" style={{ top, left: anchor.right + 6 }}>
-      <div className="section-label" style={{ padding: '6px 10px 4px', color: '#0A0A0A', textTransform: 'none', letterSpacing: 0, fontSize: 12, fontWeight: 600 }}>{label}</div>
+      <div className="section-label" style={{ padding: '6px 10px 4px', color: 'var(--ink)', textTransform: 'none', letterSpacing: 0, fontSize: 12, fontWeight: 600 }}>{label}</div>
       <SubNavList items={items} activeId={activeId} onPick={onPick} />
     </div>
   );
@@ -461,11 +461,11 @@ function GlobalSearch({ onClose }: { onClose: () => void }) {
         <button type="button" className="btn-icon" onClick={onClose}><XIcon size={14} /></button>
       </div>
       <div style={{ marginTop: 8, maxHeight: 400, overflow: 'auto' }}>
-        {!q && <div style={{ fontSize: 12, color: '#5F6368', padding: 12 }}>Searches documents, parties, items and menu items within {s.company?.tradeName}. Use ↑↓ and Enter.</div>}
-        {q && results.length === 0 && <div style={{ fontSize: 13, color: '#5F6368', padding: 12 }}>No results for "{q}"</div>}
+        {!q && <div style={{ fontSize: 12, color: 'var(--ink-3)', padding: 12 }}>Searches documents, parties, items and menu items within {s.company?.tradeName}. Use ↑↓ and Enter.</div>}
+        {q && results.length === 0 && <div style={{ fontSize: 13, color: 'var(--ink-3)', padding: 12 }}>No results for "{q}"</div>}
         {results.map((r, i) => (
-          <button key={i} type="button" className="menu-item" style={{ height: 'auto', padding: '8px 10px', background: hi === i ? '#F3F5F7' : undefined }} onMouseEnter={() => setHi(i)} onClick={() => { nav.go(r.path); onClose(); }}>
-            <span style={{ fontSize: 11, color: '#5F6368', width: 110, flexShrink: 0 }}>{r.label}</span>
+          <button key={i} type="button" className="menu-item" style={{ height: 'auto', padding: '8px 10px', background: hi === i ? 'var(--surface-3)' : undefined }} onMouseEnter={() => setHi(i)} onClick={() => { nav.go(r.path); onClose(); }}>
+            <span style={{ fontSize: 11, color: 'var(--ink-3)', width: 110, flexShrink: 0 }}>{r.label}</span>
             <TwoLine primary={r.primary} secondary={r.secondary} />
           </button>
         ))}

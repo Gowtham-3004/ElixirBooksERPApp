@@ -47,9 +47,9 @@ export default function Branches() {
     { key: 'code', label: 'Branch ID', render: (b) => <Identifier link>{b.code}</Identifier>, sortable: true },
     { key: 'name', label: 'Name', sortable: true, render: (b) => <TwoLine primary={<span>{b.name} {b.isDefault && <Badge status="Posted">Default</Badge>}</span>} secondary={b.type} /> },
     { key: 'city', label: 'City', value: (b) => b.address.city, render: (b) => b.address.city || '—' },
-    { key: 'state', label: 'State', value: (b) => b.address.state, render: (b) => <span style={{ color: '#5F6368' }}>{b.address.state || '—'}</span> },
-    { key: 'gstin', label: isIN ? 'GSTIN' : 'Registration', render: (b) => (b.gstin ? <Identifier style={{ fontSize: 11 }}>{b.gstin}</Identifier> : <span style={{ color: '#B0B5BF' }}>—</span>) },
-    { key: 'wh', label: 'Default warehouse', render: (b) => <span style={{ color: '#5F6368' }}>{warehouses.find((w) => w.id === b.defaultWarehouseId)?.name ?? '—'}</span> },
+    { key: 'state', label: 'State', value: (b) => b.address.state, render: (b) => <span style={{ color: 'var(--ink-3)' }}>{b.address.state || '—'}</span> },
+    { key: 'gstin', label: isIN ? 'GSTIN' : 'Registration', render: (b) => (b.gstin ? <Identifier style={{ fontSize: 11 }}>{b.gstin}</Identifier> : <span style={{ color: 'var(--ink-5)' }}>—</span>) },
+    { key: 'wh', label: 'Default warehouse', render: (b) => <span style={{ color: 'var(--ink-3)' }}>{warehouses.find((w) => w.id === b.defaultWarehouseId)?.name ?? '—'}</span> },
     { key: 'status', label: 'Status', render: (b) => <Badge status={b.status} /> },
   ];
 

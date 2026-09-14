@@ -34,7 +34,7 @@ export function PriceListRegister() {
           { key: 'type', label: 'Type' },
           { key: 'currency', label: 'Currency', render: (r) => <span className="currency-tag">{r.currency}</span> },
           { key: 'taxInclusive', label: 'Tax', render: (r) => (r.taxInclusive ? 'Inclusive' : 'Exclusive') },
-          { key: 'validity', label: 'Validity', render: (r) => { const expired = r.validTo && r.validTo < t; const future = r.validFrom && r.validFrom > t; return <span style={{ color: expired || future ? '#8A4B0F' : undefined }}>{fmtDate(r.validFrom)} → {r.validTo ? fmtDate(r.validTo) : 'open'}{expired ? ' · expired' : future ? ' · not yet valid' : ''}</span>; } },
+          { key: 'validity', label: 'Validity', render: (r) => { const expired = r.validTo && r.validTo < t; const future = r.validFrom && r.validFrom > t; return <span style={{ color: expired || future ? 'var(--warn)' : undefined }}>{fmtDate(r.validFrom)} → {r.validTo ? fmtDate(r.validTo) : 'open'}{expired ? ' · expired' : future ? ' · not yet valid' : ''}</span>; } },
           { key: 'scope', label: 'Scope' },
           { key: 'priority', label: 'Priority', align: 'right', sortable: true },
           { key: 'entries', label: 'Entries', align: 'right', render: (r) => entries.filter((e) => e.priceListId === r.id).length },
@@ -139,7 +139,7 @@ export default function PriceListDetail({ id }: { id: string }) {
     const uoms = it ? [it.baseUom, ...it.altUoms.map((u) => u.uom)] : [];
     if (d) {
       return (
-        <tr key={e.id ?? 'new'} style={{ background: '#F9FBFC' }}>
+        <tr key={e.id ?? 'new'} style={{ background: 'var(--surface-2)' }}>
           <td style={{ minWidth: 260 }}><EntityPicker value={d.itemId} onChange={(v, opt) => setDraft({ ...d, itemId: v, uom: (opt?.raw as Item | undefined)?.baseUom })} options={itemOpts} size="grid" placeholder="Item…" /></td>
           <td><select className="field-input grid" value={d.uom ?? ''} onChange={(ev) => setDraft({ ...d, uom: ev.target.value })}>{uoms.map((u) => <option key={u} value={u}>{u}</option>)}</select></td>
           <td><input className="field-input grid num" type="number" value={d.minQty ?? 1} onChange={(ev) => setDraft({ ...d, minQty: Number(ev.target.value) })} style={{ width: 90 }} /></td>
@@ -160,12 +160,12 @@ export default function PriceListDetail({ id }: { id: string }) {
         <td>{en.uom}</td>
         <td className="right">{en.minQty}</td>
         <td className="right"><Money value={en.rate} currency={pl.currency} /></td>
-        <td>{party ? <span className="pill pill-neutral">{party}</span> : <span style={{ color: '#5F6368' }}>All</span>}</td>
+        <td>{party ? <span className="pill pill-neutral">{party}</span> : <span style={{ color: 'var(--ink-3)' }}>All</span>}</td>
         <td>{fmtDate(en.effectiveFrom)}</td>
-        <td>{en.effectiveTo ? fmtDate(en.effectiveTo) : <span style={{ color: '#5F6368' }}>open</span>}</td>
+        <td>{en.effectiveTo ? fmtDate(en.effectiveTo) : <span style={{ color: 'var(--ink-3)' }}>open</span>}</td>
         <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
           <Button size="sm" variant="ghost" disabled={!canEdit} onClick={() => setDraft({ ...en })}>Edit</Button>
-          <Button size="sm" variant="ghost" disabled={!canEdit} onClick={() => remove(en)} style={{ color: '#C0393F' }}>Remove</Button>
+          <Button size="sm" variant="ghost" disabled={!canEdit} onClick={() => remove(en)} style={{ color: 'var(--danger)' }}>Remove</Button>
         </td>
       </tr>
     );
@@ -176,19 +176,19 @@ export default function PriceListDetail({ id }: { id: string }) {
         title={<span style={{ display: 'inline-flex', gap: 10, alignItems: 'center' }}>{pl.name} <Badge status={pl.status} /> <span className="currency-tag">{pl.currency}</span>{pl.taxInclusive && <span className="pill pill-neutral">Tax inclusive</span>}</span>}
         subtitle={<span style={{ display: 'inline-flex', gap: 10, alignItems: 'center' }}><span className="identifier">{pl.code}</span><span>{pl.type} · scope {pl.scope} · priority {pl.priority} · {fmtDate(pl.validFrom)} → {pl.validTo ? fmtDate(pl.validTo) : 'open'}</span><UsagePill id={id} collection={C.priceLists} /></span>}
         actions={<><Button variant="secondary" onClick={() => setImp(true)} disabled={!canEdit}>Import entries</Button><Button variant="secondary" onClick={() => setEditing(true)} disabled={!canEdit}>Edit price list</Button><Button variant="primary" disabled={!canEdit || !!draft} reason={canEdit ? undefined : 'Requires price list permission'} onClick={() => { setTab('entries'); setDraft({ _new: true, minQty: 1, effectiveFrom: today() }); }}>+ Add entry</Button></>} />
-      <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #EFEFEF' }}>
+      <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--hairline)' }}>
         {([['entries', `Entries (${entries.length})`], ['test', 'Test resolution'], ['history', 'Change history']] as const).map(([k, l]) => <button key={k} type="button" className={`doc-tab ${tab === k ? 'active' : ''}`} onClick={() => setTab(k)}>{l}</button>)}
       </div>
       {tab === 'entries' && (
         <>
-          <div className="toolbar"><div className="search-input" style={{ width: 280 }}><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter by item…" /></div><span style={{ fontSize: 12, color: '#5F6368' }}>Party-specific entries win over general ones; higher min-qty tiers win for larger quantities.</span></div>
+          <div className="toolbar"><div className="search-input" style={{ width: 280 }}><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter by item…" /></div><span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Party-specific entries win over general ones; higher min-qty tiers win for larger quantities.</span></div>
           <div className="card" style={{ overflow: 'auto' }}>
             <table className="data-table dense">
               <thead><tr><th>Item</th><th>UOM</th><th className="right">Min qty</th><th className="right">Rate ({pl.currency})</th><th>Party</th><th>Effective from</th><th>Effective to</th><th /></tr></thead>
               <tbody>
                 {draft?._new && row(draft, true)}
                 {filtered.map((e) => (cell(e) ? row(cell(e)!, true) : row(e, false)))}
-                {!filtered.length && !draft && <tr><td colSpan={8} style={{ textAlign: 'center', color: '#5F6368', padding: 32 }}>No entries{q ? ' match' : ' yet — add one or import a CSV'}</td></tr>}
+                {!filtered.length && !draft && <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ink-3)', padding: 32 }}>No entries{q ? ' match' : ' yet — add one or import a CSV'}</td></tr>}
               </tbody>
             </table>
           </div>
@@ -221,7 +221,7 @@ export function ResolutionTester({ priceList }: { priceList?: PriceList }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 16 }}>
       <div className="card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div className="section-title">Test price resolution <span style={{ fontWeight: 400, fontSize: 12, color: '#5F6368' }}>· FR-PRC-003</span></div>
+        <div className="section-title">Test price resolution <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--ink-3)' }}>· FR-PRC-003</span></div>
         <SelectField label="Direction" value={direction} onChange={(v) => { setDirection(v); setPartyId(undefined); }} options={[{ value: 'sale', label: 'Sale (customer)' }, { value: 'purchase', label: 'Purchase (supplier)' }]} />
         <EntityPicker label="Item" value={itemId} onChange={(v) => { setItemId(v); setUom(''); }} options={itemOpts} />
         <EntityPicker label={direction === 'sale' ? 'Customer' : 'Supplier'} value={partyId} onChange={setPartyId} options={direction === 'sale' ? custOpts : supOpts} placeholder="Optional…" />
@@ -235,19 +235,19 @@ export function ResolutionTester({ priceList }: { priceList?: PriceList }) {
         {!res ? <EmptyState compact title="Pick an item to resolve a price" /> : (
           <div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-              <span style={{ fontSize: 28, fontWeight: 600, fontFeatureSettings: '"tnum" 1' }}>{fmtMoney(res.rate, priceList?.currency ?? db.find<PriceList>(C.priceLists, res.priceListId)?.currency ?? s.currency)}</span>
-              <span style={{ fontSize: 13, color: '#5F6368' }}>per {uom || item?.baseUom}</span>
+              <span style={{ fontSize: 28, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(res.rate, priceList?.currency ?? db.find<PriceList>(C.priceLists, res.priceListId)?.currency ?? s.currency)}</span>
+              <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>per {uom || item?.baseUom}</span>
               <Badge status={res.source === 'Price list' ? 'Approved' : 'Draft'}>{res.source}</Badge>
             </div>
-            <div style={{ fontSize: 13, color: '#0A0A0A', marginTop: 8 }}>{res.priceListName ? <>Selected from <strong>{res.priceListName}</strong>{res.entryId ? <> · entry <span className="identifier">{res.entryId}</span></> : null}</> : 'No matching price list entry — item master price used'}</div>
+            <div style={{ fontSize: 13, color: 'var(--ink)', marginTop: 8 }}>{res.priceListName ? <>Selected from <strong>{res.priceListName}</strong>{res.entryId ? <> · entry <span className="identifier">{res.entryId}</span></> : null}</> : 'No matching price list entry — item master price used'}</div>
             <div className="section-label" style={{ marginTop: 16, marginBottom: 6 }}>Resolution hierarchy (first match wins)</div>
             <ol style={{ fontSize: 13, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {candidates.map((cid, i) => { const l = lists.find((x) => x.id === cid); const hit = res.priceListId === cid; return <li key={cid + i} style={{ color: hit ? '#12784E' : '#5F6368', fontWeight: hit ? 600 : 400 }}>{l?.name ?? cid} <span style={{ fontWeight: 400 }}>· {i === 0 && priceList ? 'this price list' : l?.id === customer?.priceListId ? 'customer default' : l?.id === s.company?.defaults.priceListId ? 'company default' : 'active purchase list'}{l?.status !== 'Active' ? ' · inactive' : ''}{l?.validTo && l.validTo < date ? ' · expired' : ''}</span>{hit ? ' ✓' : ''}</li>; })}
-              <li style={{ color: res.source === 'Item master' ? '#12784E' : '#5F6368', fontWeight: res.source === 'Item master' ? 600 : 400 }}>Item master {direction === 'sale' ? 'sales' : 'purchase'} price · {fmtMoney(direction === 'sale' ? item?.salesPrice ?? 0 : item?.purchasePrice ?? 0, s.currency)}{res.source === 'Item master' ? ' ✓' : ''}</li>
+              {candidates.map((cid, i) => { const l = lists.find((x) => x.id === cid); const hit = res.priceListId === cid; return <li key={cid + i} style={{ color: hit ? 'var(--good)' : 'var(--ink-3)', fontWeight: hit ? 600 : 400 }}>{l?.name ?? cid} <span style={{ fontWeight: 400 }}>· {i === 0 && priceList ? 'this price list' : l?.id === customer?.priceListId ? 'customer default' : l?.id === s.company?.defaults.priceListId ? 'company default' : 'active purchase list'}{l?.status !== 'Active' ? ' · inactive' : ''}{l?.validTo && l.validTo < date ? ' · expired' : ''}</span>{hit ? ' ✓' : ''}</li>; })}
+              <li style={{ color: res.source === 'Item master' ? 'var(--good)' : 'var(--ink-3)', fontWeight: res.source === 'Item master' ? 600 : 400 }}>Item master {direction === 'sale' ? 'sales' : 'purchase'} price · {fmtMoney(direction === 'sale' ? item?.salesPrice ?? 0 : item?.purchasePrice ?? 0, s.currency)}{res.source === 'Item master' ? ' ✓' : ''}</li>
             </ol>
             <div className="section-label" style={{ marginTop: 16, marginBottom: 6 }}>Explanation</div>
-            <ul style={{ fontSize: 13, paddingLeft: 18, color: '#3C4043' }}>{res.explanation.map((x, i) => <li key={i}>{x}</li>)}</ul>
-            <div style={{ fontSize: 12, color: '#6E6E71', marginTop: 12 }}>Rules: list must be active and valid on {fmtDate(date)} · entry UOM must match · min qty ≤ {qty} · party-specific entries beat general entries · highest qualifying min-qty tier wins.</div>
+            <ul style={{ fontSize: 13, paddingLeft: 18, color: 'var(--ink-2)' }}>{res.explanation.map((x, i) => <li key={i}>{x}</li>)}</ul>
+            <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 12 }}>Rules: list must be active and valid on {fmtDate(date)} · entry UOM must match · min qty ≤ {qty} · party-specific entries beat general entries · highest qualifying min-qty tier wins.</div>
           </div>
         )}
       </div>

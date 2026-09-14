@@ -90,14 +90,14 @@ export function ReportFrame({ id, title, subtitle, filters, actions, exportRows,
       <Modal open={saveOpen} onClose={() => setSaveOpen(false)} title="Save as report" description="Stores the current filters so you (or your team) can reopen this exact view." footer={<><Button variant="secondary" onClick={() => setSaveOpen(false)}>Keep unsaved</Button><Button variant="primary" onClick={save} disabled={!name.trim()}>Save report</Button></>}>
         <TextField label="Report name" required value={name} onChange={setName} placeholder={`${title} — ${rangeLabel ?? 'current filters'}`} autoFocus />
         <div style={{ marginTop: 12 }}><CheckboxField checked={shared} onChange={setShared} label="Share with everyone in this company" help="A shared report never widens data scope — viewers see only what their role permits." /></div>
-        <div style={{ marginTop: 12, fontSize: 12, color: '#5F6368' }}>Filters: <span className="identifier">{JSON.stringify(filterState ?? {})}</span></div>
+        <div style={{ marginTop: 12, fontSize: 12, color: 'var(--ink-3)' }}>Filters: <span className="identifier">{JSON.stringify(filterState ?? {})}</span></div>
       </Modal>
       <Modal open={schedOpen} onClose={() => setSchedOpen(false)} title="Schedule this report" description="Runs in the background and is delivered to your email with the current filters and scope." footer={<><Button variant="secondary" onClick={() => setSchedOpen(false)}>Cancel</Button><Button variant="primary" onClick={schedule}>Schedule report</Button></>}>
         <div className="grid-2">
           <SelectField label="Frequency" value={freq} onChange={setFreq} options={['Daily', 'Weekly', 'Monthly', 'Quarterly']} />
           <SelectField label="Format" value={format} onChange={(v) => setFormat(v as any)} options={['CSV', 'XLSX', 'PDF']} />
         </div>
-        <div style={{ marginTop: 12, fontSize: 12, color: '#5F6368' }}>Recipient: {s.user?.email} · scope {s.company?.tradeName} · {s.branch?.name ?? 'All branches'}{masked ? ' · sensitive fields masked' : ''}</div>
+        <div style={{ marginTop: 12, fontSize: 12, color: 'var(--ink-3)' }}>Recipient: {s.user?.email} · scope {s.company?.tradeName} · {s.branch?.name ?? 'All branches'}{masked ? ' · sensitive fields masked' : ''}</div>
       </Modal>
     </div>
   );
@@ -176,13 +176,13 @@ export function StatementTable({ rows, currency, compareLabel, valueLabel, onDri
             const isTotal = r.kind === 'total' || r.kind === 'net';
             const isGroup = r.kind === 'group';
             return (
-              <tr key={i} style={{ background: isTotal ? '#F9FBFC' : undefined, cursor: r.accountId && onDrill ? 'pointer' : undefined }} onClick={() => r.accountId && onDrill?.(r.accountId)}>
-                <td style={{ paddingLeft: 12 + r.level * 20, fontWeight: isTotal || isGroup ? 600 : 400, fontSize: isGroup ? 11 : 13, textTransform: isGroup ? 'uppercase' : undefined, letterSpacing: isGroup ? '0.04em' : undefined, color: isGroup ? '#5F6368' : '#0A0A0A' }}>
-                  {r.code && <span className="identifier" style={{ color: '#6E6E71', marginRight: 8, fontSize: 11 }}>{r.code}</span>}{r.label}
+              <tr key={i} style={{ background: isTotal ? 'var(--surface-2)' : undefined, cursor: r.accountId && onDrill ? 'pointer' : undefined }} onClick={() => r.accountId && onDrill?.(r.accountId)}>
+                <td style={{ paddingLeft: 12 + r.level * 20, fontWeight: isTotal || isGroup ? 600 : 400, fontSize: isGroup ? 11 : 13, textTransform: isGroup ? 'uppercase' : undefined, letterSpacing: isGroup ? '0.04em' : undefined, color: isGroup ? 'var(--ink-3)' : 'var(--ink)' }}>
+                  {r.code && <span className="identifier" style={{ color: 'var(--ink-4)', marginRight: 8, fontSize: 11 }}>{r.code}</span>}{r.label}
                 </td>
-                <td className="right money" style={{ fontWeight: isTotal ? 700 : isGroup ? 600 : 400, fontSize: r.kind === 'net' ? 14 : 13, color: r.amount < 0 ? '#C0393F' : '#0A0A0A' }}>{fmt(r.amount)}</td>
-                {compareLabel && <td className="right money" style={{ color: '#5F6368', fontWeight: isTotal ? 600 : 400 }}>{r.compare === undefined ? '—' : fmt(r.compare)}</td>}
-                {compareLabel && <td className="right money" style={{ color: (r.amount - (r.compare ?? 0)) >= 0 ? '#12784E' : '#C0393F', fontSize: 12 }}>{r.compare === undefined ? '—' : fmt(r.amount - r.compare)}</td>}
+                <td className="right money" style={{ fontWeight: isTotal ? 700 : isGroup ? 600 : 400, fontSize: r.kind === 'net' ? 14 : 13, color: r.amount < 0 ? 'var(--danger)' : 'var(--ink)' }}>{fmt(r.amount)}</td>
+                {compareLabel && <td className="right money" style={{ color: 'var(--ink-3)', fontWeight: isTotal ? 600 : 400 }}>{r.compare === undefined ? '—' : fmt(r.compare)}</td>}
+                {compareLabel && <td className="right money" style={{ color: (r.amount - (r.compare ?? 0)) >= 0 ? 'var(--good)' : 'var(--danger)', fontSize: 12 }}>{r.compare === undefined ? '—' : fmt(r.amount - r.compare)}</td>}
               </tr>
             );
           })}

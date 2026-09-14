@@ -121,7 +121,7 @@ export function CustomerField({ doc, onChange, disabled, error, allowCreate = tr
     <div>
       <EntityPicker label="Customer" required value={doc.partyId} onChange={(id) => onChange(id)} options={opts} placeholder="Search customer by name, GSTIN, code…" disabled={disabled} error={error} recentKey="customers" onCreate={allowCreate && !disabled ? (q) => setCreate(q) : undefined} createLabel="Create customer" />
       {cust && (
-        <div style={{ fontSize: 12, color: '#5F6368', marginTop: 4, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 4, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           <span className="link" onClick={() => nav.go(`masters/customers/${cust.id}`)}>{cust.code}</span>
           <span>·</span><span>{cust.taxTreatment}</span>
           {doc.partySnapshot?.state && <><span>·</span><span>{doc.partySnapshot.state}</span></>}
@@ -225,7 +225,7 @@ export function ChargesEditor({ charges, onChange, currency, disabled }: { charg
         </div>
       ))}
       {!disabled && <Button variant="link" onClick={() => onChange([...rows, { id: uid('chg'), name: 'Freight', amount: 0, taxRateId: engine.ctx().company?.defaults.taxRateId }])}>+ Add charge</Button>}
-      {disabled && rows.length === 0 && <div style={{ fontSize: 13, color: '#5F6368' }}>No charges</div>}
+      {disabled && rows.length === 0 && <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>No charges</div>}
     </div>
   );
 }
@@ -239,9 +239,9 @@ export function TdsField({ value, onChange, disabled, customerId }: { value?: st
 /** Sticky form footer with the autosave indicator and conflict banner. */
 export function FormFooter({ savedAt, dirty, conflict, onReload, children, left }: { savedAt?: string; dirty?: boolean; conflict?: boolean; onReload?: () => void; children: ReactNode; left?: ReactNode }) {
   return (
-    <div className="form-footer" style={{ position: 'sticky', bottom: 0, background: '#FFF', borderTop: '1px solid #EFEFEF', padding: '12px 0', display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, zIndex: 2 }}>
-      <div className="form-footer-status" style={{ fontSize: 12, color: '#5F6368', display: 'flex', gap: 10, alignItems: 'center' }}>
-        {conflict ? <span style={{ color: '#C0393F' }}>Someone else changed this draft — <button type="button" className="btn-link" style={{ fontSize: 12 }} onClick={onReload}>reload</button> to see their changes</span> : savedAt ? <span>Saved {fmtDateTime(savedAt).split(',')[0]}{dirty ? ' · unsaved changes' : ''}</span> : dirty ? <span>Unsaved changes</span> : null}
+    <div className="form-footer" style={{ position: 'sticky', bottom: 0, background: '#FFF', borderTop: '1px solid var(--hairline)', padding: '12px 0', display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, zIndex: 2 }}>
+      <div className="form-footer-status" style={{ fontSize: 12, color: 'var(--ink-3)', display: 'flex', gap: 10, alignItems: 'center' }}>
+        {conflict ? <span style={{ color: 'var(--danger)' }}>Someone else changed this draft — <button type="button" className="btn-link" style={{ fontSize: 12 }} onClick={onReload}>reload</button> to see their changes</span> : savedAt ? <span>Saved {fmtDateTime(savedAt).split(',')[0]}{dirty ? ' · unsaved changes' : ''}</span> : dirty ? <span>Unsaved changes</span> : null}
         {left}
       </div>
       <div style={{ flex: 1 }} />
@@ -264,7 +264,7 @@ export function DuplicateReferenceNote({ inv }: { inv: Pick<SalesInvoice, 'id' |
   const s = useSalesSettings();
   const dup = duplicateReference(inv);
   if (!dup) return null;
-  return <div className="field-error" style={{ color: s.salesDuplicateRefRule === 'block' ? '#C0393F' : '#8A4B0F' }}>{s.salesDuplicateRefRule === 'block' ? 'Blocked: ' : 'Warning: '}reference already used on <span className="link" onClick={() => nav.go(`sales/invoices/${dup.id}`)}>{dup.number}</span></div>;
+  return <div className="field-error" style={{ color: s.salesDuplicateRefRule === 'block' ? 'var(--danger)' : 'var(--warn)' }}>{s.salesDuplicateRefRule === 'block' ? 'Blocked: ' : 'Warning: '}reference already used on <span className="link" onClick={() => nav.go(`sales/invoices/${dup.id}`)}>{dup.number}</span></div>;
 }
 
 // ── Detail page pieces ─────────────────────────────────────────────────────
@@ -274,7 +274,7 @@ export function StatutoryBadges({ doc }: { doc: DocHeader }) {
   if (!st) return null;
   return (
     <>
-      {st.eInvoiceStatus && st.eInvoiceStatus !== 'Not Applicable' && <span className="badge" style={{ background: st.eInvoiceStatus === 'Accepted' ? '#EBF7FF' : st.eInvoiceStatus === 'Rejected' || st.eInvoiceStatus === 'Failed' ? '#FFE8EA' : '#F3F5F5', color: st.eInvoiceStatus === 'Accepted' ? '#3E5BA5' : st.eInvoiceStatus === 'Rejected' || st.eInvoiceStatus === 'Failed' ? '#C0393F' : '#5F6368', gap: 4 }}><ShieldCheckIcon size={10} /> e-Invoice · {st.eInvoiceStatus}</span>}
+      {st.eInvoiceStatus && st.eInvoiceStatus !== 'Not Applicable' && <span className="badge" style={{ background: st.eInvoiceStatus === 'Accepted' ? 'var(--info-bg)' : st.eInvoiceStatus === 'Rejected' || st.eInvoiceStatus === 'Failed' ? 'var(--danger-bg)' : 'var(--surface-3)', color: st.eInvoiceStatus === 'Accepted' ? 'var(--info)' : st.eInvoiceStatus === 'Rejected' || st.eInvoiceStatus === 'Failed' ? 'var(--danger)' : 'var(--ink-3)', gap: 4 }}><ShieldCheckIcon size={10} /> e-Invoice · {st.eInvoiceStatus}</span>}
       {st.ewbStatus && st.ewbStatus !== 'Not Applicable' && st.ewbStatus !== 'Pending' && <Badge status={st.ewbStatus === 'Generated' ? 'Generated' : st.ewbStatus}>e-Way bill · {st.ewbStatus}</Badge>}
     </>
   );
@@ -303,29 +303,29 @@ export function SourceChain({ doc }: { doc: DocHeader }) {
   CHAIN_COLS.forEach((c) => db.where<DocHeader>(c.col, (d) => d.sourceId === doc.id || (d as any).invoiceId === doc.id || d.reversalOfId === doc.id || ((d as any).deliveryIds ?? []).includes(doc.id)).forEach((d) => down.push({ number: `${d.reversalOfId === doc.id ? 'Reversal ' : ''}${d.number}${d.status && d.status !== 'Posted' ? ` (${d.status})` : ''}`, path: `${c.path}/${d.id}`, label: c.label })));
   const rcpts = db.where<any>(C.receipts, (r) => r.status === 'Posted' && (r.allocations ?? []).some((a: any) => a.docId === doc.id));
   rcpts.forEach((r) => down.push({ number: `${r.number} · ${fmtMoney((r.allocations as any[]).filter((a) => a.docId === doc.id).reduce((s, a) => s + a.amount, 0), r.currency)}`, path: `sales/receipts/${r.id}`, label: 'Receipt' }));
-  if (!up.length && !down.length) return <div style={{ fontSize: 12, color: '#6E6E71' }}>Created directly</div>;
+  if (!up.length && !down.length) return <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>Created directly</div>;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
       {up.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          {up.map((u, i) => <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span className="link identifier" title={u.label} onClick={() => nav.go(u.path)}>{u.number}</span><ArrowsSwapIcon size={12} color="#B0B5BF" /></span>)}
-          <span className="identifier" style={{ color: '#0A0A0A', fontWeight: 500 }}>this</span>
+          {up.map((u, i) => <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span className="link identifier" title={u.label} onClick={() => nav.go(u.path)}>{u.number}</span><ArrowsSwapIcon size={12} color="var(--ink-5)" /></span>)}
+          <span className="identifier" style={{ color: 'var(--ink)', fontWeight: 500 }}>this</span>
         </div>
       )}
-      {down.map((d, i) => <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center' }}><span style={{ color: '#6E6E71', minWidth: 80 }}>{d.label}</span><span className="link identifier" onClick={() => nav.go(d.path)}>{d.number}</span></div>)}
+      {down.map((d, i) => <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center' }}><span style={{ color: 'var(--ink-4)', minWidth: 80 }}>{d.label}</span><span className="link identifier" onClick={() => nav.go(d.path)}>{d.number}</span></div>)}
     </div>
   );
 }
 
 export function StatutoryRail({ doc }: { doc: DocHeader }) {
   const st = doc.statutory;
-  if (!st || (!st.irn && !st.ewbNo && (st.eInvoiceStatus === 'Not Applicable' || !st.eInvoiceStatus))) return <div style={{ fontSize: 12, color: '#6E6E71' }}>{st?.eInvoiceStatus === 'Not Applicable' ? 'e-Invoice not applicable (B2C / unregistered)' : 'Nothing generated yet'}</div>;
+  if (!st || (!st.irn && !st.ewbNo && (st.eInvoiceStatus === 'Not Applicable' || !st.eInvoiceStatus))) return <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>{st?.eInvoiceStatus === 'Not Applicable' ? 'e-Invoice not applicable (B2C / unregistered)' : 'Nothing generated yet'}</div>;
   return (
     <div style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
-      {st.irn ? <div><span style={{ color: '#5F6368' }}>IRN </span><span className="identifier" style={{ fontSize: 11 }} title={st.irn}>{st.irn.slice(0, 16)}…{st.irn.slice(-2)}</span></div> : <div style={{ color: '#5F6368' }}>e-Invoice {st.eInvoiceStatus}</div>}
-      {st.ackNo && <div style={{ color: '#6E6E71' }}>Ack {st.ackNo} · {fmtDate(st.ackDate)} · IRP {st.eInvoiceStatus}</div>}
-      {st.eInvoiceError && <div style={{ color: '#C0393F' }}>{st.eInvoiceError}</div>}
-      {st.ewbNo && <div style={{ color: '#6E6E71' }}>e-Way bill <span className="identifier">{st.ewbNo}</span> · {st.ewbStatus} · valid till {fmtDate(st.ewbValidUpto)}</div>}
+      {st.irn ? <div><span style={{ color: 'var(--ink-3)' }}>IRN </span><span className="identifier" style={{ fontSize: 11 }} title={st.irn}>{st.irn.slice(0, 16)}…{st.irn.slice(-2)}</span></div> : <div style={{ color: 'var(--ink-3)' }}>e-Invoice {st.eInvoiceStatus}</div>}
+      {st.ackNo && <div style={{ color: 'var(--ink-4)' }}>Ack {st.ackNo} · {fmtDate(st.ackDate)} · IRP {st.eInvoiceStatus}</div>}
+      {st.eInvoiceError && <div style={{ color: 'var(--danger)' }}>{st.eInvoiceError}</div>}
+      {st.ewbNo && <div style={{ color: 'var(--ink-4)' }}>e-Way bill <span className="identifier">{st.ewbNo}</span> · {st.ewbStatus} · valid till {fmtDate(st.ewbValidUpto)}</div>}
     </div>
   );
 }
@@ -340,7 +340,7 @@ export function StockMovesPanel({ sourceId, title = 'Stock movements' }: { sourc
       <div className="card" style={{ overflow: 'hidden' }}>
         <table className="data-table dense">
           <thead><tr><th>Item</th><th>Warehouse</th><th>Batch / serials</th><th className="right">Qty</th><th className="right">Rate</th><th className="right">Value</th><th>Type</th></tr></thead>
-          <tbody>{moves.map((m) => <tr key={m.id}><td>{m.itemName}</td><td>{m.warehouseName}</td><td>{m.batch ?? (m.serials?.length ? `${m.serials.length} serials` : '—')}</td><td className="right money" style={{ color: m.baseQty < 0 ? '#C0393F' : '#12784E' }}>{m.baseQty > 0 ? '+' : ''}{fmtQty(m.baseQty, m.uom)}</td><td className="right money">{fmtMoney(m.rate)}</td><td className="right money">{fmtMoney(m.value)}</td><td><Badge status={m.reversalOfId ? 'Reversed' : 'Posted'}>{m.type}{m.reversalOfId ? ' (reversal)' : ''}</Badge></td></tr>)}</tbody>
+          <tbody>{moves.map((m) => <tr key={m.id}><td>{m.itemName}</td><td>{m.warehouseName}</td><td>{m.batch ?? (m.serials?.length ? `${m.serials.length} serials` : '—')}</td><td className="right money" style={{ color: m.baseQty < 0 ? 'var(--danger)' : 'var(--good)' }}>{m.baseQty > 0 ? '+' : ''}{fmtQty(m.baseQty, m.uom)}</td><td className="right money">{fmtMoney(m.rate)}</td><td className="right money">{fmtMoney(m.value)}</td><td><Badge status={m.reversalOfId ? 'Reversed' : 'Posted'}>{m.type}{m.reversalOfId ? ' (reversal)' : ''}</Badge></td></tr>)}</tbody>
         </table>
       </div>
     </section>
@@ -386,7 +386,7 @@ export function DocDetailsTab({ doc, header, extra, showCharges = true, showTax 
       )}
       {showLadder && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, alignItems: 'start' }}>
-          <section><div className="section-title">Tax breakup</div>{showTax ? <TaxBreakup totals={doc.totals} currency={doc.currency} /> : <div style={{ fontSize: 13, color: '#5F6368' }}>Not applicable</div>}</section>
+          <section><div className="section-title">Tax breakup</div>{showTax ? <TaxBreakup totals={doc.totals} currency={doc.currency} /> : <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>Not applicable</div>}</section>
           <section><div className="section-title">Totals</div><TotalsLadder totals={doc.totals} currency={doc.currency} baseCurrency={s.currency} rate={doc.rate} /></section>
         </div>
       )}
@@ -439,8 +439,8 @@ export function SalesRail({ doc, children, showStatutory }: { doc: DocHeader; ch
       <RailSection label="Source & related"><SourceChain doc={doc} /></RailSection>
       {showStatutory && <RailSection label="Statutory"><StatutoryRail doc={doc} /></RailSection>}
       {children}
-      <RailSection label="Attachments"><div style={{ fontSize: 12, color: '#5F6368' }}>{atts.length ? `${atts.length} file${atts.length === 1 ? '' : 's'}${atts.some((a) => a.statutory) ? ' · includes statutory' : ''}` : 'None'}</div></RailSection>
-      {doc.postedAt && <RailSection label="Posted"><div style={{ fontSize: 12, color: '#5F6368' }}>{fmtDateTime(doc.postedAt)} · {doc.postedBy}{doc.journalNumber ? <> · <span className="link identifier" onClick={() => nav.go(`accounting/journals/${doc.journalId}`)}>{doc.journalNumber}</span></> : null}</div></RailSection>}
+      <RailSection label="Attachments"><div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{atts.length ? `${atts.length} file${atts.length === 1 ? '' : 's'}${atts.some((a) => a.statutory) ? ' · includes statutory' : ''}` : 'None'}</div></RailSection>
+      {doc.postedAt && <RailSection label="Posted"><div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{fmtDateTime(doc.postedAt)} · {doc.postedBy}{doc.journalNumber ? <> · <span className="link identifier" onClick={() => nav.go(`accounting/journals/${doc.journalId}`)}>{doc.journalNumber}</span></> : null}</div></RailSection>}
     </>
   );
 }
@@ -468,10 +468,10 @@ export function PdfPreviewModal({ open, onClose, doc, title, partyLabel }: { ope
       {opts.length >= 2 && (
         <div className="no-print" style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
           <SelectField size="sm" label={undefined} value={tplId ?? ''} onChange={(v) => setTplId(v || undefined)} options={opts} placeholder={doc.templateId ? "As stamped on the document" : "Company default template"} style={{ width: 360 }} />
-          <span style={{ fontSize: 12, color: '#5F6368' }}>{overridden ? `Preview only — the document keeps its stamped template v${doc.templateVersion ?? 1}.` : 'Switch the layout for this print without changing the document.'}</span>
+          <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{overridden ? `Preview only — the document keeps its stamped template v${doc.templateVersion ?? 1}.` : 'Switch the layout for this print without changing the document.'}</span>
         </div>
       )}
-      <div style={{ background: '#F3F5F5', padding: 16, maxHeight: '65vh', overflow: 'auto' }}><PrintSheet doc={doc} title={title} partyLabel={partyLabel} template={tpl} /></div>
+      <div style={{ background: 'var(--surface-3)', padding: 16, maxHeight: '65vh', overflow: 'auto' }}><PrintSheet doc={doc} title={title} partyLabel={partyLabel} template={tpl} /></div>
     </Modal>
   );
 }
@@ -503,7 +503,7 @@ export function EmailDialog({ open, onClose, doc, collection, onSent }: { open: 
         <TextField label="To" required value={to} onChange={setTo} placeholder="name@company.com" />
         <TextField label="Subject" value={subject} onChange={setSubject} />
         <TextArea label="Message" value={message} onChange={setMessage} rows={6} />
-        <div style={{ fontSize: 12, color: '#5F6368' }}>Attachment: {doc.number.replace(/\//g, '-')}.pdf · template v{doc.templateVersion ?? 1}</div>
+        <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Attachment: {doc.number.replace(/\//g, '-')}.pdf · template v{doc.templateVersion ?? 1}</div>
       </div>
     </Modal>
   );
@@ -526,7 +526,7 @@ export function SettlementsPanel({ openItem, currency }: { openItem?: OpenItem; 
           <thead><tr><th>Date</th><th>Document</th><th>Type</th><th className="right">Amount</th><th className="right">FX gain / loss</th></tr></thead>
           <tbody>
             {openItem.settlements.map((s) => <tr key={s.id}><td>{fmtDate(s.date)}</td><td><span className="link identifier" onClick={() => nav.go(s.docType === 'Receipt' || s.docType === 'Advance' ? `sales/receipts/${s.docId}` : s.docType === 'Credit Note' ? `sales/credit-notes/${s.docId}` : `accounting/journals/${s.docId}`)}>{s.docNumber}</span></td><td>{s.docType}</td><td className="right money">{fmtMoney(s.amount, currency)}</td><td className="right money">{s.fxGainLoss ? <Money value={s.fxGainLoss} tone="auto" /> : '—'}</td></tr>)}
-            {openItem.settlements.length === 0 && <tr><td colSpan={5} style={{ color: '#5F6368', textAlign: 'center' }}>No settlements yet</td></tr>}
+            {openItem.settlements.length === 0 && <tr><td colSpan={5} style={{ color: 'var(--ink-3)', textAlign: 'center' }}>No settlements yet</td></tr>}
           </tbody>
           <tfoot><tr><td colSpan={3}>Outstanding</td><td className="right money" style={{ fontWeight: 600 }}>{fmtMoney(openItem.outstanding, currency)}</td><td /></tr></tfoot>
         </table>

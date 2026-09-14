@@ -32,13 +32,13 @@ function Usage() {
       <div className="grid-2">
         <Card title="Tenants by state">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {byState.map((b) => <div key={b.st} style={{ display: 'grid', gridTemplateColumns: '100px 1fr 30px', gap: 10, alignItems: 'center', fontSize: 13 }}><Badge status={b.st} /><div style={{ height: 8, background: '#F3F5F5', borderRadius: 9999 }}><div style={{ height: '100%', width: `${(b.n / max) * 100}%`, background: '#325CFF', borderRadius: 9999 }} /></div><span style={{ textAlign: 'right', fontFeatureSettings: '"tnum" 1' }}>{b.n}</span></div>)}
+            {byState.map((b) => <div key={b.st} style={{ display: 'grid', gridTemplateColumns: '100px 1fr 30px', gap: 10, alignItems: 'center', fontSize: 13 }}><Badge status={b.st} /><div style={{ height: 8, background: 'var(--surface-3)', borderRadius: 9999 }}><div style={{ height: '100%', width: `${(b.n / max) * 100}%`, background: 'var(--accent)', borderRadius: 9999 }} /></div><span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{b.n}</span></div>)}
           </div>
-          <div style={{ fontSize: 11, color: '#6E6E71', marginTop: 10 }}>{meta}</div>
+          <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 10 }}>{meta}</div>
         </Card>
         <Card title="MRR by plan">
-          <table className="data-table dense"><thead><tr><th>Plan</th><th className="right">Tenants</th><th className="right">MRR</th></tr></thead><tbody>{byPlan.map((b) => <tr key={b.p.id}><td>{b.p.name} <span style={{ fontSize: 11, color: '#6E6E71' }}>v{b.p.planVersion}</span></td><td className="right">{b.n}</td><td className="right money">{fmtMoney(b.mrr, b.p.currency)}</td></tr>)}</tbody></table>
-          <div style={{ fontSize: 11, color: '#6E6E71', marginTop: 10 }}>{meta}</div>
+          <table className="data-table dense"><thead><tr><th>Plan</th><th className="right">Tenants</th><th className="right">MRR</th></tr></thead><tbody>{byPlan.map((b) => <tr key={b.p.id}><td>{b.p.name} <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>v{b.p.planVersion}</span></td><td className="right">{b.n}</td><td className="right money">{fmtMoney(b.mrr, b.p.currency)}</td></tr>)}</tbody></table>
+          <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 10 }}>{meta}</div>
         </Card>
       </div>
     </div>

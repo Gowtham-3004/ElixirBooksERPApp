@@ -107,7 +107,7 @@ export default function TimesheetPage({ id, employeeId, week }: { id?: string; e
                 <tr>
                   <th style={{ width: 240 }}>Project</th>
                   <th style={{ width: 200 }}>Task</th>
-                  {days.map((d, i) => <th key={d} className="right" style={{ width: 72 }}><div>{labels[i]}</div><div style={{ fontWeight: 400, fontSize: 11, color: d === today() ? '#325CFF' : '#6E6E71' }}>{d.slice(8)}/{d.slice(5, 7)}</div></th>)}
+                  {days.map((d, i) => <th key={d} className="right" style={{ width: 72 }}><div>{labels[i]}</div><div style={{ fontWeight: 400, fontSize: 11, color: d === today() ? 'var(--accent)' : 'var(--ink-4)' }}>{d.slice(8)}/{d.slice(5, 7)}</div></th>)}
                   <th className="right" style={{ width: 80 }}>Total</th>
                   <th style={{ width: 90 }}>Billable</th>
                   <th style={{ width: 120 }}>Rate</th>
@@ -121,10 +121,10 @@ export default function TimesheetPage({ id, employeeId, week }: { id?: string; e
                   const rate = t.employeeId && r.projectId ? billRateFor(c, t.employeeId, r.serviceId) : undefined;
                   const invoiced = !!r.invoiceId;
                   return (
-                    <tr key={r.id} style={invoiced ? { background: '#F9FBFC' } : undefined}>
+                    <tr key={r.id} style={invoiced ? { background: 'var(--surface-2)' } : undefined}>
                       <td>{locked ? <div><ProjectLink id={r.projectId} /> <span style={{ fontSize: 12 }}>{p?.name}</span></div> : <EntityPicker value={r.projectId || undefined} onChange={(pid) => setRow(r.id, { projectId: pid ?? '' })} options={projectOpts} size="grid" placeholder="Project" />}</td>
                       <td>{locked ? r.task || <Muted>—</Muted> : <input className="field-input grid" value={r.task} onChange={(e) => setRow(r.id, { task: e.target.value })} placeholder="Task / deliverable" />}</td>
-                      {r.hours.map((h, i) => <td key={i} className="right">{locked ? <span className="money">{h ? h : <span style={{ color: '#DADCE0' }}>·</span>}</span> : <input className="field-input grid num" value={h || ''} placeholder="0" onChange={(e) => setHour(r.id, i, e.target.value)} onFocus={(e) => e.target.select()} style={{ width: 60, textAlign: 'right' }} />}</td>)}
+                      {r.hours.map((h, i) => <td key={i} className="right">{locked ? <span className="money">{h ? h : <span style={{ color: 'var(--line-strong)' }}>·</span>}</span> : <input className="field-input grid num" value={h || ''} placeholder="0" onChange={(e) => setHour(r.id, i, e.target.value)} onFocus={(e) => e.target.select()} style={{ width: 60, textAlign: 'right' }} />}</td>)}
                       <td className="right money" style={{ fontWeight: 600 }}>{rowHours(r)}</td>
                       <td>{locked ? (r.billable ? <Pill tone="good">Billable</Pill> : <Pill tone="neutral">Internal</Pill>) : <button type="button" className={`toggle ${r.billable ? 'on' : ''}`} onClick={() => setRow(r.id, { billable: !r.billable })} aria-pressed={r.billable} title={r.billable ? 'Billable' : 'Non-billable'} />}</td>
                       <td>{invoiced ? <InvoiceLink id={r.invoiceId} number={r.invoiceNumber} /> : r.billable && rate ? <span className="money" style={{ fontSize: 12 }} title={rate.source}>{fmtMoney(rate.rate, c?.currency ?? s.currency)}/h</span> : <Muted>—</Muted>}</td>
@@ -132,12 +132,12 @@ export default function TimesheetPage({ id, employeeId, week }: { id?: string; e
                     </tr>
                   );
                 })}
-                {!t.rows.length && <tr><td colSpan={13} style={{ textAlign: 'center', color: '#5F6368', padding: 16 }}>No rows — add a project row below.</td></tr>}
+                {!t.rows.length && <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ink-3)', padding: 16 }}>No rows — add a project row below.</td></tr>}
               </tbody>
               <tfoot>
                 <tr>
                   <td colSpan={2} style={{ fontWeight: 600 }}>{!locked && <Button size="sm" variant="secondary" onClick={() => setT({ ...t, rows: [...t.rows, newTimesheetRow()] })}>+ Add row</Button>} <span style={{ marginLeft: 8 }}>Day totals</span></td>
-                  {dayTotals.map((d, i) => <td key={i} className="right money" style={{ color: d > 12 ? '#C0393F' : undefined }}>{d || ''}</td>)}
+                  {dayTotals.map((d, i) => <td key={i} className="right money" style={{ color: d > 12 ? 'var(--danger)' : undefined }}>{d || ''}</td>)}
                   <td className="right money" style={{ fontWeight: 700 }}>{totals.total} h</td>
                   <td className="money">{totals.billable} h</td>
                   <td className="money" style={{ fontSize: 12 }}>{fmtMoney(value, s.currency)}</td>

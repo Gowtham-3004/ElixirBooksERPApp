@@ -19,17 +19,17 @@ export function EliminationsRegister() {
   );
 
   const cols: Column<Row>[] = [
-    { key: 'run', label: 'Run', render: (r) => (<div><span className="identifier link">{r.runNumber}</span><div style={{ fontSize: 12, color: '#5F6368' }}>{fmtPeriod(r.period)} · {r.runStatus}</div></div>), value: (r) => r.runNumber },
+    { key: 'run', label: 'Run', render: (r) => (<div><span className="identifier link">{r.runNumber}</span><div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{fmtPeriod(r.period)} · {r.runStatus}</div></div>), value: (r) => r.runNumber },
     { key: 'pairRef', label: 'Pair', render: (r) => <span className="identifier">{r.pairRef}</span> },
     { key: 'kind', label: 'Kind', render: (r) => <Pill tone="neutral">{r.kind}</Pill> },
-    { key: 'description', label: 'Description', render: (r) => (<div><div>{r.description}</div>{r.warning && <div style={{ fontSize: 11, color: '#8A4B0F' }}>{r.warning}</div>}</div>), value: (r) => r.description },
-    { key: 'dr', label: 'Debit', render: (r) => (<div><span className="identifier">{r.drAccountCode}</span> {r.drAccountName}{r.drCompanyId && <div style={{ fontSize: 11, color: '#6E6E71' }}>{companyName(r.drCompanyId)}</div>}</div>), value: (r) => r.drAccountCode },
-    { key: 'cr', label: 'Credit', render: (r) => (<div><span className="identifier">{r.crAccountCode}</span> {r.crAccountName}{r.crCompanyId && <div style={{ fontSize: 11, color: '#6E6E71' }}>{companyName(r.crCompanyId)}</div>}</div>), value: (r) => r.crAccountCode },
+    { key: 'description', label: 'Description', render: (r) => (<div><div>{r.description}</div>{r.warning && <div style={{ fontSize: 11, color: 'var(--warn)' }}>{r.warning}</div>}</div>), value: (r) => r.description },
+    { key: 'dr', label: 'Debit', render: (r) => (<div><span className="identifier">{r.drAccountCode}</span> {r.drAccountName}{r.drCompanyId && <div style={{ fontSize: 11, color: 'var(--ink-4)' }}>{companyName(r.drCompanyId)}</div>}</div>), value: (r) => r.drAccountCode },
+    { key: 'cr', label: 'Credit', render: (r) => (<div><span className="identifier">{r.crAccountCode}</span> {r.crAccountName}{r.crCompanyId && <div style={{ fontSize: 11, color: 'var(--ink-4)' }}>{companyName(r.crCompanyId)}</div>}</div>), value: (r) => r.crAccountCode },
     { key: 'amount', label: 'Amount', align: 'right', render: (r) => <Money value={r.amount} currency={r.currency} />, value: (r) => r.amount, total: (rs) => fmtMoney(rs.filter((x) => x.status === 'Accepted').reduce((a, b) => a + b.amount, 0), rs[0]?.currency ?? 'INR') },
     { key: 'fx', label: 'Difference', align: 'right', render: (r) => (Math.abs(r.fxDifference) < 0.005 ? '—' : <span title={`Booked to ${r.differenceAccountCode}`}><Money value={r.fxDifference} currency={r.currency} tone="auto" /></span>), value: (r) => r.fxDifference },
     { key: 'docs', label: 'Source docs', align: 'right', render: (r) => (r.sourceDocs.length ? String(r.sourceDocs.length) : '—'), value: (r) => r.sourceDocs.length },
     { key: 'status', label: 'Status', render: (r) => <Badge status={r.status === 'Accepted' ? 'Approved' : r.status === 'Rejected' ? 'Rejected' : r.status === 'Reversed' ? 'Reversed' : 'Pending'}>{r.status}</Badge> },
-    { key: 'actedBy', label: 'Decided by', render: (r) => (r.actedBy ? <div style={{ fontSize: 12 }}>{r.actedBy}<div style={{ color: '#5F6368' }}>{r.actedAt ? fmtDate(r.actedAt.slice(0, 10)) : ''}</div></div> : '—'), value: (r) => r.actedBy ?? '' },
+    { key: 'actedBy', label: 'Decided by', render: (r) => (r.actedBy ? <div style={{ fontSize: 12 }}>{r.actedBy}<div style={{ color: 'var(--ink-3)' }}>{r.actedAt ? fmtDate(r.actedAt.slice(0, 10)) : ''}</div></div> : '—'), value: (r) => r.actedBy ?? '' },
   ];
 
   if (!rows.length) {

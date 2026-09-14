@@ -60,7 +60,7 @@ export function RecurringRegister() {
         columns={[
           { key: 'name', label: 'Definition', sortable: true, render: (r) => <TwoLine primary={r.name} secondary={r.code} mono /> },
           { key: 'frequency', label: 'Frequency' },
-          { key: 'nextRun', label: 'Next run', sortable: true, render: (r) => <span style={{ color: due(r) ? '#8A4B0F' : undefined }}>{fmtDate(r.nextRun)}{due(r) ? ' · due' : ''}</span> },
+          { key: 'nextRun', label: 'Next run', sortable: true, render: (r) => <span style={{ color: due(r) ? 'var(--warn)' : undefined }}>{fmtDate(r.nextRun)}{due(r) ? ' · due' : ''}</span> },
           { key: 'mode', label: 'On run', render: (r) => (r.mode === 'Post' ? <Badge status="Posted">Auto-post</Badge> : <Badge status="Draft">Create draft</Badge>) },
           { key: 'amount', label: 'Amount', align: 'right', render: (r) => <Money value={amount(r)} currency={s.currency} /> },
           { key: 'runCount', label: 'Runs', align: 'right', render: (r) => <span className="link" onClick={(e) => { e.stopPropagation(); setHistory(r); }}>{r.runCount}</span> },
@@ -76,10 +76,10 @@ export function RecurringRegister() {
         {history && (
           <table className="data-table dense">
             <thead><tr><th>Journal</th><th>Date</th><th>Status</th><th className="right">Amount</th></tr></thead>
-            <tbody>{history.generatedIds.map((id) => journals.find((j) => j.id === id)).filter(Boolean).map((j) => <tr key={j!.id} className="clickable" onClick={() => nav.go(journalLink(j!.id))}><td className="identifier link">{j!.number}</td><td>{fmtDate(j!.date)}</td><td><Badge status={j!.status} /></td><td className="right money">{fmtMoney(j!.totalDr, s.currency)}</td></tr>)}{!history.generatedIds.length && <tr><td colSpan={4} style={{ color: '#5F6368' }}>Nothing generated yet</td></tr>}</tbody>
+            <tbody>{history.generatedIds.map((id) => journals.find((j) => j.id === id)).filter(Boolean).map((j) => <tr key={j!.id} className="clickable" onClick={() => nav.go(journalLink(j!.id))}><td className="identifier link">{j!.number}</td><td>{fmtDate(j!.date)}</td><td><Badge status={j!.status} /></td><td className="right money">{fmtMoney(j!.totalDr, s.currency)}</td></tr>)}{!history.generatedIds.length && <tr><td colSpan={4} style={{ color: 'var(--ink-3)' }}>Nothing generated yet</td></tr>}</tbody>
           </table>
         )}
-        {history?.lastRunAt && <div style={{ fontSize: 12, color: '#5F6368', marginTop: 10 }}>Last run {fmtDateTime(history.lastRunAt)}</div>}
+        {history?.lastRunAt && <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 10 }}>Last run {fmtDateTime(history.lastRunAt)}</div>}
       </Drawer>
     </>
   );
@@ -144,7 +144,7 @@ function RecurringForm({ def, onClose }: { def?: RecurringJournal; onClose: () =
             <tfoot><tr><td><Button size="sm" variant="secondary" onClick={() => set({ lines: [...v.lines, { id: uid('rjl'), accountId: '', dr: 0, cr: 0 }] })}>+ Add line</Button></td><td className="right money">{fmtMoney(dr, s.currency)}</td><td className="right money">{fmtMoney(cr, s.currency)}</td><td colSpan={2}>{Math.abs(dr - cr) < 0.005 && dr > 0 ? <Badge status="Approved">Balanced</Badge> : <Badge status="Returned">Difference {fmtMoney(dr - cr, s.currency)}</Badge>}</td></tr></tfoot>
           </table>
         </div>
-        {def && def.generatedIds.length > 0 && <div style={{ fontSize: 12, color: '#5F6368' }}>{def.generatedIds.length} journal(s) generated so far · last {def.lastRunAt ? fmtDateTime(def.lastRunAt) : '—'} · next {fmtDate(v.nextRun)} ({addDays(v.nextRun, 0) <= today() ? 'due' : 'scheduled'})</div>}
+        {def && def.generatedIds.length > 0 && <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{def.generatedIds.length} journal(s) generated so far · last {def.lastRunAt ? fmtDateTime(def.lastRunAt) : '—'} · next {fmtDate(v.nextRun)} ({addDays(v.nextRun, 0) <= today() ? 'due' : 'scheduled'})</div>}
       </div>
     </Drawer>
   );

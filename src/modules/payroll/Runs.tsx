@@ -58,16 +58,16 @@ export function RunsPage({ id }: { id?: string }) {
   const m = (n: number) => (mask ? '••••••' : fmtMoney(n, s.currency));
   return (
     <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
-      <div style={{ width: 290, flexShrink: 0, borderRight: '1px solid #EAEAEA', display: 'flex', flexDirection: 'column', background: '#FFF' }}>
-        <div style={{ padding: '12px 16px', borderBottom: '1px solid #EAEAEA', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ width: 290, flexShrink: 0, borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', background: '#FFF' }}>
+        <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: 13, fontWeight: 600 }}>Payroll runs</span>
           <div style={{ display: 'flex', gap: 4 }}><Button size="sm" variant="secondary" onClick={() => setOffOpen(true)} disabled={!canRun}>Off-cycle</Button><Button size="sm" variant="primary" icon={<PlusIcon size={12} />} onClick={() => setCreateOpen(true)} disabled={!canRun} reason={!canRun ? 'Requires payroll permission' : undefined}>Run</Button></div>
         </div>
         <div style={{ flex: 1, overflow: 'auto' }}>
           {runs.map((r) => (
-            <div key={r.id} onClick={() => select(r)} style={{ padding: '12px 16px', borderBottom: '1px solid #F5F5F5', cursor: 'pointer', background: selected?.id === r.id ? '#F2F7FF' : '#FFF', borderLeft: selected?.id === r.id ? '3px solid #325CFF' : '3px solid transparent' }}>
+            <div key={r.id} onClick={() => select(r)} style={{ padding: '12px 16px', borderBottom: '1px solid var(--hairline)', cursor: 'pointer', background: selected?.id === r.id ? 'var(--accent-tint)' : '#FFF', borderLeft: selected?.id === r.id ? '3px solid var(--accent)' : '3px solid transparent' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}><span style={{ fontSize: 13, fontWeight: 600 }}>{periodLabel(r.period)}{r.type === 'Off-cycle' ? ' · off-cycle' : ''}</span><Badge status={r.status === 'Calculated' ? 'Ready' : r.status === 'Finalized' ? 'Approved' : r.status} /></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#5F6368' }}><span className="identifier">{r.number} · {r.employeeCount} emp</span><span className="money">{m(r.totals.net)}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--ink-3)' }}><span className="identifier">{r.number} · {r.employeeCount} emp</span><span className="money">{m(r.totals.net)}</span></div>
             </div>
           ))}
           {runs.length === 0 && <div style={{ padding: 24 }}><EmptyState compact title="No payroll runs" description="Create the first run for the open period." action={<Button variant="primary" onClick={() => setCreateOpen(true)}>Run payroll</Button>} /></div>}
@@ -78,8 +78,8 @@ export function RunsPage({ id }: { id?: string }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
             <div>
               <h2 style={{ fontSize: 18, fontWeight: 600 }}>{periodLabel(selected.period)} payroll{selected.type === 'Off-cycle' ? ` · off-cycle${selected.label ? ' (' + selected.label + ')' : ''}` : ''}</h2>
-              <p style={{ fontSize: 12, color: '#5F6368' }}>{selected.number} · {selected.employeeCount} employees · <Badge status={selected.status === 'Calculated' ? 'Ready' : selected.status === 'Finalized' ? 'Approved' : selected.status} />{selected.journalNumber && <> · journal <span className="identifier link" onClick={() => nav.go(`accounting/journals/${selected.journalId}`)}>{selected.journalNumber}</span></>}{selected.reversalOfId && <> · reversal of {runs.find((r) => r.id === selected.reversalOfId)?.number}</>}{selected.reversedById && <> · reversed by {runs.find((r) => r.id === selected.reversedById)?.number}</>}</p>
-              {selected.notes && <div style={{ fontSize: 12, color: '#8A4B0F', marginTop: 4 }}>{selected.notes}</div>}
+              <p style={{ fontSize: 12, color: 'var(--ink-3)' }}>{selected.number} · {selected.employeeCount} employees · <Badge status={selected.status === 'Calculated' ? 'Ready' : selected.status === 'Finalized' ? 'Approved' : selected.status} />{selected.journalNumber && <> · journal <span className="identifier link" onClick={() => nav.go(`accounting/journals/${selected.journalId}`)}>{selected.journalNumber}</span></>}{selected.reversalOfId && <> · reversal of {runs.find((r) => r.id === selected.reversalOfId)?.number}</>}{selected.reversedById && <> · reversed by {runs.find((r) => r.id === selected.reversedById)?.number}</>}</p>
+              {selected.notes && <div style={{ fontSize: 12, color: 'var(--warn)', marginTop: 4 }}>{selected.notes}</div>}
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               {!canView && <Button variant="secondary" size="sm" onClick={() => { setRevealed(!revealed); if (!revealed) revealAudit('payroll run amounts', selected.id); }}>{revealed ? 'Hide amounts' : 'Reveal amounts (audited)'}</Button>}
@@ -96,15 +96,15 @@ export function RunsPage({ id }: { id?: string }) {
               <div className="card" style={{ padding: '16px 20px' }}>
                 <div className="section-label" style={{ marginBottom: 8 }}>Summary</div>
                 {summaryRows.map((c) => { const total = c.type.startsWith('total') || c.type === 'net' || c.type === 'employer'; return (
-                  <div key={c.label} className="ladder-row" style={{ borderTop: total ? '1px solid #EAEAEA' : 'none', paddingTop: total ? 8 : 4, marginTop: total ? 4 : 0 }}>
-                    <span className="ladder-label" style={{ fontSize: c.type === 'net' ? 14 : 11, color: c.type === 'net' ? '#0A0A0A' : '#5F6368', fontWeight: c.type === 'net' ? 600 : 500 }}>{c.label}</span>
-                    <span className="ladder-value" style={{ fontSize: c.type === 'net' ? 18 : 13, fontWeight: c.type === 'net' ? 700 : 500, color: c.type === 'deduction' || c.type === 'total-deduction' ? '#C0393F' : '#0A0A0A' }}>{c.type === 'deduction' ? `(${m(c.amount)})` : m(c.amount)}</span>
+                  <div key={c.label} className="ladder-row" style={{ borderTop: total ? '1px solid var(--line)' : 'none', paddingTop: total ? 8 : 4, marginTop: total ? 4 : 0 }}>
+                    <span className="ladder-label" style={{ fontSize: c.type === 'net' ? 14 : 11, color: c.type === 'net' ? 'var(--ink)' : 'var(--ink-3)', fontWeight: c.type === 'net' ? 600 : 500 }}>{c.label}</span>
+                    <span className="ladder-value" style={{ fontSize: c.type === 'net' ? 18 : 13, fontWeight: c.type === 'net' ? 700 : 500, color: c.type === 'deduction' || c.type === 'total-deduction' ? 'var(--danger)' : 'var(--ink)' }}>{c.type === 'deduction' ? `(${m(c.amount)})` : m(c.amount)}</span>
                   </div>); })}
               </div>
               <div className="card" style={{ padding: '16px 20px' }}>
                 <div className="section-label" style={{ marginBottom: 12 }}>Statutory contributions · ledger mapping</div>
-                {statutory.map((x) => <div key={x.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #F5F5F5', fontSize: 13 }}><div><div style={{ fontWeight: 500 }}>{x.label}</div><div style={{ fontSize: 11, color: '#6E6E71' }}>{x.ledger}</div></div><span className="money" style={{ fontWeight: 600, color: '#C0393F' }}>{m(x.amount)}</span></div>)}
-                <div style={{ marginTop: 12 }}><div className="section-label" style={{ marginBottom: 6 }}>Posting map</div>{LEDGER_MAP.map((l) => <div key={l.key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#5F6368', padding: '3px 0' }}><span>{l.side} · {l.label}</span><span className="identifier">{accountName(l.accountId)}{l.dims ? ` · ${l.dims}` : ''}</span></div>)}</div>
+                {statutory.map((x) => <div key={x.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--hairline)', fontSize: 13 }}><div><div style={{ fontWeight: 500 }}>{x.label}</div><div style={{ fontSize: 11, color: 'var(--ink-4)' }}>{x.ledger}</div></div><span className="money" style={{ fontWeight: 600, color: 'var(--danger)' }}>{m(x.amount)}</span></div>)}
+                <div style={{ marginTop: 12 }}><div className="section-label" style={{ marginBottom: 6 }}>Posting map</div>{LEDGER_MAP.map((l) => <div key={l.key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--ink-3)', padding: '3px 0' }}><span>{l.side} · {l.label}</span><span className="identifier">{accountName(l.accountId)}{l.dims ? ` · ${l.dims}` : ''}</span></div>)}</div>
                 <KV items={[{ k: 'Payment date', v: selected.paymentDate ? fmtDate(selected.paymentDate) : '—' }, { k: 'Finalized', v: selected.finalizedAt ? `${fmtDateTime(selected.finalizedAt)} · ${selected.finalizedBy}` : '—' }, { k: 'Posted', v: selected.postedAt ? `${fmtDateTime(selected.postedAt)} · ${selected.postedBy}` : '—' }, { k: 'Bank file', v: selected.bankFileGeneratedAt ? fmtDateTime(selected.bankFileGeneratedAt) : 'Not generated' }]} />
               </div>
             </div>
@@ -119,11 +119,11 @@ export function RunsPage({ id }: { id?: string }) {
                     <td className="right">{l.paidDays}/{l.workingDays}{l.lopDays ? <Pill tone="warning">LOP {l.lopDays}</Pill> : null}</td>
                     <td className="right money">{m(l.basic)}</td><td className="right money">{m(l.hra)}</td><td className="right money">{m(l.special)}</td><td className="right money">{m(l.otherEarnings + l.overtime + l.bonus + l.arrears + l.reimbursements)}</td>
                     <td className="right money" style={{ fontWeight: 600 }}>{m(l.gross)}</td>
-                    <td className="right money" style={{ color: '#C0393F' }}>{m(l.pf)}</td><td className="right money" style={{ color: '#C0393F' }}>{m(l.esi)}</td><td className="right money" style={{ color: '#C0393F' }}>{m(l.pt)}</td><td className="right money" style={{ color: '#C0393F' }}>{m(l.tds)}</td><td className="right money" style={{ color: '#C0393F' }}>{l.loan ? m(l.loan) : '—'}</td>
+                    <td className="right money" style={{ color: 'var(--danger)' }}>{m(l.pf)}</td><td className="right money" style={{ color: 'var(--danger)' }}>{m(l.esi)}</td><td className="right money" style={{ color: 'var(--danger)' }}>{m(l.pt)}</td><td className="right money" style={{ color: 'var(--danger)' }}>{m(l.tds)}</td><td className="right money" style={{ color: 'var(--danger)' }}>{l.loan ? m(l.loan) : '—'}</td>
                     <td className="right money" style={{ fontWeight: 700 }}>{m(l.net)}</td>
-                    <td>{l.payslipId ? <Badge status={db.find<any>(C.payslips, l.payslipId)?.status === 'Void' ? 'Cancelled' : 'Generated'} /> : <span style={{ color: '#B0B5BF', fontSize: 12 }}>on finalize</span>}</td>
+                    <td>{l.payslipId ? <Badge status={db.find<any>(C.payslips, l.payslipId)?.status === 'Void' ? 'Cancelled' : 'Generated'} /> : <span style={{ color: 'var(--ink-5)', fontSize: 12 }}>on finalize</span>}</td>
                   </tr>))}</tbody>
-                <tfoot><tr style={{ background: '#F9FBFC', fontWeight: 700 }}><td colSpan={2}>Totals for {selected.lines.length} employees</td><td className="right money">{m(totals!.basic)}</td><td className="right money">{m(totals!.hra)}</td><td className="right money">{m(totals!.special)}</td><td className="right money">{m(totals!.otherEarnings + totals!.overtime + totals!.bonus + totals!.arrears + totals!.reimbursements)}</td><td className="right money">{m(totals!.gross)}</td><td className="right money">{m(totals!.pf)}</td><td className="right money">{m(totals!.esi)}</td><td className="right money">{m(totals!.pt)}</td><td className="right money">{m(totals!.tds)}</td><td className="right money">{m(totals!.loan)}</td><td className="right money">{m(totals!.net)}</td><td /></tr></tfoot>
+                <tfoot><tr style={{ background: 'var(--surface-2)', fontWeight: 700 }}><td colSpan={2}>Totals for {selected.lines.length} employees</td><td className="right money">{m(totals!.basic)}</td><td className="right money">{m(totals!.hra)}</td><td className="right money">{m(totals!.special)}</td><td className="right money">{m(totals!.otherEarnings + totals!.overtime + totals!.bonus + totals!.arrears + totals!.reimbursements)}</td><td className="right money">{m(totals!.gross)}</td><td className="right money">{m(totals!.pf)}</td><td className="right money">{m(totals!.esi)}</td><td className="right money">{m(totals!.pt)}</td><td className="right money">{m(totals!.tds)}</td><td className="right money">{m(totals!.loan)}</td><td className="right money">{m(totals!.net)}</td><td /></tr></tfoot>
               </table>
             </div>
           )}
@@ -134,7 +134,7 @@ export function RunsPage({ id }: { id?: string }) {
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Create payroll run" description="Calculates every payroll employee from their effective salary structure and the approved inputs for the period." footer={<><Button variant="secondary" onClick={() => setCreateOpen(false)}>Cancel</Button><Button variant="primary" onClick={create}>Create & calculate</Button></>}>
         <PeriodPicker value={newPeriod} onChange={setNewPeriod} size="md" />
         {runs.some((r) => r.period === newPeriod && r.type === 'Regular' && r.status !== 'Reversed') && <Banner tone="danger">A regular run already exists for {periodLabel(newPeriod)} — duplicate runs are blocked.</Banner>}
-        <div style={{ fontSize: 12, color: '#6E6E71', marginTop: 10 }}>{payrollEmployees(newPeriod).length} employees in scope · inputs {db.count(C.payrollInputs, (i) => i.period === newPeriod && i.status !== 'Draft')}/{db.count(C.payrollInputs, (i) => i.period === newPeriod)} approved</div>
+        <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 10 }}>{payrollEmployees(newPeriod).length} employees in scope · inputs {db.count(C.payrollInputs, (i) => i.period === newPeriod && i.status !== 'Draft')}/{db.count(C.payrollInputs, (i) => i.period === newPeriod)} approved</div>
       </Modal>
       <Modal open={offOpen} onClose={() => setOffOpen(false)} title="Off-cycle run (bonus / arrears / F&F)" description="Pays one-off amounts outside the regular cycle; the original regular run is untouched (FR-PAY-005)." width={680} footer={<><Button variant="secondary" onClick={() => setOffOpen(false)}>Cancel</Button><Button variant="primary" onClick={createOff}>Create off-cycle run</Button></>}>
         <div className="grid-2"><PeriodPicker value={off.period} onChange={(v) => setOff({ ...off, period: v })} size="md" /><TextField label="Label" value={off.label} onChange={(v) => setOff({ ...off, label: v })} placeholder="Diwali bonus · Full & final — Sunita More" /></div>

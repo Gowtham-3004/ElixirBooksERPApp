@@ -47,7 +47,7 @@ export function MrpPage({ id }: { id?: string }) {
             <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center' }}>
               <Button variant="primary" onClick={run}>Run MRP</Button>
               {preview && <Button onClick={save}>Save run & review suggestions</Button>}
-              <span style={{ fontSize: 12, color: '#5F6368' }}>Net requirement = sales demand + dependent demand (open orders + suggested production exploded through the BOM) + safety stock − (on hand − reserved + open POs + planned receipts).</span>
+              <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Net requirement = sales demand + dependent demand (open orders + suggested production exploded through the BOM) + safety stock − (on hand − reserved + open POs + planned receipts).</span>
             </div>
           </SectionCard>
           {preview ? <ResultTables details={preview.details} suggestions={preview.suggestions} currency={s.currency} /> : <EmptyState title="Run MRP to compute net requirements" description="Suggestions are never converted automatically — you accept, reject and convert them after reviewing." icon="📐" />}
@@ -86,7 +86,7 @@ function RunDetail({ run }: { run: MrpRun }) {
     <div className="page">
       <div className="page-header">
         <div>
-          <button type="button" className="btn-link" style={{ color: '#5F6368', marginBottom: 6 }} onClick={() => nav.go('production/mrp')}>← MRP runs</button>
+          <button type="button" className="btn-link" style={{ color: 'var(--ink-3)', marginBottom: 6 }} onClick={() => nav.go('production/mrp')}>← MRP runs</button>
           <h1 className="page-title">{run.number} <Badge status={run.status === 'Completed' ? 'Ready' : run.status === 'Converted' ? 'Converted' : 'Partial'}>{run.status}</Badge></h1>
           <div className="page-subtitle">Run {fmtDateTime(run.createdAt)} by {run.runBy} · horizon {run.params.horizonDays} d · {run.params.lotSizing} · {run.params.includeSafetyStock ? 'safety stock included' : 'no safety stock'}</div>
         </div>

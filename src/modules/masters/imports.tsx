@@ -37,11 +37,11 @@ export function ImportsPage() {
         {CARDS.map((c) => (
           <div key={c.kind} className="card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><span style={{ fontSize: 22 }}>{c.icon}</span><div style={{ fontSize: 14, fontWeight: 600 }}>{c.title}</div></div>
-            <div style={{ fontSize: 12, color: '#5F6368', flex: 1 }}>{c.desc}</div>
-            <div style={{ fontSize: 11, color: '#6E6E71' }}>Validators: {c.validators}</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-3)', flex: 1 }}>{c.desc}</div>
+            <div style={{ fontSize: 11, color: 'var(--ink-4)' }}>Validators: {c.validators}</div>
             <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
               <Button variant="primary" size="sm" disabled={!canImport} reason={canImport ? undefined : 'Requires import permission'} onClick={() => (c.kind === 'opening' ? nav.go('accounting/opening-balances?import=1') : setOpen(c.kind))}>{c.kind === 'opening' ? 'Open page' : 'Import'}</Button>
-              <span style={{ fontSize: 11, color: '#6E6E71', alignSelf: 'center' }}>{jobs.filter((j) => j.entity.toLowerCase().startsWith(c.title.toLowerCase().slice(0, 6))).length} run{jobs.filter((j) => j.entity.toLowerCase().startsWith(c.title.toLowerCase().slice(0, 6))).length === 1 ? '' : 's'}</span>
+              <span style={{ fontSize: 11, color: 'var(--ink-4)', alignSelf: 'center' }}>{jobs.filter((j) => j.entity.toLowerCase().startsWith(c.title.toLowerCase().slice(0, 6))).length} run{jobs.filter((j) => j.entity.toLowerCase().startsWith(c.title.toLowerCase().slice(0, 6))).length === 1 ? '' : 's'}</span>
             </div>
           </div>
         ))}
@@ -53,9 +53,9 @@ export function ImportsPage() {
           { key: 'entity', label: 'Entity' },
           { key: 'fileName', label: 'File', render: (j) => <span className="identifier">{j.fileName}</span> },
           { key: 'rows', label: 'Rows', align: 'right' },
-          { key: 'valid', label: 'Imported', align: 'right', render: (j) => <span style={{ color: '#12784E' }}>{j.valid}</span> },
-          { key: 'errors', label: 'Errors', align: 'right', render: (j) => (j.errors ? <span style={{ color: '#C0393F' }}>{j.errors}</span> : '—') },
-          { key: 'duplicates', label: 'Duplicates', align: 'right', render: (j) => (j.duplicates ? <span style={{ color: '#8A4B0F' }}>{j.duplicates}</span> : '—') },
+          { key: 'valid', label: 'Imported', align: 'right', render: (j) => <span style={{ color: 'var(--good)' }}>{j.valid}</span> },
+          { key: 'errors', label: 'Errors', align: 'right', render: (j) => (j.errors ? <span style={{ color: 'var(--danger)' }}>{j.errors}</span> : '—') },
+          { key: 'duplicates', label: 'Duplicates', align: 'right', render: (j) => (j.duplicates ? <span style={{ color: 'var(--warn)' }}>{j.duplicates}</span> : '—') },
           { key: 'by', label: 'By' },
           { key: 'status', label: 'Status', render: (j) => <Badge status={j.status} /> },
           { key: 'fingerprint', label: 'Fingerprint', render: (j) => <span className="identifier" style={{ fontSize: 11 }}>{j.fingerprint}</span> },

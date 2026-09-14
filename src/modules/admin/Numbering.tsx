@@ -43,11 +43,11 @@ export default function Numbering() {
     { key: 'docType', label: 'Document type', sortable: true, render: (r) => <TwoLine primary={r.docType} secondary={r.branchId ? branches.find((b) => b.id === r.branchId)?.name ?? r.branchId : 'All branches'} /> },
     { key: 'prefix', label: 'Prefix · suffix', render: (r) => <span className="identifier" style={{ fontSize: 12 }}>{r.prefix || '—'}{r.suffix ? ` · ${r.suffix}` : ''}</span> },
     { key: 'fy', label: 'FY', render: (r) => <span className="identifier" style={{ fontSize: 12 }}>{r.fy}</span> },
-    { key: 'next', label: 'Next number', sortable: true, value: (r) => r.next, render: (r) => <Identifier style={{ color: '#325CFF', fontWeight: 600 }}>{fmt(r, r.next)}</Identifier> },
-    { key: 'padding', label: 'Padding', render: (r) => <span style={{ color: '#5F6368' }}>{r.padding} digits</span> },
-    { key: 'resetRule', label: 'Reset', render: (r) => <span style={{ color: '#5F6368' }}>{r.resetRule}</span> },
+    { key: 'next', label: 'Next number', sortable: true, value: (r) => r.next, render: (r) => <Identifier style={{ color: 'var(--accent)', fontWeight: 600 }}>{fmt(r, r.next)}</Identifier> },
+    { key: 'padding', label: 'Padding', render: (r) => <span style={{ color: 'var(--ink-3)' }}>{r.padding} digits</span> },
+    { key: 'resetRule', label: 'Reset', render: (r) => <span style={{ color: 'var(--ink-3)' }}>{r.resetRule}</span> },
     { key: 'allocation', label: 'Allocation', render: (r) => <Badge status="Draft">{r.allocation}</Badge> },
-    { key: 'voids', label: 'Voids', render: (r) => (r.voids.length ? <Button size="sm" variant="link" onClick={(e) => { e.stopPropagation(); setLog(r); }}>{r.voids.length} gap{r.voids.length === 1 ? '' : 's'}</Button> : <span style={{ color: '#B0B5BF' }}>—</span>) },
+    { key: 'voids', label: 'Voids', render: (r) => (r.voids.length ? <Button size="sm" variant="link" onClick={(e) => { e.stopPropagation(); setLog(r); }}>{r.voids.length} gap{r.voids.length === 1 ? '' : 's'}</Button> : <span style={{ color: 'var(--ink-5)' }}>—</span>) },
     { key: 'status', label: 'Status', render: (r) => <Badge status={r.status} /> },
   ];
 
@@ -77,9 +77,9 @@ export default function Numbering() {
       <Drawer open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? `Edit ${edit.docType} series` : 'New number series'} width={600} footer={<><Button variant="secondary" onClick={() => setEdit(null)}>Discard</Button><Button variant="primary" onClick={save} disabled={!canEdit}>Save series</Button></>}>
         {edit && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div className="card" style={{ padding: 14, background: '#F9FBFC', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div><div className="section-label">Live preview</div><div className="identifier" style={{ fontSize: 20, fontWeight: 600, color: '#325CFF' }}>{preview}</div></div>
-              <div style={{ fontSize: 12, color: '#5F6368', textAlign: 'right' }}>then {fmt({ prefix: edit.prefix ?? '', suffix: edit.suffix ?? '', padding: edit.padding ?? 4 }, (edit.next ?? 1) + 1)}<br />allocated {edit.allocation === 'On save' ? 'when the draft is saved' : 'only at posting'}</div>
+            <div className="card" style={{ padding: 14, background: 'var(--surface-2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div><div className="section-label">Live preview</div><div className="identifier" style={{ fontSize: 20, fontWeight: 600, color: 'var(--accent)' }}>{preview}</div></div>
+              <div style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'right' }}>then {fmt({ prefix: edit.prefix ?? '', suffix: edit.suffix ?? '', padding: edit.padding ?? 4 }, (edit.next ?? 1) + 1)}<br />allocated {edit.allocation === 'On save' ? 'when the draft is saved' : 'only at posting'}</div>
             </div>
             <div className="grid-2">
               <SelectField label="Document type" required value={edit.docType ?? ''} onChange={(v) => setEdit({ ...edit, docType: v, prefix: edit.prefix || `${v.split(' ').map((w) => w[0]).join('').toUpperCase()}/${fy.includes('-') ? fy.slice(2) : fy}/` })} options={DOC_TYPES} placeholder="— Select —" disabled={!!edit.id} />
@@ -115,10 +115,10 @@ export default function Numbering() {
         {log && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <KV items={[{ k: 'Issued so far', v: log.next - 1 }, { k: 'Voided', v: log.voids.length }, { k: 'Allocation', v: log.allocation }]} />
-            {log.voids.length === 0 ? <div style={{ fontSize: 13, color: '#5F6368' }}>No gaps — the sequence is contiguous.</div> : (
+            {log.voids.length === 0 ? <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>No gaps — the sequence is contiguous.</div> : (
               <table className="data-table dense">
                 <thead><tr><th>Number</th><th>Reason</th><th>By</th><th>When</th></tr></thead>
-                <tbody>{log.voids.map((v, i) => <tr key={i}><td><Identifier>{v.number}</Identifier></td><td>{v.reason}</td><td>{v.by}</td><td style={{ fontSize: 12, color: '#5F6368' }}>{fmtDateTime(v.at)}</td></tr>)}</tbody>
+                <tbody>{log.voids.map((v, i) => <tr key={i}><td><Identifier>{v.number}</Identifier></td><td>{v.reason}</td><td>{v.by}</td><td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{fmtDateTime(v.at)}</td></tr>)}</tbody>
               </table>
             )}
           </div>

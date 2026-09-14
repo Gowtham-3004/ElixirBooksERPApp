@@ -65,7 +65,7 @@ export function DayBook() {
               const firstOfDay = i === 0 || withRun[i - 1].j.date !== j.date;
               const src = sourceLink(j);
               return (
-                <tr key={j.id} className="clickable" onClick={() => nav.go(journalLink(j.id))} style={firstOfDay ? { boxShadow: 'inset 0 1px 0 #DADCE0' } : undefined}>
+                <tr key={j.id} className="clickable" onClick={() => nav.go(journalLink(j.id))} style={firstOfDay ? { boxShadow: 'inset 0 1px 0 var(--line-strong)' } : undefined}>
                   <td style={{ whiteSpace: 'nowrap', fontWeight: firstOfDay ? 600 : 400 }}>{firstOfDay ? fmtDate(j.date) : ''}</td>
                   <td><span className="identifier link">{j.number}</span>{j.status === 'Reversed' && <Badge status="Reversed" style={{ marginLeft: 6 }} />}</td>
                   <td><span className="pill pill-neutral">{j.type}</span></td>
@@ -74,12 +74,12 @@ export function DayBook() {
                   <td>{branches.find((b) => b.id === j.branchId)?.name ?? '—'}</td>
                   <td className="right money">{fmtMoney(j.totalDr, s.currency)}</td>
                   <td className="right money">{fmtMoney(j.totalCr, s.currency)}</td>
-                  <td className="right money" style={{ color: '#5F6368' }}>{fmtMoney(rd, s.currency)}</td>
-                  <td className="right money" style={{ color: '#5F6368' }}>{fmtMoney(rc, s.currency)}</td>
+                  <td className="right money" style={{ color: 'var(--ink-3)' }}>{fmtMoney(rd, s.currency)}</td>
+                  <td className="right money" style={{ color: 'var(--ink-3)' }}>{fmtMoney(rc, s.currency)}</td>
                 </tr>
               );
             })}
-            {!rows.length && <tr><td colSpan={10} style={{ textAlign: 'center', color: '#5F6368', padding: 32 }}>No posted journals in {pr.label}</td></tr>}
+            {!rows.length && <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ink-3)', padding: 32 }}>No posted journals in {pr.label}</td></tr>}
           </tbody>
           {rows.length > 0 && <tfoot><tr><td colSpan={6}>Totals for {rows.length} journals · {pr.label}</td><td className="right money">{fmtMoney(runDr, s.currency)}</td><td className="right money">{fmtMoney(runCr, s.currency)}</td><td colSpan={2} /></tr></tfoot>}
         </table>
@@ -125,7 +125,7 @@ export function LedgerPage() {
             <table className="data-table dense">
               <thead><tr><th>Date</th><th>Journal</th><th>Description</th><th>Party</th><th>Source</th><th className="right">Dr</th><th className="right">Cr</th><th className="right">Balance</th></tr></thead>
               <tbody>
-                <tr style={{ background: '#F9FBFC', fontWeight: 600 }}><td>{fmtDate(pr.range.from)}</td><td colSpan={4}>Opening balance</td><td className="right">—</td><td className="right">—</td><td className="right money">{balLabel(ledger.opening)}</td></tr>
+                <tr style={{ background: 'var(--surface-2)', fontWeight: 600 }}><td>{fmtDate(pr.range.from)}</td><td colSpan={4}>Opening balance</td><td className="right">—</td><td className="right">—</td><td className="right money">{balLabel(ledger.opening)}</td></tr>
                 {ledger.entries.map((e) => {
                   const src = sourceLink(e.journal);
                   return (
@@ -134,14 +134,14 @@ export function LedgerPage() {
                       <td><span className="identifier link">{e.journal.number}</span></td>
                       <td style={{ maxWidth: 340, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={e.line.narration ?? e.journal.narration}>{e.line.narration ?? e.journal.narration}</td>
                       <td>{e.line.partyName ?? '—'}</td>
-                      <td>{src ? <span className="link identifier" onClick={(ev) => { ev.stopPropagation(); nav.go(src); }}>{e.journal.sourceNumber ?? e.journal.sourceType}</span> : <span style={{ color: '#5F6368' }}>{e.journal.sourceNumber ?? e.journal.sourceType}</span>}</td>
+                      <td>{src ? <span className="link identifier" onClick={(ev) => { ev.stopPropagation(); nav.go(src); }}>{e.journal.sourceNumber ?? e.journal.sourceType}</span> : <span style={{ color: 'var(--ink-3)' }}>{e.journal.sourceNumber ?? e.journal.sourceType}</span>}</td>
                       <td className="right money">{e.dr ? fmtMoney(e.dr, s.currency) : '—'}</td>
-                      <td className="right money" style={{ color: e.cr ? '#C0393F' : undefined }}>{e.cr ? fmtMoney(e.cr, s.currency) : '—'}</td>
+                      <td className="right money" style={{ color: e.cr ? 'var(--danger)' : undefined }}>{e.cr ? fmtMoney(e.cr, s.currency) : '—'}</td>
                       <td className="right money" style={{ fontWeight: 600 }}>{balLabel(e.balance)}</td>
                     </tr>
                   );
                 })}
-                {!ledger.entries.length && <tr><td colSpan={8} style={{ textAlign: 'center', color: '#5F6368', padding: 24 }}>No entries in {pr.label}</td></tr>}
+                {!ledger.entries.length && <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ink-3)', padding: 24 }}>No entries in {pr.label}</td></tr>}
               </tbody>
               <tfoot><tr><td colSpan={5}>Closing balance · {pr.label}</td><td className="right money">{fmtMoney(ledger.dr, s.currency)}</td><td className="right money">{fmtMoney(ledger.cr, s.currency)}</td><td className="right money">{balLabel(ledger.closing)}</td></tr></tfoot>
             </table>
@@ -186,23 +186,23 @@ export function TrialBalancePage() {
             {groups.map((g) => {
               const gd = g.rows.reduce((x, r) => x + r.drCol, 0), gc = g.rows.reduce((x, r) => x + r.crCol, 0);
               return [
-                <tr key={g.key} style={{ background: '#F9FBFC' }}><td colSpan={7} style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#5F6368' }}>{g.label}</td></tr>,
+                <tr key={g.key} style={{ background: 'var(--surface-2)' }}><td colSpan={7} style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-3)' }}>{g.label}</td></tr>,
                 ...g.rows.map((r) => (
                   <tr key={r.account.id} className="clickable" onClick={() => nav.go(`accounting/ledger?account=${r.account.id}`)}>
-                    <td className="identifier" style={{ color: '#5F6368' }}>{r.account.code}</td>
+                    <td className="identifier" style={{ color: 'var(--ink-3)' }}>{r.account.code}</td>
                     <td><span className="link">{r.account.name}</span>{r.account.isControl && <span className="pill pill-neutral" style={{ marginLeft: 6 }}>{r.account.controlType}</span>}</td>
-                    <td className="right money" style={{ color: '#5F6368' }}>{r.opening ? `${fmtMoney(Math.abs(r.opening), s.currency)} ${r.opening > 0 ? r.account.normalBalance : r.account.normalBalance === 'Dr' ? 'Cr' : 'Dr'}` : '—'}</td>
-                    <td className="right money" style={{ color: '#5F6368' }}>{r.dr ? fmtMoney(r.dr, s.currency) : '—'}</td>
-                    <td className="right money" style={{ color: '#5F6368' }}>{r.cr ? fmtMoney(r.cr, s.currency) : '—'}</td>
-                    <td className="right money">{r.drCol ? fmtMoney(r.drCol, s.currency) : <span style={{ color: '#B0B5BF' }}>—</span>}</td>
-                    <td className="right money">{r.crCol ? fmtMoney(r.crCol, s.currency) : <span style={{ color: '#B0B5BF' }}>—</span>}</td>
+                    <td className="right money" style={{ color: 'var(--ink-3)' }}>{r.opening ? `${fmtMoney(Math.abs(r.opening), s.currency)} ${r.opening > 0 ? r.account.normalBalance : r.account.normalBalance === 'Dr' ? 'Cr' : 'Dr'}` : '—'}</td>
+                    <td className="right money" style={{ color: 'var(--ink-3)' }}>{r.dr ? fmtMoney(r.dr, s.currency) : '—'}</td>
+                    <td className="right money" style={{ color: 'var(--ink-3)' }}>{r.cr ? fmtMoney(r.cr, s.currency) : '—'}</td>
+                    <td className="right money">{r.drCol ? fmtMoney(r.drCol, s.currency) : <span style={{ color: 'var(--ink-5)' }}>—</span>}</td>
+                    <td className="right money">{r.crCol ? fmtMoney(r.crCol, s.currency) : <span style={{ color: 'var(--ink-5)' }}>—</span>}</td>
                   </tr>
                 )),
-                <tr key={g.key + '_sub'} style={{ fontWeight: 600 }}><td /><td style={{ fontSize: 12, color: '#5F6368' }}>Subtotal · {g.label}</td><td colSpan={3} /><td className="right money">{fmtMoney(gd, s.currency)}</td><td className="right money">{fmtMoney(gc, s.currency)}</td></tr>,
+                <tr key={g.key + '_sub'} style={{ fontWeight: 600 }}><td /><td style={{ fontSize: 12, color: 'var(--ink-3)' }}>Subtotal · {g.label}</td><td colSpan={3} /><td className="right money">{fmtMoney(gd, s.currency)}</td><td className="right money">{fmtMoney(gc, s.currency)}</td></tr>,
               ];
             })}
           </tbody>
-          <tfoot><tr><td colSpan={5}><span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#5F6368' }}>Total · {pr.label}</span></td><td className="right money" style={{ fontSize: 14 }}>{fmtMoney(tb.totalDr, s.currency)}</td><td className="right money" style={{ fontSize: 14 }}>{fmtMoney(tb.totalCr, s.currency)}</td></tr></tfoot>
+          <tfoot><tr><td colSpan={5}><span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-3)' }}>Total · {pr.label}</span></td><td className="right money" style={{ fontSize: 14 }}>{fmtMoney(tb.totalDr, s.currency)}</td><td className="right money" style={{ fontSize: 14 }}>{fmtMoney(tb.totalCr, s.currency)}</td></tr></tfoot>
         </table>
       </div>
     </div>

@@ -138,11 +138,11 @@ export default function Dashboard() {
         <div className="card" style={{ padding: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap', gap: 8 }}>
             <div style={{ minWidth: 0 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 600, color: '#0A0A0A', marginBottom: 2 }}>Revenue vs Expenses</h3>
-              <p style={{ fontSize: 12, color: '#6E6E71' }}>{meta('last 7 months · posted journals')}</p>
+              <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', marginBottom: 2 }}>Revenue vs Expenses</h3>
+              <p style={{ fontSize: 12, color: 'var(--ink-4)' }}>{meta('last 7 months · posted journals')}</p>
             </div>
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center', fontSize: 12, color: '#5F6368' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: '#325CFF' }} /> Revenue</span>
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center', fontSize: 12, color: 'var(--ink-3)' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--accent)' }} /> Revenue</span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: '#F97316' }} /> Expenses</span>
             </div>
           </div>
@@ -154,31 +154,31 @@ export default function Dashboard() {
                 {chart.rows.map((r, i) => (
                   <div key={r.code} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer' }} onClick={() => nav.go('reports/profit-loss', { period: r.code })} title={`${monthLabel(r.code)}: revenue ${fmtMoney(r.revenue, cur)} · expenses ${fmtMoney(r.expenses, cur)}`}>
                     <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 120, width: '100%', justifyContent: 'center' }}>
-                      <div style={{ width: '40%', minWidth: 10, background: i === chart.rows.length - 1 ? '#325CFF' : '#ECF1FD', borderRadius: '3px 3px 0 0', height: `${(r.revenue / chart.max) * 120}px`, transition: 'height 0.3s' }} />
-                      <div style={{ width: '40%', minWidth: 10, background: i === chart.rows.length - 1 ? '#F97316' : '#FEF4EC', borderRadius: '3px 3px 0 0', height: `${(r.expenses / chart.max) * 120}px`, transition: 'height 0.3s' }} />
+                      <div style={{ width: '40%', minWidth: 10, background: i === chart.rows.length - 1 ? 'var(--accent)' : 'var(--accent-soft)', borderRadius: '3px 3px 0 0', height: `${(r.revenue / chart.max) * 120}px`, transition: 'height 0.3s' }} />
+                      <div style={{ width: '40%', minWidth: 10, background: i === chart.rows.length - 1 ? '#F97316' : 'var(--warn-bg)', borderRadius: '3px 3px 0 0', height: `${(r.expenses / chart.max) * 120}px`, transition: 'height 0.3s' }} />
                     </div>
-                    <span style={{ fontSize: 11, color: '#5F6368', fontFeatureSettings: 'normal' }}>{monthLabel(r.code)}</span>
+                    <span style={{ fontSize: 11, color: 'var(--ink-3)', fontVariantNumeric: 'normal' }}>{monthLabel(r.code)}</span>
                   </div>
                 ))}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, color: '#5F6368' }}><span>{fmtMoney(0, cur)}</span><span>{fmtMoneyCompact(chart.max, cur)}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, color: 'var(--ink-3)' }}><span>{fmtMoney(0, cur)}</span><span>{fmtMoneyCompact(chart.max, cur)}</span></div>
             </>
           )}
         </div>
 
         <div className="card" style={{ padding: 24 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, color: '#0A0A0A', marginBottom: 4 }}>Top customers</h3>
-          <p style={{ fontSize: 12, color: '#6E6E71', marginBottom: 16 }}>By posted revenue · FY {s.state.fy} · {cur} · Updated {updated}</p>
+          <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>Top customers</h3>
+          <p style={{ fontSize: 12, color: 'var(--ink-4)', marginBottom: 16 }}>By posted revenue · FY {s.state.fy} · {cur} · Updated {updated}</p>
           {topCustomers.list.length === 0 && <EmptyState compact icon="👥" title="No posted invoices yet" />}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {topCustomers.list.map((c, i) => (
               <div key={c.id ?? c.name} style={{ cursor: c.id ? 'pointer' : undefined }} onClick={() => c.id && nav.go(`masters/customers/${c.id}`)}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: '#0A0A0A' }}>{c.name}</div>
-                    {c.gstin && <div className="identifier" style={{ fontSize: 11, color: '#6E6E71' }}>{c.gstin}</div>}
+                    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>{c.name}</div>
+                    {c.gstin && <div className="identifier" style={{ fontSize: 11, color: 'var(--ink-4)' }}>{c.gstin}</div>}
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: 500, fontFeatureSettings: '"tnum" 1' }}>{fmtMoney(c.amt, cur)}</span>
+                  <span style={{ fontSize: 13, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(c.amt, cur)}</span>
                 </div>
                 <div style={{ height: 4, background: '#F3F5F5', borderRadius: 9999 }}><div style={{ height: '100%', width: `${(c.amt / topCustomers.max) * 100}%`, background: ['#325CFF', '#22C55E', '#F97316', '#38BDF8', '#A855F7'][i], borderRadius: 9999 }} /></div>
               </div>
@@ -189,10 +189,10 @@ export default function Dashboard() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
         <div className="card" style={{ overflow: 'hidden' }}>
-          <div style={{ padding: '14px 20px', borderBottom: '1px solid #EAEAEA', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <h3 style={{ fontSize: 15, fontWeight: 600, color: '#0A0A0A' }}>Recent documents</h3>
-              <div style={{ fontSize: 11, color: '#6E6E71' }}>{meta('invoices · receipts · POs · GRNs')}</div>
+              <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>Recent documents</h3>
+              <div style={{ fontSize: 11, color: 'var(--ink-4)' }}>{meta('invoices · receipts · POs · GRNs')}</div>
             </div>
             <Button variant="link" onClick={() => nav.go('sales/invoices')}>View all →</Button>
           </div>
@@ -203,11 +203,11 @@ export default function Dashboard() {
                 {recent.map((r) => (
                   <tr key={`${r.type}-${r.id}`} className="clickable" onClick={() => nav.go(r.path)}>
                     <td><Identifier link>{r.number}</Identifier></td>
-                    <td style={{ color: '#5F6368' }}>{r.type}</td>
+                    <td style={{ color: 'var(--ink-3)' }}>{r.type}</td>
                     <td style={{ fontWeight: 500 }}>{r.party}</td>
                     <td className="right"><Money value={r.amount} currency={r.currency} code={r.currency !== cur} /></td>
                     <td><Badge status={r.status} /></td>
-                    <td style={{ color: '#5F6368' }}>{fmtDate(r.date)}</td>
+                    <td style={{ color: 'var(--ink-3)' }}>{fmtDate(r.date)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -218,20 +218,20 @@ export default function Dashboard() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="card" style={{ padding: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 600, color: '#0A0A0A' }}>Pending approvals</h3>
+              <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>Pending approvals</h3>
               <span className="badge badge-submitted">{pending.length}</span>
             </div>
-            {pending.length === 0 && <div style={{ fontSize: 13, color: '#5F6368' }}>Nothing waiting for you.</div>}
+            {pending.length === 0 && <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>Nothing waiting for you.</div>}
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {pending.slice(0, 4).map((a) => {
                 const step = a.steps.find((x) => x.order === a.currentStep);
                 const tone = ageTone(a.submittedAt, step?.dueAt);
                 const days = daysBetween(a.submittedAt, today());
                 return (
-                  <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #F5F5F5', cursor: 'pointer' }} onClick={() => nav.go('approvals', { id: a.id })}>
+                  <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--hairline)', cursor: 'pointer' }} onClick={() => nav.go('approvals', { id: a.id })}>
                     <div style={{ minWidth: 0 }}>
-                      <div className="identifier" style={{ fontSize: 13, fontWeight: 500, color: '#325CFF' }}>{a.docNumber}</div>
-                      <div style={{ fontSize: 12, color: '#6E6E71', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.docType} · {fmtMoneyCompact(a.amount, a.currency)}</div>
+                      <div className="identifier" style={{ fontSize: 13, fontWeight: 500, color: 'var(--accent)' }}>{a.docNumber}</div>
+                      <div style={{ fontSize: 12, color: 'var(--ink-4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.docType} · {fmtMoneyCompact(a.amount, a.currency)}</div>
                     </div>
                     <Pill tone={tone}>{days < 1 ? '< 1 d' : `${days} d`}</Pill>
                   </div>
@@ -239,22 +239,22 @@ export default function Dashboard() {
               })}
             </div>
             <Button variant="secondary" style={{ width: '100%', justifyContent: 'center', marginTop: 12 }} onClick={() => nav.go('approvals')}>View all approvals</Button>
-            <div style={{ fontSize: 11, color: '#6E6E71', marginTop: 8 }}>{meta()}</div>
+            <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 8 }}>{meta()}</div>
           </div>
 
           <div className="card" style={{ padding: 20 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 600, color: '#0A0A0A', marginBottom: 12 }}>Period status</h3>
+            <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)', marginBottom: 12 }}>Period status</h3>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {myPeriods.map((p) => (
-                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #F5F5F5', cursor: 'pointer' }} onClick={() => nav.go('admin/periods', { period: p.code })}>
-                  <span style={{ fontSize: 13, color: '#0A0A0A' }}>{p.label}{p.code === periodCode ? <span style={{ fontSize: 11, color: '#6E6E71' }}> · current</span> : null}</span>
+                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--hairline)', cursor: 'pointer' }} onClick={() => nav.go('admin/periods', { period: p.code })}>
+                  <span style={{ fontSize: 13, color: 'var(--ink)' }}>{p.label}{p.code === periodCode ? <span style={{ fontSize: 11, color: 'var(--ink-4)' }}> · current</span> : null}</span>
                   <Badge status={p.status} />
                 </div>
               ))}
-              {myPeriods.length === 0 && <div style={{ fontSize: 13, color: '#C0393F' }}>No accounting periods — postings will be refused until they exist.</div>}
+              {myPeriods.length === 0 && <div style={{ fontSize: 13, color: 'var(--danger)' }}>No accounting periods — postings will be refused until they exist.</div>}
             </div>
             <Button variant="link" style={{ marginTop: 10 }} onClick={() => nav.go('admin/periods')}>Manage periods →</Button>
-            <div style={{ fontSize: 11, color: '#6E6E71', marginTop: 8 }}>{meta()}</div>
+            <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 8 }}>{meta()}</div>
           </div>
         </div>
       </div>

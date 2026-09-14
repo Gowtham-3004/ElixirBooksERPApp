@@ -41,7 +41,7 @@ export default function Overview() {
 
   const msCols: Column<Milestone>[] = [
     { key: 'name', label: 'Milestone', render: (m) => <div><div className="cell-primary">{m.name}</div><Muted><ContractLink id={m.contractId} /> · <ProjectLink id={m.projectId} /></Muted></div> },
-    { key: 'due', label: 'Due', render: (m) => <span style={{ color: m.status === 'Pending' && m.due < today() ? '#C0393F' : undefined }}>{fmtDate(m.due)}{m.status === 'Pending' && m.due < today() ? ` · ${daysBetween(m.due, today())} d late` : ''}</span> },
+    { key: 'due', label: 'Due', render: (m) => <span style={{ color: m.status === 'Pending' && m.due < today() ? 'var(--danger)' : undefined }}>{fmtDate(m.due)}{m.status === 'Pending' && m.due < today() ? ` · ${daysBetween(m.due, today())} d late` : ''}</span> },
     { key: 'status', label: 'Status', render: (m) => <Badge status={m.status === 'Achieved' ? 'Ready' : m.status}>{m.status === 'Achieved' ? 'Ready to bill' : m.status}</Badge> },
     { key: 'amount', label: 'Amount', align: 'right', render: (m) => <Money value={m.amount} currency={(companyRows<Contract>(C.contracts).find((c) => c.id === m.contractId)?.currency) ?? s.currency} code /> },
   ];

@@ -5,7 +5,7 @@ export const AUTH_BG = 'linear-gradient(135deg, #E8F2FA 0%, #E0F0FC 50%, #EEE8FF
 
 export function BrandMark({ size = 36, light }: { size?: number; light?: boolean }) {
   return (
-    <div style={{ width: size, height: size, borderRadius: size * 0.28, background: light ? 'rgba(255,255,255,0.2)' : '#325CFF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+    <div style={{ width: size, height: size, borderRadius: size * 0.28, background: light ? 'rgba(255,255,255,0.2)' : 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
       <svg width={size * 0.55} height={size * 0.55} viewBox="0 0 18 18" fill="none">
         <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white" opacity="0.9" />
         <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity="0.6" />
@@ -18,7 +18,7 @@ export function BrandMark({ size = 36, light }: { size?: number; light?: boolean
 
 export function Backdrop({ children }: { children: ReactNode }) {
   return (
-    <div style={{ minHeight: '100vh', background: AUTH_BG, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFeatureSettings: 'normal' }}>
+    <div style={{ minHeight: '100vh', background: AUTH_BG, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontVariantNumeric: 'normal' }}>
       {children}
     </div>
   );
@@ -31,10 +31,10 @@ export function Frame({ title, subtitle, children, width = 440 }: { title: strin
       <div style={{ width, maxWidth: '100%', background: '#fff', borderRadius: 16, boxShadow: '0 8px 48px rgba(0,0,0,0.10)', padding: '40px 40px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
           <BrandMark size={32} />
-          <span style={{ fontSize: 16, fontWeight: 700, color: '#0A0A0A', letterSpacing: '-0.02em' }}>Elixir Books</span>
+          <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.02em' }}>Elixir Books</span>
         </div>
-        <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 4, color: '#0A0A0A' }}>{title}</h1>
-        {subtitle && <p style={{ fontSize: 14, color: '#5F6368', marginBottom: 24, lineHeight: 1.5 }}>{subtitle}</p>}
+        <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 4, color: 'var(--ink)' }}>{title}</h1>
+        {subtitle && <p style={{ fontSize: 14, color: 'var(--ink-3)', marginBottom: 24, lineHeight: 1.5 }}>{subtitle}</p>}
         {children}
       </div>
     </Backdrop>
@@ -67,7 +67,7 @@ export function passwordStrength(pw: string): { score: number; label: string; co
   return {
     score,
     label: ['', 'Weak', 'Fair', 'Good', 'Strong'][score],
-    color: ['', '#C0393F', '#F97316', '#F59E0B', '#12784E'][score],
+    color: ['', 'var(--danger)', '#F97316', '#F59E0B', 'var(--good)'][score],
     rules: [
       { rule: 'At least 8 characters', ok: pw.length >= 8 },
       { rule: '1 uppercase letter', ok: /[A-Z]/.test(pw) },
@@ -82,11 +82,11 @@ export function PasswordMeter({ pw }: { pw: string }) {
   return (
     <div style={{ marginTop: 8 }}>
       <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
-        {[1, 2, 3, 4].map((i) => <div key={i} style={{ flex: 1, height: 3, borderRadius: 9999, background: i <= s.score ? s.color : '#EAEAEA', transition: 'background 0.2s' }} />)}
+        {[1, 2, 3, 4].map((i) => <div key={i} style={{ flex: 1, height: 3, borderRadius: 9999, background: i <= s.score ? s.color : 'var(--line)', transition: 'background 0.2s' }} />)}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {s.rules.map((r) => <span key={r.rule} style={{ fontSize: 11, color: r.ok ? '#12784E' : '#B0B5BF' }}>{r.ok ? '✓' : '○'} {r.rule}</span>)}
+          {s.rules.map((r) => <span key={r.rule} style={{ fontSize: 11, color: r.ok ? 'var(--good)' : 'var(--ink-5)' }}>{r.ok ? '✓' : '○'} {r.rule}</span>)}
         </div>
         <span style={{ fontSize: 11, fontWeight: 600, color: s.color }}>{s.label}</span>
       </div>

@@ -40,12 +40,12 @@ export function ItemRegister() {
         bulkActions={(ids, sel) => bulkStatusActions(C.items, 'Item', ids, sel, canEdit)}
         columns={[
           { key: 'name', label: 'Item', sortable: true, render: (r) => <TwoLine primary={r.name} secondary={`${r.code}${r.hsn ? ' · HSN ' + r.hsn : ''}`} mono />, value: (r) => r.name },
-          { key: 'type', label: 'Type', render: (r) => <span style={{ fontSize: 12, color: '#5F6368' }}>{r.type}{r.group ? ` · ${r.group}` : ''}</span>, value: (r) => r.type },
-          { key: 'baseUom', label: 'UOM', render: (r) => <span>{r.baseUom}{r.altUoms.length ? <span style={{ color: '#5F6368', fontSize: 11 }}> +{r.altUoms.length}</span> : null}</span> },
+          { key: 'type', label: 'Type', render: (r) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{r.type}{r.group ? ` · ${r.group}` : ''}</span>, value: (r) => r.type },
+          { key: 'baseUom', label: 'UOM', render: (r) => <span>{r.baseUom}{r.altUoms.length ? <span style={{ color: 'var(--ink-3)', fontSize: 11 }}> +{r.altUoms.length}</span> : null}</span> },
           { key: 'tax', label: 'Tax', render: (r) => taxRates.find((t) => t.id === r.taxRateId)?.name ?? '—', value: (r) => taxRates.find((t) => t.id === r.taxRateId)?.name },
           { key: 'salesPrice', label: 'Sales price', align: 'right', sortable: true, render: (r) => <Money value={r.salesPrice} currency={s.currency} />, value: (r) => r.salesPrice },
           { key: 'purchasePrice', label: 'Purchase price', align: 'right', render: (r) => (r.purchasePrice ? <Money value={r.purchasePrice} currency={s.currency} /> : '—'), value: (r) => r.purchasePrice },
-          { key: 'onHand', label: 'On hand', align: 'right', sortable: true, render: (r) => (r.isStock ? <span className="money" style={{ color: r.reorderLevel > 0 && onHand(r.id) < r.reorderLevel ? '#C0393F' : undefined }}>{fmtQty(onHand(r.id), r.baseUom)}</span> : <span style={{ color: '#B0B5BF' }}>n/a</span>), value: (r) => onHand(r.id) },
+          { key: 'onHand', label: 'On hand', align: 'right', sortable: true, render: (r) => (r.isStock ? <span className="money" style={{ color: r.reorderLevel > 0 && onHand(r.id) < r.reorderLevel ? 'var(--danger)' : undefined }}>{fmtQty(onHand(r.id), r.baseUom)}</span> : <span style={{ color: 'var(--ink-5)' }}>n/a</span>), value: (r) => onHand(r.id) },
           { key: 'tracking', label: 'Tracking', render: (r) => (r.tracking === 'None' ? '—' : <span className="pill pill-neutral">{r.tracking}</span>) },
           { key: 'status', label: 'Status', render: (r) => <Badge status={r.status} /> },
         ]}
@@ -144,9 +144,9 @@ export function ItemForm({ item, onClose, onSaved }: { item?: Item; onClose: () 
                         <option value="">UOM</option>
                         {uoms.filter((x) => x.code !== f.v.baseUom).map((x) => <option key={x.code} value={x.code}>{x.code}</option>)}
                       </select>
-                      <span style={{ fontSize: 12, color: '#5F6368' }}>=</span>
+                      <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>=</span>
                       <input className="field-input sm num" type="number" step="any" value={u.factor} onChange={(e) => f.set('altUoms', f.v.altUoms.map((x: any, j: number) => (j === i ? { ...x, factor: Number(e.target.value) } : x)))} style={{ width: 110 }} />
-                      <span style={{ fontSize: 12, color: '#5F6368' }}>{f.v.baseUom}</span>
+                      <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{f.v.baseUom}</span>
                       <Button size="sm" variant="ghost" onClick={() => f.set('altUoms', f.v.altUoms.filter((_: any, j: number) => j !== i))}>✕</Button>
                     </div>
                   ))}

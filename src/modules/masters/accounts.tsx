@@ -45,10 +45,10 @@ export function AccountRegister() {
         columns={[
           { key: 'code', label: 'Code', sortable: true, width: 90, render: (r) => <span className="identifier" style={{ fontWeight: 600 }}>{r.code}</span> },
           { key: 'name', label: 'Account', sortable: true, render: (r) => <TwoLine primary={<span className="link">{r.name}</span>} secondary={[groups.find((g) => g.id === r.groupId)?.name, r.subType].filter(Boolean).join(' · ')} /> },
-          { key: 'type', label: 'Type', render: (r) => <span>{r.type} <span style={{ color: '#5F6368', fontSize: 11 }}>· {r.normalBalance}</span></span> },
+          { key: 'type', label: 'Type', render: (r) => <span>{r.type} <span style={{ color: 'var(--ink-3)', fontSize: 11 }}>· {r.normalBalance}</span></span> },
           { key: 'flags', label: 'Flags', render: (r) => <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>{r.isControl && <span className="pill pill-warning" title="Control account — manual postings need a party">Control · {r.controlType}</span>}{!r.postingAllowed && <span className="pill pill-neutral">Header</span>}{r.currencyBehaviour !== 'Base' && <span className="currency-tag">{r.currencyBehaviour === 'Fixed' ? r.fixedCurrency : 'Any ccy'}</span>}{r.requiredDimensions.length > 0 && <span className="pill pill-neutral" title={`Requires ${r.requiredDimensions.join(', ')}`}>Dims: {r.requiredDimensions.join(', ')}</span>}</span> },
           { key: 'opening', label: 'Opening', align: 'right', render: (r) => (r.openingBalance ? <Money value={r.openingBalance} currency={s.currency} /> : '—'), value: (r) => r.openingBalance ?? 0 },
-          { key: 'balance', label: 'Balance', align: 'right', sortable: true, render: (r) => { const b = balances[r.id]; return b ? <span className="money">{b.net === 0 ? '0.00' : <Money value={Math.abs(b.net)} currency={s.currency} />}<span style={{ color: '#5F6368', fontSize: 11, marginLeft: 4 }}>{b.net === 0 ? '' : b.net > 0 ? r.normalBalance : r.normalBalance === 'Dr' ? 'Cr' : 'Dr'}</span></span> : '—'; }, value: (r) => balances[r.id]?.net ?? 0 },
+          { key: 'balance', label: 'Balance', align: 'right', sortable: true, render: (r) => { const b = balances[r.id]; return b ? <span className="money">{b.net === 0 ? '0.00' : <Money value={Math.abs(b.net)} currency={s.currency} />}<span style={{ color: 'var(--ink-3)', fontSize: 11, marginLeft: 4 }}>{b.net === 0 ? '' : b.net > 0 ? r.normalBalance : r.normalBalance === 'Dr' ? 'Cr' : 'Dr'}</span></span> : '—'; }, value: (r) => balances[r.id]?.net ?? 0 },
           { key: 'status', label: 'Status', render: (r) => <Badge status={r.status} /> },
         ]}
         rowClass={(r) => (r.status !== 'Active' ? 'muted' : undefined)}
@@ -134,7 +134,7 @@ export function AccountForm({ account, onClose }: { account?: Account; onClose: 
             </div>
           </section>
           <section>
-            <div className="section-title">Dimension rules <span style={{ fontWeight: 400, fontSize: 12, color: '#5F6368' }}>· FR-ACC-004</span></div>
+            <div className="section-title">Dimension rules <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--ink-3)' }}>· FR-ACC-004</span></div>
             <ChipGroup label="Required on every posting" multiple value={f.v.requiredDimensions} onChange={(v) => f.set('requiredDimensions', v)} options={DIMENSION_TYPES.map((d) => ({ value: d, label: d }))} />
             <div style={{ height: 10 }} />
             <ChipGroup label="Prohibited" multiple value={f.v.prohibitedDimensions} onChange={(v) => f.set('prohibitedDimensions', v)} options={DIMENSION_TYPES.map((d) => ({ value: d, label: d }))} />
@@ -183,7 +183,7 @@ function GroupEditor({ onClose }: { onClose: () => void }) {
               const editing = draft && (draft.id === g.id || (!draft.id && !g.id));
               const n = accounts.filter((a) => a.groupId === g.id).length;
               if (editing) return (
-                <tr key={g.id ?? 'new'} style={{ background: '#F9FBFC' }}>
+                <tr key={g.id ?? 'new'} style={{ background: 'var(--surface-2)' }}>
                   <td><input className="field-input grid num" type="number" value={draft!.order ?? 0} onChange={(e) => setDraft({ ...draft!, order: Number(e.target.value) })} style={{ width: 70 }} /></td>
                   <td><input className="field-input grid" value={draft!.code ?? ''} onChange={(e) => setDraft({ ...draft!, code: e.target.value.toUpperCase() })} style={{ width: 90 }} /></td>
                   <td><input className="field-input grid" value={draft!.name ?? ''} onChange={(e) => setDraft({ ...draft!, name: e.target.value })} autoFocus /></td>
@@ -201,7 +201,7 @@ function GroupEditor({ onClose }: { onClose: () => void }) {
                   <td className="right">{n || '—'}</td>
                   <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
                     <Button size="sm" variant="ghost" disabled={!canEdit} onClick={() => setDraft({ ...g })}>Edit</Button>
-                    <Button size="sm" variant="ghost" disabled={!canEdit || n > 0} title={n > 0 ? `${n} accounts use this group` : undefined} style={{ color: '#C0393F' }} onClick={() => { db.remove(C.accountGroups, g.id); engine.audit({ action: 'account_group.deleted', objectType: 'Account Group', objectId: g.id, objectNumber: g.code, before: g as unknown as Record<string, unknown> }); }}>Delete</Button>
+                    <Button size="sm" variant="ghost" disabled={!canEdit || n > 0} title={n > 0 ? `${n} accounts use this group` : undefined} style={{ color: 'var(--danger)' }} onClick={() => { db.remove(C.accountGroups, g.id); engine.audit({ action: 'account_group.deleted', objectType: 'Account Group', objectId: g.id, objectNumber: g.code, before: g as unknown as Record<string, unknown> }); }}>Delete</Button>
                   </td>
                 </tr>
               );

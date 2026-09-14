@@ -57,7 +57,7 @@ export function SettingsPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             {DIM_TYPES.map((t) => <SelectField key={t} label={t.replace(/([A-Z])/g, ' $1').trim()} value={v.defaultDimensions?.[t] ?? ''} onChange={(x) => set('defaultDimensions', { ...(v.defaultDimensions ?? {}), ...(x ? { [t]: x } : {}) , ...(x ? {} : Object.fromEntries(Object.entries(v.defaultDimensions ?? {}).filter(([k]) => k !== t))) })} options={dims.filter((x) => x.type === t).map((x) => ({ value: x.id, label: `${x.code} · ${x.name}` }))} allowEmpty placeholder="— None —" disabled={!canEdit} />)}
           </div>
-          <div style={{ fontSize: 12, color: '#6E6E71', marginTop: 8 }}>Branch is always stamped from the active scope. Required / prohibited dimensions are configured per account under Masters › Chart of accounts.</div>
+          <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 8 }}>Branch is always stamped from the active scope. Required / prohibited dimensions are configured per account under Masters › Chart of accounts.</div>
         </div>
         <div className="card" style={{ padding: 18 }}>
           <div className="section-title">Policies (company administration)</div>

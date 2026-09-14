@@ -25,7 +25,7 @@ export function ItemLink({ id, name }: { id?: string; name?: string }) {
 }
 
 export function DocLink({ path, number }: { path?: string; number?: string }) {
-  if (!number) return <span style={{ color: '#B0B5BF' }}>—</span>;
+  if (!number) return <span style={{ color: 'var(--ink-5)' }}>—</span>;
   return <span className="identifier link" style={{ fontSize: 12 }} onClick={(e) => { e.stopPropagation(); if (path) nav.go(path); }}>{number}</span>;
 }
 

@@ -48,7 +48,7 @@ export default function ProjectForm({ id, customerId, contractId }: { id?: strin
         </Card>
         <Card title="Team">
           <ChipGroup label="Assigned resources" multiple value={p.teamEmployeeIds ?? []} onChange={(v) => set({ teamEmployeeIds: v })} options={employees.filter((e) => !e.disabled).map((e) => ({ value: e.id, label: e.primary }))} />
-          <div style={{ fontSize: 12, color: '#5F6368', marginTop: 10 }}>Team members appear first in the timesheet project picker; bill rates come from the contract, rate card or resource record.</div>
+          <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 10 }}>Team members appear first in the timesheet project picker; bill rates come from the contract, rate card or resource record.</div>
         </Card>
       </div>
     </div>

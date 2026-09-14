@@ -25,11 +25,11 @@ function Widget({ title, sub, children, meta, onDrill, stale, onRefresh, span }:
   return (
     <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12, gridColumn: span ? `span ${span}` : undefined, cursor: onDrill ? 'pointer' : undefined }} onClick={onDrill}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div><div style={{ fontSize: 15, fontWeight: 600, color: '#0A0A0A' }}>{title}</div>{sub && <div style={{ fontSize: 12, color: '#6E6E71' }}>{sub}</div>}</div>
+        <div><div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>{title}</div>{sub && <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>{sub}</div>}</div>
         {stale && <span onClick={(e) => { e.stopPropagation(); onRefresh?.(); }}><Pill tone="warning">Stale · refresh</Pill></span>}
       </div>
       <div style={{ flex: 1 }}>{children}</div>
-      <div style={{ fontSize: 11, color: '#6E6E71', borderTop: '1px solid #F3F5F5', paddingTop: 8 }}>{meta}</div>
+      <div style={{ fontSize: 11, color: 'var(--ink-4)', borderTop: '1px solid var(--surface-3)', paddingTop: 8 }}>{meta}</div>
     </div>
   );
 }
@@ -38,12 +38,12 @@ function Tile({ label, value, delta, favorable, sub, meta, onClick, stale }: { l
   return (
     <div className="kpi-tile" style={{ cursor: onClick ? 'pointer' : undefined, display: 'flex', flexDirection: 'column', gap: 4 }} onClick={onClick}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span className="section-label">{label}</span>{stale && <Pill tone="warning">Stale</Pill>}</div>
-      <div style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.3, fontFeatureSettings: '"tnum" 1', color: '#0A0A0A' }}>{value}</div>
+      <div style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.3, fontVariantNumeric: 'tabular-nums', color: 'var(--ink)' }}>{value}</div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
-        {delta ? <span style={{ color: favorable ? '#12784E' : '#C0393F', display: 'flex', alignItems: 'center', gap: 3 }}>{favorable ? <TrendingUpIcon size={11} /> : <TrendingDownIcon size={11} />}{delta}</span> : <span />}
-        {sub && <span style={{ color: '#6E6E71', fontFeatureSettings: 'normal' }}>{sub}</span>}
+        {delta ? <span style={{ color: favorable ? 'var(--good)' : 'var(--danger)', display: 'flex', alignItems: 'center', gap: 3 }}>{favorable ? <TrendingUpIcon size={11} /> : <TrendingDownIcon size={11} />}{delta}</span> : <span />}
+        {sub && <span style={{ color: 'var(--ink-4)', fontVariantNumeric: 'normal' }}>{sub}</span>}
       </div>
-      <div style={{ fontSize: 11, color: '#6E6E71', marginTop: 6, borderTop: '1px solid #F3F5F5', paddingTop: 8, fontFeatureSettings: 'normal' }}>{meta}</div>
+      <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 6, borderTop: '1px solid var(--surface-3)', paddingTop: 8, fontVariantNumeric: 'normal' }}>{meta}</div>
     </div>
   );
 }
@@ -127,23 +127,23 @@ export function CfoDashboard() {
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 140 }}>
             {data.trend.map((t, i) => (
               <div key={t.period} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, height: '100%', justifyContent: 'flex-end' }}>
-                <span style={{ fontSize: 10, color: '#5F6368', fontFeatureSettings: '"tnum" 1' }}>{t.revenue ? fmtMoneyCompact(t.revenue, s.currency).replace(/\.\d+/, '') : ''}</span>
-                <div style={{ width: '100%', background: i === data.trend.length - 1 ? '#325CFF' : '#ECF1FD', borderRadius: '4px 4px 0 0', height: `${Math.max(2, (t.revenue / maxT) * 100)}px` }} title={fmtMoney(t.revenue, s.currency)} />
-                <span style={{ fontSize: 11, color: '#5F6368' }}>{fmtPeriod(t.period).slice(0, 3)}</span>
+                <span style={{ fontSize: 10, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{t.revenue ? fmtMoneyCompact(t.revenue, s.currency).replace(/\.\d+/, '') : ''}</span>
+                <div style={{ width: '100%', background: i === data.trend.length - 1 ? 'var(--accent)' : 'var(--accent-soft)', borderRadius: '4px 4px 0 0', height: `${Math.max(2, (t.revenue / maxT) * 100)}px` }} title={fmtMoney(t.revenue, s.currency)} />
+                <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{fmtPeriod(t.period).slice(0, 3)}</span>
               </div>
             ))}
           </div>
         </Widget>
         <Widget title="Branch performance" sub={`Revenue & gross margin by branch · ${preset}`} meta={meta} stale={fresh.stale} onRefresh={fresh.refresh} onDrill={() => nav.go('reports/profitability?by=branch')}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {data.byBranch.length === 0 && <div style={{ fontSize: 13, color: '#6E6E71' }}>No data for {fmtPeriod(period)}</div>}
+            {data.byBranch.length === 0 && <div style={{ fontSize: 13, color: 'var(--ink-4)' }}>No data for {fmtPeriod(period)}</div>}
             {data.byBranch.map((b, i) => {
               const max = Math.max(1, ...data.byBranch.map((x) => x.revenue));
               return (
                 <div key={b.branch.id}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <div><span style={{ fontSize: 14, fontWeight: 500 }}>{b.branch.name}</span><span style={{ fontSize: 12, color: '#6E6E71', marginLeft: 8 }}>GM {fmtPct(b.gm)} · net {fmtMoneyCompact(b.net, s.currency)}</span></div>
-                    <span style={{ fontSize: 13, fontWeight: 600, fontFeatureSettings: '"tnum" 1' }}>{fmtMoneyCompact(b.revenue, s.currency)}</span>
+                    <div><span style={{ fontSize: 14, fontWeight: 500 }}>{b.branch.name}</span><span style={{ fontSize: 12, color: 'var(--ink-4)', marginLeft: 8 }}>GM {fmtPct(b.gm)} · net {fmtMoneyCompact(b.net, s.currency)}</span></div>
+                    <span style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fmtMoneyCompact(b.revenue, s.currency)}</span>
                   </div>
                   <div style={{ height: 6, background: '#F3F5F5', borderRadius: 9999 }}><div style={{ height: '100%', width: `${(b.revenue / max) * 100}%`, background: ['#325CFF', '#22C55E', '#F97316', '#A855F7'][i % 4], borderRadius: 9999 }} /></div>
                 </div>
@@ -153,7 +153,7 @@ export function CfoDashboard() {
         </Widget>
       </div>
       <Card padding={0} style={{ overflow: 'hidden' }}>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid #EAEAEA', display: 'flex', justifyContent: 'space-between' }}><h3 style={{ fontSize: 15, fontWeight: 600 }}>Quick reports</h3><span style={{ fontSize: 12, color: '#6E6E71' }}>{meta}</span></div>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between' }}><h3 style={{ fontSize: 15, fontWeight: 600 }}>Quick reports</h3><span style={{ fontSize: 12, color: 'var(--ink-4)' }}>{meta}</span></div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
           {[
             { cat: 'Financial statements', items: [['Trial balance', 'reports/trial-balance'], ['Profit & loss', 'reports/pl'], ['Balance sheet', 'reports/balance-sheet'], ['Cash flow statement', 'reports/cash-flow']] },
@@ -161,9 +161,9 @@ export function CfoDashboard() {
             { cat: 'Tax & compliance', items: [['GST summary', 'reports/gst-summary'], ['GSTR-1', 'taxation/gstr1'], ['TDS register', 'reports/tds'], ['e-Invoices', 'taxation/einvoices']] },
             { cat: 'Operations', items: [['Stock valuation', 'reports/stock-valuation'], ['Gross margin', 'reports/margin'], ['Budget variance', 'reports/budget-variance'], ['FX exposure', 'reports/fx-exposure']] },
           ].map((group, gi) => (
-            <div key={group.cat} style={{ padding: '16px 20px', borderRight: gi < 3 ? '1px solid #EAEAEA' : 'none' }}>
+            <div key={group.cat} style={{ padding: '16px 20px', borderRight: gi < 3 ? '1px solid var(--line)' : 'none' }}>
               <div className="section-label" style={{ marginBottom: 10 }}>{group.cat}</div>
-              {group.items.map(([label, path]) => <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #F5F5F5', cursor: 'pointer' }} onClick={() => nav.go(path)}><span style={{ fontSize: 13, color: '#325CFF' }}>{label}</span><span style={{ color: '#B0B5BF' }}>›</span></div>)}
+              {group.items.map(([label, path]) => <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--hairline)', cursor: 'pointer' }} onClick={() => nav.go(path)}><span style={{ fontSize: 13, color: 'var(--accent)' }}>{label}</span><span style={{ color: 'var(--ink-5)' }}>›</span></div>)}
             </div>
           ))}
         </div>

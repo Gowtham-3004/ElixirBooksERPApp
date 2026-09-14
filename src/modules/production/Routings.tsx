@@ -54,7 +54,7 @@ function RoutingEditor({ routing, onClose }: { routing?: Routing; onClose: () =>
   const submit = () => { try { const out = saveRouting(f, routing?.id); toast.success(`${out.code} saved`); onClose(); } catch (e: any) { setErr(e.message); } };
   return (
     <Drawer open onClose={onClose} width={1040} title={routing ? `${routing.code} · ${routing.name}` : 'New routing'} subtitle="Ordered operations with setup/run times; rates default from the work centre" headerRight={<Toggle on={f.status === 'Active'} onChange={(v) => setF({ ...f, status: v ? 'Active' : 'Inactive' })} label={f.status} />}
-      footer={<><div style={{ flex: 1, fontSize: 12, color: '#5F6368' }}>Conversion cost per unit at lot {lot}: <strong className="money">{fmtMoney(perUnit, s.currency)}</strong></div><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={submit}>Save routing</Button></>}>
+      footer={<><div style={{ flex: 1, fontSize: 12, color: 'var(--ink-3)' }}>Conversion cost per unit at lot {lot}: <strong className="money">{fmtMoney(perUnit, s.currency)}</strong></div><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={submit}>Save routing</Button></>}>
       {err && <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div>}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 2fr', gap: 12 }}>
         <TextField label="Code" value={f.code ?? ''} onChange={(v) => setF({ ...f, code: v })} placeholder="auto" uppercase />
@@ -92,14 +92,14 @@ function RoutingEditor({ routing, onClose }: { routing?: Routing; onClose: () =>
               <td><button type="button" className="btn-icon" onClick={() => setF({ ...f, operations: f.operations.filter((_, j) => j !== i) })}>✕</button></td>
             </tr>))}
         </tbody></table>
-        <div style={{ padding: 10, display: 'flex', gap: 8, alignItems: 'center' }}><Button size="sm" onClick={() => setF({ ...f, operations: [...f.operations, newOperation((Math.max(0, ...f.operations.map((o) => o.seq)) || 0) + 10, wcs[0]?.id)] })}>+ Add operation</Button><span style={{ fontSize: 12, color: '#5F6368' }}>Overhead rate comes from the work centre ({wcs.map((w) => `${w.name} ₹${w.overheadRate}/h`).join(' · ')})</span></div>
+        <div style={{ padding: 10, display: 'flex', gap: 8, alignItems: 'center' }}><Button size="sm" onClick={() => setF({ ...f, operations: [...f.operations, newOperation((Math.max(0, ...f.operations.map((o) => o.seq)) || 0) + 10, wcs[0]?.id)] })}>+ Add operation</Button><span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Overhead rate comes from the work centre ({wcs.map((w) => `${w.name} ₹${w.overheadRate}/h`).join(' · ')})</span></div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 200px', gap: 16, marginTop: 16, alignItems: 'start' }}>
         <SummaryBlock items={[{ label: `Minutes / lot`, value: totals.minutes.toFixed(0) }, { label: 'Labour', value: fmtMoney(totals.labour, s.currency) }, { label: 'Machine', value: fmtMoney(totals.machine, s.currency) }, { label: 'Overhead', value: fmtMoney(totals.overhead, s.currency) }, { label: 'Subcontract', value: fmtMoney(totals.subcontract, s.currency) }, { label: 'Per unit', value: fmtMoney(perUnit, s.currency), tone: 'good' }]} />
         <NumberField label="Cost basis lot size" value={lot} onChange={(v) => setLot(Math.max(1, v))} decimals={0} help="Setup amortised over this lot" />
       </div>
       <div style={{ marginTop: 12 }}><TextField label="Notes" value={f.notes ?? ''} onChange={(v) => setF({ ...f, notes: v })} /></div>
-      <div style={{ marginTop: 8, fontSize: 12, color: '#6E6E71' }}>WIP location for operations: {Array.from(new Set(f.operations.map((o) => whName(wcs.find((w) => w.id === o.workCentreId)?.warehouseId)))).join(', ') || '—'}</div>
+      <div style={{ marginTop: 8, fontSize: 12, color: 'var(--ink-4)' }}>WIP location for operations: {Array.from(new Set(f.operations.map((o) => whName(wcs.find((w) => w.id === o.workCentreId)?.warehouseId)))).join(', ') || '—'}</div>
     </Drawer>
   );
 }

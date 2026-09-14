@@ -13,13 +13,13 @@ export function FilingHistory() {
   const cols: Column<StatutoryReturn>[] = [
     { key: 'type', label: 'Return', render: (r) => <div><div className="cell-primary">{r.type} · {r.period.includes(' ') ? r.period : fmtPeriod(r.period)}</div><div className="cell-secondary identifier">v{r.version}{r.gstin ? ` · ${r.gstin}` : ''}</div></div>, sortable: true },
     { key: 'period', label: 'Period', sortable: true },
-    { key: 'dueDate', label: 'Due', render: (r) => <span style={{ color: !r.filedAt && r.dueDate < new Date().toISOString().slice(0, 10) ? '#C0393F' : undefined }}>{fmtDate(r.dueDate)}</span> },
+    { key: 'dueDate', label: 'Due', render: (r) => <span style={{ color: !r.filedAt && r.dueDate < new Date().toISOString().slice(0, 10) ? 'var(--danger)' : undefined }}>{fmtDate(r.dueDate)}</span> },
     { key: 'taxable', label: 'Taxable', align: 'right', render: (r) => <span className="money">{fmtMoney(r.totals.taxable, s.currency)}</span> },
     { key: 'tax', label: 'Tax', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600 }}>{fmtMoney(r.totals.tax, s.currency)}</span> },
     { key: 'net', label: 'Net payable', align: 'right', render: (r) => <span className="money">{r.totals.netPayable !== undefined ? fmtMoney(r.totals.netPayable, s.currency) : '—'}</span> },
-    { key: 'recon', label: 'Recon. diff', align: 'right', render: (r) => <span className="money" style={{ color: r.reconciliation?.difference ? '#C0393F' : '#12784E' }}>{r.reconciliation ? fmtMoney(r.reconciliation.difference, s.currency) : '—'}</span> },
+    { key: 'recon', label: 'Recon. diff', align: 'right', render: (r) => <span className="money" style={{ color: r.reconciliation?.difference ? 'var(--danger)' : 'var(--good)' }}>{r.reconciliation ? fmtMoney(r.reconciliation.difference, s.currency) : '—'}</span> },
     { key: 'status', label: 'Status', render: (r) => <Badge status={r.status === 'Superseded' ? 'Cancelled' : r.status === 'Generated' ? 'Draft' : r.status}>{r.status}</Badge> },
-    { key: 'filedAt', label: 'Filed', render: (r) => (r.filedAt ? <div><div>{fmtDateTime(r.filedAt)}</div><div className="cell-secondary">{r.filedBy} · ARN {r.arn}</div></div> : <span style={{ color: '#6E6E71' }}>Generated {fmtDateTime(r.generatedAt)}</span>) },
+    { key: 'filedAt', label: 'Filed', render: (r) => (r.filedAt ? <div><div>{fmtDateTime(r.filedAt)}</div><div className="cell-secondary">{r.filedBy} · ARN {r.arn}</div></div> : <span style={{ color: 'var(--ink-4)' }}>Generated {fmtDateTime(r.generatedAt)}</span>) },
   ];
   return (
     <RegisterPage<StatutoryReturn> title="Filing history" subtitle={`${rows.filter((r) => r.status === 'Filed').length} filed · ${rows.filter((r) => r.status === 'Generated').length} generated · every generation is versioned (FR-CMP-007)`} rows={rows} columns={cols} entity="filings" searchKeys={['type', 'period', 'arn']}

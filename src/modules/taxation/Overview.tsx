@@ -72,13 +72,13 @@ export function TaxOverview() {
               { label: 'Documents with HSN/SAC missing', n: data.hsnMissing, link: 'taxation/b2b', tone: 'Returned' },
               { label: 'TDS deductees without PAN (20% rate applies)', n: data.panMissing, link: 'taxation/tds', tone: 'Returned' },
             ].map((e) => (
-              <div key={e.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #F5F5F5', cursor: 'pointer' }} onClick={() => nav.go(e.link)}>
+              <div key={e.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--hairline)', cursor: 'pointer' }} onClick={() => nav.go(e.link)}>
                 <span>{e.label}</span>
                 <Badge status={e.n ? e.tone : 'Posted'}>{e.n ? `${e.n} open` : 'Clear'}</Badge>
               </div>
             ))}
           </div>
-          <div style={{ fontSize: 12, color: '#6E6E71', marginTop: 10 }}>Provider: {settings.provider} · e-invoice threshold {fmtMoney(settings.eInvoiceThreshold, s.currency)} · e-way bill threshold {fmtMoney(settings.eWayBillThreshold, s.currency)} · <span className="link" onClick={() => nav.go('taxation/settings')}>settings</span></div>
+          <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 10 }}>Provider: {settings.provider} · e-invoice threshold {fmtMoney(settings.eInvoiceThreshold, s.currency)} · e-way bill threshold {fmtMoney(settings.eWayBillThreshold, s.currency)} · <span className="link" onClick={() => nav.go('taxation/settings')}>settings</span></div>
         </Card>
       </div>
     </div>

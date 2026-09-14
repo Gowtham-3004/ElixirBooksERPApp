@@ -26,7 +26,7 @@ export default function ReceiptRegister({ openNew, newParams }: { openNew?: bool
     { key: 'method', label: 'Method', render: (r) => <TwoLine primary={r.method} secondary={r.reference} mono /> },
     { key: 'amount', label: 'Amount', align: 'right', sortable: true, render: (r) => <Money value={r.amount} currency={r.currency} code={r.currency !== s.currency} />, value: (r) => r.amount, total: (rs) => <span className="money" style={{ fontWeight: 600 }}>{fmtMoney(rs.filter((x) => x.status === 'Posted' && x.currency === s.currency).reduce((a, x) => a + x.amount, 0), s.currency)}</span> },
     { key: 'allocated', label: 'Allocated', align: 'right', render: (r) => <Money value={r.allocations.reduce((a, x) => a + x.amount, 0)} currency={r.currency} />, value: (r) => r.allocations.reduce((a, x) => a + x.amount, 0) },
-    { key: 'unapplied', label: 'Unapplied', align: 'right', render: (r) => (r.unapplied > 0 ? <Money value={r.unapplied} currency={r.currency} tone="negative" /> : <span style={{ color: '#B0B5BF' }}>—</span>), value: (r) => r.unapplied },
+    { key: 'unapplied', label: 'Unapplied', align: 'right', render: (r) => (r.unapplied > 0 ? <Money value={r.unapplied} currency={r.currency} tone="negative" /> : <span style={{ color: 'var(--ink-5)' }}>—</span>), value: (r) => r.unapplied },
     { key: 'status', label: 'Status', render: (r) => <Badge status={allocStatus(r)} />, value: (r) => allocStatus(r) },
   ];
   const rowActions = (r: Receipt): MenuAction[] => [
@@ -71,9 +71,9 @@ export function ReceiptDetail({ id }: { id: string }) {
         due={r.unapplied > 0 ? { label: 'Unapplied advance', value: r.unapplied, currency: r.currency } : undefined}
         rail={<>
           <RailSection label="Customer" snapshot={r.status === 'Posted'}><PartyRail snapshot={r.partySnapshot} name={r.partyName} link={r.partyId ? `masters/customers/${r.partyId}` : undefined} /></RailSection>
-          <RailSection label="Allocated to"><SourceChain doc={r as any} /><div style={{ marginTop: 6, fontSize: 12 }}>{r.allocations.map((a) => <div key={a.openItemId}><span className="link identifier" onClick={() => nav.go(`sales/invoices/${a.docId}`)}>{a.docNumber}</span> · {fmtMoney(a.amount, r.currency)}</div>)}{!r.allocations.length && <span style={{ color: '#6E6E71' }}>No allocations</span>}</div></RailSection>
+          <RailSection label="Allocated to"><SourceChain doc={r as any} /><div style={{ marginTop: 6, fontSize: 12 }}>{r.allocations.map((a) => <div key={a.openItemId}><span className="link identifier" onClick={() => nav.go(`sales/invoices/${a.docId}`)}>{a.docNumber}</span> · {fmtMoney(a.amount, r.currency)}</div>)}{!r.allocations.length && <span style={{ color: 'var(--ink-4)' }}>No allocations</span>}</div></RailSection>
           {adv && <RailSection label="Advance"><div style={{ fontSize: 12 }}><Badge status={adv.status} /> · {fmtMoney(adv.outstanding, adv.currency)} available of {fmtMoney(adv.originalAmount, adv.currency)}</div></RailSection>}
-          {r.postedAt && <RailSection label="Posted"><div style={{ fontSize: 12, color: '#5F6368' }}>{fmtDate(r.postedAt)} · {r.postedBy} · <span className="link identifier" onClick={() => nav.go(`accounting/journals/${r.journalId}`)}>{r.journalNumber}</span></div></RailSection>}
+          {r.postedAt && <RailSection label="Posted"><div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{fmtDate(r.postedAt)} · {r.postedBy} · <span className="link identifier" onClick={() => nav.go(`accounting/journals/${r.journalId}`)}>{r.journalNumber}</span></div></RailSection>}
         </>}
         banner={r.status === 'Reversed' ? <div className="banner warning full">Reversed: {r.reversalReason}</div> : undefined}
         tabs={[

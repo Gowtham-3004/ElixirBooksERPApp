@@ -89,9 +89,9 @@ export function OrderForm({ id, params }: { id?: string; params: Record<string, 
             {bom && roll ? (
               <>
                 <SummaryBlock style={{ flexDirection: 'column', gap: 8 }} items={[{ label: 'Std cost / unit', value: fmtMoney(stdUnit, s.currency) }, { label: `Material × ${f.qty || 0}`, value: fmtMoney(roll.material * (f.qty || 0) / (bom.outputQty || 1), s.currency) }, { label: 'Conversion', value: fmtMoney((roll.labour + roll.machine + roll.overhead + roll.subcontract) * (f.qty || 0) / (bom.outputQty || 1), s.currency) }, { label: 'Order value (std)', value: fmtMoney(stdUnit * (f.qty || 0), s.currency), tone: 'good' }]} />
-                <div style={{ marginTop: 10, fontSize: 12, color: '#5F6368' }}>Workflow: {db.findBy<any>(C.workflowRules, (w) => w.docType === 'Production Order' && w.status === 'Active') ? 'release goes through approval when the rule matches' : 'no active release rule — release posts directly'}</div>
+                <div style={{ marginTop: 10, fontSize: 12, color: 'var(--ink-3)' }}>Workflow: {db.findBy<any>(C.workflowRules, (w) => w.docType === 'Production Order' && w.status === 'Active') ? 'release goes through approval when the rule matches' : 'no active release rule — release posts directly'}</div>
               </>
-            ) : <div style={{ fontSize: 13, color: '#5F6368' }}>Pick an item to preview material and conversion cost.</div>}
+            ) : <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>Pick an item to preview material and conversion cost.</div>}
           </SectionCard>
           {bom && (
             <SectionCard title={`Components · ${bom.code} v${bom.version}`} padding={0}>

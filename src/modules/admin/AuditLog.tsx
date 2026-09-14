@@ -32,11 +32,11 @@ export default function AuditLog() {
   };
 
   const columns: Column<AuditEvent>[] = [
-    { key: 'at', label: 'When', sortable: true, render: (e) => <span style={{ fontSize: 12, color: '#5F6368', whiteSpace: 'nowrap' }}>{fmtDateTime(e.at)}</span> },
+    { key: 'at', label: 'When', sortable: true, render: (e) => <span style={{ fontSize: 12, color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>{fmtDateTime(e.at)}</span> },
     { key: 'actor', label: 'Actor', sortable: true, render: (e) => <TwoLine primary={e.actor} secondary={e.channel} /> },
     { key: 'action', label: 'Action', sortable: true, render: (e) => <span className="identifier" style={{ fontSize: 12 }}>{e.action}</span> },
     { key: 'object', label: 'Object', render: (e) => <TwoLine primary={e.objectType} secondary={e.objectNumber ?? e.objectId} mono /> },
-    { key: 'detail', label: 'Detail', render: (e) => <span style={{ fontSize: 12, color: '#5F6368', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 360, display: 'block' }}>{masked(e).detail ?? '—'}</span> },
+    { key: 'detail', label: 'Detail', render: (e) => <span style={{ fontSize: 12, color: 'var(--ink-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 360, display: 'block' }}>{masked(e).detail ?? '—'}</span> },
     { key: 'result', label: 'Result', render: (e) => <span style={{ display: 'inline-flex', gap: 4 }}><Badge status={e.result === 'Success' ? 'Success' : e.result === 'Denied' ? 'Denied' : 'Failed'}>{e.result}</Badge>{e.sensitive && <Pill tone="warning" title="Security-sensitive event">sensitive</Pill>}</span> },
   ];
 
@@ -80,15 +80,15 @@ export default function AuditLog() {
                 <div className="section-label" style={{ marginBottom: 6 }}>Before / after</div>
                 <table className="data-table dense">
                   <thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead>
-                  <tbody>{diff(open.before, open.after).map((d) => <tr key={d.k} style={{ background: d.changed ? '#FFFBEB' : undefined }}><td className="identifier">{d.k}</td><td style={{ fontSize: 12 }}>{d.b === undefined ? '—' : JSON.stringify(d.b)}</td><td style={{ fontSize: 12, fontWeight: d.changed ? 600 : 400 }}>{d.a === undefined ? '—' : JSON.stringify(d.a)}</td></tr>)}</tbody>
+                  <tbody>{diff(open.before, open.after).map((d) => <tr key={d.k} style={{ background: d.changed ? 'var(--warn-bg)' : undefined }}><td className="identifier">{d.k}</td><td style={{ fontSize: 12 }}>{d.b === undefined ? '—' : JSON.stringify(d.b)}</td><td style={{ fontSize: 12, fontWeight: d.changed ? 600 : 400 }}>{d.a === undefined ? '—' : JSON.stringify(d.a)}</td></tr>)}</tbody>
                 </table>
               </div>
             )}
             <div>
               <div className="section-label" style={{ marginBottom: 6 }}>Same correlation</div>
-              {rows.filter((e) => e.correlationId === open.correlationId && e.id !== open.id).length === 0 ? <div style={{ fontSize: 12, color: '#5F6368' }}>No other events share this correlation ID.</div> : rows.filter((e) => e.correlationId === open.correlationId && e.id !== open.id).map((e) => <div key={e.id} style={{ fontSize: 12, padding: '4px 0', borderBottom: '1px solid #F5F5F5', cursor: 'pointer' }} onClick={() => setOpen(e)}>{fmtDateTime(e.at)} · <span className="identifier">{e.action}</span> · {e.actor}</div>)}
+              {rows.filter((e) => e.correlationId === open.correlationId && e.id !== open.id).length === 0 ? <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>No other events share this correlation ID.</div> : rows.filter((e) => e.correlationId === open.correlationId && e.id !== open.id).map((e) => <div key={e.id} style={{ fontSize: 12, padding: '4px 0', borderBottom: '1px solid var(--hairline)', cursor: 'pointer' }} onClick={() => setOpen(e)}>{fmtDateTime(e.at)} · <span className="identifier">{e.action}</span> · {e.actor}</div>)}
             </div>
-            <div style={{ fontSize: 11, color: '#6E6E71' }}>Audit records are append-only; there is no edit or delete (FR-AUD-002).</div>
+            <div style={{ fontSize: 11, color: 'var(--ink-4)' }}>Audit records are append-only; there is no edit or delete (FR-AUD-002).</div>
           </div>
         )}
       </Drawer>

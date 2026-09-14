@@ -64,24 +64,24 @@ export function Overview() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {bottlenecks.map(({ w, weeks, peak }) => (
               <div key={w.id} style={{ fontSize: 13 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}><span className="link" onClick={() => nav.go(`production/work-centres/${w.id}`)}>{w.name}</span><span style={{ color: peak >= 1 ? '#C0393F' : peak >= 0.8 ? '#8A4B0F' : '#5F6368' }}>peak {fmtPct(peak * 100, 0)} · {weeks.reduce((x, k) => x + k.load, 0).toFixed(1)} h load / {weeks.reduce((x, k) => x + k.capacity, 0).toFixed(0)} h</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}><span className="link" onClick={() => nav.go(`production/work-centres/${w.id}`)}>{w.name}</span><span style={{ color: peak >= 1 ? 'var(--danger)' : peak >= 0.8 ? 'var(--warn)' : 'var(--ink-3)' }}>peak {fmtPct(peak * 100, 0)} · {weeks.reduce((x, k) => x + k.load, 0).toFixed(1)} h load / {weeks.reduce((x, k) => x + k.capacity, 0).toFixed(0)} h</span></div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>{weeks.map((k) => <Meter key={k.weekStart} value={k.load} max={k.capacity} />)}</div>
               </div>
             ))}
-            {bottlenecks.length === 0 && <div style={{ fontSize: 13, color: '#5F6368' }}>No active work centres.</div>}
+            {bottlenecks.length === 0 && <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>No active work centres.</div>}
           </div>
         </SectionCard>
       </div>
       <div className="grid-2">
         <SectionCard title={`Late orders (${late.length})`} padding={0}>
-          {late.length === 0 ? <div style={{ padding: 16, fontSize: 13, color: '#12784E' }}>✓ Nothing is late</div> : (
+          {late.length === 0 ? <div style={{ padding: 16, fontSize: 13, color: 'var(--good)' }}>✓ Nothing is late</div> : (
             <table className="data-table dense"><thead><tr><th>Order</th><th>Item</th><th>Status</th><th>Planned end</th><th className="right">Days late</th><th className="right">Done</th></tr></thead><tbody>
               {late.map((o) => <tr key={o.id} className="clickable" onClick={() => nav.go(`production/orders/${o.id}`)}><td><OrderLink id={o.id} number={o.number} /></td><td>{o.itemName}</td><td><Badge status={o.status} /></td><td>{fmtDate(o.plannedEnd)}</td><td className="right"><Pill tone="critical">{daysBetween(o.plannedEnd, today())} d</Pill></td><td className="right money">{o.receivedQty} / {o.qty}</td></tr>)}
             </tbody></table>
           )}
         </SectionCard>
         <SectionCard title={`QC holds & open inspections (${holds.length + openQc.length})`} padding={0}>
-          {holds.length + openQc.length === 0 ? <div style={{ padding: 16, fontSize: 13, color: '#12784E' }}>✓ No receipts on hold</div> : (
+          {holds.length + openQc.length === 0 ? <div style={{ padding: 16, fontSize: 13, color: 'var(--good)' }}>✓ No receipts on hold</div> : (
             <table className="data-table dense"><thead><tr><th>Document</th><th>Item</th><th className="right">Qty</th><th>Since</th><th>Status</th></tr></thead><tbody>
               {holds.map((r) => <tr key={r.id} className="clickable" onClick={() => nav.go(r.inspectionId ? `production/quality/${r.inspectionId}` : `production/receipts/${r.id}`)}><td className="identifier">{r.number}</td><td>{r.itemName}</td><td className="right money">{r.qty}</td><td>{fmtDate(r.date)}</td><td><Badge status="Hold">On hold · {r.inspectionNumber ?? 'no inspection'}</Badge></td></tr>)}
               {openQc.filter((q) => q.refType !== 'Production Receipt').map((q) => <tr key={q.id} className="clickable" onClick={() => nav.go(`production/quality/${q.id}`)}><td className="identifier">{q.number}</td><td>{q.itemName}</td><td className="right money">{q.lotQty}</td><td>{fmtDate(q.date)}</td><td><Badge status={q.status} >{q.type} · {q.status}</Badge></td></tr>)}
@@ -91,7 +91,7 @@ export function Overview() {
       </div>
       <SectionCard title="Recent activity" padding={0} actions={<Button variant="link" onClick={() => nav.go('production/orders')}>All orders</Button>}>
         <table className="data-table dense"><thead><tr><th>Order</th><th>Item</th><th className="right">Qty</th><th>Status</th><th>Planned</th><th className="right">Std cost</th><th className="right">Actual</th><th>Updated</th></tr></thead><tbody>
-          {recent.map((o) => <tr key={o.id} className="clickable" onClick={() => nav.go(`production/orders/${o.id}`)}><td><OrderLink id={o.id} number={o.number} /></td><td>{o.itemName}</td><td className="right money">{o.qty}</td><td><Badge status={o.status === 'Submitted' ? 'Awaiting Approval' : o.status}>{o.status}</Badge></td><td style={{ fontSize: 12 }}>{fmtDate(o.plannedStart)} → {fmtDate(o.plannedEnd)}</td><td className="right money">{fmtMoney(o.costs.totalStd, s.currency)}</td><td className="right money">{fmtMoney(o.costs.totalActual, s.currency)}</td><td style={{ fontSize: 12, color: '#5F6368' }}>{fmtDate(o.updatedAt)}</td></tr>)}
+          {recent.map((o) => <tr key={o.id} className="clickable" onClick={() => nav.go(`production/orders/${o.id}`)}><td><OrderLink id={o.id} number={o.number} /></td><td>{o.itemName}</td><td className="right money">{o.qty}</td><td><Badge status={o.status === 'Submitted' ? 'Awaiting Approval' : o.status}>{o.status}</Badge></td><td style={{ fontSize: 12 }}>{fmtDate(o.plannedStart)} → {fmtDate(o.plannedEnd)}</td><td className="right money">{fmtMoney(o.costs.totalStd, s.currency)}</td><td className="right money">{fmtMoney(o.costs.totalActual, s.currency)}</td><td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{fmtDate(o.updatedAt)}</td></tr>)}
         </tbody></table>
       </SectionCard>
     </div>
