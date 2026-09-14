@@ -65,7 +65,7 @@ export default function Register({ onCreated, onSignIn }: Props) {
     <Backdrop>
       <div className="auth-split" style={{ width: '100%', maxWidth: 980, background: '#FFFFFF', borderRadius: 16, boxShadow: '0 8px 48px rgba(0,0,0,0.10)', display: 'flex', overflow: 'hidden', minHeight: 580 }}>
         {/* Left — brand + steps */}
-        <div className="auth-aside" style={{ width: 300, flexShrink: 0, background: 'linear-gradient(160deg, #1A1D24 0%, #0F1115 100%)', padding: '40px 32px', display: 'flex', flexDirection: 'column' }}>
+        <div className="auth-aside" style={{ width: 300, flexShrink: 0, background: 'linear-gradient(160deg, #1A3BCC 0%, var(--accent) 60%, #4F74FF 100%)', padding: '40px 32px', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 40 }}>
             <BrandMark light />
             <span style={{ fontSize: 18, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em' }}>Elixir Books</span>

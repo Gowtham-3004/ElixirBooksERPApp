@@ -5,7 +5,7 @@ export const AUTH_BG = 'radial-gradient(1200px 600px at 20% -10%, #FFFFFF 0%, va
 
 export function BrandMark({ size = 36, light }: { size?: number; light?: boolean }) {
   return (
-    <div style={{ width: size, height: size, borderRadius: size * 0.28, background: light ? 'rgba(255,255,255,0.2)' : 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+    <div style={{ width: size, height: size, borderRadius: size * 0.28, background: light ? 'rgba(255,255,255,0.2)' : 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
       <svg width={size * 0.55} height={size * 0.55} viewBox="0 0 18 18" fill="none">
         <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white" opacity="0.9" />
         <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity="0.6" />

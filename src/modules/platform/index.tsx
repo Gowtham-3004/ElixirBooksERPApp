@@ -32,7 +32,7 @@ function Usage() {
       <div className="grid-2">
         <Card title="Tenants by state">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {byState.map((b) => <div key={b.st} style={{ display: 'grid', gridTemplateColumns: '100px 1fr 30px', gap: 10, alignItems: 'center', fontSize: 13 }}><Badge status={b.st} /><div style={{ height: 8, background: 'var(--surface-3)', borderRadius: 9999 }}><div style={{ height: '100%', width: `${(b.n / max) * 100}%`, background: 'var(--ink)', borderRadius: 9999 }} /></div><span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{b.n}</span></div>)}
+            {byState.map((b) => <div key={b.st} style={{ display: 'grid', gridTemplateColumns: '100px 1fr 30px', gap: 10, alignItems: 'center', fontSize: 13 }}><Badge status={b.st} /><div style={{ height: 8, background: 'var(--surface-3)', borderRadius: 9999 }}><div style={{ height: '100%', width: `${(b.n / max) * 100}%`, background: 'var(--accent)', borderRadius: 9999 }} /></div><span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{b.n}</span></div>)}
           </div>
           <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 10 }}>{meta}</div>
         </Card>

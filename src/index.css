@@ -3,9 +3,8 @@
 @import './styles/ui.css';
 
 /* Design tokens. Everything below (and every inline style in src/) reads these; scripts/migrate-colors.mjs
-   keeps the old hex → token map. The second selector re-declares the light set on menus/flyouts that open
-   from the dark sidebar (see .sidebar in ui.css), so they stay readable over the rail. */
-:root, .sidebar .menu {
+   keeps the old hex → token map. */
+:root {
   /* ink (text) */
   --ink: #0F1115;
   --ink-2: #3B3F47;
@@ -22,9 +21,10 @@
   --surface-2: #F8F8F7;
   --surface-3: #F1F1F0;
   --neutral-bg: #E8E9EB;
-  /* accent — links, active tabs, focus, selection, notification badges (never primary buttons) */
+  /* accent — primary actions, links, active tabs, focus, selection */
   --accent: #325CFF;
   --accent-hover: #2A50E6;
+  --accent-active: #2446D6;
   --accent-soft: #EEF2FF;
   --accent-tint: #F5F7FF;
   --accent-line: #D6E0FF;
@@ -33,9 +33,6 @@
   --warn: #8A4B0F;   --warn-bg: #FCF1E6;   --warn-line: #E29A4B;
   --danger: #C0393F; --danger-hover: #A8323A; --danger-bg: #FCEBEC; --danger-line: #E0455A;
   --info: #3E5BA5;   --info-bg: #EAF2FB;
-  /* ink button states */
-  --ink-hover: #262A33;
-  --ink-active: #000000;
   /* radii · shadows · ring · motion */
   --r-sm: 6px; --r-md: 8px; --r-lg: 12px;
   --shadow-sm: 0 1px 2px rgba(15,17,21,.04), 0 1px 1px rgba(15,17,21,.02);
@@ -121,7 +118,7 @@ html, body, #root {
   gap: 6px;
   padding: 0 16px;
   height: 40px;
-  background: var(--ink);
+  background: var(--accent);
   color: #FFFFFF;
   border: none;
   border-radius: var(--r-md);
@@ -132,8 +129,8 @@ html, body, #root {
   white-space: nowrap;
   transition: background var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
-.btn-primary:hover { background: var(--ink-hover); }
-.btn-primary:active { background: var(--ink-active); }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:active { background: var(--accent-active); }
 
 .btn-secondary {
   display: inline-flex;
