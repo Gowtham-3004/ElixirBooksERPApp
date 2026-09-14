@@ -70,7 +70,7 @@ export default function Login({ onLogin, onCreateAccount }: LoginProps) {
 
   return (
     <Backdrop>
-      <div className="auth-split" style={{ width: '100%', maxWidth: 960, background: '#FFFFFF', borderRadius: 16, boxShadow: '0 8px 48px rgba(0,0,0,0.10)', display: 'flex', overflow: 'hidden', minHeight: 560 }}>
+      <div className="auth-split" style={{ width: '100%', maxWidth: 960, background: 'var(--surface)', borderRadius: 16, boxShadow: '0 8px 48px rgba(0,0,0,0.10)', display: 'flex', overflow: 'hidden', minHeight: 560 }}>
         {/* Left – form */}
         <div className="auth-main" style={{ width: 420, flexShrink: 0, padding: '48px 40px', display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--hairline)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 36 }}>
@@ -148,14 +148,14 @@ export default function Login({ onLogin, onCreateAccount }: LoginProps) {
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--accent)', marginBottom: 4 }}>Elixir Books {preview.plan?.name ?? 'Growth'} · {preview.co?.legalName ?? 'Acme Private Limited'}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
             {KPI.map((kpi) => (
-              <div key={kpi.label} style={{ background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 10, padding: '12px 14px' }}>
+              <div key={kpi.label} style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 10, padding: '12px 14px' }}>
                 <div className="section-label" style={{ marginBottom: 4 }}>{kpi.label}</div>
                 <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{kpi.value}</div>
                 <div style={{ fontSize: 11, color: kpi.pos ? 'var(--good)' : 'var(--danger)', marginTop: 2 }}>{kpi.delta}</div>
               </div>
             ))}
           </div>
-          <div style={{ background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 10, overflow: 'hidden' }}>
             <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)', fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>Recent Invoices</div>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr><th style={th}>Number</th><th style={th}>Customer</th><th style={{ ...th, textAlign: 'right' }}>Amount</th><th style={th}>Status</th></tr></thead>

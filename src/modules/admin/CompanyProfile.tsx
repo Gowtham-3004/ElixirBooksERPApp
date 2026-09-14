@@ -139,7 +139,7 @@ export default function CompanyProfile() {
                 <div>
                   <label className="field-label">Brand colour</label>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input type="color" value={form.brandColor ?? '#325CFF'} onChange={(e) => set({ brandColor: e.target.value })} disabled={!canEdit} style={{ width: 36, height: 36, border: '1px solid var(--line-strong)', borderRadius: 8, padding: 2, background: '#fff' }} />
+                    <input type="color" value={form.brandColor ?? '#325CFF'} onChange={(e) => set({ brandColor: e.target.value })} disabled={!canEdit} style={{ width: 36, height: 36, border: '1px solid var(--line-strong)', borderRadius: 8, padding: 2, background: 'var(--surface)' }} />
                     <input className="field-input sm" value={form.brandColor ?? ''} onChange={(e) => set({ brandColor: e.target.value })} disabled={!canEdit} style={{ width: 110 }} />
                   </div>
                 </div>

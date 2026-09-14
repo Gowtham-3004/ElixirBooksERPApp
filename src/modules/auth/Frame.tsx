@@ -1,7 +1,7 @@
 // Shared auth surfaces: gradient backdrop, brand mark and the compact card (design §6.6).
 import type { ReactNode } from 'react';
 
-export const AUTH_BG = 'radial-gradient(1200px 600px at 20% -10%, #FFFFFF 0%, var(--bg) 60%)';
+export const AUTH_BG = 'radial-gradient(1200px 600px at 20% -10%, var(--surface) 0%, var(--bg) 60%)';
 
 export function BrandMark({ size = 36, light }: { size?: number; light?: boolean }) {
   return (
@@ -28,7 +28,7 @@ export function Backdrop({ children }: { children: ReactNode }) {
 export function Frame({ title, subtitle, children, width = 440 }: { title: string; subtitle?: ReactNode; children: ReactNode; width?: number }) {
   return (
     <Backdrop>
-      <div style={{ width, maxWidth: '100%', background: '#fff', borderRadius: 16, boxShadow: '0 8px 48px rgba(0,0,0,0.10)', padding: '40px 40px' }}>
+      <div style={{ width, maxWidth: '100%', background: 'var(--surface)', borderRadius: 16, boxShadow: '0 8px 48px rgba(0,0,0,0.10)', padding: '40px 40px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
           <BrandMark size={32} />
           <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.02em' }}>Elixir Books</span>

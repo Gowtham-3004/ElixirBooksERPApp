@@ -134,7 +134,7 @@ function Register({ shift }: { shift: PosShift }) {
       {!online && <Banner tone="danger" full>Connection lost — sales are paused until reconnected.</Banner>}
       <div className="pos-register" style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         {/* catalogue 40% */}
-        <div className="pos-catalogue" style={{ flex: '0 0 40%', display: 'flex', flexDirection: 'column', minWidth: 0, borderRight: '1px solid var(--line)', background: '#FFF' }}>
+        <div className="pos-catalogue" style={{ flex: '0 0 40%', display: 'flex', flexDirection: 'column', minWidth: 0, borderRight: '1px solid var(--line)', background: 'var(--surface)' }}>
           <div style={{ padding: 12, borderBottom: '1px solid var(--line)' }}>
             <div className="search-input" style={{ width: '100%', height: 48 }}><SearchIcon size={16} /><input ref={searchRef} autoFocus value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onSearchKey} placeholder="Scan barcode or search item / SKU… (Enter adds an exact match)" style={{ fontSize: 15 }} data-testid="pos-search" /></div>
             <div style={{ display: 'flex', gap: 6, marginTop: 10, overflowX: 'auto' }}>{cats.map((c) => <button key={c} type="button" className={`chip ${cat === c ? 'selected' : ''}`} style={{ height: 36, flexShrink: 0 }} onClick={() => setCat(c)}>{c}</button>)}</div>
@@ -152,7 +152,7 @@ function Register({ shift }: { shift: PosShift }) {
           </div>
         </div>
         {/* cart 35% */}
-        <div className="pos-cart" style={{ flex: '0 0 35%', display: 'flex', flexDirection: 'column', minWidth: 0, background: '#FFF', borderRight: '1px solid var(--line)' }}>
+        <div className="pos-cart" style={{ flex: '0 0 35%', display: 'flex', flexDirection: 'column', minWidth: 0, background: 'var(--surface)', borderRight: '1px solid var(--line)' }}>
           <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>{lines.length} item{lines.length === 1 ? '' : 's'}</span>
             <div style={{ flex: 1 }}><EntityPicker size="sm" value={customerId} onChange={(id) => setCustomerId(id ?? cfg.posDefaultCustomerId)} options={custOpts} placeholder="Customer: Walk-in" allowClear={!isWalkin} recentKey="pos-customers" /></div>
@@ -180,7 +180,7 @@ function Register({ shift }: { shift: PosShift }) {
           </div>
         </div>
         {/* tender 25% */}
-        <div className="pos-tender" style={{ flex: '1 1 25%', display: 'flex', flexDirection: 'column', background: '#FFF', padding: 14, gap: 12, minWidth: 0 }}>
+        <div className="pos-tender" style={{ flex: '1 1 25%', display: 'flex', flexDirection: 'column', background: 'var(--surface)', padding: 14, gap: 12, minWidth: 0 }}>
           <div><div className="section-label">Payable</div><div className="money" style={{ fontSize: 32, fontWeight: 700, lineHeight: 1.1 }} data-testid="pos-payable">{fmtMoney(totals.total)}</div></div>
           <Segmented size="lg" value={tender} onChange={(v) => { setTender(v); setTendered(0); }} options={[{ value: 'Cash', label: 'Cash' }, { value: 'Card', label: 'Card' }, { value: 'UPI', label: 'UPI' }, { value: 'Mixed', label: 'Mixed' }, ...(!isWalkin && cfg.posAllowCredit ? [{ value: 'Credit' as const, label: 'Credit' }] : [])]} style={{ width: '100%', display: 'grid', gridTemplateColumns: `repeat(${!isWalkin && cfg.posAllowCredit ? 5 : 4}, 1fr)` }} />
           {tender === 'Cash' && <><MoneyField label="Tendered" value={tendered || totals.total} onChange={setTendered} /><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{[totals.total, Math.ceil(totals.total / 100) * 100, Math.ceil(totals.total / 500) * 500, Math.ceil(totals.total / 2000) * 2000].filter((v, i, a) => a.indexOf(v) === i).map((v) => <button key={v} type="button" className="chip" onClick={() => setTendered(v)} style={{ height: 36 }}>{fmtMoney(v)}</button>)}</div><Row k="Change" v={<span style={{ fontSize: 18, fontWeight: 700 }}>{fmtMoney(change)}</span>} /></>}

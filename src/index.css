@@ -39,7 +39,42 @@
   --shadow-md: 0 4px 12px rgba(15,17,21,.08), 0 1px 3px rgba(15,17,21,.06);
   --shadow-lg: 0 24px 48px -12px rgba(15,17,21,.22), 0 8px 24px rgba(15,17,21,.08), 0 0 0 1px rgba(15,17,21,.04);
   --ring: 0 0 0 3px rgba(53,87,207,.18);
+  --hover: rgba(15,17,21,.05);
+  --scrim: rgba(15,17,21,.32);
   --ease: cubic-bezier(.2,.8,.2,1); --dur-fast: 120ms; --dur: 180ms;
+}
+
+/* Dark appearance — set on <html> by lib/theme.ts. Only the tokens change; surfaces stay one warm neutral. */
+:root[data-theme="dark"] {
+  --ink: #F2F3F5;
+  --ink-2: #D5D7DC;
+  --ink-3: #A2A6AE;
+  --ink-4: #7E838C;
+  --ink-5: #5A5F68;
+  --line-strong: #363A42;
+  --line: rgba(255,255,255,.10);
+  --hairline: rgba(255,255,255,.07);
+  --bg: #0F1115;
+  --surface: #171A1F;
+  --surface-2: #1C1F25;
+  --surface-3: #24272E;
+  --neutral-bg: #2A2D34;
+  --accent: #6B85F2;
+  --accent-hover: #7D94F5;
+  --accent-active: #5B78F0;
+  --accent-soft: rgba(107,133,242,.16);
+  --accent-tint: rgba(107,133,242,.08);
+  --accent-line: rgba(107,133,242,.35);
+  --good: #5FCB93;   --good-bg: rgba(95,203,147,.14);   --good-line: rgba(95,203,147,.5);
+  --warn: #E0B56A;   --warn-bg: rgba(224,181,106,.14);  --warn-line: rgba(224,181,106,.55);
+  --danger: #F08A8F; --danger-hover: #F49DA1; --danger-bg: rgba(240,138,143,.14); --danger-line: rgba(240,138,143,.5);
+  --info: #8FA6E8;   --info-bg: rgba(143,166,232,.14);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.35), 0 1px 1px rgba(0,0,0,.2);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.45), 0 1px 3px rgba(0,0,0,.3);
+  --shadow-lg: 0 24px 48px -12px rgba(0,0,0,.7), 0 8px 24px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.06);
+  --ring: 0 0 0 3px rgba(107,133,242,.28);
+  --hover: rgba(255,255,255,.06);
+  --scrim: rgba(0,0,0,.55);
 }
 
 :root {
@@ -138,7 +173,7 @@ html, body, #root {
   gap: 6px;
   padding: 0 16px;
   height: 40px;
-  background: #FFFFFF;
+  background: var(--surface);
   color: var(--ink);
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -314,7 +349,7 @@ html, body, #root {
   width: 100%;
   height: 40px;
   padding: 0 12px;
-  background: #FFFFFF;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 8px;
   font-size: 14px;
@@ -443,7 +478,7 @@ html, body, #root {
   width: 16px; height: 16px;
   border: 1.5px solid var(--line);
   border-radius: 4px;
-  background: #FFFFFF;
+  background: var(--surface);
   cursor: pointer;
   appearance: none;
   flex-shrink: 0;

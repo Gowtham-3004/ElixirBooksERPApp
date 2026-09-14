@@ -9,6 +9,7 @@ import { useIsMobile, useIsTablet } from '../lib/useMedia';
 import { Avatar, Badge, Button, Banner, Kbd, TwoLine } from './ui/primitives';
 import { Modal } from './ui/overlays';
 import { Segmented } from './ui/fields';
+import { readTheme, setTheme, type ThemePref } from '../lib/theme';
 import { fmtDateTime, fmtMoney, fmtPeriod } from '../lib/format';
 
 type Density = 'comfortable' | 'compact';
@@ -33,6 +34,8 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
   // display density — read by CSS through data-density on the shell root ([data-density="compact"] rules in index.css)
   const [density, setDensityState] = useState<Density>(() => { try { return localStorage.getItem('eb-density') === 'compact' ? 'compact' : 'comfortable'; } catch { return 'comfortable'; } });
   const setDensity = (d: Density) => { setDensityState(d); try { localStorage.setItem('eb-density', d); } catch { /* ignore */ } };
+  const [theme, setThemeState] = useState<ThemePref>(() => readTheme());
+  const pickTheme = (t: ThemePref) => { setThemeState(t); setTheme(t); };
   const isMobile = useIsMobile();
   // below the laptop breakpoint the company/branch/period controls move to a strip under the header
   const compact = useIsTablet();
@@ -339,6 +342,13 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
                   <span style={{ color: 'var(--ink-3)' }}>{fmtDateTime(ss.at)}</span>
                 </div>
               ))}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div>
+                <div className="section-label">Appearance</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 2 }}>System follows your OS setting</div>
+              </div>
+              <Segmented value={theme} onChange={pickTheme} options={[{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }, { value: 'system', label: 'System' }]} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
               <div>

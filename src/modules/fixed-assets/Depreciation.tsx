@@ -42,7 +42,7 @@ export function DepreciationPage() {
   ];
   return (
     <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
-      <div style={{ width: 280, flexShrink: 0, borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', background: '#FFF' }}>
+      <div style={{ width: 280, flexShrink: 0, borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', background: 'var(--surface)' }}>
         <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ fontSize: 13, fontWeight: 600 }}>Depreciation runs</span><Button size="sm" variant={selected ? 'secondary' : 'primary'} onClick={() => setSelected(null)}>New run</Button></div>
         <div style={{ flex: 1, overflow: 'auto' }}>
           {runs.map((r) => (

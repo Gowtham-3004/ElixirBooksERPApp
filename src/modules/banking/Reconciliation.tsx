@@ -113,7 +113,7 @@ export function ReconciliationWorkbench({ params, id }: { params: Record<string,
         </div>
       </div>
       {(selStm.size > 0 || selBook.size > 0) && (
-        <div style={{ position: 'sticky', bottom: 0, background: '#fff', border: '1px solid var(--line)', borderRadius: 10, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 16, boxShadow: '0 -4px 16px rgba(0,0,0,0.06)' }}>
+        <div style={{ position: 'sticky', bottom: 0, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 10, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 16, boxShadow: '0 -4px 16px rgba(0,0,0,0.06)' }}>
           <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>{selStm.size} statement line{selStm.size === 1 ? '' : 's'} ↔ {selBook.size} book entr{selBook.size === 1 ? 'y' : 'ies'}</span>
           <span style={{ fontSize: 14, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(stmAmt, cur)} {Math.abs(diff) < 0.005 ? '=' : '≠'} {fmtMoney(bookAmt, cur)}</span>
           {Math.abs(diff) >= 0.005 && <Pill tone="warning">Difference {fmtMoney(diff, cur)}</Pill>}

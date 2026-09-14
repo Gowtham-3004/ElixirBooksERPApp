@@ -58,7 +58,7 @@ export function RunsPage({ id }: { id?: string }) {
   const m = (n: number) => (mask ? '••••••' : fmtMoney(n, s.currency));
   return (
     <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
-      <div style={{ width: 290, flexShrink: 0, borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', background: '#FFF' }}>
+      <div style={{ width: 290, flexShrink: 0, borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', background: 'var(--surface)' }}>
         <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: 13, fontWeight: 600 }}>Payroll runs</span>
           <div style={{ display: 'flex', gap: 4 }}><Button size="sm" variant="secondary" onClick={() => setOffOpen(true)} disabled={!canRun}>Off-cycle</Button><Button size="sm" variant="primary" icon={<PlusIcon size={12} />} onClick={() => setCreateOpen(true)} disabled={!canRun} reason={!canRun ? 'Requires payroll permission' : undefined}>Run</Button></div>

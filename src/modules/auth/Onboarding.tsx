@@ -63,7 +63,7 @@ export default function Onboarding({ onComplete }: { onComplete?: () => void }) 
   if (!company) {
     return (
       <Backdrop>
-        <div style={{ width: 440, maxWidth: '100%', background: '#fff', borderRadius: 16, padding: 40, boxShadow: '0 8px 48px rgba(0,0,0,0.10)' }}>
+        <div style={{ width: 440, maxWidth: '100%', background: 'var(--surface)', borderRadius: 16, padding: 40, boxShadow: '0 8px 48px rgba(0,0,0,0.10)' }}>
           <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>No workspace to set up</h1>
           <p style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 20 }}>Create a workspace first, or sign in to an existing company.</p>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -171,7 +171,7 @@ export default function Onboarding({ onComplete }: { onComplete?: () => void }) 
   const stepProps = { s, set, company, template, hasPostedJournal };
   return (
     <Backdrop>
-      <div className="auth-split" style={{ width: '100%', maxWidth: 1160, background: '#FFFFFF', borderRadius: 20, boxShadow: '0 12px 64px rgba(0,0,0,0.12)', display: 'flex', overflow: 'hidden', minHeight: 660, maxHeight: 'calc(100vh - 48px)' }}>
+      <div className="auth-split" style={{ width: '100%', maxWidth: 1160, background: 'var(--surface)', borderRadius: 20, boxShadow: '0 12px 64px rgba(0,0,0,0.12)', display: 'flex', overflow: 'hidden', minHeight: 660, maxHeight: 'calc(100vh - 48px)' }}>
         {/* Left — explainer rail with vertical stepper */}
         <div className="auth-aside" style={{ width: 280, flexShrink: 0, background: 'var(--ink)', padding: '36px 28px', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
@@ -230,7 +230,7 @@ export default function Onboarding({ onComplete }: { onComplete?: () => void }) 
             {step === 9 && <StepReady {...stepProps} />}
             {err && <div className="banner danger" style={{ marginTop: 20 }}>{err}</div>}
           </div>
-          <div style={{ padding: '14px 44px', borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#FFFFFF' }}>
+          <div style={{ padding: '14px 44px', borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)' }}>
             <div>{step > 1 && <button type="button" className="btn-secondary" onClick={() => { setErr(null); setStep((x) => Math.max(1, x - 1)); }}>← Back</button>}</div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               {!cur.mandatory && <button type="button" className="btn-link" style={{ color: 'var(--ink-3)' }} onClick={skip}>Set this up later</button>}

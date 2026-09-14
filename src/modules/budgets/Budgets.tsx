@@ -117,7 +117,7 @@ export function BudgetEditor({ id }: { id: string }) {
               <tr style={{ background: 'var(--surface-2)' }}><td colSpan={14 + (canEdit ? 1 : 0)} style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-3)', fontWeight: 600 }}>{g.name}</td></tr>
               {g.lines.map((l) => (
                 <tr key={l.id}>
-                  <td style={{ position: 'sticky', left: 0, background: '#FFF', zIndex: 1 }}><div className="cell-primary"><span className="identifier" style={{ color: 'var(--ink-4)', marginRight: 6 }}>{l.accountCode}</span>{l.accountName}</div></td>
+                  <td style={{ position: 'sticky', left: 0, background: 'var(--surface)', zIndex: 1 }}><div className="cell-primary"><span className="identifier" style={{ color: 'var(--ink-4)', marginRight: 6 }}>{l.accountCode}</span>{l.accountName}</div></td>
                   {l.months.map((m, i) => <td key={i} className="right">{canEdit ? <input className="field-input grid num" style={{ width: 84 }} value={m} onChange={(e) => setCell(l.id, i, Number(e.target.value) || 0)} onPaste={(e) => { if (paste(l.id, i, e.clipboardData.getData('text'))) e.preventDefault(); }} /> : <span className="money">{m ? fmtMoney(m, s.currency, { decimals: 0 }) : '—'}</span>}</td>)}
                   <td className="right money" style={{ fontWeight: 600 }}>{canEdit ? <input className="field-input grid num" style={{ width: 110 }} value={l.total} onChange={(e) => spread(l.id, Number(e.target.value) || 0)} title="Type an annual amount to spread evenly" /> : fmtMoney(l.total, s.currency, { decimals: 0 })}</td>
                   {canEdit && <td><Button size="sm" variant="ghost" onClick={() => save({ lines: b.lines.filter((x) => x.id !== l.id) })}>✕</Button></td>}
