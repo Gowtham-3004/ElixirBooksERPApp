@@ -88,10 +88,10 @@ export function Gstr1() {
         : diff === 0 ? <Banner tone="success">All B2B, B2C and CDN registers reconcile to the output tax ledger for {fmtPeriod(period)} ({fmtMoney(totals.tax, s.currency)}). Ready to generate.</Banner>
         : <Banner tone="warning" action={<Button variant="link" onClick={() => nav.go('accounting/ledger?account=acc_2300')}>Open tax ledger</Button>}>Registers total {fmtMoney(totals.tax, s.currency)} vs output tax ledger movement {fmtMoney(ledger.tax, s.currency)} — difference {fmtMoney(diff, s.currency)}. Review before filing (FR-CMP-007).</Banner>}
       <div className="grid-4">
-        <KpiTile label="Taxable value" value={fmtMoney(totals.taxable, s.currency)} />
-        <KpiTile label="CGST + SGST" value={fmtMoney(totals.cgst + totals.sgst, s.currency)} />
-        <KpiTile label="IGST" value={fmtMoney(totals.igst, s.currency)} />
-        <KpiTile label="Total tax" value={fmtMoney(totals.tax, s.currency)} sub={`ledger ${fmtMoney(ledger.tax, s.currency)}`} deltaTone={diff === 0 ? 'good' : 'bad'} delta={diff === 0 ? 'Reconciled' : `Diff ${fmtMoney(diff, s.currency)}`} />
+        <KpiTile label="Taxable value" amount={totals.taxable} currency={s.currency} />
+        <KpiTile label="CGST + SGST" amount={totals.cgst + totals.sgst} currency={s.currency} />
+        <KpiTile label="IGST" amount={totals.igst} currency={s.currency} />
+        <KpiTile label="Total tax" amount={totals.tax} currency={s.currency} sub={`ledger ${fmtMoney(ledger.tax, s.currency)}`} deltaTone={diff === 0 ? 'good' : 'bad'} delta={diff === 0 ? 'Reconciled' : `Diff ${fmtMoney(diff, s.currency)}`} />
       </div>
       <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--hairline)' }}>{(['sections', 'hsn'] as const).map((t) => <button key={t} type="button" className={`filter-tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>{t === 'sections' ? 'Sections' : `HSN summary (${data.hsn.length})`}</button>)}</div>
       {tab === 'sections' ? <SectionTable sections={data.sections} currency={s.currency} onDrill={(code) => nav.go(code.startsWith('4A') || code === '6A' ? 'taxation/b2b' : code.startsWith('9B') ? 'taxation/cdn' : 'taxation/b2c')} /> : (

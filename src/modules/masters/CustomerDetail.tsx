@@ -87,8 +87,8 @@ export default function CustomerDetail({ id }: { id: string }) {
         </>}
       />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
-        <KpiTile label="Outstanding" value={<Money value={out.outstanding} currency={s.currency} />} sub={`${mine.length} open item${mine.length === 1 ? '' : 's'}`} onClick={() => setTab('items')} />
-        <KpiTile label="Overdue" value={<Money value={out.overdue} currency={s.currency} tone={out.overdue > 0 ? 'negative' : 'none'} />} sub={out.overdue > 0 ? 'Past due date' : 'Nothing overdue'} deltaTone={out.overdue > 0 ? 'bad' : 'good'} />
+        <KpiTile label="Outstanding" amount={out.outstanding} currency={s.currency} sub={`${mine.length} open item${mine.length === 1 ? '' : 's'}`} onClick={() => setTab('items')} />
+        <KpiTile label="Overdue" amount={out.overdue} currency={s.currency} tone={out.overdue > 0 ? 'negative' : 'none'} sub={out.overdue > 0 ? 'Past due date' : 'Nothing overdue'} deltaTone={out.overdue > 0 ? 'bad' : 'good'} />
         <KpiTile label="Credit limit" value={c.creditLimit ? <Money value={c.creditLimit} currency={c.currency} /> : 'No limit'} sub={<span>Policy: {c.creditPolicy === 'Inherit' ? `Inherit (${credit.mode})` : c.creditPolicy}</span>} meta={c.creditLimit ? <Meter value={out.outstanding} max={c.creditLimit} /> : undefined} />
         <KpiTile label="Documents" value={docs.length} sub={refs.detail || 'No references yet'} onClick={() => setTab('docs')} />
       </div>

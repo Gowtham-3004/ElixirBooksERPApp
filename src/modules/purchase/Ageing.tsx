@@ -40,11 +40,11 @@ export function ApAgeing({ supplierId }: { supplierId?: string }) {
         <div className="kpi-tile"><div className="section-label">Total (net of credits)</div><div style={{ fontSize: 16, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(tot('total'))}</div><div style={{ fontSize: 11, color: 'var(--ink-3)' }}>credits {fmtMoney(tot('credits'))}</div></div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0,1fr))', gap: 12 }}>
-        <KpiTile label="Overdue now" value={fmtMoney(sched.overdue)} deltaTone="bad" delta={sched.overdue ? 'Pay first' : undefined} />
-        <KpiTile label="Due next 7 days" value={fmtMoney(sched.next7)} />
-        <KpiTile label="Due 8–14 days" value={fmtMoney(sched.next14)} />
-        <KpiTile label="Due 15–30 days" value={fmtMoney(sched.next30)} />
-        <KpiTile label="Advances held" value={fmtMoney(tot('credits'))} sub="supplier credits / advances" />
+        <KpiTile label="Overdue now" amount={sched.overdue} deltaTone="bad" delta={sched.overdue ? 'Pay first' : undefined} />
+        <KpiTile label="Due next 7 days" amount={sched.next7} />
+        <KpiTile label="Due 8–14 days" amount={sched.next14} />
+        <KpiTile label="Due 15–30 days" amount={sched.next30} />
+        <KpiTile label="Advances held" amount={tot('credits')} sub="supplier credits / advances" />
       </div>
       {rows.length === 0 ? <EmptyState title="No payables outstanding" description="Post vendor invoices to see ageing." /> : (
         <div className="card" style={{ overflow: 'auto' }}>

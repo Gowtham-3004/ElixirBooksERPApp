@@ -98,7 +98,7 @@ function RunDetail({ run }: { run: MrpRun }) {
       <div className="grid-4">
         <KpiTile label="Items planned" value={run.summary.itemsPlanned} sub={`${run.summary.shortfalls} with shortfall`} />
         <KpiTile label="Suggestions" value={run.suggestions.length} sub={`${run.summary.production} production · ${run.summary.purchase} purchase · ${run.summary.transfer} transfer`} />
-        <KpiTile label="Estimated value" value={fmtMoney(run.summary.value, s.currency)} sub="At standard / purchase price" />
+        <KpiTile label="Estimated value" amount={run.summary.value} currency={s.currency} sub="At standard / purchase price" />
         <KpiTile label="Review progress" value={`${counts.converted + counts.rejected} / ${run.suggestions.length}`} sub={`${counts.suggested} pending · ${counts.accepted} accepted · ${counts.converted} converted`} />
       </div>
       <Tabs variant="filter" tabs={[{ id: 'suggestions', label: 'Suggestions', count: run.suggestions.length }, { id: 'requirements', label: 'Net requirements', count: run.details.length }]} value={view} onChange={setView} />

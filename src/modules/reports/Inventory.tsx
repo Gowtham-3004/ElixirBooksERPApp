@@ -98,9 +98,9 @@ export function ValuationReport() {
     <ReportFrame id="stock-valuation" title="Stock valuation" rangeLabel={`As at ${fmtDate(f.asOf)} · ${s.company?.defaults.valuationMethod ?? 'AVCO'}`} filterState={f} exportColumns={cols.filter((c) => c.key !== 'method').map((c) => ({ key: c.key, label: String(c.label) }))} exportRows={() => rows as any}
       filters={<><div><label className="field-label">As at</label><input type="date" className="field-input sm" value={f.asOf} onChange={(e) => set({ asOf: e.target.value })} /></div><WarehousePicker value={f.warehouseId} onChange={(v) => set({ warehouseId: v })} /></>}>
       <div className="grid-3">
-        <KpiTile label="Stock value (sub-ledger)" value={fmtMoney(total, s.currency)} sub={`${rows.length} item-warehouse lines`} />
-        <KpiTile label="Inventory GL balance" value={fmtMoney(ledgerInv, s.currency)} sub="1200 + 1210 + 1220 as at date" onClick={() => nav.go('accounting/ledger?account=acc_1200')} />
-        <KpiTile label="Difference" value={fmtMoney(Math.round((total - ledgerInv) * 100) / 100, s.currency)} deltaTone={Math.abs(total - ledgerInv) < 1 ? 'good' : 'bad'} delta={Math.abs(total - ledgerInv) < 1 ? 'Reconciled' : 'Sub-ledger ≠ GL'} sub="FR-RPT-009 exception if non-zero" />
+        <KpiTile label="Stock value (sub-ledger)" amount={total} currency={s.currency} sub={`${rows.length} item-warehouse lines`} />
+        <KpiTile label="Inventory GL balance" amount={ledgerInv} currency={s.currency} sub="1200 + 1210 + 1220 as at date" onClick={() => nav.go('accounting/ledger?account=acc_1200')} />
+        <KpiTile label="Difference" amount={Math.round((total - ledgerInv) * 100) / 100} currency={s.currency} deltaTone={Math.abs(total - ledgerInv) < 1 ? 'good' : 'bad'} delta={Math.abs(total - ledgerInv) < 1 ? 'Reconciled' : 'Sub-ledger ≠ GL'} sub="FR-RPT-009 exception if non-zero" />
       </div>
       <DataTable rows={rows} rowKey={(r) => r.itemId + r.warehouseId} columns={cols} dense showTotals onRowClick={(r) => nav.go(`inventory/ledger?item=${r.itemId}`)} emptyTitle="No stock to value" />
     </ReportFrame>

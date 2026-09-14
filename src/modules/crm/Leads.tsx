@@ -180,7 +180,7 @@ export function LeadDetail({ id, convert }: { id: string; convert?: boolean }) {
           {lead.stage === 'Won' && customer && <Button variant="primary" onClick={() => nav.go('sales/quotations/new', { lead: lead.id })}>Create quotation</Button>}
         </>} />
       <div className="grid-4">
-        <KpiTile label="Value" value={fmtMoney(lead.value)} sub={`${lead.probability}% · weighted ${fmtMoney((lead.value * lead.probability) / 100)}`} />
+        <KpiTile label="Value" amount={lead.value} sub={`${lead.probability}% · weighted ${fmtMoney((lead.value * lead.probability) / 100)}`} />
         <KpiTile label="Days open" value={daysBetween(lead.createdAt.slice(0, 10), today())} sub={`since ${fmtDate(lead.createdAt)}`} />
         <KpiTile label="Activities" value={activities.length} sub={`${activities.filter((a) => a.status === 'Open').length} open`} />
         <KpiTile label="Customer" value={customer ? <span className="link" style={{ fontSize: 16 }} onClick={() => nav.go(`crm/customers/${customer.id}`)}>{customer.name}</span> : <span style={{ fontSize: 14, color: 'var(--ink-5)' }}>Not converted</span>} sub={customer?.code} />

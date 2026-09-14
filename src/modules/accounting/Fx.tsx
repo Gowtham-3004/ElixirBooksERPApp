@@ -68,10 +68,10 @@ export function FxExposurePage() {
     <div className="page">
       <PageHeader title="Currencies & FX" subtitle={<ScopeLine extra={`base ${exp.base} · exposure as of ${fmtDate(asOf)}`} />} actions={<><Button variant="secondary" onClick={() => nav.go('masters/exchange-rates')}>Exchange rates & audit</Button><Button variant="primary" onClick={() => nav.go('accounting/revaluation')}>Revaluation runs</Button></>} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-        <KpiTile label="Foreign exposure" value={<Money value={exp.items.reduce((x, i) => x + Math.abs(i.bookBase), 0)} currency={exp.base} />} sub={`${exp.items.length} item(s) in ${exp.currencies.join(', ') || '—'}`} />
-        <KpiTile label="Unrealised at current rates" value={<Money value={unreal} currency={exp.base} tone="auto" />} sub={exp.currencies.map((c) => `${c} ${exp.latest[c].rate} (${exp.latest[c].type})`).join(' · ') || 'No foreign items'} deltaTone={unreal >= 0 ? 'good' : 'bad'} />
-        <KpiTile label="Realised gain (FY)" value={<Money value={gain} currency={exp.base} tone="positive" />} onClick={() => setTab('realized')} />
-        <KpiTile label="Realised loss (FY)" value={<Money value={loss} currency={exp.base} tone={loss ? 'negative' : 'none'} />} onClick={() => setTab('realized')} />
+        <KpiTile label="Foreign exposure" amount={exp.items.reduce((x, i) => x + Math.abs(i.bookBase), 0)} currency={exp.base} sub={`${exp.items.length} item(s) in ${exp.currencies.join(', ') || '—'}`} />
+        <KpiTile label="Unrealised at current rates" amount={unreal} currency={exp.base} tone="auto" sub={exp.currencies.map((c) => `${c} ${exp.latest[c].rate} (${exp.latest[c].type})`).join(' · ') || 'No foreign items'} deltaTone={unreal >= 0 ? 'good' : 'bad'} />
+        <KpiTile label="Realised gain (FY)" amount={gain} currency={exp.base} tone="positive" onClick={() => setTab('realized')} />
+        <KpiTile label="Realised loss (FY)" amount={loss} currency={exp.base} tone={loss ? 'negative' : 'none'} onClick={() => setTab('realized')} />
       </div>
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
         <div style={{ display: 'flex' }}>{(['exposure', 'realized'] as const).map((t) => <button key={t} type="button" className={`filter-tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>{t === 'exposure' ? 'Exposure' : 'Realised gain / loss'}</button>)}</div>
@@ -194,8 +194,8 @@ export function RevaluationPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
             <KpiTile label="Items in scope" value={preview.length} sub={`${currency} at ${chosen?.rate ?? '—'}`} />
-            <KpiTile label="Unrealised gain" value={<Money value={gain} currency={s.currency} tone="positive" />} sub={gainAcc ? `→ ${gainAcc.code} ${gainAcc.name}` : 'Configure account'} />
-            <KpiTile label="Unrealised loss" value={<Money value={loss} currency={s.currency} tone={loss ? 'negative' : 'none'} />} sub={lossAcc ? `→ ${lossAcc.code} ${lossAcc.name}` : 'Configure account'} />
+            <KpiTile label="Unrealised gain" amount={gain} currency={s.currency} tone="positive" sub={gainAcc ? `→ ${gainAcc.code} ${gainAcc.name}` : 'Configure account'} />
+            <KpiTile label="Unrealised loss" amount={loss} currency={s.currency} tone={loss ? 'negative' : 'none'} sub={lossAcc ? `→ ${lossAcc.code} ${lossAcc.name}` : 'Configure account'} />
           </div>
           <div className="card" style={{ overflow: 'auto' }}>
             <table className="data-table dense">

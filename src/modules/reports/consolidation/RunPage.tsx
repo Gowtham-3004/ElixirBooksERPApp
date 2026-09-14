@@ -70,7 +70,7 @@ export function RunPage({ id }: { id: string }) {
 
       <div className="grid-4">
         <KpiTile label="Translated lines" value={String(run.translatedLines.length)} sub={`${run.companies.filter((c) => c.included).length} companies`} />
-        <KpiTile label={`Translation adjustment (CTA)`} value={fmtMoney(-run.cta, run.currency)} sub="Balancing figure, disclosed separately (FR-RPT-013)" deltaTone={run.cta === 0 ? 'neutral' : 'neutral'} />
+        <KpiTile label={`Translation adjustment (CTA)`} amount={-run.cta} currency={run.currency} sub="Balancing figure, disclosed separately (FR-RPT-013)" deltaTone={run.cta === 0 ? 'neutral' : 'neutral'} />
         <KpiTile label="Eliminations" value={`${accepted.length} accepted`} sub={proposed.length ? `${proposed.length} awaiting decision` : 'None outstanding'} onClick={() => setTab('eliminations')} />
         <KpiTile label="Consolidation adjustments" value={String(adjustments.filter((a) => a.status === 'Posted').length)} sub="Never written to legal books (FR-CNS-004)" onClick={() => setTab('adjustments')} />
       </div>

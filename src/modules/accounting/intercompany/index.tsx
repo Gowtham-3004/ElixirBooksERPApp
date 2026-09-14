@@ -26,9 +26,9 @@ export function IntercompanyPage() {
         actions={<Button variant="secondary" onClick={() => nav.go('reports/consolidation/intercompany')}>Group view &amp; eliminations</Button>}
       />
       <div className="grid-4">
-        <KpiTile label="Due from counterparties" value={fmtMoney(receivable, s.currency)} sub={`${dues.length} counterpart${dues.length === 1 ? 'y' : 'ies'} in ${s.company?.tradeName ?? 'this company'}`} />
-        <KpiTile label="Due to counterparties" value={fmtMoney(payable, s.currency)} sub="Intercompany payable control account" />
-        <KpiTile label="Net position" value={fmtMoney(receivable - payable, s.currency)} deltaTone={receivable - payable >= 0 ? 'good' : 'bad'} delta={receivable - payable >= 0 ? 'Net receivable' : 'Net payable'} sub={s.currency} />
+        <KpiTile label="Due from counterparties" amount={receivable} currency={s.currency} sub={`${dues.length} counterpart${dues.length === 1 ? 'y' : 'ies'} in ${s.company?.tradeName ?? 'this company'}`} />
+        <KpiTile label="Due to counterparties" amount={payable} currency={s.currency} sub="Intercompany payable control account" />
+        <KpiTile label="Net position" amount={receivable - payable} currency={s.currency} deltaTone={receivable - payable >= 0 ? 'good' : 'bad'} delta={receivable - payable >= 0 ? 'Net receivable' : 'Net payable'} sub={s.currency} />
         <KpiTile label="Documents to resolve" value={String(open.length)} sub={`${mine.length} intercompany documents involve ${s.company?.tradeName ?? 'this company'}`} />
       </div>
       {open.length > 0 && (

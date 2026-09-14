@@ -95,10 +95,10 @@ export function WipPage({ params }: { params: Record<string, string> }) {
       {tab === 'wip' && (
         <>
           <div className="grid-4">
-            <KpiTile label="WIP per order ledger" value={fmtMoney(wipTotal, s.currency)} sub={`${perOrder.filter((x) => Math.abs(x.balance) > 0.01).length} order(s) with a balance`} />
-            <KpiTile label="GL 1220 Work in Progress" value={fmtMoney(glWip.net, s.currency)} sub={`Dr ${fmtMoney(glWip.dr, s.currency)} · Cr ${fmtMoney(glWip.cr, s.currency)}`} onClick={() => nav.go('accounting/ledger', { account: 'acc_1220' })} />
-            <KpiTile label="Difference" value={fmtMoney(difference, s.currency)} deltaTone={Math.abs(difference) < 0.01 ? 'good' : 'bad'} delta={Math.abs(difference) < 0.01 ? '✓ Ties out' : 'Investigate'} sub="Order ledger vs general ledger" />
-            <KpiTile label="Material in / output out" value={fmtMoney(perOrder.reduce((a, x) => a + x.materialIn + x.conversion, 0), s.currency)} sub={`Output ${fmtMoney(perOrder.reduce((a, x) => a + x.output, 0), s.currency)}`} />
+            <KpiTile label="WIP per order ledger" amount={wipTotal} currency={s.currency} sub={`${perOrder.filter((x) => Math.abs(x.balance) > 0.01).length} order(s) with a balance`} />
+            <KpiTile label="GL 1220 Work in Progress" amount={glWip.net} currency={s.currency} sub={`Dr ${fmtMoney(glWip.dr, s.currency)} · Cr ${fmtMoney(glWip.cr, s.currency)}`} onClick={() => nav.go('accounting/ledger', { account: 'acc_1220' })} />
+            <KpiTile label="Difference" amount={difference} currency={s.currency} deltaTone={Math.abs(difference) < 0.01 ? 'good' : 'bad'} delta={Math.abs(difference) < 0.01 ? '✓ Ties out' : 'Investigate'} sub="Order ledger vs general ledger" />
+            <KpiTile label="Material in / output out" amount={perOrder.reduce((a, x) => a + x.materialIn + x.conversion, 0)} currency={s.currency} sub={`Output ${fmtMoney(perOrder.reduce((a, x) => a + x.output, 0), s.currency)}`} />
           </div>
           {Math.abs(difference) >= 0.01 && <Banner tone="warning">WIP per order ({fmtMoney(wipTotal, s.currency)}) differs from GL account 1220 ({fmtMoney(glWip.net, s.currency)}) by {fmtMoney(difference, s.currency)}. Journals posted to 1220 outside a production order (manual journals, fixed-asset capitalisation) explain the difference.</Banner>}
           <SectionCard title="WIP by production order" padding={0}>
@@ -130,10 +130,10 @@ export function WipPage({ params }: { params: Record<string, string> }) {
       {tab === 'variance' && (
         <>
           <div className="grid-4">
-            <KpiTile label="Total variance" value={fmtMoney(variances.reduce((a, v) => a + v.total, 0), s.currency)} sub={`${variances.length} order(s)`} deltaTone={variances.reduce((a, v) => a + v.total, 0) <= 0 ? 'good' : 'bad'} delta={variances.reduce((a, v) => a + v.total, 0) <= 0 ? 'Favourable' : 'Unfavourable'} />
-            <KpiTile label="Material price" value={fmtMoney(variances.reduce((a, v) => a + v.priceVar, 0), s.currency)} sub="Issue rate vs standard cost" />
-            <KpiTile label="Labour efficiency" value={fmtMoney(variances.reduce((a, v) => a + v.labourEff, 0), s.currency)} sub="Actual vs standard minutes" />
-            <KpiTile label="Yield loss" value={fmtMoney(variances.reduce((a, v) => a + v.yieldVar, 0), s.currency)} sub="Scrap share of standard cost" />
+            <KpiTile label="Total variance" amount={variances.reduce((a, v) => a + v.total, 0)} currency={s.currency} sub={`${variances.length} order(s)`} deltaTone={variances.reduce((a, v) => a + v.total, 0) <= 0 ? 'good' : 'bad'} delta={variances.reduce((a, v) => a + v.total, 0) <= 0 ? 'Favourable' : 'Unfavourable'} />
+            <KpiTile label="Material price" amount={variances.reduce((a, v) => a + v.priceVar, 0)} currency={s.currency} sub="Issue rate vs standard cost" />
+            <KpiTile label="Labour efficiency" amount={variances.reduce((a, v) => a + v.labourEff, 0)} currency={s.currency} sub="Actual vs standard minutes" />
+            <KpiTile label="Yield loss" amount={variances.reduce((a, v) => a + v.yieldVar, 0)} currency={s.currency} sub="Scrap share of standard cost" />
           </div>
           <SectionCard title="Variance by order — click a row to drill into its WIP ledger" padding={0}>
             <DataTable rows={variances} rowKey={(v) => v.order.id} columns={[
@@ -174,7 +174,7 @@ export function WipPage({ params }: { params: Record<string, string> }) {
             <KpiTile label="Completed, not closed" value={closeOrders.length} sub={`${fmtMoney(closeOrders.reduce((a, o) => a + o.costs.wipBalance, 0), s.currency)} WIP to clear`} />
             <KpiTile label="Open orders" value={orders.filter((o) => ['Released', 'In Progress', 'Partially Completed'].includes(o.status)).length} sub="Legitimately carry WIP" />
             <KpiTile label="Receipts on hold" value={receipts.filter((r) => r.status === 'Hold').length} sub="Blocks completion" deltaTone={receipts.filter((r) => r.status === 'Hold').length ? 'bad' : 'good'} delta={receipts.filter((r) => r.status === 'Hold').length ? 'Resolve QC' : 'Clear'} />
-            <KpiTile label="GL 1220 balance" value={fmtMoney(glWip.net, s.currency)} sub={`Difference to order ledger ${fmtMoney(difference, s.currency)}`} />
+            <KpiTile label="GL 1220 balance" amount={glWip.net} currency={s.currency} sub={`Difference to order ledger ${fmtMoney(difference, s.currency)}`} />
           </div>
           <SectionCard title="Close period WIP — orders completed but not closed" padding={0} actions={<Button disabled={closeOrders.length === 0} reason={closeOrders.length === 0 ? 'Nothing to close' : undefined} onClick={() => confirm.open({ title: `Close ${closeOrders.length} completed order(s)?`, statement: `Each order posts its remaining WIP balance as a variance to 5710 so WIP nets to zero. Total to clear: ${fmtMoney(closeOrders.reduce((a, o) => a + o.costs.wipBalance, 0), s.currency)}.`, consequences: [{ engine: 'Journal', text: 'One variance journal per order' }, { engine: 'Workflow', text: 'Orders become read-only' }], confirmLabel: 'Close all completed', cancelLabel: 'Review individually', onConfirm: () => { let n = 0; closeOrders.forEach((o) => { try { closeOrder(o.id); n += 1; } catch (e: any) { toast.error(`${o.number}: ${e.message}`); } }); if (n) toast.success(`${n} order(s) closed`); } })}>Close all completed</Button>}>
             <DataTable rows={closeOrders} columns={[

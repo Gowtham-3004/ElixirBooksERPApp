@@ -64,9 +64,9 @@ export function DepreciationPage() {
             {dup ? <Banner tone="danger">Depreciation for {fmtPeriod(period)} is already posted as {dup.number} ({fmtMoney(dup.total, s.currency)}). Duplicate period posting is blocked — reverse it first (FR-AST-004).</Banner> : periodRec?.status === 'Locked' ? <Banner tone="warning">{periodRec.label} is locked — reopen it under Company administration before posting.</Banner> : lastPosted && period > defaultPeriod ? <Banner tone="warning">Skipping months: last posted run is {fmtPeriod(lastPosted.period)}. Post {fmtPeriod(defaultPeriod)} first to keep the schedule continuous.</Banner> : <Banner tone="info">Computed per asset from method, useful life, residual, in-service date (prorated) and prior accumulated depreciation. Fully depreciated and disposed assets are skipped.</Banner>}
             <div className="grid-4">
               <KpiTile label="Assets depreciating" value={preview.length} sub={`of ${assets.filter((a) => a.status !== 'Disposed').length} in books`} />
-              <KpiTile label="Depreciation this period" value={fmtMoney(total, s.currency)} />
-              <KpiTile label="Opening NBV" value={fmtMoney(preview.reduce((x, l) => x + l.openingNbv, 0), s.currency)} />
-              <KpiTile label="Closing NBV" value={fmtMoney(preview.reduce((x, l) => x + l.closingNbv, 0), s.currency)} />
+              <KpiTile label="Depreciation this period" amount={total} currency={s.currency} />
+              <KpiTile label="Opening NBV" amount={preview.reduce((x, l) => x + l.openingNbv, 0)} currency={s.currency} />
+              <KpiTile label="Closing NBV" amount={preview.reduce((x, l) => x + l.closingNbv, 0)} currency={s.currency} />
             </div>
           </>
         ) : (

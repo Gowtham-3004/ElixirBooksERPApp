@@ -25,7 +25,7 @@ function Usage() {
       <PageHeader title="Platform usage" subtitle={meta} />
       <div className="grid-4">
         <KpiTile label="Tenants" value={tenants.length} sub={`${byState.find((b) => b.st === 'Active')?.n ?? 0} active`} meta={meta} onClick={() => nav.go('platform/tenants')} />
-        <KpiTile label="MRR" value={fmtMoney(mrr, 'INR')} sub="Active + grace tenants" meta={meta} />
+        <KpiTile label="MRR" amount={mrr} currency={'INR'} sub="Active + grace tenants" meta={meta} />
         <KpiTile label="On trial" value={byState.find((b) => b.st === 'Trial')?.n ?? 0} sub={`${tenants.filter((t) => t.subscriptionState === 'Trial' && t.trialEndsAt && t.trialEndsAt < new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)).length} ending within 7 days`} meta={meta} onClick={() => nav.go('platform/tenants')} />
         <KpiTile label="At risk" value={(byState.find((b) => b.st === 'Grace')?.n ?? 0) + (byState.find((b) => b.st === 'Suspended')?.n ?? 0)} sub="Grace + suspended" deltaTone="bad" meta={meta} onClick={() => nav.go('platform/tenants')} />
       </div>

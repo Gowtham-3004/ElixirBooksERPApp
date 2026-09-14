@@ -55,8 +55,8 @@ export function DayBook() {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
         <KpiTile label="Journals" value={rows.length} sub={`${byDate.size} posting days`} />
-        <KpiTile label="Debit turnover" value={<Money value={runDr} currency={s.currency} />} />
-        <KpiTile label="Credit turnover" value={<Money value={runCr} currency={s.currency} />} sub={Math.abs(runDr - runCr) < 0.01 ? 'Dr = Cr' : 'Unbalanced'} deltaTone={Math.abs(runDr - runCr) < 0.01 ? 'good' : 'bad'} />
+        <KpiTile label="Debit turnover" amount={runDr} currency={s.currency} />
+        <KpiTile label="Credit turnover" amount={runCr} currency={s.currency} sub={Math.abs(runDr - runCr) < 0.01 ? 'Dr = Cr' : 'Unbalanced'} deltaTone={Math.abs(runDr - runCr) < 0.01 ? 'good' : 'bad'} />
       </div>
       <div className="card" style={{ overflow: 'auto' }}>
         <table className="data-table dense">
@@ -118,8 +118,8 @@ export function LedgerPage() {
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
             <KpiTile label="Opening" value={balLabel(ledger.opening)} sub={fmtDate(pr.range.from)} />
-            <KpiTile label="Debits" value={<Money value={ledger.dr} currency={s.currency} />} sub={`${ledger.entries.filter((e) => e.dr).length} entries`} />
-            <KpiTile label="Credits" value={<Money value={ledger.cr} currency={s.currency} />} sub={`${ledger.entries.filter((e) => e.cr).length} entries`} />
+            <KpiTile label="Debits" amount={ledger.dr} currency={s.currency} sub={`${ledger.entries.filter((e) => e.dr).length} entries`} />
+            <KpiTile label="Credits" amount={ledger.cr} currency={s.currency} sub={`${ledger.entries.filter((e) => e.cr).length} entries`} />
             <KpiTile label="Closing" value={balLabel(ledger.closing)} sub={fmtDate(pr.range.to)} meta={acc.isControl ? <span>Control · {acc.controlType} — <span className="link" onClick={() => nav.go(acc.controlType === 'AR' ? 'accounting/customer-ledger' : acc.controlType === 'AP' ? 'accounting/supplier-ledger' : 'accounting/ledger')}>sub-ledger</span></span> : undefined} />
           </div>
           <div className="card" style={{ overflow: 'auto' }}>

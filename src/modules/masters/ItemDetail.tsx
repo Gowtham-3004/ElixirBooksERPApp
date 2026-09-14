@@ -38,7 +38,7 @@ export default function ItemDetail({ id }: { id: string }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
         <KpiTile label="On hand" value={item.isStock ? fmtQty(total.onHand, item.baseUom) : 'Service'} sub={item.isStock ? `${fmtQty(total.reserved)} reserved · ${fmtQty(total.available)} available` : 'No stock movements'} />
         <KpiTile label="Stock value" value={item.isStock ? <Money value={total.value} currency={s.currency} /> : '—'} sub={item.isStock ? `Avg rate ${fmtQty(total.avgRate)} / ${item.baseUom} (${s.company?.defaults.valuationMethod})` : undefined} />
-        <KpiTile label="Sales price" value={<Money value={item.salesPrice} currency={s.currency} />} sub={`${myPrices.length} price list entr${myPrices.length === 1 ? 'y' : 'ies'}`} onClick={() => setTab('prices')} />
+        <KpiTile label="Sales price" amount={item.salesPrice} currency={s.currency} sub={`${myPrices.length} price list entr${myPrices.length === 1 ? 'y' : 'ies'}`} onClick={() => setTab('prices')} />
         <KpiTile label="Reorder" value={item.isStock ? fmtQty(item.reorderLevel, item.baseUom) : '—'} sub={item.isStock ? (total.onHand < item.reorderLevel && item.reorderLevel > 0 ? `Below level — order ${fmtQty(item.reorderQty, item.baseUom)}` : `Safety ${fmtQty(item.safetyStock)} · lead ${item.leadTimeDays} d`) : undefined} deltaTone={item.isStock && item.reorderLevel > 0 && total.onHand < item.reorderLevel ? 'bad' : 'neutral'} />
       </div>
       <div className="card" style={{ padding: 18 }}>

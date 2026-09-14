@@ -53,9 +53,9 @@ export default function Profitability({ projectId }: { projectId?: string }) {
         </div>
       </Card>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12 }}>
-        <KpiTile label="Revenue (recognised)" value={fmtMoney(totals.revenue, s.currency)} sub={`${rows.length} ${group}(s)`} />
-        <KpiTile label="Total cost" value={fmtMoney(totals.cost, s.currency)} sub={`${totals.hours.toFixed(0)} h delivered`} />
-        <KpiTile label="Margin" value={fmtMoney(totals.margin, s.currency)} delta={fmtPct(totals.revenue ? (totals.margin / totals.revenue) * 100 : 0)} deltaTone={totals.margin >= 0 ? 'good' : 'bad'} sub="revenue − cost − overhead" />
+        <KpiTile label="Revenue (recognised)" amount={totals.revenue} currency={s.currency} sub={`${rows.length} ${group}(s)`} />
+        <KpiTile label="Total cost" amount={totals.cost} currency={s.currency} sub={`${totals.hours.toFixed(0)} h delivered`} />
+        <KpiTile label="Margin" amount={totals.margin} currency={s.currency} delta={fmtPct(totals.revenue ? (totals.margin / totals.revenue) * 100 : 0)} deltaTone={totals.margin >= 0 ? 'good' : 'bad'} sub="revenue − cost − overhead" />
         <KpiTile label="Cost mix" value={fmtPct(totals.cost ? (totals.resourceCost / totals.cost) * 100 : 0)} sub="resource share of cost" meta={`Purchases ${fmtMoney(totals.purchases, s.currency)} · expenses ${fmtMoney(totals.expenses, s.currency)}`} />
       </div>
       {focus && (

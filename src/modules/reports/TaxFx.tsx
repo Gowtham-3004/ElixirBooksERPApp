@@ -39,10 +39,10 @@ export function GstSummaryReport() {
         <tr style={{ color: 'var(--ink-3)' }}><td>Input tax per ledger (1400/1401/1402 movement)</td><td /><td /><td className="right money">{fmtMoney(data.inp.cgst, s.currency)}</td><td className="right money">{fmtMoney(data.inp.sgst, s.currency)}</td><td className="right money">{fmtMoney(data.inp.igst, s.currency)}</td></tr>
       </tbody></table></div>
       <div className="grid-4">
-        <KpiTile label="Net CGST payable" value={fmtMoney(net.cgst, s.currency)} deltaTone={net.cgst > 0 ? 'bad' : 'good'} />
-        <KpiTile label="Net SGST payable" value={fmtMoney(net.sgst, s.currency)} deltaTone={net.sgst > 0 ? 'bad' : 'good'} />
-        <KpiTile label="Net IGST payable" value={fmtMoney(net.igst, s.currency)} deltaTone={net.igst > 0 ? 'bad' : 'good'} />
-        <KpiTile label="Total GST payable (before set-off)" value={fmtMoney(net.cgst + net.sgst + net.igst, s.currency)} onClick={() => nav.go(`taxation/gstr3b?period=${period}`)} sub="Open GSTR-3B for set-off →" />
+        <KpiTile label="Net CGST payable" amount={net.cgst} currency={s.currency} deltaTone={net.cgst > 0 ? 'bad' : 'good'} />
+        <KpiTile label="Net SGST payable" amount={net.sgst} currency={s.currency} deltaTone={net.sgst > 0 ? 'bad' : 'good'} />
+        <KpiTile label="Net IGST payable" amount={net.igst} currency={s.currency} deltaTone={net.igst > 0 ? 'bad' : 'good'} />
+        <KpiTile label="Total GST payable (before set-off)" amount={net.cgst + net.sgst + net.igst} currency={s.currency} onClick={() => nav.go(`taxation/gstr3b?period=${period}`)} sub="Open GSTR-3B for set-off →" />
       </div>
     </ReportFrame>
   );
@@ -135,10 +135,10 @@ export function FxGainLossReport() {
     <ReportFrame id="fx-gainloss" title="FX gain / loss & revaluation" rangeLabel={rangeLabel(range)} filterState={f} exportColumns={cols.map((c) => ({ key: c.key, label: String(c.label) }))} exportRows={() => rows as any}
       filters={<RangeBar f={f} set={set} />}>
       <div className="grid-4">
-        <KpiTile label="Realized gain (ledger 4910)" value={fmtMoney(ledger.realizedGain, s.currency)} onClick={() => nav.go(`accounting/ledger?account=${IDS.accFxGain}`)} />
-        <KpiTile label="Realized loss (ledger 5600)" value={fmtMoney(ledger.realizedLoss, s.currency)} onClick={() => nav.go(`accounting/ledger?account=${IDS.accFxLoss}`)} />
-        <KpiTile label="Unrealized gain (4920)" value={fmtMoney(ledger.unrealGain, s.currency)} sub="period-end revaluation" />
-        <KpiTile label="Unrealized loss (5610)" value={fmtMoney(ledger.unrealLoss, s.currency)} sub="period-end revaluation" />
+        <KpiTile label="Realized gain (ledger 4910)" amount={ledger.realizedGain} currency={s.currency} onClick={() => nav.go(`accounting/ledger?account=${IDS.accFxGain}`)} />
+        <KpiTile label="Realized loss (ledger 5600)" amount={ledger.realizedLoss} currency={s.currency} onClick={() => nav.go(`accounting/ledger?account=${IDS.accFxLoss}`)} />
+        <KpiTile label="Unrealized gain (4920)" amount={ledger.unrealGain} currency={s.currency} sub="period-end revaluation" />
+        <KpiTile label="Unrealized loss (5610)" amount={ledger.unrealLoss} currency={s.currency} sub="period-end revaluation" />
       </div>
       <div className="section-title">Realized gain / loss on settlements (from open-item settlement history)</div>
       <DataTable rows={rows} rowKey={(r) => r.docNumber + r.settledBy + r.date} columns={cols} dense showTotals emptyTitle="No realized FX in this range" emptyDescription="Settling a foreign-currency invoice at a different rate posts a realized gain or loss." />

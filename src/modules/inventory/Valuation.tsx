@@ -30,10 +30,10 @@ export function Valuation() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}><DateField label="As of" value={asOf} onChange={setAsOf} size="sm" /><SelectField label="Warehouse" size="sm" value={wh} onChange={setWh} options={[{ value: '', label: 'All' }, ...whs.map((w) => ({ value: w.id, label: w.name }))]} /><Button onClick={() => downloadText(`valuation-${asOf}.csv`, toCSV(rows.map((r) => ({ item: r.item.code, name: r.item.name, warehouse: r.warehouse.name, qty: r.qty, avgRate: r.avgRate, value: r.value, account: db.find<Account>(C.accounts, r.item.inventoryAccountId ?? IDS.accInvFG)?.code }))))}>Export</Button></div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12 }}>
-        <KpiTile label="Stock value (ledger)" value={fmtMoney(totalStock)} sub={`${rows.length} rows`} />
-        <KpiTile label="GL inventory control" value={fmtMoney(totalGl)} sub={controls.map((c) => c.code).join(' + ')} />
-        <KpiTile label="Difference" value={fmtMoney(totalStock - totalGl)} deltaTone={Math.abs(totalStock - totalGl) < 1 ? 'good' : 'bad'} delta={Math.abs(totalStock - totalGl) < 1 ? 'Reconciled' : 'Needs explanation'} />
-        <KpiTile label="In transit" value={fmtMoney(transitValue)} sub="included in stock value" />
+        <KpiTile label="Stock value (ledger)" amount={totalStock} sub={`${rows.length} rows`} />
+        <KpiTile label="GL inventory control" amount={totalGl} sub={controls.map((c) => c.code).join(' + ')} />
+        <KpiTile label="Difference" amount={totalStock - totalGl} deltaTone={Math.abs(totalStock - totalGl) < 1 ? 'good' : 'bad'} delta={Math.abs(totalStock - totalGl) < 1 ? 'Reconciled' : 'Needs explanation'} />
+        <KpiTile label="In transit" amount={transitValue} sub="included in stock value" />
       </div>
       <div className="card" style={{ overflow: 'hidden' }}>
         <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--line)', fontWeight: 600, fontSize: 13 }}>Reconciliation to inventory control accounts</div>

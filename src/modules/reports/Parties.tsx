@@ -40,9 +40,9 @@ export function AgeingReport({ partyType }: { partyType: 'Customer' | 'Supplier'
       </div>
       <DataTable rows={res.rows} rowKey={(r) => r.partyId} columns={cols} showTotals onRowClick={(r) => nav.go(partyType === 'Customer' ? `sales/ar?party=${r.partyId}` : `purchase/ap?party=${r.partyId}`)} emptyTitle={`No open ${partyType.toLowerCase()} items`} emptyDescription="Open items appear here once invoices are posted." />
       <div className="grid-3">
-        <KpiTile label={`Sub-ledger total (${partyType === 'Customer' ? 'AR' : 'AP'} ageing)`} value={fmtMoney(res.totals.total, s.currency)} sub={`${res.rows.length} ${partyType.toLowerCase()}(s) with open items`} />
-        <KpiTile label={`Control account ${partyType === 'Customer' ? '1100' : '2100'}`} value={fmtMoney(recon.control, s.currency)} sub={`As at ${fmtDate(f.asOf)}`} onClick={() => nav.go(`accounting/ledger?account=${CONTROL_ACCOUNTS[partyType].control[0]}`)} />
-        <KpiTile label="Difference" value={fmtMoney(recon.diff, s.currency)} deltaTone={Math.abs(recon.diff) < 1 ? 'good' : 'bad'} delta={Math.abs(recon.diff) < 1 ? 'Reconciled' : 'Sub-ledger ≠ GL'} sub="FR-RPT-009 exception if non-zero" />
+        <KpiTile label={`Sub-ledger total (${partyType === 'Customer' ? 'AR' : 'AP'} ageing)`} amount={res.totals.total} currency={s.currency} sub={`${res.rows.length} ${partyType.toLowerCase()}(s) with open items`} />
+        <KpiTile label={`Control account ${partyType === 'Customer' ? '1100' : '2100'}`} amount={recon.control} currency={s.currency} sub={`As at ${fmtDate(f.asOf)}`} onClick={() => nav.go(`accounting/ledger?account=${CONTROL_ACCOUNTS[partyType].control[0]}`)} />
+        <KpiTile label="Difference" amount={recon.diff} currency={s.currency} deltaTone={Math.abs(recon.diff) < 1 ? 'good' : 'bad'} delta={Math.abs(recon.diff) < 1 ? 'Reconciled' : 'Sub-ledger ≠ GL'} sub="FR-RPT-009 exception if non-zero" />
       </div>
       <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>
         Amounts in {s.currency} base equivalent · foreign items carried at booked rate · click a row to open the party ledger.
@@ -74,8 +74,8 @@ export function OutstandingReport({ partyType }: { partyType: 'Customer' | 'Supp
       exportColumns={[{ key: 'docNumber', label: 'Document' }, { key: 'partyName', label: partyType }, { key: 'date', label: 'Date' }, { key: 'dueDate', label: 'Due' }, { key: 'currency', label: 'Currency' }, { key: 'originalAmount', label: 'Original' }, { key: 'outstanding', label: 'Outstanding' }, { key: 'baseOutstanding', label: 'Base' }, { key: 'status', label: 'Status' }]} exportRows={() => rows as any}
       filters={<><BranchPicker value={f.branchId} onChange={(v) => set({ branchId: v })} /><div><label className="field-label">Show</label><select className="field-input sm" value={f.status} onChange={(e) => set({ status: e.target.value })}><option value="open">Open only</option><option value="all">All incl. settled</option></select></div></>}>
       <div className="grid-3">
-        <KpiTile label="Outstanding (base)" value={fmtMoney(rows.reduce((x, o) => x + (o.direction === 'Debit' ? o.baseOutstanding : -o.baseOutstanding), 0), s.currency)} />
-        <KpiTile label="Overdue" value={fmtMoney(rows.filter((o) => o.direction === 'Debit' && o.dueDate < t).reduce((x, o) => x + o.baseOutstanding, 0), s.currency)} deltaTone="bad" />
+        <KpiTile label="Outstanding (base)" amount={rows.reduce((x, o) => x + (o.direction === 'Debit' ? o.baseOutstanding : -o.baseOutstanding), 0)} currency={s.currency} />
+        <KpiTile label="Overdue" amount={rows.filter((o) => o.direction === 'Debit' && o.dueDate < t).reduce((x, o) => x + o.baseOutstanding, 0)} currency={s.currency} deltaTone="bad" />
         <KpiTile label="Parties" value={new Set(rows.map((o) => o.partyId)).size} />
       </div>
       <DataTable rows={rows} columns={cols} dense showTotals onRowClick={(o) => nav.go(o.docType === 'Sales Invoice' ? `sales/invoices/${o.docId}` : o.docType === 'Vendor Invoice' ? `purchase/vendor-invoices/${o.docId}` : o.docType === 'Expense Claim' ? `budgets/expenses/${o.docId}` : `accounting/journals`)} emptyTitle="No open items" />
@@ -107,7 +107,7 @@ export function CollectionsReport({ partyType }: { partyType: 'Customer' | 'Supp
       exportColumns={[{ key: 'number', label: 'Number' }, { key: 'date', label: 'Date' }, { key: 'partyName', label: partyType }, { key: 'status', label: 'Status' }]} exportRows={() => collected.map((r) => ({ number: r.number, date: r.date, partyName: r.partyName, status: r.status }))}
       filters={<><RangeBar f={f} set={set} /><BranchPicker value={f.branchId} onChange={(v) => set({ branchId: v })} /></>}>
       <div className="grid-4">
-        {schedule.slice(0, 4).map((w) => <KpiTile key={w.label} label={w.label} value={fmtMoney(w.amount, s.currency)} sub={`${w.count} item${w.count === 1 ? '' : 's'}`} deltaTone={w.label === 'Overdue' && w.amount > 0 ? 'bad' : 'neutral'} onClick={() => nav.go(`reports/${partyType === 'Customer' ? 'customer-outstanding' : 'supplier-outstanding'}`)} />)}
+        {schedule.slice(0, 4).map((w) => <KpiTile key={w.label} label={w.label} amount={w.amount} currency={s.currency} sub={`${w.count} item${w.count === 1 ? '' : 's'}`} deltaTone={w.label === 'Overdue' && w.amount > 0 ? 'bad' : 'neutral'} onClick={() => nav.go(`reports/${partyType === 'Customer' ? 'customer-outstanding' : 'supplier-outstanding'}`)} />)}
       </div>
       <div className="section-title">{partyType === 'Customer' ? 'Receipts recorded in range' : 'Payments recorded in range'}</div>
       <DataTable rows={collected} columns={cols} dense showTotals onRowClick={(r) => nav.go(partyType === 'Customer' ? `sales/receipts/${r.id}` : `purchase/payments/${r.id}`)} emptyTitle={`No ${partyType === 'Customer' ? 'receipts' : 'payments'} in ${rangeLabel(range)}`} emptyDescription="Recorded receipts and payments appear here once posted by Sales / Purchase." />

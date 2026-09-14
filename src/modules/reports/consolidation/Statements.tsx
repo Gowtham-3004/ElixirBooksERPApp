@@ -77,17 +77,17 @@ export function TranslatedStatements() {
     >
       {view === 'pl' ? (
         <div className="grid-4">
-          <KpiTile label="Group revenue" value={fmtMoney(revenue, run.currency)} sub={`${companies.length} companies · intercompany sales eliminated`} />
-          <KpiTile label="Cost of goods sold" value={fmtMoney(cogs, run.currency)} sub={`Gross profit ${fmtMoney(revenue - cogs, run.currency)}`} />
-          <KpiTile label="Operating + finance costs" value={fmtMoney(opex + finance, run.currency)} sub={`incl. other income ${fmtMoney(otherIncome, run.currency)}`} />
-          <KpiTile label="Group net profit" value={fmtMoney(netProfit, run.currency)} deltaTone={netProfit >= 0 ? 'good' : 'bad'} delta={revenue ? `${Math.round((netProfit / revenue) * 1000) / 10}% net margin` : undefined} sub="before tax" />
+          <KpiTile label="Group revenue" amount={revenue} currency={run.currency} sub={`${companies.length} companies · intercompany sales eliminated`} />
+          <KpiTile label="Cost of goods sold" amount={cogs} currency={run.currency} sub={`Gross profit ${fmtMoney(revenue - cogs, run.currency)}`} />
+          <KpiTile label="Operating + finance costs" amount={opex + finance} currency={run.currency} sub={`incl. other income ${fmtMoney(otherIncome, run.currency)}`} />
+          <KpiTile label="Group net profit" amount={netProfit} currency={run.currency} deltaTone={netProfit >= 0 ? 'good' : 'bad'} delta={revenue ? `${Math.round((netProfit / revenue) * 1000) / 10}% net margin` : undefined} sub="before tax" />
         </div>
       ) : (
         <div className="grid-4">
-          <KpiTile label="Total assets" value={fmtMoney(totalAssets, run.currency)} />
-          <KpiTile label="Equity & liabilities" value={fmtMoney(totalLE + netProfit, run.currency)} sub={`incl. profit for the period ${fmtMoney(netProfit, run.currency)}`} />
-          <KpiTile label="Translation reserve (CTA)" value={fmtMoney(-run.cta, run.currency)} sub="Disclosed separately (FR-RPT-013)" />
-          <KpiTile label="Assets − (E + L)" value={fmtMoney(bsDiff, run.currency)} delta={Math.abs(bsDiff) < 0.5 ? 'Balanced' : 'Check translation'} deltaTone={Math.abs(bsDiff) < 0.5 ? 'good' : 'bad'} />
+          <KpiTile label="Total assets" amount={totalAssets} currency={run.currency} />
+          <KpiTile label="Equity & liabilities" amount={totalLE + netProfit} currency={run.currency} sub={`incl. profit for the period ${fmtMoney(netProfit, run.currency)}`} />
+          <KpiTile label="Translation reserve (CTA)" amount={-run.cta} currency={run.currency} sub="Disclosed separately (FR-RPT-013)" />
+          <KpiTile label="Assets − (E + L)" amount={bsDiff} currency={run.currency} delta={Math.abs(bsDiff) < 0.5 ? 'Balanced' : 'Check translation'} deltaTone={Math.abs(bsDiff) < 0.5 ? 'good' : 'bad'} />
         </div>
       )}
 

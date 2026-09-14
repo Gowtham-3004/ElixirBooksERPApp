@@ -56,10 +56,10 @@ export function DrillDown() {
       {!row ? <EmptyState title="Nothing to drill into" description="This run has no lines." icon="🔍" /> : (
         <>
           <div className="grid-4">
-            <KpiTile label="Consolidated" value={fmtMoney(row.consolidated * sign, run.currency)} sub={`${row.code} · ${row.name}`} />
+            <KpiTile label="Consolidated" amount={row.consolidated * sign} currency={run.currency} sub={`${row.code} · ${row.name}`} />
             <KpiTile label="Companies contributing" value={String(contributors.length)} sub={contributors.map((c) => c.companyName).join(', ') || '—'} />
-            <KpiTile label="Eliminations" value={fmtMoney(row.eliminations * sign, run.currency)} sub="Group book only" />
-            <KpiTile label="Adjustments" value={fmtMoney(row.adjustments * sign, run.currency)} sub="Consolidation journals" />
+            <KpiTile label="Eliminations" amount={row.eliminations * sign} currency={run.currency} sub="Group book only" />
+            <KpiTile label="Adjustments" amount={row.adjustments * sign} currency={run.currency} sub="Consolidation journals" />
           </div>
 
           <Card title="Contributing company lines (FR-CNS-003)" padding={0}>

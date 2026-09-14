@@ -44,7 +44,7 @@ export function Overview() {
       <div className="grid-4">
         <KpiTile label="Orders on the floor" value={kpi.active} sub={`${kpi.released} released · ${kpi.inProgress} in progress`} meta={`${late.length} late`} onClick={() => nav.go('production/orders')} />
         <KpiTile label="On-time completion" value={fmtPct(kpi.onTimePct, 0)} sub={`${kpi.doneCount} completed orders`} deltaTone={kpi.onTimePct >= 80 ? 'good' : 'bad'} delta={kpi.onTimePct >= 80 ? 'On target' : 'Below 80% target'} meta="Actual end ≤ planned end" />
-        <KpiTile label="WIP value" value={fmtMoneyCompact(kpi.wip, s.currency)} sub="GL 1220 · Work in Progress" meta={<ScopeLine />} onClick={() => nav.go('production/wip')} />
+        <KpiTile label="WIP value" amount={kpi.wip} currency={s.currency} compact sub="GL 1220 · Work in Progress" meta={<ScopeLine />} onClick={() => nav.go('production/wip')} />
         <KpiTile label="Scrap this month" value={fmtPct(kpi.scrapPct, 1)} sub={`${kpi.scrap} scrapped of ${kpi.good + kpi.scrap} produced`} deltaTone={kpi.scrapPct <= 3 ? 'good' : 'bad'} delta={kpi.scrapPct <= 3 ? 'Within 3% target' : 'Above 3% target'} meta={`Capacity utilisation this week ${fmtPct(kpi.util, 0)}`} />
       </div>
       <div className="grid-2">

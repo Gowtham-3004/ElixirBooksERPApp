@@ -223,7 +223,7 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
             if (!items.length) return null;
             return (
               <div key={g} style={{ marginBottom: 2 }}>
-                {collapsed ? <div style={{ height: 1, background: 'var(--surface-3)', margin: '6px 8px' }} /> : <div className="section-label">{g}</div>}
+                {collapsed ? <div style={{ height: 1, background: 'var(--surface-3)', margin: '6px 8px' }} /> : <div className="section-label">{g.charAt(0) + g.slice(1).toLowerCase()}</div>}
                 {items.map((m) => {
                   const subItems = (subNavs[m.id] ?? []).filter((i) => !i.hidden);
                   return sidebarEntry(m.id, m.label, m.icon, { items: subItems, active: route.module === m.id, activeId: activeSubNav(route, m.id, subItems), go: (id) => nav.go(`${m.id}/${id}`), fallback: () => nav.go(m.id), badge: m.id === 'approvals' ? pendingApprovals : 0 });
@@ -391,7 +391,7 @@ function SubNavList({ items, activeId, onPick, inline }: { items: SubNavItem[]; 
     <div className={inline ? 'sidebar-sub' : undefined}>
       {groups.map((g) => (
         <div key={g}>
-          {g && <div className="section-label group-label">{g}</div>}
+          {g && <div className="section-label group-label">{g.charAt(0) + g.slice(1).toLowerCase()}</div>}
           {items.filter((i) => (i.group ?? '') === g).map((i) => (
             <button key={i.id} type="button" role="menuitem" className={`menu-item ${i.id === activeId ? 'active' : ''}`} onClick={() => onPick(i.id)}>
               <span style={{ flex: 1 }}>{i.label}</span>

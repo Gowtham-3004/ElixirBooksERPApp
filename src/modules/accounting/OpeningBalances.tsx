@@ -120,9 +120,9 @@ export function OpeningBalancesPage() {
       <PageHeader title="Opening balances" subtitle={<ScopeLine extra={`as at ${fmtDate(obDate)} · ${alreadyPosted.length ? `${alreadyPosted.length} opening journal(s) posted` : 'not yet posted'}`} />}
         actions={<><Button variant="secondary" onClick={() => setImp(true)}>Import CSV</Button><Button variant="primary" onClick={() => setConfirm(true)} disabled={!canPost || (!deltas.length && !parties.some((p) => !existingOpenItemIds.has(p.id)))} reason={!canPost ? 'Requires post permission' : !deltas.length ? 'No changes to post' : undefined}>Post opening balances</Button></>} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-        <KpiTile label="Total debits" value={<Money value={totalDr} currency={s.currency} />} />
-        <KpiTile label="Total credits" value={<Money value={totalCr} currency={s.currency} />} />
-        <KpiTile label="Difference" value={<Money value={diff} currency={s.currency} tone={Math.abs(diff) < 0.01 ? 'none' : 'negative'} />} sub={Math.abs(diff) < 0.01 ? '✓ Balanced' : `Will post to ${(obe ?? retained)?.code ?? '—'} · ${(obe ?? retained)?.name ?? 'configure in settings'}`} deltaTone={Math.abs(diff) < 0.01 ? 'good' : 'bad'} />
+        <KpiTile label="Total debits" amount={totalDr} currency={s.currency} />
+        <KpiTile label="Total credits" amount={totalCr} currency={s.currency} />
+        <KpiTile label="Difference" amount={diff} currency={s.currency} tone={Math.abs(diff) < 0.01 ? 'none' : 'negative'} sub={Math.abs(diff) < 0.01 ? '✓ Balanced' : `Will post to ${(obe ?? retained)?.code ?? '—'} · ${(obe ?? retained)?.name ?? 'configure in settings'}`} deltaTone={Math.abs(diff) < 0.01 ? 'good' : 'bad'} />
         <KpiTile label="Pending changes" value={deltas.length} sub={deltas.length ? `${deltas.length} account(s) differ from posted values` : 'Grid matches the ledger'} />
       </div>
       {obe && (current[obe.id] ?? 0) !== 0 && <div className="banner warning">Opening balances carry an unreconciled difference of {fmtMoney(current[obe.id] ?? 0, s.currency)} parked in {obe.code} · {obe.name}. Adjust the affected accounts and post again to clear it, or transfer it to retained earnings by manual journal.</div>}

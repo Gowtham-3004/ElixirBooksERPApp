@@ -47,8 +47,8 @@ export default function SupplierDetail({ id }: { id: string }) {
         </>}
       />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
-        <KpiTile label="Payable" value={<Money value={out.outstanding} currency={s.currency} />} sub={`${mine.length} open item${mine.length === 1 ? '' : 's'}`} onClick={() => setTab('items')} />
-        <KpiTile label="Overdue" value={<Money value={out.overdue} currency={s.currency} tone={out.overdue > 0 ? 'negative' : 'none'} />} sub={sup.msmeNumber ? 'MSME · 45-day rule' : 'Per purchase terms'} />
+        <KpiTile label="Payable" amount={out.outstanding} currency={s.currency} sub={`${mine.length} open item${mine.length === 1 ? '' : 's'}`} onClick={() => setTab('items')} />
+        <KpiTile label="Overdue" amount={out.overdue} currency={s.currency} tone={out.overdue > 0 ? 'negative' : 'none'} sub={sup.msmeNumber ? 'MSME · 45-day rule' : 'Per purchase terms'} />
         <KpiTile label="Bank for payments" value={approvedBank ? `${approvedBank.bankName} ••••${approvedBank.accountNumber.slice(-4)}` : 'None approved'} sub={sup.bankDetails.some((b) => b.status === 'Pending Approval') ? 'Change awaiting Treasury approval' : approvedBank ? 'Approved' : 'Payments blocked'} deltaTone={approvedBank ? 'good' : 'bad'} />
         <KpiTile label="Documents" value={docs.length} sub={refs.detail || 'No references yet'} onClick={() => setTab('docs')} />
       </div>

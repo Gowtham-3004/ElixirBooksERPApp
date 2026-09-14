@@ -76,7 +76,7 @@ function NewRun({ period: periodParam }: { period?: string }) {
           </Card>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12 }}>
             <KpiTile label="Contracts selected" value={`${chosen.length} / ${previews.length}`} sub={`${billable.length} will bill`} />
-            <KpiTile label="Invoice value" value={fmtMoney(totalValue, s.currency)} sub="incl. tax, base equivalent" />
+            <KpiTile label="Invoice value" amount={totalValue} currency={s.currency} sub="incl. tax, base equivalent" />
             <KpiTile label="Sources" value={billable.reduce((a, p) => a + p.sources.length, 0)} sub="timesheet rows, milestones, usage, expenses" />
             <KpiTile label="Skipped" value={chosen.length - billable.length} sub="nothing to bill or blocked" />
           </div>

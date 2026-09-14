@@ -40,10 +40,10 @@ export function SubLedgerPage({ kind }: { kind: 'Customer' | 'Supplier' }) {
         <div style={{ display: 'flex' }}>{(['open', 'all', 'settlements'] as const).map((t) => <button key={t} type="button" className={`filter-tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>{t === 'open' ? 'Open items' : t === 'all' ? 'All items' : 'Settlements'}</button>)}</div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-        <KpiTile label={kind === 'Customer' ? 'Receivable' : 'Payable'} value={<Money value={subTotal} currency={s.currency} />} sub={`${shown.length} open item${shown.length === 1 ? '' : 's'}`} />
-        <KpiTile label="Overdue" value={<Money value={overdue} currency={s.currency} tone={overdue ? 'negative' : 'none'} />} sub={ageing.filter((a) => a.v).map((a) => `${a.b}: ${fmtMoney(a.v, s.currency)}`).join(' · ') || 'Nothing overdue'} />
+        <KpiTile label={kind === 'Customer' ? 'Receivable' : 'Payable'} amount={subTotal} currency={s.currency} sub={`${shown.length} open item${shown.length === 1 ? '' : 's'}`} />
+        <KpiTile label="Overdue" amount={overdue} currency={s.currency} tone={overdue ? 'negative' : 'none'} sub={ageing.filter((a) => a.v).map((a) => `${a.b}: ${fmtMoney(a.v, s.currency)}`).join(' · ') || 'Nothing overdue'} />
         <KpiTile label={`GL control ${control?.code ?? ''}`} value={ledger ? <Money value={glBal} currency={s.currency} /> : '—'} sub={control?.name} />
-        <KpiTile label="Control tie-out" value={<Money value={tie} currency={s.currency} tone={Math.abs(tie) < 0.01 ? 'none' : 'negative'} />} sub={Math.abs(tie) < 0.01 ? '✓ Sub-ledger = control account' : 'GL − sub-ledger difference (opening balances not yet split by party, or postings without open items)'} deltaTone={Math.abs(tie) < 0.01 ? 'good' : 'bad'} />
+        <KpiTile label="Control tie-out" amount={tie} currency={s.currency} tone={Math.abs(tie) < 0.01 ? 'none' : 'negative'} sub={Math.abs(tie) < 0.01 ? '✓ Sub-ledger = control account' : 'GL − sub-ledger difference (opening balances not yet split by party, or postings without open items)'} deltaTone={Math.abs(tie) < 0.01 ? 'good' : 'bad'} />
       </div>
       {tab !== 'settlements' ? (
         <div className="card" style={{ overflow: 'auto' }}>

@@ -37,7 +37,8 @@ function Widget({ title, sub, children, meta, onDrill, stale, onRefresh, span }:
 // CFO tiles are KpiTiles whose delta carries a trend arrow; `favorable` picks the tone.
 function Tile({ label, value, delta, favorable, sub, meta, onClick, stale }: { label: string; value: string; delta?: string; favorable?: boolean; sub?: string; meta: string; onClick?: () => void; stale?: boolean }) {
   const trend = delta ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>{favorable ? <TrendingUpIcon size={11} /> : <TrendingDownIcon size={11} />}{delta}</span> : undefined;
-  return <KpiTile label={label} value={value} delta={trend} deltaTone={favorable ? 'good' : 'bad'} sub={sub} meta={meta} onClick={onClick} stale={stale} />;
+  void meta; // the scope line lives in the page subtitle; tiles stay tile-specific
+  return <KpiTile label={label} value={value} delta={trend} deltaTone={favorable ? 'good' : 'bad'} sub={sub} onClick={onClick} stale={stale} />;
 }
 
 export function CfoDashboard() {

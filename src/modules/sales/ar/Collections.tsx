@@ -72,9 +72,9 @@ export default function Collections({ customerId }: { customerId?: string }) {
         </div>
       </div>
       <div className="grid-4">
-        <KpiTile label="Total outstanding" value={fmtMoney(totOut, cur)} sub={`${rows.length} customers`} />
+        <KpiTile label="Total outstanding" amount={totOut} currency={cur} sub={`${rows.length} customers`} />
         <KpiTile label="Overdue" value={<span style={{ color: 'var(--danger)' }}>{fmtMoney(totOverdue, cur)}</span>} sub={totOut ? `${Math.round((totOverdue / totOut) * 100)}% of outstanding` : undefined} />
-        <KpiTile label="Promised to pay" value={fmtMoney(promised, cur)} sub={`${rows.filter((r) => r.promise).length} active promises`} deltaTone="good" />
+        <KpiTile label="Promised to pay" amount={promised} currency={cur} sub={`${rows.filter((r) => r.promise).length} active promises`} deltaTone="good" />
         <KpiTile label="Broken promises" value={<span style={{ color: brokenPromises.length ? 'var(--danger)' : undefined }}>{brokenPromises.length}</span>} sub="promise date passed, still open" />
       </div>
       {rows.length === 0 && <EmptyState icon="✓" title="Nothing to collect" description="No customer has an outstanding balance." />}

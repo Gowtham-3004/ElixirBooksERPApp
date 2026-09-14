@@ -91,10 +91,10 @@ export default function RevenueRecognition({ contractId, period: periodParam }: 
     <div className="page">
       <PageHeader title="Revenue recognition" subtitle={<ScopeLine extra={`billed vs recognised · accrual 1160 / deferral 2400`} />} actions={<Button variant="secondary" onClick={() => nav.go('accounting/journals')}>Journals</Button>} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12 }}>
-        <KpiTile label={`Recognised ${fmtPeriod(period)}`} value={fmtMoney(periodRecognised, s.currency)} sub={`${rows.filter((r) => r.posted).length} of ${rows.length} contracts run`} />
-        <KpiTile label={`Billed ${fmtPeriod(period)}`} value={fmtMoney(periodBilled, s.currency)} sub="posted contract invoices, excl. tax" onClick={() => nav.go('sales/invoices')} />
-        <KpiTile label="Unbilled (accrued)" value={fmtMoney(unbilledBal, s.currency)} sub="GL 1160 balance" />
-        <KpiTile label="Deferred revenue" value={fmtMoney(deferredBal, s.currency)} sub="GL 2400 balance" />
+        <KpiTile label={`Recognised ${fmtPeriod(period)}`} amount={periodRecognised} currency={s.currency} sub={`${rows.filter((r) => r.posted).length} of ${rows.length} contracts run`} />
+        <KpiTile label={`Billed ${fmtPeriod(period)}`} amount={periodBilled} currency={s.currency} sub="posted contract invoices, excl. tax" onClick={() => nav.go('sales/invoices')} />
+        <KpiTile label="Unbilled (accrued)" amount={unbilledBal} currency={s.currency} sub="GL 1160 balance" />
+        <KpiTile label="Deferred revenue" amount={deferredBal} currency={s.currency} sub="GL 2400 balance" />
       </div>
       <Card>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 14, alignItems: 'end' }}>
