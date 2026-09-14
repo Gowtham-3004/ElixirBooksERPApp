@@ -16,13 +16,46 @@ export function fmtNumber(n: number, decimals = 2, locale: Locale = 'en-IN'): st
   return n.toLocaleString(locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
-/** Money with currency mark. Negative uses a true minus (U+2212). */
-export function fmtMoney(n: number, currency = 'INR', opts: { locale?: Locale; code?: boolean; decimals?: number } = {}): string {
-  if (n === null || n === undefined || isNaN(n)) return '—';
+export interface MoneyOpts {
+  locale?: Locale;
+  /** show the ISO code ("INR 1,000.00") instead of the symbol */
+  code?: boolean;
+  decimals?: number;
+  /** no symbol or code at all — statement columns that carry the currency in the header */
+  bare?: boolean;
+  /** accounting style: (1,000.00) instead of −1,000.00 */
+  parens?: boolean;
+}
+
+/** The pieces of a money string, so the UI can style the minor units and the sign separately.
+ *  sign + mark + integer + minor === fmtMoney(n, currency, opts) for every currency and locale. */
+export interface MoneyParts { negative: boolean; sign: '' | '−'; mark: string; integer: string; minor: string }
+
+const formatters = new Map<string, Intl.NumberFormat>();
+function numberFormat(locale: Locale, decimals: number): Intl.NumberFormat {
+  const key = `${locale}:${decimals}`;
+  let f = formatters.get(key);
+  if (!f) { f = new Intl.NumberFormat(locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals }); formatters.set(key, f); }
+  return f;
+}
+
+export function splitMoney(n: number, currency = 'INR', opts: MoneyOpts = {}): MoneyParts | null {
+  if (n === null || n === undefined || isNaN(n)) return null;
   const decimals = opts.decimals ?? minorUnits(currency);
-  const abs = Math.abs(n).toLocaleString(opts.locale ?? 'en-IN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-  const mark = opts.code || !SYMBOLS[currency] ? `${currency} ` : SYMBOLS[currency];
-  return (n < 0 ? '−' : '') + mark + abs;
+  const parts = numberFormat(opts.locale ?? 'en-IN', decimals).formatToParts(Math.abs(n));
+  const integer = parts.filter((p) => p.type === 'integer' || p.type === 'group').map((p) => p.value).join('');
+  const minor = parts.filter((p) => p.type === 'decimal' || p.type === 'fraction').map((p) => p.value).join('');
+  const mark = opts.bare ? '' : opts.code || !SYMBOLS[currency] ? `${currency} ` : SYMBOLS[currency];
+  const negative = n < 0;
+  return { negative, sign: negative ? '−' : '', mark, integer, minor };
+}
+
+/** Money with currency mark. Negative uses a true minus (U+2212) unless `parens` asks for accounting style. */
+export function fmtMoney(n: number, currency = 'INR', opts: MoneyOpts = {}): string {
+  const p = splitMoney(n, currency, opts);
+  if (!p) return '—';
+  const body = p.mark + p.integer + p.minor;
+  return p.negative && opts.parens ? `(${body})` : p.sign + body;
 }
 
 /** Compact money for dashboards: ₹1.2 Cr / ₹4.5 L / ₹12,000.00 */

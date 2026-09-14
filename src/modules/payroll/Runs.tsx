@@ -98,7 +98,7 @@ export function RunsPage({ id }: { id?: string }) {
                 {summaryRows.map((c) => { const total = c.type.startsWith('total') || c.type === 'net' || c.type === 'employer'; return (
                   <div key={c.label} className="ladder-row" style={{ borderTop: total ? '1px solid var(--line)' : 'none', paddingTop: total ? 8 : 4, marginTop: total ? 4 : 0 }}>
                     <span className="ladder-label" style={{ fontSize: c.type === 'net' ? 14 : 11, color: c.type === 'net' ? 'var(--ink)' : 'var(--ink-3)', fontWeight: c.type === 'net' ? 600 : 500 }}>{c.label}</span>
-                    <span className="ladder-value" style={{ fontSize: c.type === 'net' ? 18 : 13, fontWeight: c.type === 'net' ? 700 : 500, color: c.type === 'deduction' || c.type === 'total-deduction' ? 'var(--danger)' : 'var(--ink)' }}>{c.type === 'deduction' ? `(${m(c.amount)})` : m(c.amount)}</span>
+                    <span className="ladder-value" style={{ fontSize: c.type === 'net' ? 18 : 13, fontWeight: c.type === 'net' ? 700 : 500, color: c.type === 'deduction' || c.type === 'total-deduction' ? 'var(--danger)' : 'var(--ink)' }}>{c.type === 'deduction' && !mask ? fmtMoney(-Math.abs(c.amount), s.currency, { parens: true }) : m(c.amount)}</span>
                   </div>); })}
               </div>
               <div className="card" style={{ padding: '16px 20px' }}>

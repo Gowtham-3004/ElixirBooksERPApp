@@ -236,10 +236,10 @@ export function TotalsLadder({ totals, currency = 'INR', baseCurrency, rate, ext
           <span className={`ladder-value ${r.tone ?? ''}`}>{fmtMoney(r.value, currency)}</span>
         </div>
       ))}
-      <div style={{ height: 1, background: 'var(--line-strong)', margin: '6px 0' }} />
+      <div style={{ height: 1, background: 'var(--ink-2)', margin: '6px 0' }} />
       <div className="ladder-row">
         <span className="ladder-label" style={{ fontWeight: 600, color: 'var(--ink)' }}>Total</span>
-        <span className="ladder-value" style={{ fontWeight: 600, fontSize: 16 }}>{fmtMoney(totals.total, currency)}</span>
+        <span className="ladder-value"><Money value={totals.total} currency={currency} size="lg" /></span>
       </div>
       {baseCurrency && baseCurrency !== currency && (
         <div className="ladder-row">
@@ -253,7 +253,7 @@ export function TotalsLadder({ totals, currency = 'INR', baseCurrency, rate, ext
           {totals.credited > 0 && <div className="ladder-row"><span className="ladder-label">Credited</span><span className="ladder-value positive">−{fmtMoney(totals.credited, currency)}</span></div>}
           {totals.writtenOff > 0 && <div className="ladder-row"><span className="ladder-label">Written off</span><span className="ladder-value positive">−{fmtMoney(totals.writtenOff, currency)}</span></div>}
           <div style={{ height: 1, background: 'var(--line-strong)', margin: '6px 0' }} />
-          <div className="ladder-row"><span className="ladder-label" style={{ fontWeight: 600, color: 'var(--ink)' }}>Due</span><span className="ladder-value" style={{ fontWeight: 600, fontSize: 16 }}>{fmtMoney(totals.due, currency)}</span></div>
+          <div className="ladder-row"><span className="ladder-label" style={{ fontWeight: 600, color: 'var(--ink)' }}>Due</span><span className="ladder-value"><Money value={totals.due} currency={currency} size="lg" /></span></div>
         </>
       )}
     </div>
@@ -507,7 +507,7 @@ export function DocumentPage({ backLabel, onBack, number, badges, amount, due, r
                 {amount && (
                   <div className="ladder-row">
                     <span className="ladder-label">{amount.label}</span>
-                    <span className="ladder-value large"><Money value={amount.value} currency={amount.currency} base={amount.base} baseCurrency={amount.baseCurrency} rate={amount.rate} /></span>
+                    <span className="ladder-value"><Money value={amount.value} currency={amount.currency} base={amount.base} baseCurrency={amount.baseCurrency} rate={amount.rate} size="xl" /></span>
                   </div>
                 )}
                 {due && (
@@ -515,7 +515,7 @@ export function DocumentPage({ backLabel, onBack, number, badges, amount, due, r
                     <div style={{ height: 1, background: 'var(--line-strong)', margin: '6px 0' }} />
                     <div className="ladder-row">
                       <span className="ladder-label">{due.label}</span>
-                      <span className="ladder-value" style={{ fontSize: 16, fontWeight: 600, color: due.value > 0 && (due.overdueDays ?? 0) > 0 ? 'var(--danger)' : 'var(--ink)' }}>{fmtMoney(due.value, due.currency)}</span>
+                      <span className="ladder-value"><Money value={due.value} currency={due.currency} size="lg" tone={due.value > 0 && (due.overdueDays ?? 0) > 0 ? 'negative' : 'none'} /></span>
                     </div>
                     {due.dueDate && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>

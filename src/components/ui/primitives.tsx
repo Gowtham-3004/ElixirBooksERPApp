@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { fmtMoney, fmtMoneyCompact, fmtDate, fmtDateTime } from '../../lib/format';
+import { fmtMoney, fmtMoneyCompact, splitMoney, fmtDate, fmtDateTime } from '../../lib/format';
 
 // ── Status badge (design-system §8 taxonomy → badge class) ─────────────────
 
@@ -53,18 +53,30 @@ export function SnapshotTag({ label = 'snapshot' }: { label?: string }) {
 
 // ── Money ──────────────────────────────────────────────────────────────────
 
-export function Money({ value, currency = 'INR', base, baseCurrency, rate, compact, tone, code, style, decimals }: { value: number; currency?: string; base?: number; baseCurrency?: string; rate?: number; compact?: boolean; tone?: 'auto' | 'positive' | 'negative' | 'none'; code?: boolean; style?: CSSProperties; decimals?: number }) {
-  const cls = tone === 'positive' ? 'money money-positive' : tone === 'negative' ? 'money money-negative' : tone === 'auto' ? (value < 0 ? 'money money-negative' : value > 0 ? 'money money-positive' : 'money') : 'money';
-  const text = compact ? fmtMoneyCompact(value, currency) : fmtMoney(value, currency, { code, decimals });
+export type MoneySize = 'md' | 'lg' | 'xl';
+
+/** A money figure. `size` lg/xl are the hero sizes (KPI tiles, document rails) and mute the minor units;
+ *  `parens` renders negatives accounting-style — (1,000.00) — and is meant for statements, not lists. */
+export function Money({ value, currency = 'INR', base, baseCurrency, rate, compact, tone, code, style, decimals, size = 'md', parens, minor }: { value: number; currency?: string; base?: number; baseCurrency?: string; rate?: number; compact?: boolean; tone?: 'auto' | 'positive' | 'negative' | 'none'; code?: boolean; style?: CSSProperties; decimals?: number; size?: MoneySize; parens?: boolean; minor?: 'plain' | 'muted' }) {
+  const toneCls = tone === 'positive' ? ' money-positive' : tone === 'negative' ? ' money-negative' : tone === 'auto' ? (value < 0 ? ' money-negative' : value > 0 ? ' money-positive' : '') : '';
+  const cls = `money money-${size}${toneCls}`;
+  const muted = (minor ?? (size === 'md' ? 'plain' : 'muted')) === 'muted';
+  const figure = (v: number, cur: string, o: { code?: boolean; decimals?: number } = {}) => {
+    if (compact) return fmtMoneyCompact(v, cur);
+    const p = splitMoney(v, cur, { ...o, parens });
+    if (!p) return '—';
+    const open = p.negative && parens ? '(' : p.sign;
+    return <>{open}{p.mark}{p.integer}{p.minor && (muted ? <span className="money-minor">{p.minor}</span> : p.minor)}{p.negative && parens ? ')' : ''}</>;
+  };
   if (base !== undefined && baseCurrency && baseCurrency !== currency) {
     return (
       <span className={cls} style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2, ...style }} title={rate ? `Rate ${rate}` : undefined}>
-        <span>{fmtMoney(value, currency, { code: true })}</span>
-        <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>≈ {fmtMoney(base, baseCurrency)}{rate ? ` @ ${rate}` : ''}</span>
+        <span>{figure(value, currency, { code: true })}</span>
+        <span className="money-base">≈ {fmtMoney(base, baseCurrency)}{rate ? ` @ ${rate}` : ''}</span>
       </span>
     );
   }
-  return <span className={cls} style={style}>{text}</span>;
+  return <span className={cls} style={style}>{figure(value, currency, { code, decimals })}</span>;
 }
 
 export function DateText({ value, time }: { value?: string; time?: boolean }) {
@@ -176,14 +188,15 @@ export function Meter({ value, max = 100, tone }: { value: number; max?: number;
   );
 }
 
-export function KpiTile({ label, value, delta, deltaTone = 'good', sub, meta, onClick, stale }: { label: string; value: ReactNode; delta?: ReactNode; deltaTone?: 'good' | 'bad' | 'neutral'; sub?: ReactNode; meta?: ReactNode; onClick?: () => void; stale?: boolean }) {
+/** Pass `amount` (+ `currency`) for a money KPI so the minor units are muted; `value` takes any node. */
+export function KpiTile({ label, value, amount, currency, compact, tone, delta, deltaTone = 'good', sub, meta, onClick, stale }: { label: string; value?: ReactNode; amount?: number; currency?: string; compact?: boolean; tone?: 'auto' | 'positive' | 'negative' | 'none'; delta?: ReactNode; deltaTone?: 'good' | 'bad' | 'neutral'; sub?: ReactNode; meta?: ReactNode; onClick?: () => void; stale?: boolean }) {
   return (
     <div className="kpi-tile" style={{ cursor: onClick ? 'pointer' : undefined, display: 'flex', flexDirection: 'column', gap: 4 }} onClick={onClick}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span className="section-label">{label}</span>
         {stale && <Pill tone="warning">Stale</Pill>}
       </div>
-      <div style={{ fontSize: 24, fontWeight: 600, lineHeight: '32px', fontVariantNumeric: 'tabular-nums', color: 'var(--ink)' }}>{value}</div>
+      <div className="kpi-value">{amount !== undefined ? <Money value={amount} currency={currency} compact={compact} tone={tone} size="xl" /> : value}</div>
       {(delta || sub) && (
         <div style={{ fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
           {delta && <span style={{ color: deltaTone === 'good' ? 'var(--good)' : deltaTone === 'bad' ? 'var(--danger)' : 'var(--ink-3)', fontWeight: 500 }}>{delta}</span>}

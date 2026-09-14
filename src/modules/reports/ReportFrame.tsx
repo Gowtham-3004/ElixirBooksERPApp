@@ -5,7 +5,7 @@ import { db, C, engine, nav, useRoute, useSession, useCollection } from '../../s
 import type { Branch, Dimension, Period } from '../../store';
 import { Button, ScopeLine, Modal, TextField, SelectField, useToast, Pill, Banner, CheckboxField, Segmented } from '../../components/ui';
 import { DownloadIcon, PrintIcon } from '../../components/Icons';
-import { toCSV, downloadText, fmtPeriod } from '../../lib/format';
+import { toCSV, downloadText, fmtMoney, fmtPeriod } from '../../lib/format';
 import { presetRange, type Range } from './compute';
 
 export interface ExportColumn { key: string; label: string }
@@ -166,7 +166,8 @@ export function rangeLabel(r: Range): string {
 
 /** Statement table for P&L / BS style rows. */
 export function StatementTable({ rows, currency, compareLabel, valueLabel, onDrill }: { rows: { label: string; amount: number; compare?: number; level: number; kind: string; accountId?: string; code?: string }[]; currency: string; compareLabel?: string; valueLabel: string; onDrill?: (accountId: string) => void }) {
-  const fmt = (n: number) => (n === 0 ? '—' : new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(n)).replace(/^/, n < 0 ? '−' : ''));
+  // statement columns carry the currency in the header; negatives are parenthesised, not coloured
+  const fmt = (n: number) => (n === 0 ? '—' : fmtMoney(n, currency, { bare: true, parens: true }));
   return (
     <div className="card" style={{ overflow: 'hidden' }}>
       <table className="data-table dense">
@@ -176,11 +177,11 @@ export function StatementTable({ rows, currency, compareLabel, valueLabel, onDri
             const isTotal = r.kind === 'total' || r.kind === 'net';
             const isGroup = r.kind === 'group';
             return (
-              <tr key={i} style={{ background: isTotal ? 'var(--surface-2)' : undefined, cursor: r.accountId && onDrill ? 'pointer' : undefined }} onClick={() => r.accountId && onDrill?.(r.accountId)}>
+              <tr key={i} className={r.kind === 'net' ? 'row-net' : isTotal ? 'row-total' : undefined} style={{ cursor: r.accountId && onDrill ? 'pointer' : undefined }} onClick={() => r.accountId && onDrill?.(r.accountId)}>
                 <td style={{ paddingLeft: 12 + r.level * 20, fontWeight: isTotal || isGroup ? 600 : 400, fontSize: isGroup ? 11 : 13, textTransform: isGroup ? 'uppercase' : undefined, letterSpacing: isGroup ? '0.04em' : undefined, color: isGroup ? 'var(--ink-3)' : 'var(--ink)' }}>
                   {r.code && <span className="identifier" style={{ color: 'var(--ink-4)', marginRight: 8, fontSize: 11 }}>{r.code}</span>}{r.label}
                 </td>
-                <td className="right money" style={{ fontWeight: isTotal ? 700 : isGroup ? 600 : 400, fontSize: r.kind === 'net' ? 14 : 13, color: r.amount < 0 ? 'var(--danger)' : 'var(--ink)' }}>{fmt(r.amount)}</td>
+                <td className="right money" style={{ fontWeight: isTotal ? 700 : isGroup ? 600 : 400, fontSize: r.kind === 'net' ? 14 : 13 }}>{fmt(r.amount)}</td>
                 {compareLabel && <td className="right money" style={{ color: 'var(--ink-3)', fontWeight: isTotal ? 600 : 400 }}>{r.compare === undefined ? '—' : fmt(r.compare)}</td>}
                 {compareLabel && <td className="right money" style={{ color: (r.amount - (r.compare ?? 0)) >= 0 ? 'var(--good)' : 'var(--danger)', fontSize: 12 }}>{r.compare === undefined ? '—' : fmt(r.amount - r.compare)}</td>}
               </tr>

@@ -28,10 +28,10 @@ export function ProfitLoss() {
       exportRows={() => pl.lines.map((l) => ({ code: l.code ?? '', label: l.label, amount: l.amount, compare: l.compare ?? '' }))}
       filters={<><RangeBar f={f} set={set} /><BranchPicker value={f.branchId} onChange={(v) => set({ branchId: v })} /><DimensionPicker type="Project" value={f.project} onChange={(v) => set({ project: v })} /><div><label className="field-label">Compare</label><Segmented value={f.compare} onChange={(v) => set({ compare: v })} options={[{ value: 'none', label: 'None' }, { value: 'prior', label: 'Prior period' }, { value: 'ly', label: 'Last year' }]} /></div></>}>
       <div className="grid-4">
-        <KpiTile label="Revenue" value={fmtMoney(pl.revenue, s.currency)} sub={rangeLabel(range)} />
+        <KpiTile label="Revenue" amount={pl.revenue} currency={s.currency} sub={rangeLabel(range)} />
         <KpiTile label="Gross margin" value={fmtPct(margin)} sub={`on ${fmtMoney(pl.revenue, s.currency)}`} />
-        <KpiTile label="Operating expenses" value={fmtMoney(pl.opex, s.currency)} sub={`incl. depreciation ${fmtMoney(pl.depreciation, s.currency)}`} />
-        <KpiTile label="Net profit" value={fmtMoney(pl.netProfit, s.currency)} delta={fmtPct(netMargin) + ' net margin'} deltaTone={pl.netProfit >= 0 ? 'good' : 'bad'} sub="before tax" />
+        <KpiTile label="Operating expenses" amount={pl.opex} currency={s.currency} sub={`incl. depreciation ${fmtMoney(pl.depreciation, s.currency)}`} />
+        <KpiTile label="Net profit" amount={pl.netProfit} currency={s.currency} delta={fmtPct(netMargin) + ' net margin'} deltaTone={pl.netProfit >= 0 ? 'good' : 'bad'} sub="before tax" />
       </div>
       {reconDiff === 0 ? <Banner tone="success">Reconciles: P&L net profit equals the change in unappropriated profit on the balance sheet at the same cut-off (FR-RPT-009).</Banner> : <Banner tone="warning">Reconciliation difference of {fmtMoney(reconDiff, s.currency)} between P&L net profit and the balance-sheet movement — check journals posted outside the range or opening balances.</Banner>}
       <StatementTable rows={pl.lines} currency={s.currency} valueLabel={rangeLabel(range)} compareLabel={compareRange ? rangeLabel(compareRange) : undefined} onDrill={(id) => drillToLedger(id, range)} />
@@ -59,10 +59,10 @@ export function BalanceSheetPage() {
       exportRows={() => [...bs.assets.map((l) => ({ side: 'Assets', code: l.code ?? '', label: l.label, amount: l.amount })), ...bs.liabilities.map((l) => ({ side: 'Equity & liabilities', code: l.code ?? '', label: l.label, amount: l.amount }))]}
       filters={<><PeriodPicker value={f.period} onChange={(v) => set({ period: v })} label="As at end of" /><BranchPicker value={f.branchId} onChange={(v) => set({ branchId: v })} /><div><label className="field-label">Comparative</label><Segmented value={f.compare} onChange={(v) => set({ compare: v })} options={[{ value: 'none', label: 'None' }, { value: 'prior', label: 'Prior month' }, { value: 'ly', label: 'Last year' }]} /></div></>}>
       <div className="grid-4">
-        <KpiTile label="Total assets" value={fmtMoney(bs.totalAssets, s.currency)} />
-        <KpiTile label="Total liabilities" value={fmtMoney(bs.totalLiabilities, s.currency)} />
-        <KpiTile label="Equity (incl. current profit)" value={fmtMoney(bs.totalEquity, s.currency)} sub={`profit for the period ${fmtMoney(bs.retainedCurrent, s.currency)}`} />
-        <KpiTile label="Assets − (L + E)" value={fmtMoney(bs.difference, s.currency)} deltaTone={bs.difference === 0 ? 'good' : 'bad'} delta={bs.difference === 0 ? 'Balanced' : 'Does not balance'} />
+        <KpiTile label="Total assets" amount={bs.totalAssets} currency={s.currency} />
+        <KpiTile label="Total liabilities" amount={bs.totalLiabilities} currency={s.currency} />
+        <KpiTile label="Equity (incl. current profit)" amount={bs.totalEquity} currency={s.currency} sub={`profit for the period ${fmtMoney(bs.retainedCurrent, s.currency)}`} />
+        <KpiTile label="Assets − (L + E)" amount={bs.difference} currency={s.currency} deltaTone={bs.difference === 0 ? 'good' : 'bad'} delta={bs.difference === 0 ? 'Balanced' : 'Does not balance'} />
       </div>
       {bs.difference !== 0 && <Banner tone="warning" action={<Button variant="link" onClick={() => nav.go('accounting/opening-balances')}>Review opening balances</Button>}>Balance sheet is out of balance by {fmtMoney(bs.difference, s.currency)} at this cut-off — usually opening balances loaded without a balancing equity entry (FR-RPT-009 exception).</Banner>}
       <div className="grid-2" style={{ alignItems: 'start' }}>
@@ -83,7 +83,7 @@ export function CashFlowPage() {
     <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
       <div style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--ink)', borderBottom: '1px solid var(--line-strong)', fontSize: 13 }}>{title}</div>
       <table className="data-table dense"><tbody>
-        {rows.map((r, i) => <tr key={i}><td style={{ paddingLeft: 14 + r.level * 20, fontWeight: r.level === 0 ? 600 : 400 }}>{r.label}</td><td className="right money" style={{ width: 180, color: r.amount < 0 ? 'var(--danger)' : 'var(--ink)' }}>{r.amount < 0 ? `(${fmtMoney(-r.amount, s.currency)})` : fmtMoney(r.amount, s.currency)}</td></tr>)}
+        {rows.map((r, i) => <tr key={i}><td style={{ paddingLeft: 14 + r.level * 20, fontWeight: r.level === 0 ? 600 : 400 }}>{r.label}</td><td className="right money" style={{ width: 180 }}>{fmtMoney(r.amount, s.currency, { parens: true })}</td></tr>)}
         {rows.length === 0 && <tr><td colSpan={2} style={{ color: 'var(--ink-4)' }}>No movements in this range</td></tr>}
         <tr style={{ background: 'var(--surface-2)', fontWeight: 700 }}><td>Net cash from {title.split('from ')[1] ?? title.toLowerCase()}</td><td className="right money" style={{ color: total < 0 ? 'var(--danger)' : 'var(--good)' }}>{fmtMoney(total, s.currency)}</td></tr>
       </tbody></table>
@@ -95,10 +95,10 @@ export function CashFlowPage() {
       exportRows={() => [...cf.operating.map((r) => ({ section: 'Operating', ...r })), ...cf.investing.map((r) => ({ section: 'Investing', ...r })), ...cf.financing.map((r) => ({ section: 'Financing', ...r }))]}
       filters={<><RangeBar f={f} set={set} /><BranchPicker value={f.branchId} onChange={(v) => set({ branchId: v })} /></>}>
       <div className="grid-4">
-        <KpiTile label="Opening cash & bank" value={fmtMoney(cf.openingCash, s.currency)} />
-        <KpiTile label="Net change (statement)" value={fmtMoney(cf.netChange, s.currency)} deltaTone={cf.netChange >= 0 ? 'good' : 'bad'} />
-        <KpiTile label="Closing cash & bank" value={fmtMoney(cf.closingCash, s.currency)} sub={`actual change ${fmtMoney(cf.actualChange, s.currency)}`} />
-        <KpiTile label="Unexplained difference" value={fmtMoney(cf.difference, s.currency)} deltaTone={cf.difference === 0 ? 'good' : 'bad'} delta={cf.difference === 0 ? 'Reconciled to bank & cash ledgers' : 'Investigate'} />
+        <KpiTile label="Opening cash & bank" amount={cf.openingCash} currency={s.currency} />
+        <KpiTile label="Net change (statement)" amount={cf.netChange} currency={s.currency} deltaTone={cf.netChange >= 0 ? 'good' : 'bad'} />
+        <KpiTile label="Closing cash & bank" amount={cf.closingCash} currency={s.currency} sub={`actual change ${fmtMoney(cf.actualChange, s.currency)}`} />
+        <KpiTile label="Unexplained difference" amount={cf.difference} currency={s.currency} deltaTone={cf.difference === 0 ? 'good' : 'bad'} delta={cf.difference === 0 ? 'Reconciled to bank & cash ledgers' : 'Investigate'} />
       </div>
       {section('A. Cash flow from operating activities', cf.operating, cf.netOperating)}
       {section('B. Cash flow from investing activities', cf.investing, cf.netInvesting)}

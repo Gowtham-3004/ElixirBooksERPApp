@@ -273,10 +273,15 @@ html, body, #root {
 .data-table.dense td { height: 40px; padding: 0 12px; }
 .data-table.dense th { padding: 0 12px; }
 
-/* Money */
+/* Money — md is inline; lg/xl are hero sizes with muted minor units */
 .money { font-variant-numeric: tabular-nums; }
 .money-positive { color: var(--good); }
 .money-negative { color: var(--danger); }
+.money-lg { font-size: 20px; font-weight: 600; line-height: 28px; letter-spacing: -0.01em; }
+.money-xl { font-size: 32px; font-weight: 600; line-height: 40px; letter-spacing: -0.02em; }
+.money-minor { font-size: .68em; font-weight: 500; color: var(--ink-4); letter-spacing: 0; }
+.money-base { font-size: 11px; font-weight: 400; color: var(--ink-4); letter-spacing: 0; }
+.doc-rail .money-xl { font-size: 28px; line-height: 34px; }
 
 /* Two-line cell */
 .cell-primary { font-size: 14px; font-weight: 500; color: var(--ink); line-height: 20px; }
@@ -370,14 +375,18 @@ html, body, #root {
 .timeline-icon.warning { background: var(--warn-bg); color: var(--warn); }
 .timeline-icon.neutral { background: var(--surface-3); color: var(--ink-3); }
 
-/* KPI tile */
+/* KPI tile — the value is the hero; it steps down when the tile is narrow (4-up grid at 1024–1279px) */
 .kpi-tile {
   background: var(--surface);
   border: 1px solid var(--hairline);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-sm);
   padding: 20px 24px;
+  container-type: inline-size;
 }
+.kpi-value { font-size: 32px; font-weight: 600; line-height: 40px; letter-spacing: -0.02em; color: var(--ink); font-variant-numeric: tabular-nums; }
+.kpi-value .money-xl { font-size: inherit; line-height: inherit; }
+@container (max-width: 250px) { .kpi-value { font-size: 26px; line-height: 32px; } }
 
 /* Card */
 .card {

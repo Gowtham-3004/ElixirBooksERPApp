@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { C, nav, useSession, useCollection, IDS, engine } from '../../store';
 import type { Journal, OpenItem, Branch } from '../../store';
-import { Button, Pill, Segmented, Card } from '../../components/ui';
+import { Button, KpiTile, Pill, Segmented, Card } from '../../components/ui';
 import { RefreshIcon, DownloadIcon, TrendingUpIcon, TrendingDownIcon } from '../../components/Icons';
 import { fmtMoneyCompact, fmtMoney, fmtPct, fmtPeriod, toCSV, downloadText } from '../../lib/format';
 import { profitAndLoss, balanceSheet, ageing, ledgerBalances, presetRange, monthRange, shiftRange, periodsBetween, type Range } from './compute';
@@ -34,18 +34,10 @@ function Widget({ title, sub, children, meta, onDrill, stale, onRefresh, span }:
   );
 }
 
+// CFO tiles are KpiTiles whose delta carries a trend arrow; `favorable` picks the tone.
 function Tile({ label, value, delta, favorable, sub, meta, onClick, stale }: { label: string; value: string; delta?: string; favorable?: boolean; sub?: string; meta: string; onClick?: () => void; stale?: boolean }) {
-  return (
-    <div className="kpi-tile" style={{ cursor: onClick ? 'pointer' : undefined, display: 'flex', flexDirection: 'column', gap: 4 }} onClick={onClick}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span className="section-label">{label}</span>{stale && <Pill tone="warning">Stale</Pill>}</div>
-      <div style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.3, fontVariantNumeric: 'tabular-nums', color: 'var(--ink)' }}>{value}</div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
-        {delta ? <span style={{ color: favorable ? 'var(--good)' : 'var(--danger)', display: 'flex', alignItems: 'center', gap: 3 }}>{favorable ? <TrendingUpIcon size={11} /> : <TrendingDownIcon size={11} />}{delta}</span> : <span />}
-        {sub && <span style={{ color: 'var(--ink-4)', fontVariantNumeric: 'normal' }}>{sub}</span>}
-      </div>
-      <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 6, borderTop: '1px solid var(--surface-3)', paddingTop: 8, fontVariantNumeric: 'normal' }}>{meta}</div>
-    </div>
-  );
+  const trend = delta ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>{favorable ? <TrendingUpIcon size={11} /> : <TrendingDownIcon size={11} />}{delta}</span> : undefined;
+  return <KpiTile label={label} value={value} delta={trend} deltaTone={favorable ? 'good' : 'bad'} sub={sub} meta={meta} onClick={onClick} stale={stale} />;
 }
 
 export function CfoDashboard() {
