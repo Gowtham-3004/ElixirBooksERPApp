@@ -190,11 +190,12 @@ html { -webkit-text-size-adjust: 100%; }
 .sidebar .nav-item:hover { background: var(--hover); color: var(--ink); }
 .sidebar .nav-item.active { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--hairline), var(--shadow-sm); }
 .sidebar.collapsed { width: 64px; }
-/* the module list fades out at the bottom instead of cutting an item in half; the padding keeps the last
-   item above the fade once scrolled to the end */
+/* the module list fades out at the bottom instead of cutting an item in half. The fade is a sticky element,
+   not a mask — a mask on the nav would also hide the position:fixed flyouts that live inside it. */
 .sidebar-brand { display: flex; align-items: center; padding: 14px 16px 8px; }
 .sidebar.collapsed .sidebar-brand { padding: 14px 0 6px; }
-.sidebar-nav { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 6px 8px 28px; mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent); -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent); }
+.sidebar-nav { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 6px 8px 0; }
+.sidebar-fade { position: sticky; bottom: 0; height: 28px; margin-top: -28px; background: linear-gradient(to bottom, transparent, var(--bg)); pointer-events: none; }
 .sidebar-nav .section-label { padding: 6px 12px 2px; display: block; }
 /* branch · FY · period as one segmented control */
 .ctx-group { display: inline-flex; align-items: stretch; height: 32px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); box-shadow: var(--shadow-sm); overflow: hidden; }

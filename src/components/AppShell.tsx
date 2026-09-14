@@ -238,6 +238,8 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
               </div>
             );
           })}
+          <div style={{ height: 28 }} />
+          <div className="sidebar-fade" />
         </nav>
         <div style={{ borderTop: '1px solid var(--hairline)', padding: '8px 8px' }}>
           <button type="button" className="nav-item" title="Help & Support" style={{ width: '100%', border: 'none', textAlign: 'left', background: 'transparent', justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined }} onClick={() => nav.go('home/help')}>
