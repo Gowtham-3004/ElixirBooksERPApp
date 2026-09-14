@@ -120,7 +120,7 @@ export function CfoDashboard() {
             {data.trend.map((t, i) => (
               <div key={t.period} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, height: '100%', justifyContent: 'flex-end' }}>
                 <span style={{ fontSize: 10, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{t.revenue ? fmtMoneyCompact(t.revenue, s.currency).replace(/\.\d+/, '') : ''}</span>
-                <div style={{ width: '100%', background: i === data.trend.length - 1 ? 'var(--accent)' : 'var(--accent-soft)', borderRadius: '4px 4px 0 0', height: `${Math.max(2, (t.revenue / maxT) * 100)}px` }} title={fmtMoney(t.revenue, s.currency)} />
+                <div style={{ width: '60%', background: i === data.trend.length - 1 ? 'var(--ink)' : 'var(--ink-4)', borderRadius: '2px 2px 0 0', height: `${Math.max(2, (t.revenue / maxT) * 100)}px` }} title={fmtMoney(t.revenue, s.currency)} />
                 <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{fmtPeriod(t.period).slice(0, 3)}</span>
               </div>
             ))}
@@ -137,7 +137,7 @@ export function CfoDashboard() {
                     <div><span style={{ fontSize: 14, fontWeight: 500 }}>{b.branch.name}</span><span style={{ fontSize: 12, color: 'var(--ink-4)', marginLeft: 8 }}>GM {fmtPct(b.gm)} · net {fmtMoneyCompact(b.net, s.currency)}</span></div>
                     <span style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fmtMoneyCompact(b.revenue, s.currency)}</span>
                   </div>
-                  <div style={{ height: 6, background: '#F3F5F5', borderRadius: 9999 }}><div style={{ height: '100%', width: `${(b.revenue / max) * 100}%`, background: ['#325CFF', '#22C55E', '#F97316', '#A855F7'][i % 4], borderRadius: 9999 }} /></div>
+                  <div style={{ height: 6, background: 'var(--surface-3)', borderRadius: 9999 }}><div style={{ height: '100%', width: `${(b.revenue / max) * 100}%`, background: 'var(--ink)', borderRadius: 9999 }} /></div>
                 </div>
               );
             })}

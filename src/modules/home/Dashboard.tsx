@@ -142,8 +142,8 @@ export default function Dashboard() {
               <p style={{ fontSize: 12, color: 'var(--ink-4)' }}>{meta('last 7 months · posted journals')}</p>
             </div>
             <div style={{ display: 'flex', gap: 16, alignItems: 'center', fontSize: 12, color: 'var(--ink-3)' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--accent)' }} /> Revenue</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: '#F97316' }} /> Expenses</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--ink)' }} /> Revenue</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--ink-5)' }} /> Expenses</span>
             </div>
           </div>
           {chart.rows.every((r) => r.revenue === 0 && r.expenses === 0) ? (
@@ -153,9 +153,9 @@ export default function Dashboard() {
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: 150 }}>
                 {chart.rows.map((r, i) => (
                   <div key={r.code} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer' }} onClick={() => nav.go('reports/profit-loss', { period: r.code })} title={`${monthLabel(r.code)}: revenue ${fmtMoney(r.revenue, cur)} · expenses ${fmtMoney(r.expenses, cur)}`}>
-                    <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 120, width: '100%', justifyContent: 'center' }}>
-                      <div style={{ width: '40%', minWidth: 10, background: i === chart.rows.length - 1 ? 'var(--accent)' : 'var(--accent-soft)', borderRadius: '3px 3px 0 0', height: `${(r.revenue / chart.max) * 120}px`, transition: 'height 0.3s' }} />
-                      <div style={{ width: '40%', minWidth: 10, background: i === chart.rows.length - 1 ? '#F97316' : 'var(--warn-bg)', borderRadius: '3px 3px 0 0', height: `${(r.expenses / chart.max) * 120}px`, transition: 'height 0.3s' }} />
+                    <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 120, width: '100%', justifyContent: 'center', backgroundImage: 'repeating-linear-gradient(to top, var(--hairline) 0 1px, transparent 1px 30px)' }}>
+                      <div style={{ width: '28%', minWidth: 6, background: i === chart.rows.length - 1 ? 'var(--ink)' : 'var(--ink-4)', borderRadius: '2px 2px 0 0', height: `${(r.revenue / chart.max) * 120}px`, transition: 'height 0.3s' }} />
+                      <div style={{ width: '28%', minWidth: 6, background: i === chart.rows.length - 1 ? 'var(--ink-5)' : 'var(--line-strong)', borderRadius: '2px 2px 0 0', height: `${(r.expenses / chart.max) * 120}px`, transition: 'height 0.3s' }} />
                     </div>
                     <span style={{ fontSize: 11, color: 'var(--ink-3)', fontVariantNumeric: 'normal' }}>{monthLabel(r.code)}</span>
                   </div>
@@ -180,7 +180,7 @@ export default function Dashboard() {
                   </div>
                   <span style={{ fontSize: 13, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(c.amt, cur)}</span>
                 </div>
-                <div style={{ height: 4, background: '#F3F5F5', borderRadius: 9999 }}><div style={{ height: '100%', width: `${(c.amt / topCustomers.max) * 100}%`, background: ['#325CFF', '#22C55E', '#F97316', '#38BDF8', '#A855F7'][i], borderRadius: 9999 }} /></div>
+                <div style={{ height: 4, background: 'var(--surface-3)', borderRadius: 9999 }}><div style={{ height: '100%', width: `${(c.amt / topCustomers.max) * 100}%`, background: 'var(--ink)', borderRadius: 9999 }} /></div>
               </div>
             ))}
           </div>

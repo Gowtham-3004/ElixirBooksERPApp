@@ -116,7 +116,7 @@ input[type=number].field-input { -moz-appearance: textfield; }
 .checklist-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--hairline); font-size: 13px; }
 .checklist-row:last-child { border-bottom: none; }
 .meter { height: 6px; background: var(--surface-3); border-radius: 9999px; overflow: hidden; }
-.meter > div { height: 100%; background: var(--accent); border-radius: 9999px; transition: width var(--dur) var(--ease); }
+.meter > div { height: 100%; background: var(--ink); border-radius: 9999px; transition: width var(--dur) var(--ease); }
 .meter.warn > div { background: var(--warn-line); }
 .meter.danger > div { background: var(--danger); }
 .meter.good > div { background: var(--good); }

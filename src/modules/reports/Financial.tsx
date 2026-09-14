@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react';
 import { db, C, nav, useSession, useCollection } from '../../store';
 import type { Journal } from '../../store';
-import { Banner, Button, DataTable, KpiTile, Badge, SummaryBlock, Segmented, type Column } from '../../components/ui';
+import { Banner, Button, DataTable, KpiTile, Badge, Money, SummaryBlock, Segmented, type Column } from '../../components/ui';
 import { fmtMoney, fmtDate, fmtPeriod, fmtPct } from '../../lib/format';
 import { ReportFrame, useReportFilters, RangeBar, useRange, rangeLabel, BranchPicker, StatementTable, drillToLedger, DimensionPicker, PeriodPicker } from './ReportFrame';
 import { profitAndLoss, balanceSheet, cashFlow, trialBalance, shiftRange, monthRange, type Range } from './compute';
@@ -103,9 +103,9 @@ export function CashFlowPage() {
       {section('A. Cash flow from operating activities', cf.operating, cf.netOperating)}
       {section('B. Cash flow from investing activities', cf.investing, cf.netInvesting)}
       {section('C. Cash flow from financing activities', cf.financing, cf.netFinancing)}
-      <div style={{ background: 'var(--surface-2)', border: '2px solid var(--line)', borderRadius: 8, padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 14, fontWeight: 700 }}>Net increase / (decrease) in cash</span>
-        <span className="money" style={{ fontSize: 20, fontWeight: 700, color: cf.netChange >= 0 ? 'var(--good)' : 'var(--danger)' }}>{fmtMoney(cf.netChange, s.currency)}</span>
+      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: 14, fontWeight: 600 }}>Net increase / (decrease) in cash</span>
+        <Money value={cf.netChange} currency={s.currency} size="lg" tone="auto" parens />
       </div>
     </ReportFrame>
   );
