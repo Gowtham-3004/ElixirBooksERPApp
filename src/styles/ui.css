@@ -90,7 +90,7 @@ input[type=number].field-input { -moz-appearance: textfield; }
 .skeleton { background: linear-gradient(90deg, var(--surface-3) 25%, var(--line) 50%, var(--surface-3) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 4px; }
 
 /* layout */
-.page { padding: 24px 28px; display: flex; flex-direction: column; gap: 16px; min-height: 100%; }
+.page { padding: 24px 28px; display: flex; flex-direction: column; gap: 16px; min-height: 100%; width: 100%; max-width: 1560px; margin-inline: auto; }
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .page-title { font-size: 24px; font-weight: 600; color: var(--ink); line-height: 30px; letter-spacing: -0.02em; }
 .page-subtitle { font-size: 13px; color: var(--ink-3); margin-top: 4px; font-variant-numeric: normal; }
@@ -168,6 +168,21 @@ html { -webkit-text-size-adjust: 100%; }
 .sidebar .nav-item:hover { background: rgba(15,17,21,.05); color: var(--ink); }
 .sidebar .nav-item.active { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--hairline), var(--shadow-sm); }
 .sidebar.collapsed { width: 64px; }
+/* the module list fades out at the bottom instead of cutting an item in half; the padding keeps the last
+   item above the fade once scrolled to the end */
+.sidebar-nav { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 6px 8px 28px; mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent); -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent); }
+.sidebar-nav .section-label { padding: 6px 12px 2px; display: block; }
+/* branch · FY · period as one segmented control */
+.ctx-group { display: inline-flex; align-items: stretch; height: 32px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); box-shadow: var(--shadow-sm); overflow: hidden; }
+.ctx-item { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; font-size: 12px; font-weight: 500; color: var(--ink-2); background: transparent; border: none; border-right: 1px solid var(--hairline); cursor: pointer; white-space: nowrap; font-family: inherit; font-variant-numeric: normal; transition: background var(--dur-fast) var(--ease); }
+.ctx-item:last-child { border-right: none; }
+.ctx-item:hover { background: var(--surface-2); }
+.ctx-item.static { cursor: default; color: var(--ink-3); }
+.ctx-item.static:hover { background: transparent; }
+.ctx-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+/* page change: a short fade so navigation doesn't snap (opacity only — a transform here would re-parent fixed overlays) */
+.route-enter { height: 100%; animation: routeIn var(--dur) var(--ease); }
+@keyframes routeIn { from { opacity: 0; } to { opacity: 1; } }
 /* module sub-pages: a flyout beside the sidebar item (hover peeks, click pins) — as tall as its list, scrolling only past the viewport */
 .sidebar .nav-item[aria-expanded="true"] { background: rgba(15,17,21,.05); color: var(--ink); }
 .sidebar-flyout { position: fixed; width: 240px; max-height: calc(100vh - 16px); overflow-y: auto; z-index: 70; }
@@ -188,7 +203,7 @@ html { -webkit-text-size-adjust: 100%; }
 .tab-strip::-webkit-scrollbar { display: none; }
 .tab-strip .filter-tab { flex-shrink: 0; }
 .doc-layout { display: flex; flex: 1; min-height: 0; }
-.doc-body { flex: 1; overflow: auto; padding: 24px; container-type: inline-size; }
+.doc-body { flex: 1; overflow: auto; padding: 24px; container-type: inline-size; max-width: 1280px; }
 /* the document pane sits beside a 300–340px rail, so its forms collapse on the pane's own width */
 @container (max-width: 620px) {
   .doc-body [style*="grid-template-columns: 1fr 1fr"],

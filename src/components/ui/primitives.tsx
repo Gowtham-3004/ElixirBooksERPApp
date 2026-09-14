@@ -267,9 +267,10 @@ export function Tabs<T extends string>({ tabs, value, onChange, counts, variant 
   );
 }
 
-export function Avatar({ name, size = 28, color = 'var(--accent)' }: { name: string; size?: number; color?: string }) {
+export function Avatar({ name, size = 28, color, tone = 'accent' }: { name: string; size?: number; color?: string; tone?: 'accent' | 'neutral' }) {
   const ini = name.split(' ').filter(Boolean).map((n) => n[0]).join('').slice(0, 2).toUpperCase();
-  return <div style={{ width: size, height: size, borderRadius: '50%', background: color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.4, fontWeight: 600, flexShrink: 0, fontVariantNumeric: 'normal' }}>{ini}</div>;
+  const neutral = tone === 'neutral' && !color;
+  return <div style={{ width: size, height: size, borderRadius: '50%', background: color ?? (neutral ? 'var(--surface-3)' : 'var(--accent)'), color: neutral ? 'var(--ink-2)' : '#fff', boxShadow: neutral ? 'inset 0 0 0 1px var(--hairline)' : undefined, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.4, fontWeight: 600, flexShrink: 0, fontVariantNumeric: 'normal' }}>{ini}</div>;
 }
 
 export function TwoLine({ primary, secondary, mono }: { primary: ReactNode; secondary?: ReactNode; mono?: boolean }) {

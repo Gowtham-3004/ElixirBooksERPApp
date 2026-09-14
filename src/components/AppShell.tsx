@@ -133,10 +133,10 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
 
   // branch · FY · period — in the header on desktop, in a scrollable strip under it on phones
   const contextControls = (
-    <>
+    <div className="ctx-group">
             {s.branches.length > 1 && (
-              <span style={{ position: 'relative' }}>
-                <button type="button" className="btn-secondary btn-sm" style={{ gap: 6, fontVariantNumeric: 'normal' }} onClick={() => setBranchOpen(!branchOpen)}>
+              <span style={{ position: 'relative', display: 'inline-flex' }}>
+                <button type="button" className="ctx-item" onClick={() => setBranchOpen(!branchOpen)}>
                   {s.branch?.name ?? 'Branch'} <ChevronDownIcon size={12} />
                 </button>
                 {branchOpen && (
@@ -150,11 +150,11 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
                 )}
               </span>
             )}
-            <span style={{ padding: '2px 8px', background: 'var(--surface-3)', borderRadius: 9999, fontSize: 12, color: 'var(--ink-3)', fontVariantNumeric: 'normal', whiteSpace: 'nowrap' }}>FY {s.state.fy ?? '—'}</span>
-            <span style={{ position: 'relative' }}>
-              <button type="button" onClick={() => setPeriodOpen(!periodOpen)} style={{ padding: '2px 8px', background: periodTone.bg, borderRadius: 9999, fontSize: 12, color: periodTone.fg, display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap', fontVariantNumeric: 'normal', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                {s.period?.status === 'Locked' ? <LockIcon size={10} /> : <span style={{ width: 6, height: 6, borderRadius: '50%', background: periodTone.fg, display: 'inline-block' }} />}
-                {s.period?.label ?? fmtPeriod(s.state.periodCode)}
+            <span className="ctx-item static">FY {s.state.fy ?? '—'}</span>
+            <span style={{ position: 'relative', display: 'inline-flex' }}>
+              <button type="button" className="ctx-item" onClick={() => setPeriodOpen(!periodOpen)}>
+                {s.period?.status === 'Locked' ? <LockIcon size={11} /> : <span className="ctx-dot" style={{ background: periodTone.fg }} />}
+                {s.period?.label ?? fmtPeriod(s.state.periodCode)} <ChevronDownIcon size={12} />
               </button>
               {periodOpen && (
                 <Dropdown onClose={() => setPeriodOpen(false)} sheet={compact}>
@@ -172,7 +172,7 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
                 </Dropdown>
               )}
             </span>
-    </>
+    </div>
   );
 
   if (fullBleed) {
@@ -217,13 +217,13 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
             </div>
           )}
         </div>
-        <nav style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px 8px' }} onScroll={() => setFlyout((f) => (f && !isMobile ? null : f))}>
+        <nav className="sidebar-nav" onScroll={() => setFlyout((f) => (f && !isMobile ? null : f))}>
           {GROUP_ORDER.map((g) => {
             const items = visibleModules.filter((m) => m.group === g);
             if (!items.length) return null;
             return (
-              <div key={g} style={{ marginBottom: 4 }}>
-                {collapsed ? <div style={{ height: 1, background: 'var(--surface-3)', margin: '6px 8px' }} /> : <div className="section-label" style={{ padding: '8px 12px 4px', display: 'block' }}>{g}</div>}
+              <div key={g} style={{ marginBottom: 2 }}>
+                {collapsed ? <div style={{ height: 1, background: 'var(--surface-3)', margin: '6px 8px' }} /> : <div className="section-label">{g}</div>}
                 {items.map((m) => {
                   const subItems = (subNavs[m.id] ?? []).filter((i) => !i.hidden);
                   return sidebarEntry(m.id, m.label, m.icon, { items: subItems, active: route.module === m.id, activeId: activeSubNav(route, m.id, subItems), go: (id) => nav.go(`${m.id}/${id}`), fallback: () => nav.go(m.id), badge: m.id === 'approvals' ? pendingApprovals : 0 });
@@ -241,7 +241,7 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
             <span style={{ display: 'inline-flex', transform: collapsed ? 'rotate(180deg)' : undefined }}><ArrowLeftIcon size={16} /></span>{!collapsed && <span>Collapse</span>}
           </button>}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : undefined, gap: 8, padding: collapsed ? '8px 0' : '8px 12px', borderRadius: 8, marginTop: 4, cursor: 'pointer' }} onClick={() => setUserOpen(true)} title={s.user?.name}>
-            <Avatar name={s.user?.name ?? '?'} />
+            <Avatar name={s.user?.name ?? '?'} tone="neutral" />
             {!collapsed && (
               <>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -309,7 +309,7 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
                 </Dropdown>
               )}
             </span>
-            <span onClick={() => setUserOpen(true)} style={{ cursor: 'pointer' }}><Avatar name={s.user?.name ?? '?'} /></span>
+            <span onClick={() => setUserOpen(true)} style={{ cursor: 'pointer' }}><Avatar tone="neutral" name={s.user?.name ?? '?'} /></span>
           </div>
         </header>
         {compact && <div className="shell-context">{contextControls}</div>}
@@ -319,7 +319,7 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
             {s.tenant.subscriptionState === 'Trial' ? `Trial ends ${s.tenant.trialEndsAt} — upgrade to keep full access.` : s.tenant.subscriptionState === 'Grace' ? `Payment overdue — grace period ends ${s.tenant.graceUntil}. Some modules will be suspended after that.` : 'Subscription suspended — modules are read-only until payment is received.'}
           </Banner>
         )}
-        <main style={{ flex: 1, overflow: 'auto' }}>{children}</main>
+        <main style={{ flex: 1, overflow: 'auto' }}><div key={route.path} className="route-enter">{children}</div></main>
       </div>
 
       {userOpen && (
