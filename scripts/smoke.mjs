@@ -51,7 +51,7 @@ await page.reload({ waitUntil: 'networkidle' });
 // sign in as Rahul (Finance Admin, MFA on)
 const emailInput = page.locator('input[type=email]').first();
 if (await emailInput.count()) {
-  await emailInput.fill('rahul@acmepvt.com');
+  await emailInput.fill('rahul@elixirbusiness.in');
   await page.locator('button[type=submit]').first().click();
   await page.waitForTimeout(900);
   const mfa = page.locator('input[placeholder="123456"]');

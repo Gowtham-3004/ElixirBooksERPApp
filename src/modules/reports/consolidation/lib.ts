@@ -70,7 +70,7 @@ export function consolidatedChart(group: Group | undefined): { code: string; nam
       const g = groups.find((x) => x.id === a.groupId);
       const ex = map.get(a.code);
       if (ex) ex.companyIds.push(m.companyId);
-      else map.set(a.code, { code: a.code, name: a.name.replace(/ — Acme (Gulf|India)$/, ''), type: a.type, groupCode: g?.code ?? 'OTHER', groupName: g?.name ?? 'Other', companyIds: [m.companyId] });
+      else map.set(a.code, { code: a.code, name: a.name.replace(/ — Elixir (Insights|Business Solution)$/, ''), type: a.type, groupCode: g?.code ?? 'OTHER', groupName: g?.name ?? 'Other', companyIds: [m.companyId] });
     });
   });
   CONSOL_ACCOUNTS.forEach((c) => { if (!map.has(c.code)) map.set(c.code, { ...c, companyIds: [] }); });
@@ -343,7 +343,7 @@ export function consolidatedRows(run: ConsolidationRun): StmtRow[] {
     return r;
   };
   run.translatedLines.forEach((l) => {
-    const r = row(l.accountCode, l.accountName.replace(/ — Acme (Gulf|India)$/, ''), l.type, l.groupCode, l.groupName);
+    const r = row(l.accountCode, l.accountName.replace(/ — Elixir (Insights|Business Solution)$/, ''), l.type, l.groupCode, l.groupName);
     r.byCompany[l.companyId] = round((r.byCompany[l.companyId] ?? 0) + l.translatedAmount);
     if (l.accountId) r.accountIds[l.companyId] = l.accountId;
   });

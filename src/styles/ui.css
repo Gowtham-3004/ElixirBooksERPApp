@@ -492,21 +492,56 @@ div:has(> table.data-table) { overflow-x: auto !important; -webkit-overflow-scro
 .setup-link mark { background: var(--warn-bg); color: inherit; border-radius: 2px; }
 
 /* ── Company picker (Switch company) ───────────────────────────────────── */
-.company-picker { min-height: 100vh; background: var(--bg); display: flex; flex-direction: column; }
-.company-picker-strip { height: 4px; background: var(--accent); flex-shrink: 0; }
-.company-picker-body { width: 100%; max-width: 1000px; margin: 0 auto; padding: 40px 24px 64px; }
+/* company picker — shares the auth split card; left column picks, right column is the illustrated aside */
+.company-picker { width: 100%; max-width: 1080px; min-height: 600px; background: var(--surface); border-radius: 16px; box-shadow: var(--shadow-lg); display: flex; overflow: hidden; }
+.company-picker-main { flex: 1; min-width: 0; padding: 36px 44px 28px; display: flex; flex-direction: column; }
+.company-picker-brand { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 32px; }
+.company-picker-tenant { font-size: 12px; font-weight: 500; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .company-picker h1 { font-size: 24px; font-weight: 600; color: var(--ink); margin: 0 0 6px; letter-spacing: -0.01em; }
-.company-picker .lede { font-size: 14px; color: var(--ink-3); margin: 0 0 28px; }
-.company-picker-section { display: flex; align-items: baseline; gap: 8px; margin: 0 0 12px; font-size: 14px; font-weight: 600; color: var(--ink); }
-.company-picker-section .count { font-size: 13px; font-weight: 400; color: var(--ink-3); }
-.company-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin-bottom: 28px; }
-.company-card { position: relative; background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); padding: 18px; cursor: pointer; text-align: left; font: inherit; color: inherit; transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease); }
-.company-card:hover { border-color: var(--accent-line); box-shadow: var(--shadow-md); }
-.company-card .trash { position: absolute; top: 10px; right: 10px; }
-.company-card-role { display: flex; align-items: center; justify-content: space-between; padding-top: 12px; border-top: 1px solid var(--hairline); margin-top: 14px; }
-.company-card-role .label { font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
-.company-card.create { display: flex; align-items: center; gap: 8px; min-height: 64px; background: var(--surface); border: 1.5px dashed var(--line-strong); box-shadow: none; color: var(--accent); font-weight: 500; font-size: 14px; }
-.company-card.create:hover { border-color: var(--accent); background: var(--accent-tint); }
+.company-picker .lede { font-size: 14px; color: var(--ink-3); margin: 0 0 24px; line-height: 1.5; }
+.company-picker-section { display: flex; align-items: baseline; gap: 8px; margin: 0 0 10px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.company-picker-section .count { font-weight: 500; letter-spacing: 0; color: var(--ink-5); }
+.company-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-bottom: 24px; }
+.company-card { position: relative; display: flex; flex-direction: column; gap: 14px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); padding: 16px 16px 14px; cursor: pointer; text-align: left; font: inherit; color: inherit; transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease); }
+.company-card:hover { border-color: var(--accent-line); box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.company-card:focus-visible { outline: none; border-color: var(--accent); box-shadow: var(--ring); }
+.company-card.current { border-color: var(--accent-line); background: linear-gradient(180deg, var(--accent-tint) 0%, var(--surface) 55%); }
+.company-card-corner { position: absolute; top: 12px; right: 12px; }
+.company-card .trash { position: absolute; top: 8px; right: 8px; opacity: 0; transition: opacity var(--dur-fast) var(--ease); }
+.company-card:hover .trash, .company-card:focus-within .trash { opacity: 1; }
+@media (hover: none) { .company-card .trash { opacity: 1; } }
+.company-card-head { display: flex; gap: 12px; align-items: center; padding-right: 24px; }
+.company-card.current .company-card-head { padding-right: 64px; }
+.company-card-mark { width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
+.company-card-name { font-size: 15px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.company-card-sub { font-size: 12px; color: var(--ink-3); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.company-card-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.company-card-stats > div { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: var(--r-md); background: var(--surface-2); font-size: 11px; color: var(--ink-3); min-width: 0; }
+.company-card-stats > div > svg { color: var(--ink-4); margin-bottom: 2px; }
+.company-card-stats b { font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.company-card.current .company-card-stats > div { background: var(--surface); box-shadow: 0 0 0 1px var(--hairline); }
+.company-card-role { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 12px; border-top: 1px solid var(--hairline); }
+.company-card-chip { cursor: default; height: 26px; gap: 6px; color: var(--ink); font-weight: 500; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.company-card-chip > svg { color: var(--ink-4); flex-shrink: 0; }
+.company-card-enter { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500; color: var(--accent); white-space: nowrap; }
+.company-card-enter > svg { transition: transform var(--dur-fast) var(--ease); }
+.company-card:hover .company-card-enter > svg { transform: translateX(3px); }
+.company-card.create { flex-direction: row; align-items: center; gap: 12px; min-height: 96px; background: var(--surface); border: 1.5px dashed var(--line-strong); box-shadow: none; padding: 16px; }
+.company-card.create .company-card-mark { background: var(--accent-soft); color: var(--accent); }
+.company-card.create:hover { border-color: var(--accent); background: var(--accent-tint); transform: none; box-shadow: none; }
+.company-picker-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 20px 20px 24px; margin-bottom: 24px; text-align: center; border: 1px dashed var(--line-strong); border-radius: var(--r-lg); }
+.company-picker-foot { margin-top: auto; padding-top: 20px; border-top: 1px solid var(--hairline); display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.company-picker-me { display: flex; align-items: center; gap: 10px; min-width: 0; margin-left: auto; }
+.company-picker-me .name { font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.company-picker-me .mail { font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.company-picker-aside { width: 340px; flex-shrink: 0; background: var(--surface-2); border-left: 1px solid var(--hairline); padding: 36px 32px 28px; display: flex; flex-direction: column; }
+.company-picker-aside-art { display: flex; justify-content: center; margin: 8px 0 20px; }
+.company-picker-aside h2 { font-size: 18px; font-weight: 600; color: var(--ink); letter-spacing: -0.01em; line-height: 1.3; margin: 0 0 14px; text-align: center; }
+.company-picker-aside ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.company-picker-aside li { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--ink-2); line-height: 1.45; }
+.company-picker-aside .tick { color: var(--good); display: inline-flex; margin-top: 1px; flex-shrink: 0; }
+.company-picker-aside-foot { margin: auto 0 0; padding-top: 20px; font-size: 12px; color: var(--ink-3); text-align: center; }
+:root[data-theme="dark"] .company-card.current { background: linear-gradient(180deg, var(--accent-soft) 0%, var(--surface) 55%); }
 
 /* ── Lixi panel — modeless right-side chat, sits beside the page (no scrim) ── */
 .lixi-panel { position: fixed; top: 0; right: 0; bottom: 0; width: 400px; max-width: 100vw; background: var(--surface); border-left: 1px solid var(--hairline); box-shadow: var(--shadow-lg); z-index: 90; display: flex; flex-direction: column; animation: slideIn var(--dur) var(--ease); }
@@ -550,7 +585,10 @@ div:has(> table.data-table) { overflow-x: auto !important; -webkit-overflow-scro
   .setup-head-actions { justify-content: flex-start; }
   .setup-body { padding: 16px 12px; }
   .setup-grid { grid-template-columns: 1fr; }
-  .company-picker-body { padding: 24px 16px; }
+  .company-picker-main { padding: 24px 16px 20px !important; }
+  .company-picker { min-height: 0; border-radius: 12px; }
+  .company-picker-tenant { display: none; } /* the backdrop theme toggle sits over that corner on phones */
+  .company-picker-brand { margin-bottom: 24px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

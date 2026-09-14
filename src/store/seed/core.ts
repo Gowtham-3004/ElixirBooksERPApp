@@ -226,7 +226,7 @@ export function seedPlatform(): Partial<DB> {
     rec<Plan>(IDS.planEnt, { code: 'ERP', name: 'ERP Enterprise', tier: 'Enterprise', planVersion: 1, status: 'Active', modules: ['*'], limits: { users: 500, companies: 50, invoicesPerMonth: 1000000, storageMb: 500000 }, priceMonthly: 6999, currency: 'INR' }),
   ];
   const tenants: Tenant[] = [
-    rec<Tenant>(IDS.tenant, { name: 'Acme Group', planId: IDS.planEnt, subscriptionState: 'Active', renewsAt: '2027-04-01', ownerUserId: IDS.uOwner, usage: { users: 9, companies: 2, invoicesPerMonth: 131, storageMb: 1840 }, country: 'IN' }),
+    rec<Tenant>(IDS.tenant, { name: 'Elixir Global', planId: IDS.planEnt, subscriptionState: 'Active', renewsAt: '2027-04-01', ownerUserId: IDS.uOwner, usage: { users: 9, companies: 2, invoicesPerMonth: 131, storageMb: 1840 }, country: 'IN' }),
     rec<Tenant>('tnt_zen', { name: 'Zen Retail', planId: IDS.planLite, subscriptionState: 'Trial', trialEndsAt: '2026-09-27', ownerUserId: 'usr_zen', usage: { users: 1, companies: 1, invoicesPerMonth: 12, storageMb: 40 }, country: 'IN' }),
     rec<Tenant>('tnt_nova', { name: 'Nova Manufacturing', planId: IDS.planEnt, subscriptionState: 'Grace', graceUntil: '2026-09-20', renewsAt: '2026-09-06', ownerUserId: 'usr_nova', usage: { users: 8, companies: 1, invoicesPerMonth: 640, storageMb: 3900 }, country: 'IN' }),
     rec<Tenant>('tnt_old', { name: 'Oldfield Traders', planId: IDS.planGrowth, subscriptionState: 'Suspended', renewsAt: '2026-07-01', ownerUserId: 'usr_old', usage: { users: 3, companies: 1, invoicesPerMonth: 0, storageMb: 900 }, country: 'IN' }),
@@ -275,12 +275,12 @@ export function seedOrg(): Partial<DB> {
 
   const companies: Company[] = [
     rec<Company>(IDS.acme, {
-      tenantId: IDS.tenant, code: 'ACME', legalName: 'Acme Private Limited', tradeName: 'Acme', country: 'IN', baseCurrency: 'INR', reportingCurrency: 'USD', permittedCurrencies: ['INR', 'USD', 'AED', 'EUR', 'GBP'],
+      tenantId: IDS.tenant, code: 'EBS', legalName: 'Elixir Business Solution Pvt Ltd', tradeName: 'Elixir Business Solution', country: 'IN', baseCurrency: 'INR', reportingCurrency: 'USD', permittedCurrencies: ['INR', 'USD', 'AED', 'EUR', 'GBP'],
       timeZone: 'Asia/Kolkata', locale: 'en-IN', language: 'en', fiscalYearStartMonth: 4, booksFrom: '2020-04-01', openingBalanceDate: '2026-04-01',
       nature: 'Hybrid', profiles: ['Trading', 'Manufacturing'], profileHistory: [{ at: '2026-04-01T00:00:00Z', by: 'Rahul Kumar', from: ['Trading'], to: ['Trading', 'Manufacturing'], reason: 'Added fabrication unit at Andheri' }],
       pan: 'AAAPL1234C', cin: 'U74999MH2010PTC123456', businessType: 'Private Limited',
       address: { line1: 'Plot 14, Andheri Industrial Estate', city: 'Mumbai', state: 'Maharashtra', stateCode: '27', pin: '400053', country: 'IN' },
-      phone: '+91 22 4001 1234', email: 'accounts@acmepvt.com', website: 'acmepvt.com', logoText: 'A', brandColor: '#325CFF',
+      phone: '+91 22 4001 1234', email: 'accounts@elixirbusiness.in', website: 'elixirbusiness.in', logoText: 'EB', brandColor: '#325CFF',
       localizationPack: 'IN', localizationVersion: '1.4',
       registrations: [
         { id: 'reg_mh', type: 'GSTIN', number: '27AAAPL1234C1Z5', state: 'Maharashtra', stateCode: '27', branchId: IDS.brHO, status: 'Active' },
@@ -290,11 +290,11 @@ export function seedOrg(): Partial<DB> {
       onboarding: { nature: 'Done', legal: 'Done', address: 'Done', currency: 'Done', periods: 'Done', users: 'Done', masters: 'Done', opening: 'Done', bank: 'Done', numbering: 'Done', einvoice: 'Pending' },
     }),
     rec<Company>(IDS.gulf, {
-      tenantId: IDS.tenant, code: 'GULF', legalName: 'Acme Gulf Trading LLC', tradeName: 'Acme Gulf', country: 'AE', baseCurrency: 'AED', reportingCurrency: 'USD', permittedCurrencies: ['AED', 'USD', 'INR'],
+      tenantId: IDS.tenant, code: 'EI', legalName: 'Elixir Insights', tradeName: 'Elixir Insights', country: 'AE', baseCurrency: 'AED', reportingCurrency: 'USD', permittedCurrencies: ['AED', 'USD', 'INR'],
       timeZone: 'Asia/Dubai', locale: 'en-US', language: 'en', fiscalYearStartMonth: 1, booksFrom: '2025-01-01', openingBalanceDate: '2026-01-01',
       nature: 'Trading', profiles: ['Trading'], profileHistory: [], businessType: 'LLC',
       address: { line1: 'Warehouse 7, Jebel Ali Free Zone', city: 'Dubai', state: 'Dubai', pin: '', country: 'AE' },
-      phone: '+971 4 880 1234', email: 'finance@acmegulf.ae', logoText: 'G', brandColor: '#12784E',
+      phone: '+971 4 880 1234', email: 'finance@elixirinsights.ae', logoText: 'EI', brandColor: '#12784E',
       localizationPack: 'AE', localizationVersion: '1.0',
       registrations: [{ id: 'reg_ae', type: 'TRN', number: '100234567800003', state: 'Dubai', branchId: IDS.brDubai, status: 'Active' }],
       defaults: defaults({ warehouseId: IDS.whDubai, taxRateId: IDS.taxVAT5, bankAccountId: undefined, priceListId: IDS.plUSD }), status: 'Active',
@@ -352,17 +352,17 @@ export function seedOrg(): Partial<DB> {
   const u = (id: string, name: string, email: string, roleIds: string[], extra: Partial<User> = {}): User =>
     rec<User>(id, { tenantId: IDS.tenant, name, email, roleIds, companyIds: [IDS.acme], branchIds: [], status: 'Active', mfaEnabled: false, passwordSet: true, sessions: [{ id: 's1', device: 'Chrome · Windows', at: '2026-09-13T09:14:00Z', current: true }], ...extra });
   const users: User[] = [
-    u(IDS.uOwner, 'Aarav Mehta', 'aarav@acmegroup.in', [IDS.rOwner], { isTenantOwner: true, companyIds: [IDS.acme, IDS.gulf], mfaEnabled: true, lastLoginAt: '2026-09-12T18:00:00Z' }),
-    u(IDS.uRahul, 'Rahul Kumar', 'rahul@acmepvt.com', [IDS.rFinAdmin], { companyIds: [IDS.acme, IDS.gulf], mfaEnabled: true, lastLoginAt: '2026-09-13T09:14:00Z', sessions: [{ id: 's1', device: 'Chrome · Windows', at: '2026-09-13T09:14:00Z', current: true }, { id: 's2', device: 'Safari · iPhone', at: '2026-09-12T20:11:00Z' }] }),
-    u(IDS.uPriya, 'Priya Mehta', 'priya@acmepvt.com', [IDS.rSalesMgr], { lastLoginAt: '2026-09-13T08:52:00Z' }),
-    u(IDS.uVikram, 'Vikram Singh', 'vikram@acmepvt.com', [IDS.rOpsMgr, IDS.rSalesUser], { mfaEnabled: true, lastLoginAt: '2026-09-12T18:30:00Z' }),
-    u(IDS.uAnita, 'Anita Rao', 'anita@acmepvt.com', [IDS.rTreasury, IDS.rPurchMgr], { lastLoginAt: '2026-09-11T16:00:00Z' }),
-    u(IDS.uSuresh, 'Suresh Kumar', 'suresh@acmepvt.com', [IDS.rCashier, IDS.rWarehouse], { branchIds: [IDS.brHO], lastLoginAt: '2026-09-13T09:00:00Z' }),
-    u(IDS.uMeena, 'Meena Joshi', 'meena@acmepvt.com', [IDS.rHR], { lastLoginAt: '2026-09-10T10:22:00Z' }),
-    u(IDS.uAnil, 'Anil Patil', 'anil@acmepvt.com', [IDS.rAccountant], { lastLoginAt: '2026-09-13T08:30:00Z' }),
+    u(IDS.uOwner, 'Aarav Mehta', 'aarav@elixirglobal.in', [IDS.rOwner], { isTenantOwner: true, companyIds: [IDS.acme, IDS.gulf], mfaEnabled: true, lastLoginAt: '2026-09-12T18:00:00Z' }),
+    u(IDS.uRahul, 'Rahul Kumar', 'rahul@elixirbusiness.in', [IDS.rFinAdmin], { companyIds: [IDS.acme, IDS.gulf], mfaEnabled: true, lastLoginAt: '2026-09-13T09:14:00Z', sessions: [{ id: 's1', device: 'Chrome · Windows', at: '2026-09-13T09:14:00Z', current: true }, { id: 's2', device: 'Safari · iPhone', at: '2026-09-12T20:11:00Z' }] }),
+    u(IDS.uPriya, 'Priya Mehta', 'priya@elixirbusiness.in', [IDS.rSalesMgr], { lastLoginAt: '2026-09-13T08:52:00Z' }),
+    u(IDS.uVikram, 'Vikram Singh', 'vikram@elixirbusiness.in', [IDS.rOpsMgr, IDS.rSalesUser], { mfaEnabled: true, lastLoginAt: '2026-09-12T18:30:00Z' }),
+    u(IDS.uAnita, 'Anita Rao', 'anita@elixirbusiness.in', [IDS.rTreasury, IDS.rPurchMgr], { lastLoginAt: '2026-09-11T16:00:00Z' }),
+    u(IDS.uSuresh, 'Suresh Kumar', 'suresh@elixirbusiness.in', [IDS.rCashier, IDS.rWarehouse], { branchIds: [IDS.brHO], lastLoginAt: '2026-09-13T09:00:00Z' }),
+    u(IDS.uMeena, 'Meena Joshi', 'meena@elixirbusiness.in', [IDS.rHR], { lastLoginAt: '2026-09-10T10:22:00Z' }),
+    u(IDS.uAnil, 'Anil Patil', 'anil@elixirbusiness.in', [IDS.rAccountant], { lastLoginAt: '2026-09-13T08:30:00Z' }),
     u(IDS.uAuditor, 'External Auditor', 'auditor@kpmg.com', [IDS.rAuditor], { mfaEnabled: true, lastLoginAt: '2026-09-05T14:15:00Z' }),
-    u('usr_kiran', 'Kiran Patil', 'kiran@acmepvt.com', [IDS.rSalesUser], { status: 'Invited', passwordSet: false, invitedAt: '2026-09-11T10:00:00Z', inviteToken: 'inv_kiran_2026', lastLoginAt: undefined }),
-    u('usr_deepa', 'Deepa Nair', 'deepa@acmepvt.com', [IDS.rAccountant], { status: 'Suspended', lastLoginAt: '2026-08-02T10:00:00Z' }),
+    u('usr_kiran', 'Kiran Patil', 'kiran@elixirbusiness.in', [IDS.rSalesUser], { status: 'Invited', passwordSet: false, invitedAt: '2026-09-11T10:00:00Z', inviteToken: 'inv_kiran_2026', lastLoginAt: undefined }),
+    u('usr_deepa', 'Deepa Nair', 'deepa@elixirbusiness.in', [IDS.rAccountant], { status: 'Suspended', lastLoginAt: '2026-08-02T10:00:00Z' }),
     rec<User>(IDS.uPlatform, { tenantId: 'tnt_platform', name: 'Platform Admin', email: 'admin@elixirbooks.com', roleIds: [], companyIds: [], branchIds: [], status: 'Active', mfaEnabled: true, passwordSet: true, isPlatformAdmin: true, lastLoginAt: '2026-09-13T07:00:00Z' }),
   ];
 
@@ -416,7 +416,7 @@ export function seedMasters(): Partial<DB> {
   ];
 
   const emp = (id: string, code: string, name: string, department: string, designation: string, pan: string, doj: string, ctc: number, status: Employee['status'], pf = true, esi = false, extra: Partial<Employee> = {}): Employee =>
-    rec<Employee>(id, { companyId: co, code, name, department, designation, pan, dateOfJoining: doj, ctc, status, pf, esi, branchId: IDS.brHO, email: `${name.split(' ')[0].toLowerCase()}@acmepvt.com`, uan: '1001' + code.replace(/\D/g, '').padStart(8, '0'), ...extra });
+    rec<Employee>(id, { companyId: co, code, name, department, designation, pan, dateOfJoining: doj, ctc, status, pf, esi, branchId: IDS.brHO, email: `${name.split(' ')[0].toLowerCase()}@elixirbusiness.in`, uan: '1001' + code.replace(/\D/g, '').padStart(8, '0'), ...extra });
   const employees: Employee[] = [
     emp(IDS.eRahul, 'EMP-001', 'Rahul Kumar', 'Finance', 'Finance Manager', 'ABCPK1234N', '2021-04-01', 1440000, 'Active', true, false, { userId: IDS.uRahul, costCentreId: IDS.dimCCMumbai }),
     emp(IDS.ePriya, 'EMP-002', 'Priya Mehta', 'Sales', 'Sales Manager', 'BCQPM2345O', '2022-06-15', 1200000, 'Active', true, false, { userId: IDS.uPriya, managerId: IDS.eRahul }),
@@ -578,8 +578,8 @@ export function seedMasters(): Partial<DB> {
     acc('acc_2160', '2160', 'Retainers Received', 'ag_cl', 'Liability'),
     acc('acc_2410', '2410', 'GST TCS Payable', 'ag_cl', 'Liability'),
     acc('acc_2420', '2420', 'Income Tax Provision', 'ag_cl', 'Liability'),
-    acc('acc_1170', '1170', 'Intercompany Receivable — Acme Gulf', 'ag_ca', 'Asset', { currencyBehaviour: 'Any' }),
-    acc('acc_2170', '2170', 'Intercompany Payable — Acme Gulf', 'ag_cl', 'Liability', { currencyBehaviour: 'Any' }),
+    acc('acc_1170', '1170', 'Intercompany Receivable — Elixir Insights', 'ag_ca', 'Asset', { currencyBehaviour: 'Any' }),
+    acc('acc_2170', '2170', 'Intercompany Payable — Elixir Insights', 'ag_cl', 'Liability', { currencyBehaviour: 'Any' }),
   ];
 
   const dimensions: Dimension[] = [

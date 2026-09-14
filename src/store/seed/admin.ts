@@ -106,7 +106,7 @@ export function seedAdmin(): Partial<DB> {
     ev(6, 'Meena Joshi', IDS.uMeena, 'payroll.run.approved', 'Payroll Run', 'pr_run_0006', 'PR-RUN-0006', 'Aug 2026 · 8 employees · net ₹6,12,400'),
     ev(7, 'Rahul Kumar', IDS.uRahul, 'import.committed', 'Items', undefined, undefined, 'items-sep.csv: 42 rows imported, 3 errors, 1 duplicates skipped', { channel: 'import' }),
     ev(9, 'Suresh Kumar', IDS.uSuresh, 'workflow.submitted', 'Expense Claim', 'exp_0041', 'EXP/26-27/0041', 'Expense Claim (>₹5,000) v2 · 1 step(s)'),
-    ev(10, 'Rahul Kumar', IDS.uRahul, 'user.invited', 'User', 'usr_kiran', undefined, 'kiran@acmepvt.com · Sales User · Acme Private Limited', { sensitive: true }),
+    ev(10, 'Rahul Kumar', IDS.uRahul, 'user.invited', 'User', 'usr_kiran', undefined, 'kiran@elixirbusiness.in · Sales User · Elixir Business Solution Pvt Ltd', { sensitive: true }),
     ev(12, 'Aarav Mehta', IDS.uOwner, 'role.updated', 'Role', IDS.rSalesUser, 'SALES_USER', 'Added sales.invoice.submit', { sensitive: true, before: { permissions: ['sales.invoice.create', 'sales.invoice.edit', 'sales.invoice.view'] }, after: { permissions: ['sales.invoice.create', 'sales.invoice.edit', 'sales.invoice.view', 'sales.invoice.submit'] } }),
     ev(14, 'Vikram Singh', IDS.uVikram, 'workflow.approve', 'Purchase Order', 'po_0093', 'PO/26-27/0093', 'Within Q2 raw-material budget'),
     ev(18, 'system', undefined, 'notification.failed', 'Notification', 'ntf_009', undefined, 'Email to auditor@kpmg.com bounced (550 mailbox unavailable)', { channel: 'worker', result: 'Failure' }),
@@ -117,7 +117,7 @@ export function seedAdmin(): Partial<DB> {
     ev(30, 'Suresh Kumar', IDS.uSuresh, 'workflow.submitted', 'Purchase Order', 'po_0093', 'PO/26-27/0093', 'Purchase Order Approval v2 · 2 step(s)'),
     ev(34, 'Rahul Kumar', IDS.uRahul, 'numbering.void', 'NumberSeries', 'ns_salesinvoice', 'INV/26-27/0109', 'Cancelled before dispatch'),
     ev(40, 'Anita Rao', IDS.uAnita, 'supplier.bank.approved', 'Supplier', IDS.sNational, 'S-0002', 'ICICI Bank ****1234 approved after call-back verification', { sensitive: true }),
-    ev(44, 'API key acme-erp-sync', undefined, 'api.read', 'Sales Invoice', undefined, undefined, 'GET /v1/sales-invoices?updatedSince=… · 200 · 118 rows', { channel: 'api' }),
+    ev(44, 'API key elixir-erp-sync', undefined, 'api.read', 'Sales Invoice', undefined, undefined, 'GET /v1/sales-invoices?updatedSince=… · 200 · 118 rows', { channel: 'api' }),
     ev(48, 'Aarav Mehta', IDS.uOwner, 'user.mfa.enabled', 'User', IDS.uVikram, undefined, 'MFA enforced for Operations Manager', { sensitive: true }),
     ev(52, 'Vikram Singh', IDS.uVikram, 'workflow.submitted', 'Credit Note', 'cn_0008', 'CN/26-27/0008', 'Credit Note Approval v2 · 2 step(s)'),
     ev(60, 'Rahul Kumar', IDS.uRahul, 'user.suspended', 'User', 'usr_deepa', undefined, 'Left the organisation — pending exit clearance', { sensitive: true }),
@@ -134,8 +134,8 @@ export function seedAdmin(): Partial<DB> {
     ev(236, 'Rahul Kumar', IDS.uRahul, 'period.softclosed', 'Period', 'per_acme_2026-08', 'Aug 2026', 'Month-end close complete'),
     ev(240, 'Rate worker', undefined, 'fx.rate.imported', 'ExchangeRate', 'fx_15', 'USD/INR', '84.42 Spot · RBI reference', { channel: 'worker' }),
     ev(300, 'Aarav Mehta', IDS.uOwner, 'plan.viewed', 'Tenant', IDS.tenant, undefined, 'Plan & usage · Pro v4'),
-    ev(320, 'Rahul Kumar', IDS.uRahul, 'auth.password_reset', 'User', IDS.uAnil, undefined, 'Reset link issued to anil@acmepvt.com', { sensitive: true }),
-    ev(400, 'Rahul Kumar', IDS.uRahul, 'localization.checked', 'Company', co, 'ACME', 'India pack 1.5 (Beta) compatibility check: compatible, upgrade deferred'),
+    ev(320, 'Rahul Kumar', IDS.uRahul, 'auth.password_reset', 'User', IDS.uAnil, undefined, 'Reset link issued to anil@elixirbusiness.in', { sensitive: true }),
+    ev(400, 'Rahul Kumar', IDS.uRahul, 'localization.checked', 'Company', co, 'EBS', 'India pack 1.5 (Beta) compatibility check: compatible, upgrade deferred'),
     ev(500, 'Platform Admin', IDS.uPlatform, 'tenant.plan.changed', 'Tenant', 'tnt_nova', undefined, 'Growth → ERP Enterprise (grace)', { tenantId: 'tnt_platform', companyId: undefined }),
     ev(520, 'Platform Admin', IDS.uPlatform, 'tenant.suspended', 'Tenant', 'tnt_old', undefined, 'Payment failed 3 times', { tenantId: 'tnt_platform', companyId: undefined }),
     ev(600, 'Platform Admin', IDS.uPlatform, 'plan.versioned', 'Plan', IDS.planGrowth, 'GROWTH', 'Growth v1 activated; production is reserved for ERP Enterprise', { tenantId: 'tnt_platform', companyId: undefined }),
@@ -152,7 +152,7 @@ export function seedAdmin(): Partial<DB> {
     nt('ntf_005', 7, 'import', 'Import complete: Items', '42 rows imported from items-sep.csv · 3 errors', 'admin/jobs?tab=imports'),
     nt('ntf_006', 9, 'due', '6 customer invoices overdue', 'Arlene Traders, Rajesh Enterprises and 4 more · ₹4,12,300.00 past due', 'sales/receivables'),
     nt('ntf_007', 14, 'approval', 'Purchase Order PO/26-27/0093 awaits Finance Admin', 'Step 2 of 2 · Shree Suppliers Ltd', 'approvals?id=apr_po_0093'),
-    nt('ntf_008', 18, 'security', 'New sign-in on Safari · iPhone', 'rahul@acmepvt.com · Mumbai · if this was not you, sign out other sessions', `admin/users/${IDS.uRahul}`, { userId: IDS.uRahul }),
+    nt('ntf_008', 18, 'security', 'New sign-in on Safari · iPhone', 'rahul@elixirbusiness.in · Mumbai · if this was not you, sign out other sessions', `admin/users/${IDS.uRahul}`, { userId: IDS.uRahul }),
     nt('ntf_009', 18, 'system', 'Audit export mail to auditor@kpmg.com failed', '550 mailbox unavailable — retry from Notification settings', 'admin/notifications', { status: 'failed', channel: 'email' }),
     nt('ntf_010', 26, 'approval', 'Journal JV/26-27/0045 approval overdue', 'SLA breached by 3 days · escalated to Tenant Owner', 'approvals?id=apr_jv_0045'),
     nt('ntf_011', 40, 'due', 'GSTR-3B for Aug 2026 due on 20 Sep', 'Output tax ₹3,42,110 · Input credit ₹2,18,900', 'taxation/returns'),
@@ -169,9 +169,9 @@ export function seedAdmin(): Partial<DB> {
     rec<ImportJob>('imp_004', { companyId: co, entity: 'Bank statement', fileName: 'hdfc-1234-aug.csv', fingerprint: 'fp_3ad1c9e0', rows: 43, valid: 0, errors: 1, duplicates: 43, status: 'Failed', errorRows: [{ row: 1, field: 'File', code: 'DUP_FILE', message: 'This exact file was already imported on 2026-09-12' }], by: 'Anil Patil' }),
   ];
   const exportJobs: ExportJob[] = [
-    rec<ExportJob>('exp_job_001', { companyId: co, name: 'sales-invoices-2026-09-13', entity: 'Sales Invoice', format: 'CSV', filters: { tab: 'posted', q: '' }, scope: 'Acme · Head Office · FY 2026-27', status: 'Ready', rows: 118, requestedBy: 'Rahul Kumar', readyAt: ago(5), expiresAt: ahead(163), masked: false }),
-    rec<ExportJob>('exp_job_002', { companyId: co, name: 'audit-log-2026-09-10', entity: 'Audit', format: 'XLSX', filters: { from: '2026-04-01', to: '2026-09-10' }, scope: 'Acme · all branches', status: 'Queued', rows: 1240, requestedBy: 'Rahul Kumar', expiresAt: ahead(168), masked: true }),
-    rec<ExportJob>('exp_job_003', { companyId: co, name: 'stock-valuation-aug', entity: 'Stock valuation', format: 'PDF', filters: { period: '2026-08' }, scope: 'Acme · all warehouses', status: 'Expired', rows: 640, requestedBy: 'Vikram Singh', readyAt: ago(400), expiresAt: ago(232), masked: false }),
+    rec<ExportJob>('exp_job_001', { companyId: co, name: 'sales-invoices-2026-09-13', entity: 'Sales Invoice', format: 'CSV', filters: { tab: 'posted', q: '' }, scope: 'Elixir Business Solution · Head Office · FY 2026-27', status: 'Ready', rows: 118, requestedBy: 'Rahul Kumar', readyAt: ago(5), expiresAt: ahead(163), masked: false }),
+    rec<ExportJob>('exp_job_002', { companyId: co, name: 'audit-log-2026-09-10', entity: 'Audit', format: 'XLSX', filters: { from: '2026-04-01', to: '2026-09-10' }, scope: 'Elixir Business Solution · all branches', status: 'Queued', rows: 1240, requestedBy: 'Rahul Kumar', expiresAt: ahead(168), masked: true }),
+    rec<ExportJob>('exp_job_003', { companyId: co, name: 'stock-valuation-aug', entity: 'Stock valuation', format: 'PDF', filters: { period: '2026-08' }, scope: 'Elixir Business Solution · all warehouses', status: 'Expired', rows: 640, requestedBy: 'Vikram Singh', readyAt: ago(400), expiresAt: ago(232), masked: false }),
   ];
   const jobs: BackgroundJob[] = [
     rec<BackgroundJob>('job_001', { companyId: co, type: 'export', name: 'Export audit-log-2026-09-10 (XLSX)', status: 'Queued', attempts: 0, maxAttempts: 3, correlationId: 'corr_EXP0001', idempotencyKey: 'export:exp_job_002', payload: { exportJobId: 'exp_job_002' } }),
@@ -184,21 +184,21 @@ export function seedAdmin(): Partial<DB> {
 
   // ── Provider credentials / API keys / webhooks ───────────────────────────
   const providerCredentials: ProviderCredential[] = [
-    rec<ProviderCredential>('cred_irp_mh', { companyId: co, provider: 'IRP', registrationId: 'reg_mh', label: 'IRP · Maharashtra (27AAAPL1234C1Z5)', username: 'API_ACME_MH', secretMasked: '••••••••••Xk9Q', rotatedAt: ago(90), expiresAt: ahead(24 * 275), status: 'Active', accessLog: [{ at: ago(90), by: 'Aarav Mehta', action: 'Rotated' }, { at: ago(1.5), by: 'IRP worker', action: 'Used · GenerateIRN' }, { at: ago(75), by: 'IRP worker', action: 'Used · GenerateIRN' }] }),
-    rec<ProviderCredential>('cred_irp_gj', { companyId: co, provider: 'IRP', registrationId: 'reg_gj', label: 'IRP · Gujarat (24AAAPL1234C2Z3)', username: 'API_ACME_GJ', secretMasked: '••••••••••7Ha2', rotatedAt: ago(24 * 200), expiresAt: ago(24 * 5), status: 'Expired', accessLog: [{ at: ago(24 * 200), by: 'Rahul Kumar', action: 'Created' }] }),
-    rec<ProviderCredential>('cred_ewb_mh', { companyId: co, provider: 'EWB', registrationId: 'reg_mh', label: 'e-Way bill · Maharashtra', username: 'EWB_ACME_MH', secretMasked: '••••••••••p3Lm', rotatedAt: ago(24 * 40), expiresAt: ahead(24 * 325), status: 'Active', accessLog: [{ at: ago(75), by: 'EWB worker', action: 'Used · GenerateEWB' }] }),
-    rec<ProviderCredential>('cred_bank_hdfc', { companyId: co, provider: 'Bank', label: 'HDFC Bank · Corporate API (****1234)', username: 'ACMEPVT_H2H', secretMasked: '••••••••••Zz01', rotatedAt: ago(24 * 12), status: 'Active', accessLog: [{ at: ago(22), by: 'Bank worker', action: 'Used · FetchStatement' }, { at: ago(24 * 12), by: 'Anita Rao', action: 'Rotated' }] }),
+    rec<ProviderCredential>('cred_irp_mh', { companyId: co, provider: 'IRP', registrationId: 'reg_mh', label: 'IRP · Maharashtra (27AAAPL1234C1Z5)', username: 'API_EBS_MH', secretMasked: '••••••••••Xk9Q', rotatedAt: ago(90), expiresAt: ahead(24 * 275), status: 'Active', accessLog: [{ at: ago(90), by: 'Aarav Mehta', action: 'Rotated' }, { at: ago(1.5), by: 'IRP worker', action: 'Used · GenerateIRN' }, { at: ago(75), by: 'IRP worker', action: 'Used · GenerateIRN' }] }),
+    rec<ProviderCredential>('cred_irp_gj', { companyId: co, provider: 'IRP', registrationId: 'reg_gj', label: 'IRP · Gujarat (24AAAPL1234C2Z3)', username: 'API_EBS_GJ', secretMasked: '••••••••••7Ha2', rotatedAt: ago(24 * 200), expiresAt: ago(24 * 5), status: 'Expired', accessLog: [{ at: ago(24 * 200), by: 'Rahul Kumar', action: 'Created' }] }),
+    rec<ProviderCredential>('cred_ewb_mh', { companyId: co, provider: 'EWB', registrationId: 'reg_mh', label: 'e-Way bill · Maharashtra', username: 'EWB_EBS_MH', secretMasked: '••••••••••p3Lm', rotatedAt: ago(24 * 40), expiresAt: ahead(24 * 325), status: 'Active', accessLog: [{ at: ago(75), by: 'EWB worker', action: 'Used · GenerateEWB' }] }),
+    rec<ProviderCredential>('cred_bank_hdfc', { companyId: co, provider: 'Bank', label: 'HDFC Bank · Corporate API (****1234)', username: 'ELIXIRBS_H2H', secretMasked: '••••••••••Zz01', rotatedAt: ago(24 * 12), status: 'Active', accessLog: [{ at: ago(22), by: 'Bank worker', action: 'Used · FetchStatement' }, { at: ago(24 * 12), by: 'Anita Rao', action: 'Rotated' }] }),
     rec<ProviderCredential>('cred_rates', { companyId: co, provider: 'RateProvider', label: 'RBI reference rates', username: 'public', secretMasked: '—', rotatedAt: ago(24 * 100), status: 'Active', accessLog: [{ at: ago(240), by: 'Rate worker', action: 'Used · FetchRates' }] }),
-    rec<ProviderCredential>('cred_email', { companyId: co, provider: 'Email', label: 'Transactional email (SES)', username: 'AKIA…ACME', secretMasked: '••••••••••mE41', rotatedAt: ago(24 * 60), status: 'Active', accessLog: [{ at: ago(18), by: 'Notification worker', action: 'Used · Send (failed 550)' }] }),
-    rec<ProviderCredential>('cred_sms_old', { companyId: co, provider: 'SMS', label: 'SMS gateway (legacy)', username: 'acme_sms', secretMasked: '••••••••••q8Rt', rotatedAt: ago(24 * 400), status: 'Revoked', accessLog: [{ at: ago(24 * 30), by: 'Aarav Mehta', action: 'Revoked · migrated to WhatsApp provider' }] }),
+    rec<ProviderCredential>('cred_email', { companyId: co, provider: 'Email', label: 'Transactional email (SES)', username: 'AKIA…EBS', secretMasked: '••••••••••mE41', rotatedAt: ago(24 * 60), status: 'Active', accessLog: [{ at: ago(18), by: 'Notification worker', action: 'Used · Send (failed 550)' }] }),
+    rec<ProviderCredential>('cred_sms_old', { companyId: co, provider: 'SMS', label: 'SMS gateway (legacy)', username: 'elixir_sms', secretMasked: '••••••••••q8Rt', rotatedAt: ago(24 * 400), status: 'Revoked', accessLog: [{ at: ago(24 * 30), by: 'Aarav Mehta', action: 'Revoked · migrated to WhatsApp provider' }] }),
   ];
   const apiKeys: ApiKey[] = [
-    rec<ApiKey>('key_001', { companyId: co, name: 'acme-erp-sync', prefix: 'ebk_live_a1', keyMasked: 'ebk_live_a1••••••••••••••••3f9c', scopes: ['sales.invoice.view', 'sales.receipt.view', 'masters.customers.view', 'reports.*'], status: 'Active', lastUsedAt: ago(44), expiresAt: ahead(24 * 300) }),
+    rec<ApiKey>('key_001', { companyId: co, name: 'elixir-erp-sync', prefix: 'ebk_live_a1', keyMasked: 'ebk_live_a1••••••••••••••••3f9c', scopes: ['sales.invoice.view', 'sales.receipt.view', 'masters.customers.view', 'reports.*'], status: 'Active', lastUsedAt: ago(44), expiresAt: ahead(24 * 300) }),
     rec<ApiKey>('key_002', { companyId: co, name: 'shopify-connector (rotated out)', prefix: 'ebk_live_77', keyMasked: 'ebk_live_77••••••••••••••••b0d2', scopes: ['sales.order.create', 'masters.items.view', 'inventory.stock.view'], status: 'Revoked', lastUsedAt: ago(24 * 20), revokedAt: ago(24 * 15), revokedReason: 'Key leaked in CI logs — rotated' }),
   ];
   const webhooks: Webhook[] = [
-    rec<Webhook>('wh_001', { companyId: co, url: 'https://hooks.acmepvt.com/erp/documents', description: 'Warehouse WMS sync', events: ['DocumentPosted', 'StockMoved', 'StockReversed', 'PurchaseReceived'], secretMasked: 'whsec_••••••••9Ke2', status: 'Active', lastDeliveryAt: ago(1.2), lastStatus: 'Success', failures: 0 }),
-    rec<Webhook>('wh_002', { companyId: co, url: 'https://finance.acmegroup.in/events', description: 'Group finance data lake', events: ['JournalPosted', 'JournalReversed', 'PeriodLocked', 'PeriodReopened', 'PaymentCompleted', 'StatutorySubmissionAccepted'], secretMasked: 'whsec_••••••••Lp71', status: 'Paused', lastDeliveryAt: ago(30), lastStatus: 'Failed', failures: 4 }),
+    rec<Webhook>('wh_001', { companyId: co, url: 'https://hooks.elixirbusiness.in/erp/documents', description: 'Warehouse WMS sync', events: ['DocumentPosted', 'StockMoved', 'StockReversed', 'PurchaseReceived'], secretMasked: 'whsec_••••••••9Ke2', status: 'Active', lastDeliveryAt: ago(1.2), lastStatus: 'Success', failures: 0 }),
+    rec<Webhook>('wh_002', { companyId: co, url: 'https://finance.elixirglobal.in/events', description: 'Group finance data lake', events: ['JournalPosted', 'JournalReversed', 'PeriodLocked', 'PeriodReopened', 'PaymentCompleted', 'StatutorySubmissionAccepted'], secretMasked: 'whsec_••••••••Lp71', status: 'Paused', lastDeliveryAt: ago(30), lastStatus: 'Failed', failures: 4 }),
   ];
   const savedViews: SavedView[] = [
     rec<SavedView>('sv_001', { companyId: co, module: 'sales', register: 'invoices', name: 'Overdue > 30 days', filters: { tab: 'overdue', ageing: 'd3160' }, isDefault: false, ownerId: IDS.uPriya, shared: true }),

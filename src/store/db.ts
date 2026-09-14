@@ -10,7 +10,7 @@ export type Row = BaseRecord & Record<string, any>;
 export type DB = Record<string, Row[]>;
 
 const STORAGE_KEY = 'elixir-books-db';
-export const SEED_VERSION = 'v5';
+export const SEED_VERSION = 'v6';
 
 let state: DB = {};
 let seedFn: (() => DB) | null = null;

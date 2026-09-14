@@ -184,7 +184,7 @@ export function RunPage({ id }: { id: string }) {
       {tab === 'adjustments' && (
         <>
           <div className="toolbar" style={{ justifyContent: 'space-between' }}>
-            <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>Consolidation journals live in their own book. They are never written to Acme or Acme Gulf journals and always require a reason plus workflow (FR-CNS-004).</div>
+            <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>Consolidation journals live in their own book. They are never written to Elixir Business Solution or Elixir Insights journals and always require a reason plus workflow (FR-CNS-004).</div>
             <Button variant="secondary" size="sm" onClick={() => setAdjOpen(true)} disabled={!canAct || !run.translatedLines.length} reason={frozen ? 'Run is frozen' : !run.translatedLines.length ? 'Translate first' : undefined}>New consolidation adjustment</Button>
           </div>
           {adjustments.length === 0
@@ -335,7 +335,7 @@ export function RunPage({ id }: { id: string }) {
         statement="Marks the run and everything on it as reversed. The figures stay visible for audit; they simply no longer represent the group position."
         consequences={[
           { engine: 'Journal', text: 'Accepted eliminations and posted adjustments on this run are reversed', tone: 'warning' },
-          { engine: 'Journal', text: 'Acme and Acme Gulf books are not touched — they never held these entries', tone: 'success' },
+          { engine: 'Journal', text: 'Elixir Business Solution and Elixir Insights books are not touched — they never held these entries', tone: 'success' },
         ]}
         reasonRequired
         danger
@@ -417,7 +417,7 @@ function AdjustmentDrawer({ open, run, chart, onClose }: { open: boolean; run: C
         <div><label className="field-label">Date<span className="req">*</span></label><input type="date" className="field-input" value={date} onChange={(e) => setDate(e.target.value)} /></div>
         <div><label className="field-label">Currency</label><input className="field-input" value={run.currency} disabled /></div>
       </div>
-      <div style={{ marginTop: 12 }}><TextArea label="Reason" required value={reason} onChange={setReason} rows={2} placeholder="e.g. Align Gulf depreciation to the group Ind AS useful life" /></div>
+      <div style={{ marginTop: 12 }}><TextArea label="Reason" required value={reason} onChange={setReason} rows={2} placeholder="e.g. Align Elixir Insights depreciation to the group Ind AS useful life" /></div>
       <div style={{ marginTop: 16 }}>
         <SectionLabel>Lines</SectionLabel>
         <table className="data-table dense" style={{ marginTop: 6 }}>
@@ -459,7 +459,7 @@ function ManualEliminationModal({ open, run, chart, onClose }: { open: boolean; 
         <SelectField label="Kind" value={kind} onChange={(v) => setKind(v as Elimination['kind'])} options={['Unrealised profit', 'Intercompany trading', 'Intercompany balance', 'Manual']} />
         <NumberField label="Amount" value={amount} onChange={setAmount} prefix={run.currency} />
       </div>
-      <div style={{ marginTop: 12 }}><TextArea label="Description" required value={description} onChange={setDescription} rows={2} placeholder="e.g. Unrealised profit in intercompany stock still held by Acme Gulf" /></div>
+      <div style={{ marginTop: 12 }}><TextArea label="Description" required value={description} onChange={setDescription} rows={2} placeholder="e.g. Unrealised profit in intercompany stock still held by Elixir Insights" /></div>
       <div className="grid-2" style={{ marginTop: 12 }}>
         <SelectField label="Debit account" value={dr} onChange={setDr} options={opts} />
         <SelectField label="Credit account" value={cr} onChange={setCr} options={opts} />

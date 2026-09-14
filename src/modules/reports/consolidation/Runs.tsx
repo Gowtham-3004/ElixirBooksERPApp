@@ -158,7 +158,7 @@ export function NewRunWizard({ open, group, supersedes, onClose }: { open: boole
             <Segmented value={plBasis} onChange={(v) => setPlBasis(v as 'YTD' | 'Period')} options={[{ value: 'YTD', label: 'Year to date (each company’s own FY)' }, { value: 'Period', label: 'Movement in the range only' }]} />
             <div className="field-help">Balance-sheet accounts always translate at their closing balance on {fmtDate(range.to)}.</div>
           </div>
-          <Banner tone="info">Members use different financial years — Acme runs Apr–Mar, Acme Gulf Jan–Dec. Year-to-date uses each company’s own year, which is what Ind AS / IFRS group reporting expects.</Banner>
+          <Banner tone="info">Members use different financial years — Elixir Business Solution runs Apr–Mar, Elixir Insights Jan–Dec. Year-to-date uses each company’s own year, which is what Ind AS / IFRS group reporting expects.</Banner>
         </>
       )}
 
@@ -227,7 +227,7 @@ export function NewRunWizard({ open, group, supersedes, onClose }: { open: boole
               {supersedes && <><span className="k">Supersedes</span><span className="v">{supersedes.number} v{supersedes.runVersion} — the earlier version is kept</span></>}
             </div>
           </Card>
-          <Banner tone="success">Translation reads posted journals only. No journal, period or balance in Acme or Acme Gulf is created, changed or deleted by this run (FR-FX-014, FR-CNS-004).</Banner>
+          <Banner tone="success">Translation reads posted journals only. No journal, period or balance in Elixir Business Solution or Elixir Insights is created, changed or deleted by this run (FR-FX-014, FR-CNS-004).</Banner>
           <CheckboxField checked disabled onChange={() => {}} label="Disclose the translation adjustment (CTA) as its own line" help="Required by FR-RPT-013 — the balancing figure between closing, average and historical rates." />
           <div style={{ marginTop: 10, fontSize: 12, color: 'var(--ink-4)' }}>Saving as a draft lets you review inputs before translating. You can re-translate a draft as often as you like.</div>
         </>

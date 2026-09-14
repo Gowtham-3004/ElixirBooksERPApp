@@ -31,7 +31,7 @@ export default function DataDemo() {
           <Button variant="primary" onClick={exportAll} disabled={!canManage} reason={canManage ? undefined : 'Requires admin.data permission'}>Export all data (JSON)</Button>
         </Card>
         <Card title="Reset demo data">
-          <p style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 12 }}>Clears everything you changed and reseeds the demo dataset (Acme Group, two companies, {db.get(C.users).length} users). You will be signed out.</p>
+          <p style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 12 }}>Clears everything you changed and reseeds the demo dataset (Elixir Global, two companies, {db.get(C.users).length} users). You will be signed out.</p>
           <Button variant="tinted" tone="danger" onClick={() => setReset(true)} disabled={!canManage} reason={canManage ? undefined : 'Requires admin.data permission'}>Reset demo data</Button>
         </Card>
       </div>

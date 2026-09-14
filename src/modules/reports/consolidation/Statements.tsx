@@ -92,7 +92,7 @@ export function TranslatedStatements() {
       )}
 
       <Banner tone="success">
-        Source books unchanged: this statement is computed from the run’s stored translated lines. Acme and Acme Gulf journals, periods and trial balances are exactly as their own finance teams left them (FR-RPT-012, FR-CNS-004).
+        Source books unchanged: this statement is computed from the run’s stored translated lines. Elixir Business Solution and Elixir Insights journals, periods and trial balances are exactly as their own finance teams left them (FR-RPT-012, FR-CNS-004).
       </Banner>
 
       <Card padding={0} style={{ overflowX: 'auto' }}>

@@ -71,7 +71,7 @@ async function dbRows(col) {
 try {
   await page.goto(base + '/#/', { waitUntil: 'networkidle' });
   await page.evaluate(() => localStorage.clear());
-  await login('rahul@acmepvt.com');
+  await login('rahul@elixirbusiness.in');
   log('signed in as Rahul (Finance Admin)');
 
   // ── E2E-01 step 2: quotation ────────────────────────────────────────────
@@ -183,20 +183,20 @@ try {
   log('credit note submitted for approval', cn.id);
 
   // approvals: Priya (Sales Manager) step 1, Rahul (Finance Admin) step 2
-  await login('priya@acmepvt.com');
+  await login('priya@elixirbusiness.in');
   await go(`sales/credit-notes/${cn.id}`);
   await page.getByTestId('approve-credit-note').click();
   await wait(300);
   await page.locator('.modal textarea').fill('Damaged goods verified at the warehouse.');
   await confirmDialog('Approve credit note');
   // step 2 (Finance): Rahul is the requester, so self-approval is blocked (SoD) — the tenant owner approves
-  await login('aarav@acmegroup.in');
+  await login('aarav@elixirglobal.in');
   await go(`sales/credit-notes/${cn.id}`);
   await page.getByTestId('approve-credit-note').click();
   await wait(300);
   await confirmDialog('Approve credit note');
   await wait(400);
-  await login('rahul@acmepvt.com');
+  await login('rahul@elixirbusiness.in');
   await go(`sales/credit-notes/${cn.id}`);
   await page.getByTestId('post-credit-note').click();
   await wait(300);

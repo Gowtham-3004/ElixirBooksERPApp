@@ -1,4 +1,4 @@
-"""Builds the Lixi brand assets served from public/lixi/ out of the source artwork.
+"""Builds the Lixi brand assets in src/assets/lixi/ out of the source artwork.
 
 Source (not checked in): the Lixi orb logo PNG and the 1920x1080 animated GIF. Both are far too big
 for the web (2.4 MB / 18 MB), so this crops the orb, resizes it and re-encodes:
@@ -20,7 +20,8 @@ import sys
 from PIL import Image, ImageSequence
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, 'public', 'lixi')
+# Imported by LixiMark.tsx (not served from public/) so Vite prefixes the deploy base URL.
+OUT = os.path.join(ROOT, 'src', 'assets', 'lixi')
 DOWNLOADS = os.path.join(os.path.expanduser('~'), 'Downloads')
 
 LOGO_SIZES = (32, 64, 128, 256)

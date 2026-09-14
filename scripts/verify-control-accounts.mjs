@@ -16,7 +16,7 @@ await page.evaluate(() => { localStorage.clear(); });
 await page.reload({ waitUntil: 'networkidle' });
 const emailInput = page.locator('input[type=email]').first();
 if (await emailInput.count()) {
-  await emailInput.fill('rahul@acmepvt.com');
+  await emailInput.fill('rahul@elixirbusiness.in');
   await page.locator('button[type=submit]').first().click();
   await page.waitForTimeout(900);
   const mfa = page.locator('input[placeholder="123456"]');
