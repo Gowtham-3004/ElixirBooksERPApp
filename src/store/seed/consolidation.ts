@@ -1,6 +1,6 @@
 // Seed data for group / consolidation / intercompany (FR-CNS-001..006, FR-RPT-012..014, FR-ORG-011/012).
 // Owned by the consolidation module. Contains:
-//   • the Acme Gulf (AED) chart of accounts, opening balances, 12 posted journals and a number series,
+//   • the Elixir Insights (AED) chart of accounts, opening balances, 12 posted journals and a number series,
 //     so the second legal company has an independently balanced trial balance to consolidate;
 //   • AED/INR translation rates (historical / average / closing) used by the runs;
 //   • the group definition, two consolidation runs (Jun 2026 Final, Aug 2026 Draft) and
@@ -24,7 +24,7 @@ export const CNS_IDS = {
 const G = IDS.gulf;
 const AT = '2026-09-13T09:00:00.000Z';
 
-// ── Gulf chart of accounts (AED) ────────────────────────────────────────────
+// ── Elixir Insights chart of accounts (AED) ────────────────────────────────────────────
 
 const GG = { ca: 'agg_ca', fa: 'agg_fa', cl: 'agg_cl', eq: 'agg_eq', rev: 'agg_rev', oi: 'agg_oi', cogs: 'agg_cogs', opex: 'agg_opex', fin: 'agg_fin' };
 
@@ -53,7 +53,7 @@ function gulfAccounts(): Account[] {
   };
   return [
     acc('acc_g_1100', '1100', 'Trade Receivables (AR Control)', GG.ca, 'Asset', { isControl: true, controlType: 'AR', currencyBehaviour: 'Any', openingBalance: 262000 }),
-    acc(CNS_IDS.gulfRecv, '1170', 'Intercompany Receivable — Acme India', GG.ca, 'Asset', { currencyBehaviour: 'Any', openingBalance: 0 }),
+    acc(CNS_IDS.gulfRecv, '1170', 'Intercompany Receivable — Elixir Business Solution', GG.ca, 'Asset', { currencyBehaviour: 'Any', openingBalance: 0 }),
     acc('acc_g_1200', '1200', 'Inventory — Finished Goods', GG.ca, 'Asset', { isControl: true, controlType: 'Inventory', openingBalance: 184000 }),
     acc('acc_g_1300', '1300', 'Cash on Hand', GG.ca, 'Asset', { isControl: true, controlType: 'Cash', openingBalance: 12000 }),
     acc('acc_g_1310', '1310', 'Emirates NBD Current Account ****7742', GG.ca, 'Asset', { isControl: true, controlType: 'Bank', isBank: true, openingBalance: 418000, bankDetails: { bankName: 'Emirates NBD', accountNumber: '1024567742001', ifsc: 'EBILAEAD', branch: 'Jebel Ali', currency: 'AED' } }),
@@ -63,7 +63,7 @@ function gulfAccounts(): Account[] {
     acc('acc_g_1500', '1500', 'Property, Plant & Equipment', GG.fa, 'Asset', { isControl: true, controlType: 'FixedAsset', openingBalance: 240000 }),
     acc('acc_g_1510', '1510', 'Accumulated Depreciation', GG.fa, 'Asset', { normalBalance: 'Cr', openingBalance: 60000 }),
     acc('acc_g_2100', '2100', 'Trade Payables (AP Control)', GG.cl, 'Liability', { isControl: true, controlType: 'AP', currencyBehaviour: 'Any', openingBalance: 178000 }),
-    acc(CNS_IDS.gulfPay, '2170', 'Intercompany Payable — Acme India', GG.cl, 'Liability', { currencyBehaviour: 'Any', openingBalance: 0 }),
+    acc(CNS_IDS.gulfPay, '2170', 'Intercompany Payable — Elixir Business Solution', GG.cl, 'Liability', { currencyBehaviour: 'Any', openingBalance: 0 }),
     acc('acc_g_2300', '2300', 'Output VAT Payable', GG.cl, 'Liability', { controlType: 'Tax', openingBalance: 21500 }),
     acc('acc_g_2330', '2330', 'Salaries Payable', GG.cl, 'Liability', { openingBalance: 26000 }),
     acc('acc_g_3000', '3000', 'Share Capital', GG.eq, 'Equity', { openingBalance: 300000 }),
@@ -86,8 +86,8 @@ function gulfAccounts(): Account[] {
 type LineIn = { acc: string; dr?: number; cr?: number; narration?: string };
 
 const ACME_ACC: Record<string, [string, string]> = {
-  acc_1170: ['1170', 'Intercompany Receivable — Acme Gulf'],
-  acc_2170: ['2170', 'Intercompany Payable — Acme Gulf'],
+  acc_1170: ['1170', 'Intercompany Receivable — Elixir Insights'],
+  acc_2170: ['2170', 'Intercompany Payable — Elixir Insights'],
   acc_4020: ['4020', 'Export Sales'],
   acc_1310: ['1310', 'HDFC Current Account ****1234'],
   acc_5010: ['5010', 'Purchases — Raw Materials'],
@@ -171,30 +171,30 @@ function icJournals(): Journal[] {
   const gm = (id: string, number: string, date: string, narration: string, lines: LineIn[], sourceId: string, sourceNumber: string) =>
     mkJournal({ id, number, date, companyId: G, branchId: IDS.brDubai, fy: '2026', currency: 'AED', rate: 1, type: 'Auto', sourceType: 'Intercompany', sourceId, sourceNumber, narration, lines });
   return [
-    // 1 — Acme invoices Gulf, AED 60,000 (matched pair; Acme books INR at 22.10)
-    am('jv_ic_001a', 'JV/26-27/0501', '2026-07-10', 'AED', AED_INR_JUL, 'Intercompany invoice IC-2026-0001: Acme → Acme Gulf (AED 60,000 @ 22.10)', [
-      { acc: 'acc_1170', dr: 60000, narration: 'Due from Acme Gulf Trading LLC' }, { acc: 'acc_4020', cr: 60000 },
+    // 1 — Elixir Business Solution invoices Elixir Insights, AED 60,000 (matched pair; Elixir Business Solution books INR at 22.10)
+    am('jv_ic_001a', 'JV/26-27/0501', '2026-07-10', 'AED', AED_INR_JUL, 'Intercompany invoice IC-2026-0001: Elixir Business Solution → Elixir Insights (AED 60,000 @ 22.10)', [
+      { acc: 'acc_1170', dr: 60000, narration: 'Due from Elixir Insights' }, { acc: 'acc_4020', cr: 60000 },
     ], 'icd_001', 'IC/2026/0001'),
-    gm('jv_ic_001b', 'GJV/2026/0021', '2026-07-10', 'Intercompany invoice IC-2026-0001 from Acme Private Limited (AED 60,000)', [
-      { acc: 'acc_g_5010', dr: 60000 }, { acc: CNS_IDS.gulfPay, cr: 60000, narration: 'Due to Acme Private Limited' },
+    gm('jv_ic_001b', 'GJV/2026/0021', '2026-07-10', 'Intercompany invoice IC-2026-0001 from Elixir Business Solution Pvt Ltd (AED 60,000)', [
+      { acc: 'acc_g_5010', dr: 60000 }, { acc: CNS_IDS.gulfPay, cr: 60000, narration: 'Due to Elixir Business Solution Pvt Ltd' },
     ], 'icd_001', 'IC/2026/0001'),
-    // 2 — Gulf settles AED 35,000 (matched pair)
-    gm('jv_ic_002a', 'GJV/2026/0022', '2026-08-14', 'Intercompany payment IC-2026-0002 to Acme Private Limited (AED 35,000)', [
-      { acc: CNS_IDS.gulfPay, dr: 35000, narration: 'Due to Acme Private Limited' }, { acc: 'acc_g_1310', cr: 35000 },
+    // 2 — Elixir Insights settles AED 35,000 (matched pair)
+    gm('jv_ic_002a', 'GJV/2026/0022', '2026-08-14', 'Intercompany payment IC-2026-0002 to Elixir Business Solution Pvt Ltd (AED 35,000)', [
+      { acc: CNS_IDS.gulfPay, dr: 35000, narration: 'Due to Elixir Business Solution Pvt Ltd' }, { acc: 'acc_g_1310', cr: 35000 },
     ], 'icd_002', 'IC/2026/0002'),
-    am('jv_ic_002b', 'JV/26-27/0502', '2026-08-14', 'AED', AED_INR_AUG, 'Intercompany receipt IC-2026-0002 from Acme Gulf (AED 35,000 @ 22.50)', [
-      { acc: 'acc_1310', dr: 35000 }, { acc: 'acc_1170', cr: 35000, narration: 'Due from Acme Gulf Trading LLC' },
+    am('jv_ic_002b', 'JV/26-27/0502', '2026-08-14', 'AED', AED_INR_AUG, 'Intercompany receipt IC-2026-0002 from Elixir Insights (AED 35,000 @ 22.50)', [
+      { acc: 'acc_1310', dr: 35000 }, { acc: 'acc_1170', cr: 35000, narration: 'Due from Elixir Insights' },
     ], 'icd_002', 'IC/2026/0002'),
-    // 3 — Gulf invoices Acme AED 24,000; Acme side NOT yet booked (unmatched)
-    gm('jv_ic_003a', 'GJV/2026/0023', '2026-08-21', 'Intercompany invoice IC-2026-0003: Acme Gulf → Acme Private Limited (AED 24,000) — awaiting counterparty entry', [
-      { acc: CNS_IDS.gulfRecv, dr: 24000, narration: 'Due from Acme Private Limited' }, { acc: 'acc_g_4000', cr: 24000 },
+    // 3 — Elixir Insights invoices Elixir Business Solution AED 24,000; Elixir Business Solution side NOT yet booked (unmatched)
+    gm('jv_ic_003a', 'GJV/2026/0023', '2026-08-21', 'Intercompany invoice IC-2026-0003: Elixir Insights → Elixir Business Solution Pvt Ltd (AED 24,000) — awaiting counterparty entry', [
+      { acc: CNS_IDS.gulfRecv, dr: 24000, narration: 'Due from Elixir Business Solution Pvt Ltd' }, { acc: 'acc_g_4000', cr: 24000 },
     ], 'icd_003', 'IC/2026/0003'),
-    // 4 — Acme funds Gulf INR 500,000; Gulf bank credited AED 21,890 (difference vs INR→AED 0.04415)
-    am('jv_ic_004a', 'JV/26-27/0503', '2026-09-04', 'INR', 1, 'Intercompany funding IC-2026-0004: Acme → Acme Gulf (INR 500,000)', [
-      { acc: 'acc_1170', dr: 500000, narration: 'Due from Acme Gulf Trading LLC' }, { acc: 'acc_1310', cr: 500000 },
+    // 4 — Elixir Business Solution funds Elixir Insights INR 500,000; Elixir Insights bank credited AED 21,890 (difference vs INR→AED 0.04415)
+    am('jv_ic_004a', 'JV/26-27/0503', '2026-09-04', 'INR', 1, 'Intercompany funding IC-2026-0004: Elixir Business Solution → Elixir Insights (INR 500,000)', [
+      { acc: 'acc_1170', dr: 500000, narration: 'Due from Elixir Insights' }, { acc: 'acc_1310', cr: 500000 },
     ], 'icd_004', 'IC/2026/0004'),
-    gm('jv_ic_004b', 'GJV/2026/0024', '2026-09-04', 'Intercompany funding IC-2026-0004 received from Acme Private Limited (INR 500,000 credited as AED 21,890)', [
-      { acc: 'acc_g_1310', dr: 21890 }, { acc: CNS_IDS.gulfPay, cr: 21890, narration: 'Due to Acme Private Limited' },
+    gm('jv_ic_004b', 'GJV/2026/0024', '2026-09-04', 'Intercompany funding IC-2026-0004 received from Elixir Business Solution Pvt Ltd (INR 500,000 credited as AED 21,890)', [
+      { acc: 'acc_g_1310', dr: 21890 }, { acc: CNS_IDS.gulfPay, cr: 21890, narration: 'Due to Elixir Business Solution Pvt Ltd' },
     ], 'icd_004', 'IC/2026/0004'),
   ];
 }
@@ -209,8 +209,8 @@ function intercompanyDocs(): IntercompanyDoc[] {
       matchStatus: 'Matched', matchedAt: '2026-07-11T06:30:00.000Z', matchedBy: 'Rahul Kumar',
       dueFromAccount: 'acc_1170', dueToAccount: CNS_IDS.gulfPay, sourceJournalIds: { from: 'jv_ic_001a', to: 'jv_ic_001b' }, sourceJournalNumbers: { from: 'JV/26-27/0501', to: 'GJV/2026/0021' },
       difference: { expectedTo: 60000, actualTo: 60000, diffTo: 0, toCurrency: 'AED', explanation: [
-        'Acme Private Limited books: INR 13,26,000.00 (= AED 60,000 × 22.10)',
-        'Acme Gulf books: AED 60,000.00 (transaction currency is the Gulf base currency)',
+        'Elixir Business Solution Pvt Ltd books: INR 13,26,000.00 (= AED 60,000 × 22.10)',
+        'Elixir Insights books: AED 60,000.00 (transaction currency is the Elixir Insights base currency)',
         'Both sides agree in transaction currency — the INR/AED difference appears only on consolidation and is carried to CTA',
       ] },
     }),
@@ -221,28 +221,28 @@ function intercompanyDocs(): IntercompanyDoc[] {
       matchStatus: 'Matched', matchedAt: '2026-08-15T06:00:00.000Z', matchedBy: 'Rahul Kumar',
       dueFromAccount: 'acc_1170', dueToAccount: CNS_IDS.gulfPay, sourceJournalIds: { from: 'jv_ic_002a', to: 'jv_ic_002b' }, sourceJournalNumbers: { from: 'GJV/2026/0022', to: 'JV/26-27/0502' },
       difference: { expectedTo: 787500, actualTo: 787500, diffTo: 0, toCurrency: 'INR', explanation: [
-        'Acme Gulf books: AED 35,000.00 (transaction currency)',
-        'Acme Private Limited books: INR 7,87,500.00 (= AED 35,000 × 22.50 on 14 Aug 2026)',
-        'Both sides agree; the AED/INR movement between invoice (22.10) and settlement (22.50) is a realised FX difference of INR 14,000 in Acme books',
+        'Elixir Insights books: AED 35,000.00 (transaction currency)',
+        'Elixir Business Solution Pvt Ltd books: INR 7,87,500.00 (= AED 35,000 × 22.50 on 14 Aug 2026)',
+        'Both sides agree; the AED/INR movement between invoice (22.10) and settlement (22.50) is a realised FX difference of INR 14,000 in Elixir Business Solution books',
       ] },
     }),
     d('icd_003', {
       companyId: G, type: 'Invoice', number: 'IC/2026/0003', fromCompanyId: G, toCompanyId: IDS.acme, date: '2026-08-21', currency: 'AED', amount: 24000,
       baseCurrencyFrom: 'AED', baseCurrencyTo: 'INR', rateFrom: 1, rateTo: AED_INR_AUG, baseAmountFrom: 24000, baseAmountTo: 0,
-      counterpartyRef: 'IC-2026-0003', narration: 'Regional warehousing and handling recharge — awaiting Acme entry',
+      counterpartyRef: 'IC-2026-0003', narration: 'Regional warehousing and handling recharge — awaiting Elixir Business Solution entry',
       matchStatus: 'Unmatched',
       dueFromAccount: CNS_IDS.gulfRecv, dueToAccount: 'acc_2170', sourceJournalIds: { from: 'jv_ic_003a' }, sourceJournalNumbers: { from: 'GJV/2026/0023' },
     }),
     d('icd_004', {
       companyId: IDS.acme, type: 'Journal', number: 'IC/2026/0004', fromCompanyId: IDS.acme, toCompanyId: G, date: '2026-09-04', currency: 'INR', amount: 500000,
       baseCurrencyFrom: 'INR', baseCurrencyTo: 'AED', rateFrom: 1, rateTo: INR_AED_SEP, baseAmountFrom: 500000, baseAmountTo: 21890,
-      counterpartyRef: 'IC-2026-0004', narration: 'Working-capital funding to Acme Gulf',
+      counterpartyRef: 'IC-2026-0004', narration: 'Working-capital funding to Elixir Insights',
       matchStatus: 'Difference', matchedAt: '2026-09-05T05:30:00.000Z', matchedBy: 'Anil Patil',
       dueFromAccount: 'acc_1170', dueToAccount: CNS_IDS.gulfPay, sourceJournalIds: { from: 'jv_ic_004a', to: 'jv_ic_004b' }, sourceJournalNumbers: { from: 'JV/26-27/0503', to: 'GJV/2026/0024' },
       difference: { expectedTo: 22075, actualTo: 21890, diffTo: -185, toCurrency: 'AED', explanation: [
-        'Acme Private Limited books: INR 5,00,000.00 (transaction currency)',
-        'Acme Gulf books: AED 21,890.00 (expected INR 500,000 × 0.04415 = AED 22,075.00)',
-        'Unexplained difference AED −185.00 on the Acme Gulf side — remittance charges deducted by the correspondent bank; proposed as an elimination difference line (Exchange difference on intercompany balances)',
+        'Elixir Business Solution Pvt Ltd books: INR 5,00,000.00 (transaction currency)',
+        'Elixir Insights books: AED 21,890.00 (expected INR 500,000 × 0.04415 = AED 22,075.00)',
+        'Unexplained difference AED −185.00 on the Elixir Insights side — remittance charges deducted by the correspondent bank; proposed as an elimination difference line (Exchange difference on intercompany balances)',
       ] },
     }),
   ];
@@ -254,7 +254,7 @@ function rates(): ExchangeRate[] {
   const fx = (id: string, rate: number, type: ExchangeRate['type'], effectiveAt: string, source: string): ExchangeRate =>
     rec<ExchangeRate>(id, { base: 'AED', quote: 'INR', rate, direction: 'Multiply', type, effectiveAt, source, status: 'Approved', approvedBy: 'Rahul Kumar' });
   return [
-    fx('fx_cns_h1', 20.9, 'Historical', '2025-01-01T00:00:00Z', 'Acquisition-date rate — Acme Gulf incorporation'),
+    fx('fx_cns_h1', 20.9, 'Historical', '2025-01-01T00:00:00Z', 'Acquisition-date rate — Elixir Insights incorporation'),
     fx('fx_cns_01', 22.1, 'Spot', '2026-04-01T09:00:00Z', 'RBI reference'),
     fx('fx_cns_02', 22.28, 'Average', '2026-06-01T00:00:00Z', 'RBI monthly average'),
     fx('fx_cns_03', 22.35, 'Closing', '2026-06-30T18:00:00Z', 'RBI reference'),
@@ -270,7 +270,7 @@ function rates(): ExchangeRate[] {
 
 function group(): Group {
   return rec<Group>(CNS_IDS.group, {
-    companyId: IDS.acme, code: 'GRP-ACME', name: 'Acme Group', tenantId: IDS.tenant,
+    companyId: IDS.acme, code: 'GRP-ELIXIR', name: 'Elixir Global', tenantId: IDS.tenant,
     consolidationCurrency: 'INR', parentCompanyId: IDS.acme, accountingStandard: 'Ind AS', status: 'Active',
     members: [
       { companyId: IDS.acme, ownershipPct: 100, from: '2020-04-01', method: 'Full' },
@@ -287,8 +287,8 @@ const rateInfo = (rate: number, type: string, source: string, at: string) => ({ 
 
 function runCompanies(closing: number, average: number, historical: number): RunCompany[] {
   return [
-    { companyId: IDS.acme, companyName: 'Acme', baseCurrency: 'INR', ownershipPct: 100, method: 'Full', ownershipFrom: '2020-04-01', included: true, rateClosing: rateInfo(1, 'Same currency', '—', AT), rateAverage: rateInfo(1, 'Same currency', '—', AT), rateHistorical: rateInfo(1, 'Same currency', '—', AT), ratesSource: 'Same currency' },
-    { companyId: G, companyName: 'Acme Gulf', baseCurrency: 'AED', ownershipPct: 100, method: 'Full', ownershipFrom: '2025-01-01', included: true, rateClosing: rateInfo(closing, 'Closing', 'RBI reference', AT), rateAverage: rateInfo(average, 'Average', 'RBI monthly average', AT), rateHistorical: rateInfo(historical, 'Historical', 'Acquisition-date rate — Acme Gulf incorporation', '2025-01-01T00:00:00Z'), ratesSource: 'RBI reference · RBI monthly average · Acquisition-date rate' },
+    { companyId: IDS.acme, companyName: 'Elixir Business Solution', baseCurrency: 'INR', ownershipPct: 100, method: 'Full', ownershipFrom: '2020-04-01', included: true, rateClosing: rateInfo(1, 'Same currency', '—', AT), rateAverage: rateInfo(1, 'Same currency', '—', AT), rateHistorical: rateInfo(1, 'Same currency', '—', AT), ratesSource: 'Same currency' },
+    { companyId: G, companyName: 'Elixir Insights', baseCurrency: 'AED', ownershipPct: 100, method: 'Full', ownershipFrom: '2025-01-01', included: true, rateClosing: rateInfo(closing, 'Closing', 'RBI reference', AT), rateAverage: rateInfo(average, 'Average', 'RBI monthly average', AT), rateHistorical: rateInfo(historical, 'Historical', 'Acquisition-date rate — Elixir Insights incorporation', '2025-01-01T00:00:00Z'), ratesSource: 'RBI reference · RBI monthly average · Acquisition-date rate' },
   ];
 }
 
@@ -304,7 +304,7 @@ function tl(companyId: string, currency: string, rows: TlIn[]): TranslatedLine[]
 function junRun(): ConsolidationRun {
   const acme = tl(IDS.acme, 'INR', [
     ['1100', 'Trade Receivables (AR Control)', 'Asset', 'CA', 'Current Assets', 4240000, 'Closing', 1, IDS.accAR],
-    ['1170', 'Intercompany Receivable — Acme Gulf', 'Asset', 'CA', 'Current Assets', 1118000, 'Closing', 1, 'acc_1170'],
+    ['1170', 'Intercompany Receivable — Elixir Insights', 'Asset', 'CA', 'Current Assets', 1118000, 'Closing', 1, 'acc_1170'],
     ['1200', 'Inventory — Finished Goods', 'Asset', 'CA', 'Current Assets', 1742000, 'Closing', 1, IDS.accInvFG],
     ['1310', 'HDFC Current Account ****1234', 'Asset', 'CA', 'Current Assets', 1180000, 'Closing', 1, IDS.accHDFC],
     ['1500', 'Property, Plant & Equipment', 'Asset', 'FA', 'Fixed Assets', 17480000, 'Historical', 1, IDS.accPPE],
@@ -324,7 +324,7 @@ function junRun(): ConsolidationRun {
     ['1500', 'Property, Plant & Equipment', 'Asset', 'FA', 'Fixed Assets', 240000, 'Historical', 20.9, 'acc_g_1500'],
     ['1510', 'Accumulated Depreciation', 'Asset', 'FA', 'Fixed Assets', -64000, 'Closing', 22.35, 'acc_g_1510'],
     ['2100', 'Trade Payables (AP Control)', 'Liability', 'CL', 'Current Liabilities', -183100, 'Closing', 22.35, 'acc_g_2100'],
-    ['2170', 'Intercompany Payable — Acme India', 'Liability', 'CL', 'Current Liabilities', -50000, 'Closing', 22.35, CNS_IDS.gulfPay],
+    ['2170', 'Intercompany Payable — Elixir Business Solution', 'Liability', 'CL', 'Current Liabilities', -50000, 'Closing', 22.35, CNS_IDS.gulfPay],
     ['2300', 'Output VAT Payable', 'Liability', 'CL', 'Current Liabilities', -26500, 'Closing', 22.35, 'acc_g_2300'],
     ['3000', 'Share Capital', 'Equity', 'EQ', 'Equity', -300000, 'Historical', 20.9, 'acc_g_3000'],
     ['3100', 'Retained Earnings', 'Equity', 'EQ', 'Equity', -540000, 'Historical', 20.9, 'acc_g_3100'],
@@ -351,9 +351,9 @@ function junRun(): ConsolidationRun {
     adjustments: [CNS_IDS.adjJun],
     eliminations: [{
       id: 'elim_jun_01', pairRef: 'ACME↔GULF', kind: 'Intercompany balance',
-      description: 'Eliminate Acme receivable from Acme Gulf against the Acme Gulf payable at 30 Jun 2026',
-      drCompanyId: G, drAccountCode: '2170', drAccountName: 'Intercompany Payable — Acme India', drAmount: 1117500,
-      crCompanyId: IDS.acme, crAccountCode: '1170', crAccountName: 'Intercompany Receivable — Acme Gulf', crAmount: 1118000,
+      description: 'Eliminate Elixir Business Solution receivable from Elixir Insights against the Elixir Insights payable at 30 Jun 2026',
+      drCompanyId: G, drAccountCode: '2170', drAccountName: 'Intercompany Payable — Elixir Business Solution', drAmount: 1117500,
+      crCompanyId: IDS.acme, crAccountCode: '1170', crAccountName: 'Intercompany Receivable — Elixir Insights', crAmount: 1118000,
       fxDifference: -500, differenceAccountCode: 'CTA', amount: 1118000, sourceDocs: [],
       status: 'Accepted', reversible: true, reason: 'Matched on the June intercompany reconciliation', actedBy: 'Rahul Kumar', actedAt: '2026-07-09T11:40:00.000Z',
       warning: 'Translation difference −500 INR booked to the translation reserve (CTA)',
@@ -361,10 +361,10 @@ function junRun(): ConsolidationRun {
     createdBy: 'Rahul Kumar', translatedAt: '2026-07-09T11:20:00.000Z', finalizedAt: '2026-07-09T12:05:00.000Z', finalizedBy: 'Rahul Kumar',
     booksAtTranslate: books, booksAtFinal: books,
     log: [
-      { at: '2026-07-09T11:05:00.000Z', by: 'Rahul Kumar', action: 'Created', detail: 'Acme Group · 2026-06 · INR' },
+      { at: '2026-07-09T11:05:00.000Z', by: 'Rahul Kumar', action: 'Created', detail: 'Elixir Global · 2026-06 · INR' },
       { at: '2026-07-09T11:20:00.000Z', by: 'Rahul Kumar', action: 'Translated', detail: `${lines.length} lines · CTA ${cta} INR` },
       { at: '2026-07-09T11:40:00.000Z', by: 'Rahul Kumar', action: 'Elimination accepted', detail: 'ACME↔GULF · intercompany balance 11,18,000 INR' },
-      { at: '2026-07-09T11:55:00.000Z', by: 'Rahul Kumar', action: 'Adjustment posted', detail: 'CJ/2026-06/001 · 96,000 INR · Gulf depreciation aligned to group policy' },
+      { at: '2026-07-09T11:55:00.000Z', by: 'Rahul Kumar', action: 'Adjustment posted', detail: 'CJ/2026-06/001 · 96,000 INR · Elixir Insights depreciation aligned to group policy' },
       { at: '2026-07-09T12:05:00.000Z', by: 'Rahul Kumar', action: 'Finalized', detail: 'v1 · legal books verified unchanged' },
     ],
     createdAt: '2026-07-09T11:05:00.000Z', updatedAt: '2026-07-09T12:05:00.000Z',
@@ -377,7 +377,7 @@ function augRun(): ConsolidationRun {
     currency: 'INR', accountingStandard: 'Ind AS', status: 'Draft', runVersion: 1,
     companies: runCompanies(22.58, 22.5, 20.9), translatedLines: [], cta: 0, ctaByCompany: {}, totals: {},
     adjustments: [], eliminations: [], createdBy: 'Rahul Kumar', booksAtTranslate: [],
-    log: [{ at: '2026-09-03T09:30:00.000Z', by: 'Rahul Kumar', action: 'Created', detail: 'Acme Group · 2026-08 · INR — awaiting translation' }],
+    log: [{ at: '2026-09-03T09:30:00.000Z', by: 'Rahul Kumar', action: 'Created', detail: 'Elixir Global · 2026-08 · INR — awaiting translation' }],
     createdAt: '2026-09-03T09:30:00.000Z', updatedAt: '2026-09-03T09:30:00.000Z',
   });
 }
@@ -385,13 +385,13 @@ function augRun(): ConsolidationRun {
 function adjustments(): ConsolidationJournal[] {
   return [rec<ConsolidationJournal>(CNS_IDS.adjJun, {
     companyId: IDS.acme, runId: CNS_IDS.runJun, groupId: CNS_IDS.group, number: 'CJ/2026-06/001', date: '2026-06-30', period: '2026-06', currency: 'INR',
-    reason: 'Align Acme Gulf racking depreciation to the group Ind AS useful life of 8 years (local books use 12 years)',
+    reason: 'Align Elixir Insights racking depreciation to the group Ind AS useful life of 8 years (local books use 12 years)',
     lines: [
-      { id: 'cjl_1', accountCode: '5300', accountName: 'Depreciation & Amortisation', dr: 96000, cr: 0, narration: 'Additional group depreciation — Acme Gulf racking' },
-      { id: 'cjl_2', accountCode: '1510', accountName: 'Accumulated Depreciation', dr: 0, cr: 96000, narration: 'Additional group depreciation — Acme Gulf racking' },
+      { id: 'cjl_1', accountCode: '5300', accountName: 'Depreciation & Amortisation', dr: 96000, cr: 0, narration: 'Additional group depreciation — Elixir Insights racking' },
+      { id: 'cjl_2', accountCode: '1510', accountName: 'Accumulated Depreciation', dr: 0, cr: 96000, narration: 'Additional group depreciation — Elixir Insights racking' },
     ],
     totalDr: 96000, totalCr: 96000, status: 'Posted', postedAt: '2026-07-09T11:55:00.000Z', postedBy: 'Rahul Kumar',
-    workflowNote: 'No approval rule for Consolidation Adjustment — posted directly (audited). Never written to Acme or Acme Gulf journals (FR-CNS-004).',
+    workflowNote: 'No approval rule for Consolidation Adjustment — posted directly (audited). Never written to Elixir Business Solution or Elixir Insights journals (FR-CNS-004).',
     createdAt: '2026-07-09T11:50:00.000Z', updatedAt: '2026-07-09T11:55:00.000Z',
   })];
 }

@@ -12,7 +12,7 @@ interface LoginProps {
 }
 
 export default function Login({ onLogin, onCreateAccount }: LoginProps) {
-  const [email, setEmail] = useState('rahul@acmepvt.com');
+  const [email, setEmail] = useState('rahul@elixirbusiness.in');
   const [password, setPassword] = useState('••••••••••');
   const [agreed, setAgreed] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -131,7 +131,7 @@ export default function Login({ onLogin, onCreateAccount }: LoginProps) {
 
         {/* Right – hero */}
         <div className="auth-aside" style={{ flex: 1, background: 'var(--surface-2)', borderLeft: '1px solid var(--hairline)', padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: 16, overflow: 'hidden' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>Elixir Books {preview.plan?.name ?? 'Growth'} · {preview.co?.legalName ?? 'Acme Private Limited'}</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>Elixir Books {preview.plan?.name ?? 'Growth'} · {preview.co?.legalName ?? 'Elixir Business Solution Pvt Ltd'}</div>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, minHeight: 0 }}>
             <StorysetAnimated name="finance" width={300} label="A finance team reviewing charts and coins" />
             <div style={{ maxWidth: 360 }}>
@@ -145,7 +145,7 @@ export default function Login({ onLogin, onCreateAccount }: LoginProps) {
               </ul>
             </div>
           </div>
-          <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center' }}>{preview.co?.legalName ?? 'Acme Private Limited'} · {preview.co?.address.city ?? 'Mumbai'} · FY {preview.co ? (preview.co.fiscalYearStartMonth === 4 ? '2026–27' : '2026') : '2026–27'} · Sep 2026 ● Open</p>
+          <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center' }}>{preview.co?.legalName ?? 'Elixir Business Solution Pvt Ltd'} · {preview.co?.address.city ?? 'Mumbai'} · FY {preview.co ? (preview.co.fiscalYearStartMonth === 4 ? '2026–27' : '2026') : '2026–27'} · Sep 2026 ● Open</p>
         </div>
       </div>
     </Backdrop>

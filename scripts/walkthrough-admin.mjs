@@ -43,14 +43,14 @@ await page.evaluate(() => localStorage.clear());
 await page.reload({ waitUntil: 'networkidle' });
 
 // ── 1. Invite a user → open invitation → activate ────────────────────────
-await signIn('aarav@acmegroup.in');
+await signIn('aarav@elixirglobal.in');
 await page.goto(base + '/#/admin/users', { waitUntil: 'networkidle' });
 await wait(300);
 await page.getByRole('button', { name: /Invite user/ }).first().click();
 await wait(200);
 const emailField = page.locator('.drawer input').nth(1);
 await page.locator('.drawer input').nth(0).fill('Test Walkthrough');
-await emailField.fill('walkthrough@acmepvt.com');
+await emailField.fill('walkthrough@elixirbusiness.in');
 await page.locator('.drawer .chip', { hasText: 'Accountant' }).first().click();
 await page.getByRole('button', { name: 'Send invitation' }).click();
 await wait(400);
@@ -70,7 +70,7 @@ ok('Activated user lands on Home', (await page.getByText(/Good (morning|afternoo
 await signOut();
 
 // ── 2. Lock a period with reason ─────────────────────────────────────────
-await signIn('aarav@acmegroup.in');
+await signIn('aarav@elixirglobal.in');
 await page.goto(base + '/#/admin/periods', { waitUntil: 'networkidle' });
 await wait(300);
 const periodRow = (label) => page.locator('tbody tr').filter({ has: page.locator('td:first-child', { hasText: label }) }).first();

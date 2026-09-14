@@ -45,7 +45,7 @@ const navLabels = async () => page.$$eval('aside nav button', (bs) => bs.map((b)
 const mainText = async () => (await page.locator('main').first().innerText().catch(() => '')).replace(/\s+/g, ' ');
 
 // ── 1. Cashier: POS only, finance modules hidden and denied by direct link ──
-await signIn('suresh@acmepvt.com');
+await signIn('suresh@elixirbusiness.in');
 let nav = await navLabels();
 check('Cashier nav shows POS', nav.some((l) => /POS/i.test(l)), nav.join(' · ').slice(0, 120));
 check('Cashier nav hides Accounting', !nav.some((l) => /^Accounting/i.test(l)));
@@ -65,7 +65,7 @@ check('Auditor can view the sales invoice register', /invoice/i.test(t), t.slice
 check('Auditor has no "New invoice" action', hasNewInvoice === 0 || await page.getByRole('button', { name: /New invoice/i }).first().isDisabled());
 
 // ── 3. Sales user: sales yes, admin no ──
-await signIn('priya@acmepvt.com');
+await signIn('priya@elixirbusiness.in');
 nav = await navLabels();
 check('Sales manager nav shows Sales', nav.some((l) => /^Sales/i.test(l)));
 check('Sales manager nav hides Platform administration', !nav.some((l) => /Platform/i.test(l)));
@@ -75,7 +75,7 @@ t = await mainText();
 check('Sales manager direct link to Platform admin is denied', /restricted|don't have access/i.test(t), t.slice(0, 80));
 
 // ── 4. Company scoping: switching company must not leak the other company's rows ──
-await signIn('rahul@acmepvt.com');
+await signIn('rahul@elixirbusiness.in');
 await page.goto(`${base}/#/sales/invoices`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(600);
 const acmeRows = await page.$$eval('tbody tr', (r) => r.length);

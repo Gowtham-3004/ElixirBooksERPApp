@@ -126,7 +126,7 @@ export default function Register({ onCreated, onSignIn }: Props) {
                 </div>
                 <div>
                   <label className="section-label" style={{ display: 'block', marginBottom: 6 }}>Work Email *</label>
-                  <input className="field-input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="rahul@acmepvt.com" />
+                  <input className="field-input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="rahul@elixirbusiness.in" />
                 </div>
                 <div>
                   <label className="section-label" style={{ display: 'block', marginBottom: 6 }}>Password *</label>
@@ -154,7 +154,7 @@ export default function Register({ onCreated, onSignIn }: Props) {
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 <div>
                   <label className="section-label" style={{ display: 'block', marginBottom: 6 }}>Company / Trade Name *</label>
-                  <input className="field-input" required value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Acme Private Limited" autoFocus />
+                  <input className="field-input" required value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Elixir Business Solution Pvt Ltd" autoFocus />
                 </div>
                 <div>
                   <label className="section-label" style={{ display: 'block', marginBottom: 6 }}>Country *</label>

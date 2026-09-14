@@ -103,8 +103,8 @@ export function StepLegal({ s, set, company }: StepProps) {
     <div>
       <H title="Legal identity" sub="Used on every statutory document — invoices, challans and returns. Identifiers are validated by the localization pack (FR-ORG-007)." />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, maxWidth: 720 }}>
-        <TextField label="Legal name" required value={s.legalName} onChange={(v) => set({ legalName: v })} placeholder="Acme Private Limited" autoFocus />
-        <TextField label="Trade name" value={s.tradeName} onChange={(v) => set({ tradeName: v })} placeholder="Acme" help="Shown in the sidebar and on documents when set" />
+        <TextField label="Legal name" required value={s.legalName} onChange={(v) => set({ legalName: v })} placeholder="Elixir Business Solution Pvt Ltd" autoFocus />
+        <TextField label="Trade name" value={s.tradeName} onChange={(v) => set({ tradeName: v })} placeholder="Elixir Business Solution" help="Shown in the sidebar and on documents when set" />
         <SelectField label="Business type" value={s.businessType} onChange={(v) => set({ businessType: v })} options={BUSINESS_TYPES} />
         {isIN ? <IdentifierField kind="PAN" label="PAN" value={s.pan} onChange={(v) => set({ pan: v })} help="10 characters · used to derive GSTINs" /> : <TextField label="Tax registration / company number" value={s.pan} onChange={(v) => set({ pan: v })} />}
         <TextField label="CIN / registration number" value={s.cin} onChange={(v) => set({ cin: v })} placeholder="U74999MH2010PTC123456" uppercase />
@@ -158,7 +158,7 @@ export function StepAddress({ s, set, company }: StepProps) {
         {isIN ? <IdentifierField kind="PIN" label="PIN code" value={a.pin ?? ''} onChange={(v) => setA({ pin: v })} /> : <TextField label="Postal code" value={a.pin ?? ''} onChange={(v) => setA({ pin: v })} />}
         <TextField label="Phone" value={s.phone} onChange={(v) => set({ phone: v })} placeholder="+91 22 4001 1234" />
         <IdentifierField kind="EMAIL" label="Accounts email" value={s.email} onChange={(v) => set({ email: v })} />
-        <TextField label="Website" value={s.website} onChange={(v) => set({ website: v })} placeholder="acmepvt.com" />
+        <TextField label="Website" value={s.website} onChange={(v) => set({ website: v })} placeholder="elixirbusiness.in" />
       </div>
       <div style={{ marginTop: 24, maxWidth: 720 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>

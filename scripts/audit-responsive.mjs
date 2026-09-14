@@ -23,7 +23,7 @@ page.on('console', (m) => { if (m.type() === 'error' && !/favicon|404/.test(m.te
 await page.goto(`${base}/#/`, { waitUntil: 'networkidle' });
 await page.evaluate(() => localStorage.clear());
 await page.reload({ waitUntil: 'networkidle' });
-await page.locator('input[type=email]').first().fill('rahul@acmepvt.com');
+await page.locator('input[type=email]').first().fill('rahul@elixirbusiness.in');
 await page.locator('button[type=submit]').first().click();
 await page.waitForTimeout(800);
 if (await page.locator('input[placeholder="123456"]').count()) { await page.locator('input[placeholder="123456"]').fill('123456'); await page.getByText('Verify and sign in').click(); await page.waitForTimeout(400); }

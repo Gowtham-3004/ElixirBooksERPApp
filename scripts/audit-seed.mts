@@ -100,7 +100,7 @@ for (const [k, q] of neg.slice(0, 15)) {
 }
 
 // ── 5. control-account reconciliations ─────────────────────────────────────
-// Reconciliation is scoped to the primary operating company — the seed also carries Acme Gulf
+// Reconciliation is scoped to the primary operating company — the seed also carries Elixir Insights
 // and the consolidation entities, whose account codes repeat.
 const CO = 'co_acme';
 const coAccounts = accounts.filter((a) => a.companyId === CO);

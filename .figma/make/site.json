@@ -1,4 +1,7 @@
 {
+  "icons": {
+    "icon": "/favicon.png"
+  },
   "description": "Manage book inventory, sales, and customer data efficiently with a streamlined ERP system designed for bookstores and publishers.",
   "robots": {
     "index": false

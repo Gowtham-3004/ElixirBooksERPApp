@@ -44,7 +44,7 @@ const idFromUrl = () => page.url().split('#/')[1].split('?')[0].split('/')[2];
 
 await page.goto(base + '/#/', { waitUntil: 'networkidle' });
 await page.evaluate(() => localStorage.clear());
-await login('rahul@acmepvt.com');
+await login('rahul@elixirbusiness.in');
 
 // ── 1. Requisition → approve (no workflow → auto) ─────────────────────────
 await go('purchase/requisitions/new');
@@ -68,13 +68,13 @@ await page.getByRole('button', { name: 'Submit for approval' }).click(); await p
 await expectText('Awaiting approval', 'PO submitted'); await shot('po-submitted');
 
 // ── 3. Approve as tenant owner (Dept head → Finance) ──────────────────────
-await login('aarav@acmegroup.in');
+await login('aarav@elixirglobal.in');
 await go(`purchase/orders/${poId}`);
 for (let i = 0; i < 2; i++) { const b = page.getByRole('button', { name: 'Approve', exact: true }); if (!(await b.count())) break; await b.click(); await page.waitForTimeout(200); await fillReason('Approved in E2E-02 walkthrough'); await confirmDialog('Approve PO'); await page.waitForTimeout(400); }
 await go(`purchase/orders/${poId}`); await expectText('Approved — ready for receipt', 'PO approved'); log('PO approved'); await shot('po-approved');
 
 // ── 4. Partial GRN with 20 rejected ───────────────────────────────────────
-await login('rahul@acmepvt.com');
+await login('rahul@elixirbusiness.in');
 await go(`purchase/grn/new?po=${poId}`);
 row = page.locator('table tbody tr').filter({ hasText: 'Hex Bolt' }).first();
 await row.locator('input.num').nth(0).fill('300'); await row.locator('input.num').nth(0).press('Tab');
@@ -110,7 +110,7 @@ await page.locator('.modal').getByRole('button', { name: /Create batch/ }).click
 const batchId = idFromUrl(); log('batch created', batchId);
 await page.getByRole('button', { name: 'Submit for approval' }).click(); await page.waitForTimeout(200); await confirmDialog('Submit batch');
 await expectText('Awaiting approval', 'batch submitted');
-await login('anita@acmepvt.com'); await go(`purchase/batches/${batchId}`);
+await login('anita@elixirbusiness.in'); await go(`purchase/batches/${batchId}`);
 await page.getByRole('button', { name: 'Approve', exact: true }).click(); await page.waitForTimeout(200); await confirmDialog('Approve batch'); await page.waitForTimeout(400);
 await expectText('Generate bank file', 'batch approved'); log('batch approved by Anita');
 const dl = page.waitForEvent('download'); await page.getByRole('button', { name: 'Generate bank file' }).click(); const d = await dl; log('bank file', d.suggestedFilename()); await page.waitForTimeout(300);
@@ -124,7 +124,7 @@ const netCell = await page.locator('table tfoot td').nth(3).innerText(); log('pa
 const net = Number(netCell.replace(/[^0-9.]/g, ''));
 
 // ── 8. Statement import → match → confirm ─────────────────────────────────
-await login('rahul@acmepvt.com');
+await login('rahul@elixirbusiness.in');
 const t = new Date(); const dd = String(t.getDate()).padStart(2, '0'); const mm = String(t.getMonth() + 1).padStart(2, '0'); const yyyy = t.getFullYear();
 const csv = `Date,Narration,Chq./Ref.No.,Withdrawal Amt.,Deposit Amt.,Closing Balance\n${dd}/${mm}/${yyyy},NEFT SHREE SUPPLIERS LTD ${pmtNumber},UTR/E2E02/000123,${net.toFixed(2)},,\n`;
 fs.writeFileSync(`${dir}/hdfc-e2e.csv`, csv);

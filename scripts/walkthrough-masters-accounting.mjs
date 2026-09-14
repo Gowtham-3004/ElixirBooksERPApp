@@ -40,7 +40,7 @@ const fieldByLabel = (label) => page.locator('label.field-label', { hasText: lab
 try {
   await page.goto(base + '/#/', { waitUntil: 'networkidle' });
   await page.evaluate(() => localStorage.clear());
-  await login('rahul@acmepvt.com');
+  await login('rahul@elixirbusiness.in');
 
   // ── 1. Duplicate GSTIN is blocked ──────────────────────────────────────
   await go('masters/customers');
@@ -122,7 +122,7 @@ try {
   step('Journal saved and submitted for approval', submitted && !!jvId, jvId);
 
   // ── 2b. Approve → post → reverse (Aarav, tenant owner) ─────────────────
-  await login('aarav@acmegroup.in');
+  await login('aarav@elixirglobal.in');
   await go(`accounting/journals/${jvId}`);
   await page.getByRole('button', { name: 'Approve', exact: true }).click();
   await wait(300);

@@ -1,13 +1,17 @@
-// Product identity: the logomark (a ledger glyph — three ruled lines, the middle one indented like a
-// posting) and the set wordmark. Company branding (logoText / brandColor) is a different thing and lives
-// in the sidebar company switcher.
-export function Logomark({ size = 24, light }: { size?: number; /** white-on-translucent for dark or coloured panels */ light?: boolean }) {
+// Product identity: the Elixir Books chevron mark (built from the source logo by scripts/brand-assets.py)
+// and the set wordmark, which stays as text so it follows the theme. Company branding (logoText /
+// brandColor) is a different thing and lives in the sidebar company switcher.
+import type { CSSProperties } from 'react';
+import mark from '../assets/brand/mark.png';
+
+export function Logomark({ size = 24, light, className = '', style }: { size?: number; /** on a white tile — for dark or coloured panels where the bare mark would lose contrast */ light?: boolean; className?: string; style?: CSSProperties }) {
+  const img = <img src={mark} alt="" aria-hidden="true" width={size} height={size} draggable={false} style={{ width: size, height: size, display: 'block', flexShrink: 0, objectFit: 'contain' }} />;
+  if (!light) return <span className={className} style={{ display: 'inline-flex', flexShrink: 0, ...style }}>{img}</span>;
+  const pad = Math.round(size * 0.16);
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
-      <rect width="24" height="24" rx="6.5" fill={light ? 'rgba(255,255,255,.18)' : 'var(--accent)'} />
-      <path d="M7 8h10M9 12h8M7 16h10" stroke={light ? '#fff' : '#fff'} strokeWidth="2.2" strokeLinecap="round" />
-      <circle cx="6.4" cy="12" r="1.1" fill="#fff" opacity=".85" />
-    </svg>
+    <span className={className} style={{ display: 'inline-flex', flexShrink: 0, boxSizing: 'content-box', padding: pad, borderRadius: Math.round(size * 0.28), background: '#fff', boxShadow: '0 1px 2px rgba(0,0,0,.12)', ...style }}>
+      {img}
+    </span>
   );
 }
 
