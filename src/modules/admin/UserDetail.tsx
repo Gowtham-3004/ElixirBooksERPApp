@@ -61,7 +61,7 @@ export default function UserDetail({ id }: { id: string }) {
           {u.status === 'Invited' && <><Button variant="secondary" onClick={resendInvite} disabled={!canEdit}>Resend invite</Button><Button variant="secondary" onClick={() => { navigator.clipboard?.writeText(inviteLink(u.inviteToken!)); toast.success('Invite link copied'); }} disabled={!u.inviteToken}>Copy invite link</Button></>}
           {u.status === 'Active' && !isSelf && !u.isTenantOwner && <Button variant="secondary" onClick={() => setConfirm('suspend')} disabled={!canEdit} reason={canEdit ? undefined : 'Requires admin.users.edit'}>Suspend</Button>}
           {u.status === 'Suspended' && <Button variant="primary" onClick={() => setConfirm('reactivate')} disabled={!canEdit}>Reactivate</Button>}
-          {u.status !== 'Deactivated' && !isSelf && !u.isTenantOwner && <Button variant="danger" onClick={() => setConfirm('deactivate')} disabled={!canEdit} reason={canEdit ? undefined : 'Requires admin.users.edit'}>Deactivate</Button>}
+          {u.status !== 'Deactivated' && !isSelf && !u.isTenantOwner && <Button variant="tinted" tone="danger" onClick={() => setConfirm('deactivate')} disabled={!canEdit} reason={canEdit ? undefined : 'Requires admin.users.edit'}>Deactivate</Button>}
         </>} />
       {u.status === 'Deactivated' && <Banner tone="danger">This account is deactivated and cannot be reactivated. Historical records keep the name.</Banner>}
       {u.isTenantOwner && <Banner tone="info">Tenant owner — cannot be suspended or deactivated from here. Ownership transfer is a platform operation.</Banner>}

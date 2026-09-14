@@ -85,8 +85,8 @@ export function ReceiptDetail({ id }: { id: string }) {
         ]}
         footer={<>
           <Button variant="secondary" onClick={() => setPdf(true)}>Print receipt</Button>
-          {r.status === 'Draft' && <><Button variant="secondary" onClick={() => setEdit(true)}>Edit</Button><Button variant="primary" onClick={() => { try { const o = postReceipt(r.id); toast.success(`Receipt ${o.number} posted`); } catch (e: any) { toast.error(e.message); } }}>Post receipt</Button></>}
-          {r.status === 'Posted' && <Button variant="danger" onClick={() => setConfirm(true)} disabled={!s.can('sales.receipt.post') && !s.can('sales.receipt.*')} reason="Requires sales.receipt.post">Reverse</Button>}
+          {r.status === 'Draft' && <><Button variant="secondary" onClick={() => setEdit(true)}>Edit</Button><Button variant="primary" tone="good" onClick={() => { try { const o = postReceipt(r.id); toast.success(`Receipt ${o.number} posted`); } catch (e: any) { toast.error(e.message); } }}>Post receipt</Button></>}
+          {r.status === 'Posted' && <Button variant="tinted" tone="danger" onClick={() => setConfirm(true)} disabled={!s.can('sales.receipt.post') && !s.can('sales.receipt.*')} reason="Requires sales.receipt.post">Reverse</Button>}
         </>}
       />
       {edit && <ReceiptDrawer open onClose={() => setEdit(false)} receiptId={r.id} onPosted={() => setEdit(false)} />}

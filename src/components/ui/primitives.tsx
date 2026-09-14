@@ -89,11 +89,13 @@ export function DateText({ value, time }: { value?: string; time?: boolean }) {
 // ── Buttons ────────────────────────────────────────────────────────────────
 
 export type ButtonVariant = 'primary' | 'secondary' | 'tinted' | 'ghost' | 'danger' | 'link';
+/** Semantic colour for the action: solid on primary, soft fill on tinted (tone-* rules in index.css). */
+export type ButtonTone = 'good' | 'warn' | 'danger' | 'info';
 
-export function Button({ variant = 'secondary', size, loading, icon, children, className = '', disabled, title, reason, type = 'button', ...rest }: { variant?: ButtonVariant; size?: 'sm'; loading?: boolean; icon?: ReactNode; reason?: string } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+export function Button({ variant = 'secondary', tone, size, loading, icon, children, className = '', disabled, title, reason, type = 'button', ...rest }: { variant?: ButtonVariant; tone?: ButtonTone; size?: 'sm'; loading?: boolean; icon?: ReactNode; reason?: string } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   const base = variant === 'link' ? 'btn-link' : `btn-${variant}`;
   return (
-    <button type={type} className={`${base} ${size === 'sm' ? 'btn-sm' : ''} ${className}`} disabled={disabled || loading} title={reason ?? title} {...rest}>
+    <button type={type} className={`${base} ${size === 'sm' ? 'btn-sm' : ''} ${tone ? `tone-${tone}` : ''} ${className}`} disabled={disabled || loading} title={reason ?? title} {...rest}>
       {loading ? <Spinner /> : icon}
       {children}
     </button>

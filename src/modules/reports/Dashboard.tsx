@@ -97,7 +97,7 @@ export function CfoDashboard() {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <Segmented value={preset} onChange={(v) => setPreset(v as any)} options={['MTD', 'QTD', 'YTD']} />
-          <Button variant="secondary" icon={<RefreshIcon size={14} />} onClick={fresh.refresh}>Refresh</Button>
+          <Button variant="tinted" icon={<RefreshIcon size={14} />} onClick={fresh.refresh}>Refresh</Button>
           <Button variant="secondary" icon={<DownloadIcon size={14} />} onClick={exportAll}>Export</Button>
         </div>
       </div>

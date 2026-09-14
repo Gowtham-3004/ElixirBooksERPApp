@@ -51,7 +51,7 @@ function LandedCostForm({ grnId, existing }: { grnId?: string; existing?: Landed
     <div className="page">
       <div className="page-header">
         <div><button type="button" className="btn-link" style={{ color: 'var(--ink-3)' }} onClick={() => nav.back('inventory/landed-cost')}>← Landed cost</button><h1 className="page-title">{existing ? `Edit ${existing.number}` : 'New landed cost'}</h1><div className="page-subtitle">Allocates freight / duty / insurance across the selected GRN lines by {lc.basis.toLowerCase()} · posts value-only stock movements + Dr Inventory / Cr charges account</div></div>
-        <div style={{ display: 'flex', gap: 8 }}><Button variant="ghost" onClick={() => nav.back('inventory/landed-cost')}>Discard</Button><Button onClick={saveDraft}>Save draft</Button><Button variant="primary" onClick={post}>Post landed cost</Button></div>
+        <div style={{ display: 'flex', gap: 8 }}><Button variant="ghost" onClick={() => nav.back('inventory/landed-cost')}>Discard</Button><Button onClick={saveDraft}>Save draft</Button><Button variant="primary" tone="good" onClick={post}>Post landed cost</Button></div>
       </div>
       <PeriodBanner date={lc.date} />
       {err && <Banner tone="danger" onDismiss={() => setErr(null)}>{err}</Banner>}
@@ -107,7 +107,7 @@ function LandedCostDetail({ id }: { id: string }) {
           { id: 'accounting', label: 'Accounting', content: <AccountingTab journalId={lc.journalId} currency={s.currency} /> },
           { id: 'activity', label: 'Activity', content: <ActivityTab objectId={lc.id} correlationId={lc.correlationId} /> },
         ]}
-        footer={<><div style={{ flex: 1 }} />{lc.status === 'Draft' && <Button onClick={() => nav.go(`inventory/landed-cost/${id}?edit=1`)}>Edit</Button>}{lc.status === 'Draft' && <Button variant="primary" onClick={() => { try { A.postLandedCost(lc); toast.success('Posted'); } catch (e: any) { toast.error(e.message); } }}>Post landed cost</Button>}{lc.status === 'Posted' && <ActionMenu trigger={<Button>More ▾</Button>} actions={[{ label: 'Reverse', danger: true, onClick: () => confirm.open({ title: `Reverse ${lc.number}?`, consequences: [{ engine: 'Stock', text: 'Value-only reversal movements', tone: 'warning' }, { engine: 'Journal', text: `Reversal of ${lc.journalNumber}`, tone: 'warning' }], reasonRequired: true, confirmLabel: 'Reverse landed cost', cancelLabel: 'Keep', danger: true, onConfirm: (r) => { A.reverseLandedCost(id, r); toast.success('Reversed'); } }) }]} />}</>} />
+        footer={<><div style={{ flex: 1 }} />{lc.status === 'Draft' && <Button onClick={() => nav.go(`inventory/landed-cost/${id}?edit=1`)}>Edit</Button>}{lc.status === 'Draft' && <Button variant="primary" tone="good" onClick={() => { try { A.postLandedCost(lc); toast.success('Posted'); } catch (e: any) { toast.error(e.message); } }}>Post landed cost</Button>}{lc.status === 'Posted' && <ActionMenu trigger={<Button>More ▾</Button>} actions={[{ label: 'Reverse', danger: true, onClick: () => confirm.open({ title: `Reverse ${lc.number}?`, consequences: [{ engine: 'Stock', text: 'Value-only reversal movements', tone: 'warning' }, { engine: 'Journal', text: `Reversal of ${lc.journalNumber}`, tone: 'warning' }], reasonRequired: true, confirmLabel: 'Reverse landed cost', cancelLabel: 'Keep', danger: true, onConfirm: (r) => { A.reverseLandedCost(id, r); toast.success('Reversed'); } }) }]} />}</>} />
       {confirm.dialog}
     </>
   );

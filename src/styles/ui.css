@@ -192,11 +192,19 @@ html { -webkit-text-size-adjust: 100%; }
 .sidebar.collapsed { width: 64px; }
 /* the module list fades out at the bottom instead of cutting an item in half. The fade is a sticky element,
    not a mask — a mask on the nav would also hide the position:fixed flyouts that live inside it. */
-.sidebar-brand { display: flex; align-items: center; padding: 14px 16px 8px; }
-.sidebar.collapsed .sidebar-brand { padding: 14px 0 6px; }
+/* company block — the sidebar's header; 48px with a bottom hairline so its line runs into .shell-header's */
+.sidebar-company { display: flex; align-items: center; gap: 10px; width: 100%; height: 48px; padding: 0 12px; border: none; border-bottom: 1px solid var(--hairline); background: transparent; text-align: left; cursor: pointer; font-family: inherit; color: inherit; flex-shrink: 0; }
+.sidebar-company:hover { background: var(--hover); }
+.sidebar.collapsed .sidebar-company { justify-content: center; padding: 0; }
+.sidebar-user { position: relative; }
+.menu.up { top: auto; bottom: 100%; margin-top: 0; margin-bottom: 4px; }
 .sidebar-nav { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 6px 8px 0; }
 .sidebar-fade { position: sticky; bottom: 0; height: 28px; margin-top: -28px; background: linear-gradient(to bottom, transparent, var(--bg)); pointer-events: none; }
 .sidebar-nav .section-label { padding: 6px 12px 2px; display: block; }
+/* a hairline separates each nav section (Workspace · Operations · Finance …), expanded and collapsed alike */
+.sidebar-nav .nav-group { margin-bottom: 2px; }
+.sidebar-nav .nav-group + .nav-group { border-top: 1px solid var(--hairline); margin-top: 6px; padding-top: 4px; }
+.sidebar.collapsed .sidebar-nav .nav-group + .nav-group { margin-top: 4px; padding-top: 4px; }
 /* branch · FY · period as one segmented control */
 .ctx-group { display: inline-flex; align-items: stretch; height: 32px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); box-shadow: var(--shadow-sm); }
 .ctx-item { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; font-size: 12px; font-weight: 500; color: var(--ink-2); background: transparent; border: none; border-right: 1px solid var(--hairline); cursor: pointer; white-space: nowrap; font-family: inherit; font-variant-numeric: normal; transition: background var(--dur-fast) var(--ease); }
@@ -422,6 +430,99 @@ div:has(> table.data-table) { overflow-x: auto !important; -webkit-overflow-scro
 /* Touch devices: no hover-only affordances */
 @media (hover: none) {
   *::-webkit-scrollbar-thumb { background: var(--line-strong); }
+}
+
+/* ── Settings hub (All Settings) ───────────────────────────────────────── */
+.setup-head { position: sticky; top: 0; z-index: 2; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; height: 56px; padding: 0 24px; background: var(--surface); border-bottom: 1px solid var(--hairline); }
+.setup-head-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.setup-head-title h1 { font-size: 15px; font-weight: 600; color: var(--ink); margin: 0; line-height: 1.2; }
+.setup-head-title .sub { font-size: 12px; color: var(--ink-4); margin-top: 1px; }
+.setup-search { width: 440px; max-width: 100%; height: 34px; }
+.setup-head-actions { display: flex; justify-content: flex-end; }
+.setup-body { max-width: 1280px; margin: 0 auto; padding: 24px 28px 48px; display: flex; flex-direction: column; gap: 24px; }
+.setup-section { background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); padding: 20px; }
+.setup-section-title { font-size: 15px; font-weight: 600; color: var(--ink); margin: 0 0 14px; }
+.setup-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; align-items: start; }
+.setup-card { border: 1px solid var(--hairline); border-radius: 10px; background: var(--surface); overflow: hidden; }
+.setup-card-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 13px; font-weight: 600; color: var(--ink); background: var(--surface-2); border-bottom: 1px solid var(--hairline); }
+.setup-card-head .icon-tile { width: 22px; height: 22px; border-radius: 6px; background: transparent; }
+.setup-card-head.accent { background: var(--accent-tint); }   .setup-card-head.accent .icon-tile { color: var(--accent); }
+.setup-card-head.good   { background: var(--good-bg); }       .setup-card-head.good .icon-tile   { color: var(--good); }
+.setup-card-head.warn   { background: var(--warn-bg); }       .setup-card-head.warn .icon-tile   { color: var(--warn); }
+.setup-card-head.danger { background: var(--danger-bg); }     .setup-card-head.danger .icon-tile { color: var(--danger); }
+.setup-card-head.info   { background: var(--info-bg); }       .setup-card-head.info .icon-tile   { color: var(--info); }
+.setup-card-head.violet { background: var(--violet-bg); }     .setup-card-head.violet .icon-tile { color: var(--violet); }
+.setup-card-links { display: flex; flex-direction: column; padding: 8px 6px; }
+.setup-link { display: block; width: 100%; text-align: left; background: none; border: none; font: inherit; font-size: 13px; color: var(--ink-2); padding: 6px 6px; border-radius: 6px; cursor: pointer; }
+.setup-link:hover { color: var(--accent); background: var(--hover); }
+.setup-link.active { color: var(--accent); font-weight: 500; }
+.setup-link mark { background: var(--warn-bg); color: inherit; border-radius: 2px; }
+
+/* ── Company picker (Switch company) ───────────────────────────────────── */
+.company-picker { min-height: 100vh; background: var(--bg); display: flex; flex-direction: column; }
+.company-picker-strip { height: 4px; background: var(--accent); flex-shrink: 0; }
+.company-picker-body { width: 100%; max-width: 1000px; margin: 0 auto; padding: 40px 24px 64px; }
+.company-picker h1 { font-size: 24px; font-weight: 600; color: var(--ink); margin: 0 0 6px; letter-spacing: -0.01em; }
+.company-picker .lede { font-size: 14px; color: var(--ink-3); margin: 0 0 28px; }
+.company-picker-section { display: flex; align-items: baseline; gap: 8px; margin: 0 0 12px; font-size: 14px; font-weight: 600; color: var(--ink); }
+.company-picker-section .count { font-size: 13px; font-weight: 400; color: var(--ink-3); }
+.company-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin-bottom: 28px; }
+.company-card { position: relative; background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); padding: 18px; cursor: pointer; text-align: left; font: inherit; color: inherit; transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease); }
+.company-card:hover { border-color: var(--accent-line); box-shadow: var(--shadow-md); }
+.company-card .trash { position: absolute; top: 10px; right: 10px; }
+.company-card-role { display: flex; align-items: center; justify-content: space-between; padding-top: 12px; border-top: 1px solid var(--hairline); margin-top: 14px; }
+.company-card-role .label { font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.company-card.create { display: flex; align-items: center; gap: 8px; min-height: 64px; background: var(--surface); border: 1.5px dashed var(--line-strong); box-shadow: none; color: var(--accent); font-weight: 500; font-size: 14px; }
+.company-card.create:hover { border-color: var(--accent); background: var(--accent-tint); }
+
+/* ── Lixi panel — modeless right-side chat, sits beside the page (no scrim) ── */
+.lixi-panel { position: fixed; top: 0; right: 0; bottom: 0; width: 400px; max-width: 100vw; background: var(--surface); border-left: 1px solid var(--hairline); box-shadow: var(--shadow-lg); z-index: 90; display: flex; flex-direction: column; animation: slideIn var(--dur) var(--ease); }
+@media (min-width: 1280px) { .shell.lixi-open .shell-main { margin-right: 400px; } }
+.lixi-head { display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 12px 0 16px; border-bottom: 1px solid var(--hairline); flex-shrink: 0; }
+.lixi-head .title { font-size: 14px; font-weight: 600; color: var(--ink); line-height: 1.15; }
+.lixi-head .sub { font-size: 11px; color: var(--ink-4); }
+.lixi-thread { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.lixi-welcome { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 28px 12px 12px; }
+.lixi-welcome h3 { font-size: 16px; font-weight: 600; color: var(--ink); margin: 10px 0 0; }
+.lixi-welcome p { font-size: 13px; color: var(--ink-3); margin: 0; max-width: 300px; }
+.lixi-msg { display: flex; gap: 8px; max-width: 92%; }
+.lixi-msg .bubble { padding: 9px 12px; border-radius: 12px; font-size: 13px; line-height: 1.5; color: var(--ink); white-space: pre-wrap; word-break: break-word; }
+.lixi-msg.user { align-self: flex-end; }
+.lixi-msg.user .bubble { background: var(--accent-soft); color: var(--ink); border-bottom-right-radius: 4px; }
+.lixi-msg.lixi .bubble { background: var(--surface-2); border: 1px solid var(--hairline); border-bottom-left-radius: 4px; }
+.lixi-msg .avatar { flex-shrink: 0; margin-top: 2px; }
+.lixi-msg .time { font-size: 10px; color: var(--ink-5); margin-top: 3px; }
+.lixi-typing { display: inline-flex; gap: 4px; align-items: center; height: 18px; }
+.lixi-typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-4); animation: lixiDot 1.2s ease-in-out infinite; }
+.lixi-typing i:nth-child(2) { animation-delay: .15s; } .lixi-typing i:nth-child(3) { animation-delay: .3s; }
+@keyframes lixiDot { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+.lixi-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 10px; }
+.lixi-chips .chip:hover { border-color: var(--accent-line); color: var(--accent); background: var(--accent-tint); }
+.lixi-composer { display: flex; align-items: flex-end; gap: 6px; padding: 10px 12px 12px; border-top: 1px solid var(--hairline); background: var(--surface); flex-shrink: 0; }
+.lixi-composer textarea { flex: 1; resize: none; min-height: 40px; max-height: 160px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); font: inherit; font-size: 13px; line-height: 1.4; color: var(--ink); outline: none; }
+.lixi-composer textarea:focus { border-color: var(--accent); box-shadow: var(--ring); background: var(--surface); }
+.lixi-composer textarea::placeholder { color: var(--ink-5); }
+.lixi-mic { width: 40px; height: 40px; border-radius: 10px; }
+.lixi-mic.listening { color: var(--danger); background: var(--danger-bg); animation: lixiPulse 1.2s ease-in-out infinite; }
+.lixi-mic:disabled { opacity: .45; cursor: not-allowed; }
+@keyframes lixiPulse { 0%, 100% { box-shadow: 0 0 0 0 var(--danger-line); } 50% { box-shadow: 0 0 0 5px transparent; } }
+.lixi-send { width: 40px; height: 40px; padding: 0; justify-content: center; border-radius: 10px; }
+.lixi-note { font-size: 11px; color: var(--ink-4); padding: 0 16px 8px; }
+.lixi-mark { display: inline-block; border-radius: 50%; object-fit: cover; vertical-align: middle; flex-shrink: 0; }
+
+/* phone overrides for the blocks above (must follow their base rules) */
+@media (max-width: 767px) {
+  .lixi-panel { width: 100vw; border-left: none; }
+  .setup-head { grid-template-columns: 1fr; height: auto; padding: 10px 12px; gap: 8px; }
+  .setup-head-actions { justify-content: flex-start; }
+  .setup-body { padding: 16px 12px; }
+  .setup-grid { grid-template-columns: 1fr; }
+  .company-picker-body { padding: 24px 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lixi-panel, .drawer, .modal, .palette, .menu, .route-enter, .sidebar, .scrim, .sidebar-scrim { animation: none !important; transition: none !important; }
+  .lixi-mic.listening, .lixi-typing i { animation: none !important; }
 }
 
 @media print {

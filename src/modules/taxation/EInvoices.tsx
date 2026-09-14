@@ -57,7 +57,7 @@ export function EInvoices() {
   return (
     <>
       <RegisterPage<Row> title="e-Invoices" subtitle={`IRP submission status · ${s.branch?.gstin ?? '—'} · ${period ? fmtPeriod(period) : 'all periods'}${synced ? ` · synced ${synced}` : ''}`} rows={rows} columns={cols} entity="e-invoices" searchKeys={['number', 'party']}
-        actions={<><Button variant="secondary" onClick={sync}>Sync from IRP</Button><Button variant="primary" loading={busy} disabled={!canSubmit} reason={!canSubmit ? 'Requires taxation permission' : undefined} onClick={submitPending}>Submit pending</Button></>}
+        actions={<><Button variant="secondary" onClick={sync}>Sync from IRP</Button><Button variant="primary" tone="good" loading={busy} disabled={!canSubmit} reason={!canSubmit ? 'Requires taxation permission' : undefined} onClick={submitPending}>Submit pending</Button></>}
         headerExtra={<div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
           <PeriodPicker value={period} onChange={setPeriod} allowAll />
           <div style={{ display: 'flex', gap: 10, marginLeft: 8 }}>

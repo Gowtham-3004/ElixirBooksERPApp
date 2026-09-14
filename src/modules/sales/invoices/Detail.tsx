@@ -56,7 +56,7 @@ export default function InvoiceDetail({ id, tab, onTab }: { id: string; tab?: st
         <Button variant="secondary" onClick={() => nav.go(`sales/invoices/${inv.id}`, { edit: 1 })} disabled={!s.can('sales.invoice.edit')} reason={!s.can('sales.invoice.edit') ? 'Requires sales.invoice.edit' : undefined}>Edit</Button>
         {needsWf
           ? <Button variant="primary" onClick={() => run(() => { const r = submitInvoice(inv.id); toast.success(r.request ? `Submitted for approval · ${r.request.ruleName}` : `Invoice ${r.invoice.number} posted`); })} disabled={!s.can('sales.invoice.submit')} reason={!s.can('sales.invoice.submit') ? 'Requires sales.invoice.submit' : undefined} data-testid="submit-invoice">Submit for approval</Button>
-          : <Button variant="primary" onClick={() => setDialog('post')} disabled={!canPost || !period.ok} reason={!canPost ? 'Requires Finance role' : period.reason} data-testid="post-invoice">Post invoice</Button>}
+          : <Button variant="primary" tone="good" onClick={() => setDialog('post')} disabled={!canPost || !period.ok} reason={!canPost ? 'Requires Finance role' : period.reason} data-testid="post-invoice">Post invoice</Button>}
       </>
     );
   } else if (inv.status === 'Submitted') {
@@ -66,8 +66,8 @@ export default function InvoiceDetail({ id, tab, onTab }: { id: string; tab?: st
         {canAct.ok ? (
           <>
             <Button variant="secondary" onClick={() => setDialog('return')}>Return for changes</Button>
-            <Button variant="danger" onClick={() => setDialog('reject')}>Reject</Button>
-            <Button variant="primary" onClick={() => setDialog('approve')} data-testid="approve-invoice">Approve</Button>
+            <Button variant="tinted" tone="danger" onClick={() => setDialog('reject')}>Reject</Button>
+            <Button variant="primary" tone="good" onClick={() => setDialog('approve')} data-testid="approve-invoice">Approve</Button>
           </>
         ) : <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Awaiting {req?.steps.find((x) => x.order === req.currentStep)?.approverLabel ?? 'approver'}{canAct.reason ? ` · ${canAct.reason}` : ''}</span>}
       </>
@@ -78,7 +78,7 @@ export default function InvoiceDetail({ id, tab, onTab }: { id: string; tab?: st
       <>
         <ActionMenu actions={overflow} trigger={<Button variant="secondary">⋮</Button>} />
         <Button variant="secondary" onClick={() => nav.go(`sales/invoices/${inv.id}`, { edit: 1 })} disabled={!s.can('sales.invoice.edit')} reason="Editing re-opens the draft and re-triggers approval">Edit</Button>
-        <Button variant="primary" onClick={() => setDialog('post')} disabled={!canPost || !period.ok} reason={!canPost ? 'Requires Finance role' : period.reason} data-testid="post-invoice">Post invoice</Button>
+        <Button variant="primary" tone="good" onClick={() => setDialog('post')} disabled={!canPost || !period.ok} reason={!canPost ? 'Requires Finance role' : period.reason} data-testid="post-invoice">Post invoice</Button>
       </>
     );
   } else if (posted) {

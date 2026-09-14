@@ -279,7 +279,7 @@ export function CreateIcDrawer({ open, onClose, defaultFrom }: { open: boolean; 
       subtitle="One balanced journal is posted in each company — never a single journal across both (FR-ORG-011)"
       width={820}
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button>
-        <Button variant="primary" disabled={problems.length > 0} reason={problems[0]} onClick={async () => { const d = await act(() => postIntercompany({ type, fromCompanyId: from, toCompanyId: to, amount, currency, date, reference, narration, postCounterparty }), 'Intercompany transaction posted in both companies'); if (d) onClose(); }}>Post intercompany transaction</Button></>}
+        <Button variant="primary" tone="good" disabled={problems.length > 0} reason={problems[0]} onClick={async () => { const d = await act(() => postIntercompany({ type, fromCompanyId: from, toCompanyId: to, amount, currency, date, reference, narration, postCounterparty }), 'Intercompany transaction posted in both companies'); if (d) onClose(); }}>Post intercompany transaction</Button></>}
     >
       <Banner tone="info">{IC_RULE}</Banner>
       <div className="grid-2">

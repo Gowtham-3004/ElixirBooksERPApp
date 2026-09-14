@@ -51,9 +51,9 @@ export default function Inbox({ openId }: { openId?: string }) {
     const reason = chk.ok ? undefined : chk.reason;
     return (
       <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-        <Button size={size} variant="secondary" disabled={!chk.ok} reason={reason} onClick={() => setAct({ ids: [r.id], action: 'Reject' })}>Reject</Button>
+        <Button size={size} variant="tinted" tone="danger" disabled={!chk.ok} reason={reason} onClick={() => setAct({ ids: [r.id], action: 'Reject' })}>Reject</Button>
         <Button size={size} variant="secondary" disabled={!chk.ok} reason={reason} onClick={() => setAct({ ids: [r.id], action: 'Return' })}>Return</Button>
-        <Button size={size} variant="primary" disabled={!chk.ok} reason={reason} onClick={() => setAct({ ids: [r.id], action: 'Approve' })}>Approve</Button>
+        <Button size={size} variant="primary" tone="good" disabled={!chk.ok} reason={reason} onClick={() => setAct({ ids: [r.id], action: 'Approve' })}>Approve</Button>
       </div>
     );
   };

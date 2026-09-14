@@ -37,7 +37,7 @@ async function signIn(email) {
   await page.waitForTimeout(1000);
   const mfa = page.locator('input[placeholder="123456"]');
   if (await mfa.count()) { await mfa.fill('123456'); await page.getByText('Verify and sign in').click(); await page.waitForTimeout(500); }
-  if (await page.getByText('Choose a company').count()) { await page.getByText('Acme Private Limited').first().click(); await page.waitForTimeout(500); }
+  if (await page.locator('.company-picker').count()) { await page.locator('.company-card:not(.create)').first().click(); await page.waitForTimeout(500); }
   await page.waitForTimeout(400);
 }
 

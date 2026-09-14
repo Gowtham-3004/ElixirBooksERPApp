@@ -75,7 +75,7 @@ export default function ReceiptDrawer({ open, onClose, customerId, invoiceId, re
 
   return (
     <Drawer open={open} onClose={onClose} title={receiptId ? `Receipt ${r.number}` : 'Record receipt'} subtitle={cust ? `${cust.name} · ${cust.paymentTerms} · exposure ${fmtMoney(engine.partyOutstanding('Customer', cust.id).outstanding)}` : 'Money received from a customer'} width={860}
-      footer={<><Button variant="ghost" onClick={onClose}>Discard</Button><div style={{ display: 'flex', gap: 8 }}><Button variant="secondary" onClick={() => save(false)} disabled={busy}>Save draft</Button><Button variant="primary" onClick={() => save(true)} loading={busy} disabled={!s.can('sales.receipt.post') && !s.can('sales.receipt.*') && !s.can('sales.receipt.create')} reason="Requires sales.receipt.post" data-testid="post-receipt">Post receipt</Button></div></>}>
+      footer={<><Button variant="ghost" onClick={onClose}>Discard</Button><div style={{ display: 'flex', gap: 8 }}><Button variant="secondary" onClick={() => save(false)} disabled={busy}>Save draft</Button><Button variant="primary" tone="good" onClick={() => save(true)} loading={busy} disabled={!s.can('sales.receipt.post') && !s.can('sales.receipt.*') && !s.can('sales.receipt.create')} reason="Requires sales.receipt.post" data-testid="post-receipt">Post receipt</Button></div></>}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {errs.length > 0 && <Banner tone="danger"><ul style={{ margin: 0, paddingLeft: 18 }}>{errs.map((x) => <li key={x}>{x}</li>)}</ul></Banner>}
         <div className="grid-3">

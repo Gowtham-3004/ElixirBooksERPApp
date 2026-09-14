@@ -267,7 +267,7 @@ function InspectionDetail({ id }: { id: string }) {
   return (
     <div className="page">
       <PageHeader title={q.number} subtitle={`${q.type} · ${q.itemName} · ${q.refType} ${q.refNumber} · ${fmtDate(q.date)}`} back={{ label: 'Quality', path: 'production/quality' }}
-        actions={<><Badge status={q.status} />{q.outcome && <Pill tone={q.outcome === 'Pass' ? 'good' : q.outcome === 'Fail' ? 'critical' : 'warning'}>{q.outcome}</Pill>}<Button onClick={() => nav.go(refPath(q) ?? 'production/quality')}>Open {q.refType}</Button>{!done && <Button onClick={save}>Save results</Button>}{!done && <Button variant="primary" onClick={complete}>Complete inspection</Button>}</>} />
+        actions={<><Badge status={q.status} />{q.outcome && <Pill tone={q.outcome === 'Pass' ? 'good' : q.outcome === 'Fail' ? 'critical' : 'warning'}>{q.outcome}</Pill>}<Button onClick={() => nav.go(refPath(q) ?? 'production/quality')}>Open {q.refType}</Button>{!done && <Button onClick={save}>Save results</Button>}{!done && <Button variant="primary" tone="good" onClick={complete}>Complete inspection</Button>}</>} />
       {err && <div className="banner danger">{err}</div>}
       {receipt?.status === 'Hold' && <div className="banner warning">Receipt {receipt.number} is on hold — completing this inspection with Accept releases {acc} {receipt.uom} into stock.</div>}
       {q.status === 'Completed' && <div className="banner success">Completed {fmtDateTime(q.completedAt)} by {q.completedBy} · disposition {q.disposition}</div>}

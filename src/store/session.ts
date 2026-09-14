@@ -116,6 +116,20 @@ export const session = {
     set({ ...scope, loginBanner: `Now working in ${company?.tradeName ?? company?.legalName}${branch ? ' · ' + branch.name : ''}` });
     setTimeout(() => set({ loginBanner: undefined }), 4000);
   },
+  /** Open the full-screen company picker from inside the app; the current scope is kept so "Back" works. */
+  openCompanyPicker() {
+    if (state.auth === 'app') set({ auth: 'choose-company' });
+  },
+  /** Only valid when a company is already active — a fresh login can't skip the pick. */
+  closeCompanyPicker() {
+    if (state.auth === 'choose-company' && state.companyId) set({ auth: 'app' });
+  },
+  /** The picker's "Enter workspace": first pick after login, or an in-app switch. */
+  enterCompany(companyId: string) {
+    if (!state.companyId) { session.chooseCompany(companyId); return; }
+    if (companyId !== state.companyId) session.switchCompany(companyId);
+    set({ auth: 'app' });
+  },
   setBranch(branchId: string) {
     set({ branchId });
   },
@@ -236,7 +250,7 @@ export function computeScope(): Scope {
   const entitled = (moduleId: string) => {
     if (isPlatformAdmin) return true;
     if (!plan) return true;
-    if (tenant && (tenant.subscriptionState === 'Suspended' || tenant.subscriptionState === 'Expired')) return ['home', 'admin', 'platform'].includes(moduleId);
+    if (tenant && (tenant.subscriptionState === 'Suspended' || tenant.subscriptionState === 'Expired')) return ['home', 'admin', 'platform', 'setup'].includes(moduleId);
     return plan.modules.includes('*') || plan.modules.includes(moduleId);
   };
   return {

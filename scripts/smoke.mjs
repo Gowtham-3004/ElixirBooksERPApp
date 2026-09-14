@@ -34,7 +34,7 @@ const routes = extra.length ? extra : [
   'reports/consolidation', 'masters', 'masters/customers', 'masters/suppliers', 'masters/employees', 'masters/items', 'masters/warehouses',
   'masters/price-lists', 'masters/hsn', 'masters/accounts', 'masters/dimensions', 'masters/tax-rates', 'masters/tds', 'masters/payment-terms',
   'masters/uoms', 'masters/reason-codes', 'masters/salespersons', 'masters/currencies', 'masters/exchange-rates', 'masters/reference',
-  'masters/imports', 'admin', 'admin/company', 'admin/companies', 'admin/branches', 'admin/periods', 'admin/defaults', 'admin/users', 'admin/roles',
+  'masters/imports', 'setup', 'setup/preferences', 'admin', 'admin/company', 'admin/companies', 'admin/branches', 'admin/periods', 'admin/defaults', 'admin/users', 'admin/roles',
   'admin/numbering', 'admin/workflows', 'admin/templates', 'admin/profile', 'admin/localization', 'admin/plan', 'admin/audit', 'admin/integrations',
   'admin/jobs', 'admin/notifications', 'admin/data', 'platform', 'platform/plans', 'platform/tenants', 'platform/usage', 'platform/audit'
 ];
@@ -56,8 +56,8 @@ if (await emailInput.count()) {
   await page.waitForTimeout(900);
   const mfa = page.locator('input[placeholder="123456"]');
   if (await mfa.count()) { await mfa.fill('123456'); await page.getByText('Verify and sign in').click(); await page.waitForTimeout(300); }
-  const choose = page.getByText('Choose a company');
-  if (await choose.count()) { await page.getByText('Acme Private Limited').first().click(); await page.waitForTimeout(300); }
+  const choose = page.locator('.company-picker');
+  if (await choose.count()) { await page.locator('.company-card:not(.create)').first().click(); await page.waitForTimeout(300); }
 }
 const results = [];
 for (const r of routes) {

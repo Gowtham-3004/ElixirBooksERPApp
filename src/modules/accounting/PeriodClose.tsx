@@ -93,7 +93,7 @@ export function PeriodClosePage() {
             <span style={{ fontSize: 12, color: 'var(--ink-3)', marginRight: 'auto' }}>{blocked ? `${checks.blockers} blocker(s) — resolve them via the rows above` : needsAck ? 'Acknowledge warnings to enable closing' : 'Ready to close'}</span>
             {(period.status === 'Locked' || period.status === 'Soft Closed') && <Button variant="secondary" onClick={() => setAction('reopen')} disabled={!canClose}>Request reopen</Button>}
             {(period.status === 'Open' || period.status === 'Reopened') && <Button variant="secondary" onClick={() => setAction('soft')} disabled={!canClose || blocked || needsAck} reason={!canClose ? 'Requires period close permission' : blocked ? 'Blockers outstanding' : needsAck ? 'Acknowledge warnings first' : undefined}>Soft-close period</Button>}
-            {period.status !== 'Locked' && <Button variant="danger" onClick={() => setAction('lock')} disabled={!canLock || blocked || needsAck} reason={!canLock ? 'Requires period lock permission' : blocked ? 'Blockers outstanding' : needsAck ? 'Acknowledge warnings first' : undefined}>Lock period</Button>}
+            {period.status !== 'Locked' && <Button variant="tinted" tone="danger" onClick={() => setAction('lock')} disabled={!canLock || blocked || needsAck} reason={!canLock ? 'Requires period lock permission' : blocked ? 'Blockers outstanding' : needsAck ? 'Acknowledge warnings first' : undefined}>Lock period</Button>}
           </div>
           {period.history.length > 0 && (
             <div className="card" style={{ padding: 16 }}>

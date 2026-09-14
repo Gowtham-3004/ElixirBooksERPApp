@@ -141,7 +141,7 @@ function RoleEditor({ id }: { id: string }) {
       <PageHeader back={{ label: 'Roles & permissions', path: 'admin/roles' }} title={<span>{role.name} {role.isSystem && <Badge status="Locked">System role</Badge>}</span>} subtitle={`${role.code} · ${count} granted actions · ${users.length} user${users.length === 1 ? '' : 's'}`}
         actions={<>
           <Button variant="secondary" onClick={duplicate}>Duplicate</Button>
-          {!role.isSystem && <Button variant="danger" onClick={() => setDel(true)} disabled={readOnly || users.length > 0} reason={users.length ? `${users.length} user(s) hold this role` : undefined}>Delete</Button>}
+          {!role.isSystem && <Button variant="tinted" tone="danger" onClick={() => setDel(true)} disabled={readOnly || users.length > 0} reason={users.length ? `${users.length} user(s) hold this role` : undefined}>Delete</Button>}
           {dirty && <Button variant="ghost" onClick={() => { setPerms(null); setMeta(null); }}>Discard</Button>}
           <Button variant="primary" onClick={save} disabled={readOnly || !dirty} reason={readOnly ? (role.isSystem ? 'System roles are read-only — duplicate to customise' : 'Requires admin.roles.edit') : !dirty ? 'No changes' : undefined}>Save role</Button>
         </>} />

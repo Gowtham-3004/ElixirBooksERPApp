@@ -80,7 +80,7 @@ export function AssetDetail({ id }: { id: string }) {
     <>
       <DocumentPage backLabel="Asset register" onBack={() => nav.go('fixed-assets/register')} number={a.number} badges={<><Badge status={a.status === 'New' ? 'Submitted' : a.status}>{a.status}</Badge><Pill tone="neutral">{a.categoryName}</Pill>{events.some((e) => e.status === 'Pending') && <Pill tone="warning">Transfer awaiting approval</Pill>}</>}
         amount={{ label: 'Net book value', value: nbv(a), currency: s.currency }} rail={rail} tabs={tabs} activeTab={tab} onTab={setTab}
-        footer={<><Button variant="secondary" onClick={() => setDrawer('transfer')} disabled={disposed}>Transfer</Button><Button variant="secondary" onClick={() => setDrawer('revalue')} disabled={disposed}>Revalue / impair</Button><Button variant="danger" onClick={() => setDrawer('dispose')} disabled={disposed} reason={disposed ? 'Already disposed' : undefined}>Dispose</Button></>} />
+        footer={<><Button variant="secondary" onClick={() => setDrawer('transfer')} disabled={disposed}>Transfer</Button><Button variant="secondary" onClick={() => setDrawer('revalue')} disabled={disposed}>Revalue / impair</Button><Button variant="tinted" tone="danger" onClick={() => setDrawer('dispose')} disabled={disposed} reason={disposed ? 'Already disposed' : undefined}>Dispose</Button></>} />
       <TransferDrawer asset={drawer === 'transfer' ? a : null} onClose={() => setDrawer(null)} />
       <RevalueDrawer asset={drawer === 'revalue' ? a : null} onClose={() => setDrawer(null)} />
       <DisposeDrawer asset={drawer === 'dispose' ? a : null} onClose={() => setDrawer(null)} />

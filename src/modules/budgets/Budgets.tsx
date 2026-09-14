@@ -95,7 +95,7 @@ export function BudgetEditor({ id }: { id: string }) {
       <div className="page-header">
         <div><button type="button" className="btn-link" style={{ color: 'var(--ink-3)', marginBottom: 6 }} onClick={() => nav.go('budgets/budgets')}>← Budgets</button><h1 className="page-title">{b.name}</h1><div className="page-subtitle">{b.code} · v{b.version}.{b.revision} · FY {b.fy} · <Badge status={b.status === 'Superseded' ? 'Cancelled' : b.status}>{b.status}</Badge>{b.approvedAt ? ` · approved ${fmtDateTime(b.approvedAt)} by ${b.approvedBy}` : ''}</div></div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {b.status === 'Draft' && <Button variant="primary" onClick={() => setConfirm('approve')} disabled={!canApprove || !b.lines.length} reason={!canApprove ? 'Requires budget approval permission' : !b.lines.length ? 'Add budget lines first' : undefined}>Approve budget</Button>}
+          {b.status === 'Draft' && <Button variant="primary" tone="good" onClick={() => setConfirm('approve')} disabled={!canApprove || !b.lines.length} reason={!canApprove ? 'Requires budget approval permission' : !b.lines.length ? 'Add budget lines first' : undefined}>Approve budget</Button>}
           {b.status === 'Approved' && <Button variant="primary" onClick={() => setConfirm('revise')} disabled={!s.can('budgets.*')}>Revise (new revision)</Button>}
           <Button variant="secondary" onClick={() => nav.go('budgets/variance')}>Budget vs actuals</Button>
         </div>

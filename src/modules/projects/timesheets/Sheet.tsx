@@ -69,8 +69,8 @@ export default function TimesheetPage({ id, employeeId, week }: { id?: string; e
           {canAct.ok ? (
             <>
               <Button variant="secondary" onClick={() => setDialog('return')}>Return for changes</Button>
-              <Button variant="danger" onClick={() => setDialog('reject')}>Reject</Button>
-              <Button variant="primary" onClick={() => setDialog('approve')} data-testid="approve-timesheet">Approve</Button>
+              <Button variant="tinted" tone="danger" onClick={() => setDialog('reject')}>Reject</Button>
+              <Button variant="primary" tone="good" onClick={() => setDialog('approve')} data-testid="approve-timesheet">Approve</Button>
             </>
           ) : <Muted>Awaiting {req?.steps.find((x) => x.order === req.currentStep)?.approverLabel ?? 'approver'}{canAct.reason ? ` · ${canAct.reason}` : ''}</Muted>}
         </>

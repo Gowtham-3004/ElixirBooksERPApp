@@ -46,7 +46,7 @@ export function GrnForm({ id, poId }: { id?: string; poId?: string }) {
       <div className="page">
         <div className="page-header"><div><button type="button" className="btn-link" style={{ color: 'var(--ink-3)' }} onClick={() => nav.go('purchase/grn')}>← Goods receipts</button><h1 className="page-title">New goods receipt</h1><div className="page-subtitle">Choose the approved purchase order you are receiving against</div></div></div>
         {eligible.length === 0 ? <EmptyState title="No approved purchase orders with pending quantity" description="Receipts are always against an approved PO. Approve a PO first." action={<Button variant="primary" onClick={() => nav.go('purchase/orders')}>Go to purchase orders</Button>} /> : (
-          <div className="card" style={{ overflow: 'hidden' }}><table className="data-table"><thead><tr><th>PO</th><th>Supplier</th><th>Expected</th><th className="right">Pending qty</th><th className="right">Value</th><th /></tr></thead><tbody>{eligible.map((p) => { const f = A.poFulfilment(p); return <tr key={p.id} className="clickable" onClick={() => setPickPo(p.id)}><td className="identifier link">{p.number}</td><td>{p.partyName}</td><td>{fmtDate(p.expectedDate)}</td><td className="right money">{fmtQty(f.pending)}</td><td className="right money">{fmtMoney(p.totals.total, p.currency)}</td><td className="right"><Button size="sm" variant="primary">Receive</Button></td></tr>; })}</tbody></table></div>)}
+          <div className="card" style={{ overflow: 'hidden' }}><table className="data-table"><thead><tr><th>PO</th><th>Supplier</th><th>Expected</th><th className="right">Pending qty</th><th className="right">Value</th><th /></tr></thead><tbody>{eligible.map((p) => { const f = A.poFulfilment(p); return <tr key={p.id} className="clickable" onClick={() => setPickPo(p.id)}><td className="identifier link">{p.number}</td><td>{p.partyName}</td><td>{fmtDate(p.expectedDate)}</td><td className="right money">{fmtQty(f.pending)}</td><td className="right money">{fmtMoney(p.totals.total, p.currency)}</td><td className="right"><Button size="sm" variant="primary" tone="good">Receive</Button></td></tr>; })}</tbody></table></div>)}
       </div>
     );
   }
@@ -69,7 +69,7 @@ function GrnFormInner({ existing, poId }: { existing?: Grn; poId?: string }) {
     <div className="page">
       <div className="page-header">
         <div><button type="button" className="btn-link" style={{ color: 'var(--ink-3)' }} onClick={() => nav.back('purchase/grn')}>← Goods receipts</button><h1 className="page-title">{existing ? `Receipt ${existing.number}` : `Receive against ${po?.number ?? 'PO'}`}</h1><div className="page-subtitle">{g.partyName} · over-receipt tolerance {tol}% · number allocated on post</div></div>
-        <div style={{ display: 'flex', gap: 8 }}><Button variant="ghost" onClick={() => nav.back('purchase/grn')}>Discard</Button><Button onClick={saveDraft}>Save draft</Button><Button variant="primary" onClick={post}>Post receipt</Button></div>
+        <div style={{ display: 'flex', gap: 8 }}><Button variant="ghost" onClick={() => nav.back('purchase/grn')}>Discard</Button><Button onClick={saveDraft}>Save draft</Button><Button variant="primary" tone="good" onClick={post}>Post receipt</Button></div>
       </div>
       <PeriodBanner date={g.date} />
       {errors.length > 0 && <Banner tone="danger" onDismiss={() => setErrors([])}><ul style={{ margin: 0, paddingLeft: 16 }}>{errors.map((e, i) => <li key={i}>{e}</li>)}</ul></Banner>}

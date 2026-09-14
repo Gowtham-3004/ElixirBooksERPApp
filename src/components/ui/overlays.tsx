@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { XIcon, MoreVertIcon, ArrowsSwapIcon, PackageIcon, FlagIcon, PieChartIcon, CheckIcon, AlertTriangleIcon, MailIcon, HashIcon, InfoCircleIcon, ChevronDownIcon, CircleDotIcon } from '../Icons';
-import { Button, Spinner, type ButtonVariant } from './primitives';
+import { Button, Spinner, type ButtonVariant, type ButtonTone } from './primitives';
 import { ReasonField } from './fields';
 import { nav } from '../../store';
 
@@ -69,7 +69,7 @@ export interface Consequence {
   tone?: 'info' | 'warning' | 'danger' | 'success';
 }
 
-export function ConfirmDialog({ open, onClose, onConfirm, title, statement, consequences = [], reasonRequired, confirmLabel, cancelLabel = 'Keep as is', danger, children, disabled }: { open: boolean; onClose: () => void; onConfirm: (reason: string) => void | Promise<void>; title: ReactNode; statement?: ReactNode; consequences?: Consequence[]; reasonRequired?: boolean; confirmLabel: string; cancelLabel?: string; danger?: boolean; children?: ReactNode; disabled?: boolean }) {
+export function ConfirmDialog({ open, onClose, onConfirm, title, statement, consequences = [], reasonRequired, confirmLabel, cancelLabel = 'Keep as is', danger, tone, children, disabled }: { open: boolean; onClose: () => void; onConfirm: (reason: string) => void | Promise<void>; title: ReactNode; statement?: ReactNode; consequences?: Consequence[]; reasonRequired?: boolean; confirmLabel: string; cancelLabel?: string; danger?: boolean; tone?: ButtonTone; children?: ReactNode; disabled?: boolean }) {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -109,7 +109,7 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, statement, cons
       {err && !(reasonRequired && reason.trim().length < 10) && <div className="banner danger" style={{ marginTop: 12 }}>{err}</div>}
       <div className="modal-footer" style={{ padding: '16px 0 0' }}>
         <Button variant="secondary" onClick={onClose} disabled={busy}>{cancelLabel}</Button>
-        <Button variant={danger ? 'danger' : 'primary'} onClick={submit} loading={busy} disabled={disabled}>{confirmLabel}</Button>
+        <Button variant={danger ? 'danger' : 'primary'} tone={danger ? undefined : tone} onClick={submit} loading={busy} disabled={disabled}>{confirmLabel}</Button>
       </div>
     </Modal>
   );

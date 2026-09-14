@@ -6,8 +6,8 @@
    keeps the old hex → token map. */
 :root {
   /* ink (text) */
-  --ink: #0F1115;
-  --ink-2: #3B3F47;
+  --ink: #161920;
+  --ink-2: #40454E;
   --ink-3: #5C6068;
   --ink-4: #73767D;
   --ink-5: #A9ACB3;
@@ -32,7 +32,10 @@
   --good: #1E6B47;   --good-bg: #E9F2ED;   --good-line: #7DB598;
   --warn: #8A5A1B;   --warn-bg: #F6EFE4;   --warn-line: #D9AA66;
   --danger: #B0383E; --danger-hover: #99303A; --danger-bg: #F8EAEA; --danger-line: #DB8A8E;
-  --info: #3A5893;   --info-bg: #EAEFF7;
+  --info: #3A5893;   --info-bg: #EAEFF7;   --info-line: #A9BBE3;
+  /* hover shades for tone-filled buttons · violet is a categorical tile colour (settings hub), never a status */
+  --good-hover: #185A3B; --warn-hover: #74491A; --info-hover: #2F4A7E;
+  --violet: #6B4FBB; --violet-bg: #EFEBF9;
   /* radii · shadows · ring · motion */
   --r-sm: 6px; --r-md: 8px; --r-lg: 12px;
   --shadow-sm: 0 1px 2px rgba(15,17,21,.04), 0 1px 1px rgba(15,17,21,.02);
@@ -68,7 +71,9 @@
   --good: #5FCB93;   --good-bg: rgba(95,203,147,.14);   --good-line: rgba(95,203,147,.5);
   --warn: #E0B56A;   --warn-bg: rgba(224,181,106,.14);  --warn-line: rgba(224,181,106,.55);
   --danger: #F08A8F; --danger-hover: #F49DA1; --danger-bg: rgba(240,138,143,.14); --danger-line: rgba(240,138,143,.5);
-  --info: #8FA6E8;   --info-bg: rgba(143,166,232,.14);
+  --info: #8FA6E8;   --info-bg: rgba(143,166,232,.14);   --info-line: rgba(143,166,232,.5);
+  --good-hover: #74D6A3; --warn-hover: #E7C284; --info-hover: #A3B6ED;
+  --violet: #A794EA; --violet-bg: rgba(167,148,234,.16);
   --shadow-sm: 0 1px 2px rgba(0,0,0,.35), 0 1px 1px rgba(0,0,0,.2);
   --shadow-md: 0 4px 12px rgba(0,0,0,.45), 0 1px 3px rgba(0,0,0,.3);
   --shadow-lg: 0 24px 48px -12px rgba(0,0,0,.7), 0 8px 24px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.06);
@@ -185,7 +190,9 @@ html, body, #root {
   box-shadow: var(--shadow-sm);
   transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
-.btn-secondary:hover { background: var(--surface-2); border-color: var(--line-strong); }
+.btn-secondary:hover { background: var(--surface-2); border-color: var(--accent-line); }
+/* icons inside a secondary button carry the brand hue so toolbars read as coloured, not grey */
+.btn-secondary > svg { color: var(--accent); }
 
 .btn-ghost {
   display: inline-flex;
@@ -223,6 +230,21 @@ html, body, #root {
   white-space: nowrap;
 }
 .btn-danger:hover { background: var(--danger-hover); }
+
+/* Semantic tones — Button tone="good|warn|danger|info". Solid on primary, soft on tinted. */
+.btn-primary.tone-good   { background: var(--good); }   .btn-primary.tone-good:hover   { background: var(--good-hover); }
+.btn-primary.tone-warn   { background: var(--warn); }   .btn-primary.tone-warn:hover   { background: var(--warn-hover); }
+.btn-primary.tone-danger { background: var(--danger); } .btn-primary.tone-danger:hover { background: var(--danger-hover); }
+.btn-primary.tone-info   { background: var(--info); }   .btn-primary.tone-info:hover   { background: var(--info-hover); }
+:root[data-theme="dark"] .btn-primary[class*="tone-"] { color: var(--bg); }
+.btn-tinted.tone-good   { background: var(--good-bg);   color: var(--good); }
+.btn-tinted.tone-warn   { background: var(--warn-bg);   color: var(--warn); }
+.btn-tinted.tone-danger { background: var(--danger-bg); color: var(--danger); }
+.btn-tinted.tone-info   { background: var(--info-bg);   color: var(--info); }
+.btn-tinted.tone-good:hover   { background: var(--good-bg);   box-shadow: inset 0 0 0 1px var(--good-line); }
+.btn-tinted.tone-warn:hover   { background: var(--warn-bg);   box-shadow: inset 0 0 0 1px var(--warn-line); }
+.btn-tinted.tone-danger:hover { background: var(--danger-bg); box-shadow: inset 0 0 0 1px var(--danger-line); }
+.btn-tinted.tone-info:hover   { background: var(--info-bg);   box-shadow: inset 0 0 0 1px var(--info-line); }
 
 /* Compact secondary for toolbar */
 .btn-sm {
@@ -318,7 +340,7 @@ html, body, #root {
 .data-table tbody tr.row-total td { background: var(--surface-2); border-top: 1px solid var(--ink-2); font-weight: 600; }
 .data-table tbody tr.row-net td { background: var(--surface-2); border-top: 1px solid var(--ink-2); border-bottom: 3px double var(--ink-2); font-weight: 600; }
 
-/* Display density — localStorage 'eb-density', set as data-density on the shell root (see AppShell).
+/* Display density — localStorage 'eb-density', set as data-density on the shell root (store/prefs.ts; AppShell stamps it, Setup › User preferences sets it).
    Compact drops every row one step; phones keep 48px for touch. */
 [data-density="compact"] .data-table td { height: 40px; }
 [data-density="compact"] .data-table th { height: 36px; }
@@ -426,6 +448,21 @@ html, body, #root {
 .timeline-icon.info    { background: var(--info-bg); color: var(--info); }
 .timeline-icon.warning { background: var(--warn-bg); color: var(--warn); }
 .timeline-icon.neutral { background: var(--surface-3); color: var(--ink-3); }
+
+/* Icon tile — a tinted square behind a line icon (settings hub cards, Lixi header, empty states) */
+.icon-tile {
+  width: 32px; height: 32px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  background: var(--surface-3); color: var(--ink-3);
+}
+.icon-tile.sm { width: 24px; height: 24px; border-radius: 6px; }
+.icon-tile.accent  { background: var(--accent-soft); color: var(--accent); }
+.icon-tile.good    { background: var(--good-bg);     color: var(--good); }
+.icon-tile.warn    { background: var(--warn-bg);     color: var(--warn); }
+.icon-tile.danger  { background: var(--danger-bg);   color: var(--danger); }
+.icon-tile.info    { background: var(--info-bg);     color: var(--info); }
+.icon-tile.violet  { background: var(--violet-bg);   color: var(--violet); }
+.icon-tile.neutral { background: var(--surface-3);   color: var(--ink-3); }
 
 /* KPI tile — the value is the hero; it steps down when the tile is narrow (4-up grid at 1024–1279px) */
 .kpi-tile {

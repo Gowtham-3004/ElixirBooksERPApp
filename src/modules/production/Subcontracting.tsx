@@ -204,7 +204,7 @@ function ReceiveModal({ sc, atSupplier, onClose }: { sc: SubcontractOrder; atSup
   };
   return (
     <Modal open onClose={onClose} title={`Receive processed goods · ${sc.number}`} description={`${sc.supplierName} · ${sc.operationName} · ${fmtQty(remaining, undefined, 3)} still due`} width={720}
-      footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={submit}>Receive & post charges</Button></>}>
+      footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" tone="good" onClick={submit}>Receive & post charges</Button></>}>
       {err && <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div>}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
         <NumberField label="Quantity processed" value={qty} onChange={setQty} decimals={3} max={remaining} />

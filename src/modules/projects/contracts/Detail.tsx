@@ -52,8 +52,8 @@ export default function ContractDetail({ id, tab, onTab }: { id: string; tab?: s
   } else if (c.status === 'Submitted') {
     footer = canAct.ok ? (
       <>
-        <Button variant="danger" onClick={() => run(() => engine.actOnApproval(req!.id, 'Reject', { comment: 'Rejected from contract page' }), 'Rejected')}>Reject</Button>
-        <Button variant="primary" onClick={() => run(() => engine.actOnApproval(req!.id, 'Approve'), 'Approved')}>Approve</Button>
+        <Button variant="tinted" tone="danger" onClick={() => run(() => engine.actOnApproval(req!.id, 'Reject', { comment: 'Rejected from contract page' }), 'Rejected')}>Reject</Button>
+        <Button variant="primary" tone="good" onClick={() => run(() => engine.actOnApproval(req!.id, 'Approve'), 'Approved')}>Approve</Button>
       </>
     ) : <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Awaiting {req?.steps.find((x) => x.order === req.currentStep)?.approverLabel ?? 'approver'}{canAct.reason ? ` · ${canAct.reason}` : ''}</span>;
   } else if (c.status === 'Approved') {

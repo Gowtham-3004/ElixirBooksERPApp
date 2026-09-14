@@ -57,7 +57,7 @@ function DebitNoteForm({ invoiceId, grnId }: { invoiceId?: string; grnId?: strin
     <div className="page">
       <div className="page-header">
         <div><button type="button" className="btn-link" style={{ color: 'var(--ink-3)' }} onClick={() => nav.back('purchase/debit-notes')}>← Debit notes</button><h1 className="page-title">New debit note{d.goodsReturn ? ' with goods return' : ''}</h1><div className="page-subtitle">{d.invoiceNumber ? `Against ${d.invoiceNumber}` : d.grnNumber ? `Against ${d.grnNumber}` : 'Choose a posted invoice or GRN'}</div></div>
-        <div style={{ display: 'flex', gap: 8 }}><Button variant="ghost" onClick={() => nav.back('purchase/debit-notes')}>Discard</Button><Button onClick={saveDraft}>Save draft</Button><Button variant="primary" onClick={post} disabled={!d.partyId}>Post debit note</Button></div>
+        <div style={{ display: 'flex', gap: 8 }}><Button variant="ghost" onClick={() => nav.back('purchase/debit-notes')}>Discard</Button><Button onClick={saveDraft}>Save draft</Button><Button variant="primary" tone="good" onClick={post} disabled={!d.partyId}>Post debit note</Button></div>
       </div>
       <PeriodBanner date={d.date} />
       {err && <Banner tone="danger" onDismiss={() => setErr(null)}>{err}</Banner>}
@@ -103,7 +103,7 @@ function DebitNoteDetail({ id }: { id: string }) {
         ]}
         footer={<>
           <div style={{ flex: 1 }} />
-          {d.status === 'Draft' && <Button variant="primary" onClick={() => { try { const out = A.postDebitNote(d); toast.success(`${out.number} posted`); } catch (e: any) { toast.error(e.message); } }}>Post debit note</Button>}
+          {d.status === 'Draft' && <Button variant="primary" tone="good" onClick={() => { try { const out = A.postDebitNote(d); toast.success(`${out.number} posted`); } catch (e: any) { toast.error(e.message); } }}>Post debit note</Button>}
           {d.status === 'Posted' && <ActionMenu trigger={<Button>More ▾</Button>} actions={[{ label: 'Reverse', danger: true, onClick: () => confirm.open({ title: `Reverse ${d.number}?`, consequences: [{ engine: 'Journal', text: `Reversal of ${d.journalNumber}`, tone: 'warning' }, ...(d.purchaseReturnId ? [{ engine: 'Stock', text: 'Returned goods come back into stock', tone: 'warning' as const }] : []), { engine: 'Open items', text: d.settledAgainstInvoice ? 'Invoice settlement is undone' : 'Supplier credit is closed' }], reasonRequired: true, confirmLabel: 'Reverse debit note', cancelLabel: 'Keep debit note', danger: true, onConfirm: (r) => { A.reverseDebitNote(id, r); toast.success('Reversed'); } }) }]} />}
         </>} />
       {confirm.dialog}

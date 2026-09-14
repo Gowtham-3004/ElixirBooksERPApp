@@ -31,8 +31,8 @@ if (await page.locator('input[placeholder="123456"]').count()) {
   await page.getByText('Verify and sign in').click();
   await page.waitForTimeout(400);
 }
-if (await page.getByText('Choose a company').count()) {
-  await page.getByText('Acme Private Limited').first().click();
+if (await page.locator('.company-picker').count()) {
+  await page.locator('.company-card:not(.create)').first().click();
   await page.waitForTimeout(400);
 }
 await page.goto(`${base}/#/sales/invoices`, { waitUntil: 'networkidle' });

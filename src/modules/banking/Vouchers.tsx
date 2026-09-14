@@ -61,7 +61,7 @@ export function VoucherForm({ prefill, existing, onDone }: { prefill?: Record<st
     <div className="page">
       <div className="page-header">
         <div>{!onDone && <button type="button" className="btn-link" style={{ color: 'var(--ink-3)' }} onClick={() => nav.back('banking/vouchers')}>← Vouchers</button>}<h1 className="page-title">{existing ? `Edit ${existing.number}` : 'New bank / cash voucher'}</h1><div className="page-subtitle">{v.statementLineId ? 'Pre-filled from an unmatched statement line — posting creates the book entry to match against' : 'Posts a two-line journal: bank / cash against the chosen account'}</div></div>
-        <div style={{ display: 'flex', gap: 8 }}>{!onDone && <Button variant="ghost" onClick={() => nav.back('banking/vouchers')}>Discard</Button>}<Button onClick={saveDraft}>Save draft</Button><Button variant="primary" onClick={post}>Post voucher</Button></div>
+        <div style={{ display: 'flex', gap: 8 }}>{!onDone && <Button variant="ghost" onClick={() => nav.back('banking/vouchers')}>Discard</Button>}<Button onClick={saveDraft}>Save draft</Button><Button variant="primary" tone="good" onClick={post}>Post voucher</Button></div>
       </div>
       <PeriodBanner date={v.date} />
       {errs.length > 0 && <Banner tone="danger" onDismiss={() => setErrs([])}><ul style={{ margin: 0, paddingLeft: 16 }}>{errs.map((e, i) => <li key={i}>{e}</li>)}</ul></Banner>}

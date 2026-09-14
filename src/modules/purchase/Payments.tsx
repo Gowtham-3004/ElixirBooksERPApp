@@ -59,7 +59,7 @@ export function PaymentForm({ supplierId, openItemIds, existing }: { supplierId?
     <div className="page">
       <div className="page-header">
         <div><button type="button" className="btn-link" style={{ color: 'var(--ink-3)' }} onClick={() => nav.back('purchase/payments')}>← Payments</button><h1 className="page-title">{existing ? `Payment ${existing.number}` : 'New supplier payment'}</h1><div className="page-subtitle">Allocate open items, apply advances / debit notes, withhold TDS where the section basis is payment · number allocated on post</div></div>
-        <div style={{ display: 'flex', gap: 8 }}><Button variant="ghost" onClick={() => nav.back('purchase/payments')}>Discard</Button><Button onClick={saveDraft}>Save draft</Button><Button variant="primary" onClick={post}>Post payment</Button></div>
+        <div style={{ display: 'flex', gap: 8 }}><Button variant="ghost" onClick={() => nav.back('purchase/payments')}>Discard</Button><Button onClick={saveDraft}>Save draft</Button><Button variant="primary" tone="good" onClick={post}>Post payment</Button></div>
       </div>
       <PeriodBanner date={p.date} />
       {err && <Banner tone="danger" onDismiss={() => setErr(null)}>{err}</Banner>}

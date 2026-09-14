@@ -1,19 +1,18 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
-import { db, C, nav, session, useCollection, useSession, useRoute, engine } from '../store';
+import { db, C, nav, session, useCollection, useSession, useRoute, engine, usePrefs } from '../store';
 import type { Notification, Period } from '../store';
-import { MODULES, GROUP_ORDER, moduleById } from '../modules/registry';
-import { activeSubNav, settingsNav, useSubNavs, type SubNavItem } from '../modules/subnav';
-import { BellIcon, SearchIcon, ChevronDownIcon, HelpCircleIcon, CogIcon, LockIcon, XIcon, ArrowLeftIcon, MenuIcon, UsersIcon, PackageIcon, UserIcon, BookOpenIcon, CreditCardIcon, FileTextIcon, PlusIcon, ArrowRightIcon } from './Icons';
+import { MODULES, GROUP_ORDER, SIDEBAR_GROUPS, moduleById, visibleModuleIds } from '../modules/registry';
+import { activeSubNav, useSubNavs, type SubNavItem } from '../modules/subnav';
+import { SETUP_MODULES, rememberSetupReturn, useSetupSections } from '../modules/setup/sections';
+import { lixi, useLixi } from '../store/lixi';
+import LixiPanel from './lixi/LixiPanel';
+import LixiMark from './lixi/LixiMark';
+import { BellIcon, SearchIcon, ChevronDownIcon, HelpCircleIcon, CogIcon, LockIcon, XIcon, ArrowLeftIcon, MenuIcon, UsersIcon, PackageIcon, UserIcon, BookOpenIcon, CreditCardIcon, FileTextIcon, PlusIcon, ArrowRightIcon, ArrowsSwapIcon, LogOutIcon } from './Icons';
 import type { ComponentType } from 'react';
 import { useIsMobile, useIsTablet } from '../lib/useMedia';
 import { Avatar, Badge, Button, Banner, Kbd, TwoLine } from './ui/primitives';
 import { Modal } from './ui/overlays';
-import { Segmented } from './ui/fields';
-import { readTheme, setTheme, type ThemePref } from '../lib/theme';
-import { Wordmark } from './Brand';
 import { fmtDateTime, fmtMoney, fmtPeriod } from '../lib/format';
-
-type Density = 'comfortable' | 'compact';
 
 interface AppShellProps {
   children: ReactNode;
@@ -25,7 +24,6 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
   const route = useRoute();
   const [notifOpen, setNotifOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
-  const [sidebarCompanyOpen, setSidebarCompanyOpen] = useState(false);
   const [branchOpen, setBranchOpen] = useState(false);
   const [periodOpen, setPeriodOpen] = useState(false);
   const [fyOpen, setFyOpen] = useState(false);
@@ -34,10 +32,8 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
   const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.innerWidth < 1440);
   const [railPinned, setRailPinned] = useState<boolean | null>(() => { try { const v = localStorage.getItem('eb-sidebar'); return v === null ? null : v === 'expanded'; } catch { return null; } });
   // display density — read by CSS through data-density on the shell root ([data-density="compact"] rules in index.css)
-  const [density, setDensityState] = useState<Density>(() => { try { return localStorage.getItem('eb-density') === 'compact' ? 'compact' : 'comfortable'; } catch { return 'comfortable'; } });
-  const setDensity = (d: Density) => { setDensityState(d); try { localStorage.setItem('eb-density', d); } catch { /* ignore */ } };
-  const [theme, setThemeState] = useState<ThemePref>(() => readTheme());
-  const pickTheme = (t: ThemePref) => { setThemeState(t); setTheme(t); };
+  const { density } = usePrefs();
+  const lixiOpen = useLixi().open;
   const isMobile = useIsMobile();
   // below the laptop breakpoint the company/branch/period controls move to a strip under the header
   const compact = useIsTablet();
@@ -53,16 +49,15 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
   const unread = myNotifs.filter((n) => !n.read).length;
   const pendingApprovals = useCollection(C.approvals).filter((a: any) => a.status === 'Pending' && engine.canActOnApproval(a as any).ok).length;
 
-  const visibleModules = useMemo(() => MODULES.filter((m) => {
-    if (m.platformOnly) return s.isPlatformAdmin;
-    if (!s.entitled(m.id)) return false;
-    if (m.profiles && s.profiles.length && !m.profiles.some((p) => s.profiles.includes(p))) return false;
-    if (m.permission && !s.canModule(m.permission)) return false;
-    return true;
-  }), [s]);
+  const visibleModules = useMemo(() => { const ids = visibleModuleIds(s); return MODULES.filter((m) => ids.includes(m.id)); }, [s]);
 
-  // the Settings hub lists every visible module's settings page plus the user's own pages (see settingsNav)
-  const settingsItems = useMemo(() => settingsNav(s, visibleModules.map((m) => m.id)), [s, visibleModules]);
+  // inside Setup (the hub, company admin, masters, platform) the sidebar shows the settings tree instead of the app nav
+  const setupMode = SETUP_MODULES.has(route.module);
+  const setupSections = useSetupSections();
+  const lastAppPath = useRef(route.path);
+  useEffect(() => {
+    if (setupMode) rememberSetupReturn(lastAppPath.current); else lastAppPath.current = route.path;
+  }, [setupMode, route.path]);
 
   // one sidebar entry; with sub-pages it opens a flyout (hover peeks, click pins; phones expand inline), without them it navigates
   const sidebarEntry = (key: string, label: string, Icon: ComponentType<{ size?: number }>, o: { items: SubNavItem[]; active: boolean; activeId?: string; go: (id: string) => void; fallback?: () => void; badge?: number }) => {
@@ -105,6 +100,7 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
     const typing = (e: KeyboardEvent) => { const t = e.target as HTMLElement | null; return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable); };
     const h = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setSearchOpen(true); }
+      else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') { e.preventDefault(); lixi.toggle(); }
       else if (e.key === '?' && !typing(e) && !e.metaKey && !e.ctrlKey) { e.preventDefault(); setHelpOpen((v) => !v); }
       else if (e.key === 'Escape') { setHelpOpen(false); setSearchOpen(false); }
     };
@@ -132,7 +128,10 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
   const toggleRail = () => { const next = collapsed; setRailPinned(next); try { localStorage.setItem('eb-sidebar', next ? 'expanded' : 'collapsed'); } catch { /* ignore */ } };
 
   const mod = moduleById(route.module);
-  const crumbs = [mod?.group ? mod.group.charAt(0) + mod.group.slice(1).toLowerCase() : 'Workspace', mod?.label ?? route.module, ...(route.sub ? [route.sub.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())] : []), ...(route.params.crumb ? [route.params.crumb] : [])];
+  const subCrumb = route.sub ? [route.sub.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())] : [];
+  const crumbs = setupMode
+    ? ['Setup', route.module === 'setup' ? (route.sub === 'preferences' ? 'User preferences' : 'All settings') : (mod?.label ?? route.module), ...(route.module === 'setup' ? [] : subCrumb), ...(route.params.crumb ? [route.params.crumb] : [])]
+    : [mod?.group ? mod.group.charAt(0) + mod.group.slice(1).toLowerCase() : 'Workspace', mod?.label ?? route.module, ...subCrumb, ...(route.params.crumb ? [route.params.crumb] : [])];
   const periodTone = s.period?.status === 'Open' ? { bg: 'var(--good-bg)', fg: 'var(--good)' } : s.period?.status === 'Locked' ? { bg: 'var(--neutral-bg)', fg: 'var(--ink-2)' } : { bg: 'var(--warn-bg)', fg: 'var(--warn)' };
   const isWin = typeof navigator !== 'undefined' && /Win/.test(navigator.platform);
 
@@ -206,49 +205,49 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
   }
 
   return (
-    <div className="shell" data-density={density}>
+    <div className={`shell ${lixiOpen ? 'lixi-open' : ''}`} data-density={density}>
       {isMobile && navOpen && <div className="sidebar-scrim" onClick={() => setNavOpen(false)} />}
       {/* Sidebar — fixed rail on desktop/tablet, off-canvas drawer on phones */}
       <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${navOpen ? 'open' : ''}`} aria-label="Sidebar" aria-hidden={isMobile && !navOpen ? true : undefined}>
-        <div className="sidebar-brand" style={{ justifyContent: collapsed ? 'center' : undefined }}>
-          <Wordmark size={22} collapsed={collapsed} />
-          {isMobile && <button type="button" className="btn-icon" aria-label="Close navigation" style={{ marginLeft: 'auto' }} onClick={() => setNavOpen(false)}><XIcon size={16} /></button>}
-        </div>
-        <div style={{ padding: collapsed ? '6px 0 10px' : '4px 16px 10px', borderBottom: '1px solid var(--hairline)', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : undefined, gap: 10, cursor: 'pointer', position: 'relative' }} onClick={() => setSidebarCompanyOpen(!sidebarCompanyOpen)} title={collapsed ? `${s.tenant?.name ?? ''} · ${s.company?.legalName ?? ''} — switch company` : 'Switch company'}>
+        {/* company block — the sidebar's header; opens the full-screen company picker */}
+        <button type="button" className="sidebar-company" onClick={() => session.openCompanyPicker()} title={collapsed ? `${s.company?.tradeName ?? s.company?.legalName ?? ''} · ${s.tenant?.name ?? ''} — switch company` : 'Switch company'}>
           <div style={{ width: 28, height: 28, borderRadius: 7, background: `color-mix(in srgb, ${s.company?.brandColor ?? 'var(--accent)'} 14%, transparent)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: s.company?.brandColor ?? 'var(--accent)', fontWeight: 700, fontSize: 13 }}>
             {s.company?.logoText ?? 'E'}
           </div>
           {!collapsed && (
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="cell-secondary" style={{ marginBottom: 1 }}>{s.tenant?.name ?? 'Elixir Books'}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span className="cell-primary" style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.company?.legalName ?? '—'}</span>
-                <ChevronDownIcon size={12} />
+            <>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="cell-primary" style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.2 }}>{s.company?.tradeName ?? s.company?.legalName ?? '—'}</div>
+                <div className="cell-secondary" style={{ fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>{s.tenant?.name ?? ''}</div>
               </div>
-            </div>
+              <span style={{ display: 'inline-flex', color: 'var(--ink-5)' }}><ArrowsSwapIcon size={13} /></span>
+            </>
           )}
-          {sidebarCompanyOpen && (
-            <div onClick={(e) => e.stopPropagation()}>
-              <Dropdown onClose={() => setSidebarCompanyOpen(false)} width={260} align="left" top={collapsed ? 56 : undefined} sheet={isMobile}>
-                <div className="section-label" style={{ padding: '6px 10px' }}>Switch company</div>
-                {s.companies.map((c) => (
-                  <button key={c.id} type="button" className="menu-item" style={{ height: 'auto', padding: '6px 10px', background: c.id === s.company?.id ? 'var(--accent-soft)' : undefined }} onClick={() => { setSidebarCompanyOpen(false); if (c.id !== s.company?.id) { session.switchCompany(c.id); nav.go('home'); } }}>
-                    <TwoLine primary={c.legalName} secondary={`${c.country} · ${c.baseCurrency} · ${c.nature}`} />
-                  </button>
-                ))}
-                {s.companies.length === 0 && <div style={{ padding: '8px 10px', fontSize: 12, color: 'var(--ink-3)' }}>No companies</div>}
-                {s.isTenantOwner && (<><div className="menu-sep" /><button type="button" className="menu-item" style={{ color: 'var(--accent)' }} onClick={() => { setSidebarCompanyOpen(false); nav.go('admin/companies'); }}>+ Add company</button></>)}
-              </Dropdown>
-            </div>
-          )}
-        </div>
+          {isMobile && <span role="button" className="btn-icon" aria-label="Close navigation" style={{ marginLeft: 4 }} onClick={(e) => { e.stopPropagation(); setNavOpen(false); }}><XIcon size={16} /></span>}
+        </button>
         <nav className="sidebar-nav" onScroll={() => setFlyout((f) => (f && !isMobile ? null : f))}>
-          {GROUP_ORDER.map((g) => {
+          {setupMode ? (
+            <>
+              <button type="button" className={`nav-item ${route.path === 'setup' ? 'active' : ''}`} title="All settings" style={{ width: '100%', border: 'none', textAlign: 'left', background: route.path === 'setup' ? undefined : 'transparent', justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined, marginBottom: 4 }} onClick={() => nav.go('setup')}>
+                <ArrowLeftIcon size={16} />{!collapsed && <span>All settings</span>}
+              </button>
+              {setupSections.map((sec) => (
+                <div key={sec.id} className="nav-group">
+                  {!collapsed && <div className="section-label">{({ organization: 'Organization', modules: 'Modules', developer: 'Extensions & data' } as Record<string, string>)[sec.id] ?? sec.title}</div>}
+                  {sec.cards.map((card) => {
+                    const here = (id: string) => route.path === id || route.path.startsWith(`${id}/`);
+                    const items: SubNavItem[] = card.links.map((l) => ({ id: l.id, label: l.label }));
+                    return sidebarEntry(`setup:${card.id}`, card.title, card.icon, { items, active: card.links.some((l) => here(l.id)), activeId: card.links.find((l) => here(l.id))?.id, go: (id) => nav.go(id) });
+                  })}
+                </div>
+              ))}
+            </>
+          ) : GROUP_ORDER.filter((g) => SIDEBAR_GROUPS.includes(g)).map((g) => {
             const items = visibleModules.filter((m) => m.group === g);
             if (!items.length) return null;
             return (
-              <div key={g} style={{ marginBottom: 2 }}>
-                {collapsed ? <div style={{ height: 1, background: 'var(--surface-3)', margin: '6px 8px' }} /> : <div className="section-label">{g.charAt(0) + g.slice(1).toLowerCase()}</div>}
+              <div key={g} className="nav-group">
+                {!collapsed && <div className="section-label">{g.charAt(0) + g.slice(1).toLowerCase()}</div>}
                 {items.map((m) => {
                   const subItems = (subNavs[m.id] ?? []).filter((i) => !i.hidden);
                   return sidebarEntry(m.id, m.label, m.icon, { items: subItems, active: route.module === m.id, activeId: activeSubNav(route, m.id, subItems), go: (id) => nav.go(`${m.id}/${id}`), fallback: () => nav.go(m.id), badge: m.id === 'approvals' ? pendingApprovals : 0 });
@@ -263,20 +262,33 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
           <button type="button" className="nav-item" title="Help & Support" style={{ width: '100%', border: 'none', textAlign: 'left', background: 'transparent', justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined }} onClick={() => nav.go('home/help')}>
             <HelpCircleIcon size={16} />{!collapsed && <span>Help & Support</span>}
           </button>
-          {sidebarEntry('settings', 'Settings', CogIcon, { items: settingsItems, active: false, activeId: settingsItems.find((i) => route.path === i.id || route.path.startsWith(`${i.id}/`))?.id, go: (id) => nav.go(id) })}
           {!isMobile && <button type="button" className="nav-item" title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} style={{ width: '100%', border: 'none', textAlign: 'left', background: 'transparent', justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined, color: 'var(--ink-3)' }} onClick={toggleRail}>
             <span style={{ display: 'inline-flex', transform: collapsed ? 'rotate(180deg)' : undefined }}><ArrowLeftIcon size={16} /></span>{!collapsed && <span>Collapse</span>}
           </button>}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : undefined, gap: 8, padding: collapsed ? '8px 0' : '8px 12px', borderRadius: 8, marginTop: 4, cursor: 'pointer' }} onClick={() => setUserOpen(true)} title={s.user?.name}>
-            <Avatar name={s.user?.name ?? '?'} tone="neutral" />
-            {!collapsed && (
-              <>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="cell-primary" style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.user?.name}</div>
-                  <div className="cell-secondary" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.roles[0]?.name ?? (s.isPlatformAdmin ? 'Platform Admin' : '')}</div>
-                </div>
-                <ChevronDownIcon size={12} />
-              </>
+          <div className="sidebar-user">
+            <div role="button" tabIndex={0} aria-haspopup="menu" aria-expanded={userOpen} style={{ display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : undefined, gap: 8, padding: collapsed ? '8px 0' : '8px 12px', borderRadius: 8, marginTop: 4, cursor: 'pointer', background: userOpen ? 'var(--hover)' : undefined }} onClick={() => setUserOpen((v) => !v)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setUserOpen((v) => !v); } }} title={s.user?.name}>
+              <Avatar name={s.user?.name ?? '?'} tone="neutral" />
+              {!collapsed && (
+                <>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="cell-primary" style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.user?.name}</div>
+                    <div className="cell-secondary" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.roles[0]?.name ?? (s.isPlatformAdmin ? 'Platform Admin' : '')}</div>
+                  </div>
+                  <span style={{ display: 'inline-flex', transform: userOpen ? 'rotate(180deg)' : undefined, color: 'var(--ink-5)' }}><ChevronDownIcon size={12} /></span>
+                </>
+              )}
+            </div>
+            {userOpen && (
+              <div onClick={(e) => e.stopPropagation()}>
+                <Dropdown onClose={() => setUserOpen(false)} width={236} align="left" placement="up" sheet={isMobile}>
+                  <div style={{ padding: '8px 10px 6px' }}><TwoLine primary={s.user?.name ?? ''} secondary={s.user?.email ?? ''} /></div>
+                  <div className="menu-sep" />
+                  <button type="button" className="menu-item" onClick={() => { setUserOpen(false); nav.go('setup'); }}><CogIcon size={15} /> Setup</button>
+                  <button type="button" className="menu-item" onClick={() => { setUserOpen(false); nav.go(`admin/users/${s.user?.id}`); }}><UserIcon size={15} /> Profile & security</button>
+                  <div className="menu-sep" />
+                  <button type="button" className="menu-item" style={{ color: 'var(--danger)' }} onClick={() => { setUserOpen(false); session.logout(); }}><LogOutIcon size={15} /> Sign out</button>
+                </Dropdown>
+              </div>
             )}
           </div>
         </div>
@@ -290,7 +302,7 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
             {crumbs.map((crumb, i) => (
               <span key={i} className="crumb" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {i > 0 && <span className="crumb-sep" style={{ fontSize: 12, color: 'var(--ink-5)' }}>›</span>}
-                <span style={{ fontSize: 13, fontWeight: i === crumbs.length - 1 ? 500 : 400, color: i === crumbs.length - 1 ? 'var(--ink)' : 'var(--ink-3)', fontVariantNumeric: 'normal', cursor: i === 1 ? 'pointer' : undefined }} onClick={() => i === 1 && mod && nav.go(mod.id)}>{crumb}</span>
+                <span style={{ fontSize: 13, fontWeight: i === crumbs.length - 1 ? 500 : 400, color: i === crumbs.length - 1 ? 'var(--ink)' : 'var(--ink-3)', fontVariantNumeric: 'normal', cursor: i === 1 || (setupMode && i === 0) ? 'pointer' : undefined }} onClick={() => { if (setupMode && i === 0) nav.go('setup'); else if (i === 1 && mod) nav.go(mod.id); }}>{crumb}</span>
               </span>
             ))}
           </div>
@@ -336,7 +348,9 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
                 </Dropdown>
               )}
             </span>
-            <span onClick={() => setUserOpen(true)} style={{ cursor: 'pointer' }}><Avatar tone="neutral" name={s.user?.name ?? '?'} /></span>
+            <button type="button" className="btn-ghost" style={{ padding: '0 8px', gap: 6, color: lixiOpen ? 'var(--accent)' : undefined, background: lixiOpen ? 'var(--accent-tint)' : undefined }} aria-pressed={lixiOpen} title={`Lixi (${isWin ? 'Ctrl' : '⌘'} J)`} aria-label="Lixi assistant" onClick={() => lixi.toggle()}>
+              <LixiMark size={20} />{!compact && <span style={{ fontWeight: 500 }}>Lixi</span>}
+            </button>
           </div>
         </header>
         {compact && <div className="shell-context">{contextControls}</div>}
@@ -349,50 +363,12 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
         <main style={{ flex: 1, overflow: 'auto' }}><div key={route.path} className="route-enter">{children}</div></main>
       </div>
 
-      {userOpen && (
-        <Modal open onClose={() => setUserOpen(false)} title={s.user?.name ?? ''} description={s.user?.email} width={420}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13 }}>
-            <div className="kv">
-              <span className="k">Roles</span><span className="v">{s.roles.map((r) => r.name).join(', ') || (s.isPlatformAdmin ? 'Platform Admin' : '—')}</span>
-              <span className="k">Companies</span><span className="v">{s.companies.map((c) => c.tradeName).join(', ')}</span>
-              <span className="k">MFA</span><span className="v">{s.user?.mfaEnabled ? 'Enabled' : 'Not enabled'}</span>
-              {s.isTenantOwner && s.plan && <><span className="k">Plan</span><span className="v">{s.plan.name} · {s.tenant?.subscriptionState}{s.tenant?.renewsAt ? ` · renews ${s.tenant.renewsAt}` : ''}</span></>}
-            </div>
-            <div>
-              <div className="section-label" style={{ marginBottom: 6 }}>Active sessions</div>
-              {(s.user?.sessions ?? []).map((ss) => (
-                <div key={ss.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--hairline)' }}>
-                  <span>{ss.device}{ss.current ? ' · this device' : ''}</span>
-                  <span style={{ color: 'var(--ink-3)' }}>{fmtDateTime(ss.at)}</span>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-              <div>
-                <div className="section-label">Appearance</div>
-                <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 2 }}>System follows your OS setting</div>
-              </div>
-              <Segmented value={theme} onChange={pickTheme} options={[{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }, { value: 'system', label: 'System' }]} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-              <div>
-                <div className="section-label">Display density</div>
-                <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 2 }}>Compact fits more rows on screen</div>
-              </div>
-              <Segmented value={density} onChange={setDensity} options={[{ value: 'comfortable', label: 'Comfortable' }, { value: 'compact', label: 'Compact' }]} />
-            </div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
-              <Button variant="secondary" onClick={() => { setUserOpen(false); nav.go(`admin/users/${s.user?.id}`); }}>Profile & security</Button>
-              <Button variant="danger" onClick={() => { setUserOpen(false); session.logout(); }}>Sign out</Button>
-            </div>
-          </div>
-        </Modal>
-      )}
+      <LixiPanel />
       {searchOpen && <GlobalSearch onClose={() => setSearchOpen(false)} />}
       {helpOpen && (
         <Modal open onClose={() => setHelpOpen(false)} title="Keyboard shortcuts" description="Press ? anywhere to toggle this list." width={480}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
-            {[[`${isWin ? 'Ctrl' : '⌘'} K`, 'Global search — documents, parties, items, menu'], ['?', 'Show / hide keyboard shortcuts'], ['Esc', 'Close drawer, dialog or menu'], ['↑ ↓ Enter', 'Move and pick in lists and pickers'], ['Tab', 'Next field; in a line grid moves across the row'], ['Enter', 'Confirm the primary action in a form']].map(([k, v]) => (
+            {[[`${isWin ? 'Ctrl' : '⌘'} K`, 'Global search — documents, parties, items, menu'], [`${isWin ? 'Ctrl' : '⌘'} J`, 'Open / close Lixi'], ['?', 'Show / hide keyboard shortcuts'], ['Esc', 'Close drawer, dialog or menu'], ['↑ ↓ Enter', 'Move and pick in lists and pickers'], ['Tab', 'Next field; in a line grid moves across the row'], ['Enter', 'Confirm the primary action in a form']].map(([k, v]) => (
               <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--hairline)' }}><span style={{ color: 'var(--ink-3)' }}>{v}</span><span style={{ display: 'flex', gap: 4 }}>{k.split(' ').map((x, i) => <Kbd key={i}>{x}</Kbd>)}</span></div>
             ))}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
@@ -406,7 +382,7 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
   );
 }
 
-function Dropdown({ children, onClose, width = 260, align = 'right', top, sheet }: { children: ReactNode; onClose: () => void; width?: number; align?: 'left' | 'right'; top?: number; sheet?: boolean }) {
+function Dropdown({ children, onClose, width = 260, align = 'right', top, sheet, placement = 'down' }: { children: ReactNode; onClose: () => void; width?: number; align?: 'left' | 'right'; top?: number; sheet?: boolean; placement?: 'down' | 'up' }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setTimeout(onClose, 0); };
@@ -414,6 +390,7 @@ function Dropdown({ children, onClose, width = 260, align = 'right', top, sheet 
     return () => document.removeEventListener('mousedown', h);
   }, [onClose]);
   if (sheet) return <div ref={ref} className="menu mobile-sheet" style={{ zIndex: 60 }}>{children}</div>;
+  if (placement === 'up') return <div ref={ref} className="menu up" style={{ [align === 'left' ? 'left' : 'right']: align === 'left' ? 8 : 0, width, zIndex: 60 }}>{children}</div>;
   return <div ref={ref} className="menu" style={{ [align === 'left' ? 'left' : 'right']: align === 'left' ? 8 : 0, top: top ?? '100%', marginTop: 4, width, zIndex: 60 }}>{children}</div>;
 }
 
@@ -481,7 +458,9 @@ const DOC_SOURCES: { col: string; label: string; path: (r: any) => string; secon
 // Recent destinations when empty; pages (modules and their sub-pages), quick actions, documents, parties,
 // items and accounts as you type. Results are grouped, keyboard-driven, and the match is highlighted.
 
-type PaletteRow = { key: string; group: string; primary: string; secondary?: string; path: string; icon: ComponentType<{ size?: number }>; hint?: string };
+type PaletteRow = { key: string; group: string; primary: string; secondary?: string; path: string; icon: ComponentType<{ size?: number }>; hint?: string; action?: () => void };
+const LixiRowIcon = ({ size = 15 }: { size?: number }) => <LixiMark size={size} />;
+const askLixiRow = (term: string): PaletteRow => ({ key: 'a:lixi', group: 'Actions', primary: term ? `Ask Lixi: "${term}"` : 'Ask Lixi', secondary: 'AI assistant · preview', path: '', icon: LixiRowIcon, hint: 'Lixi', action: () => lixi.open(term || undefined) });
 const RECENT_KEY = 'eb-recent-nav';
 const readRecent = (): PaletteRow[] => { try { return JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]'); } catch { return []; } };
 const pushRecent = (row: PaletteRow) => {
@@ -490,7 +469,7 @@ const pushRecent = (row: PaletteRow) => {
     localStorage.setItem(RECENT_KEY, JSON.stringify(next));
   } catch { /* ignore */ }
 };
-const GROUP_ORDER_PALETTE = ['Recent', 'Pages', 'Actions', 'Documents', 'Parties', 'Items', 'People', 'Other'];
+const GROUP_ORDER_PALETTE = ['Recent', 'Pages', 'Settings', 'Actions', 'Documents', 'Parties', 'Items', 'People', 'Other'];
 const groupOf = (label: string) => (label === 'Customer' || label === 'Supplier' ? 'Parties' : label === 'Item' ? 'Items' : label === 'Employee' ? 'People' : label === 'Asset' || label === 'Project' ? 'Other' : 'Documents');
 const iconOf = (label: string): ComponentType<{ size?: number }> => (label === 'Page' ? ArrowRightIcon : label === 'Action' ? PlusIcon : label === 'Customer' || label === 'Supplier' ? UsersIcon : label === 'Item' ? PackageIcon : label === 'Employee' ? UserIcon : label === 'Journal' ? BookOpenIcon : label === 'Receipt' || label === 'Payment' ? CreditCardIcon : FileTextIcon);
 
@@ -506,13 +485,14 @@ function GlobalSearch({ onClose }: { onClose: () => void }) {
   const [hi, setHi] = useState(0);
   const s = useSession();
   const subNavs = useSubNavs();
+  const settings = useSetupSections();
   const listRef = useRef<HTMLDivElement>(null);
   const isWin = typeof navigator !== 'undefined' && /Win/.test(navigator.platform);
 
   const rows = useMemo<PaletteRow[]>(() => {
     const term = q.trim().toLowerCase();
     if (!term) {
-      return readRecent().map((r) => ({ ...r, group: 'Recent', icon: iconOf(r.hint ?? '') }));
+      return [...readRecent().map((r) => ({ ...r, group: 'Recent', icon: iconOf(r.hint ?? '') })), askLixiRow('')];
     }
     const out: PaletteRow[] = [];
     const visible = MODULES.filter((m) => (m.platformOnly ? s.isPlatformAdmin : s.entitled(m.id)) && (!m.permission || s.canModule(m.permission)));
@@ -522,6 +502,9 @@ function GlobalSearch({ onClose }: { onClose: () => void }) {
         if (i.label.toLowerCase().includes(term)) out.push({ key: `p:${m.id}/${i.id}`, group: 'Pages', primary: i.label, secondary: m.label, path: `${m.id}/${i.id}`, icon: m.icon, hint: 'Page' });
       });
     });
+    settings.forEach((sec) => sec.cards.forEach((card) => card.links.forEach((l) => {
+      if (l.label.toLowerCase().includes(term) || card.title.toLowerCase().includes(term) || (l.keywords ?? '').includes(term)) out.push({ key: `s:${l.id}`, group: 'Settings', primary: l.label, secondary: `All Settings · ${card.title}`, path: l.id, icon: CogIcon, hint: 'Setting' });
+    })));
     const actions: { label: string; path: string; perm: string }[] = [
       { label: 'New sales invoice', path: 'sales/invoices/new', perm: 'sales.invoice.create' },
       { label: 'New quotation', path: 'sales/quotations/new', perm: 'sales.quotation.create' },
@@ -539,10 +522,10 @@ function GlobalSearch({ onClose }: { onClose: () => void }) {
       });
     });
     out.sort((a, b) => GROUP_ORDER_PALETTE.indexOf(a.group) - GROUP_ORDER_PALETTE.indexOf(b.group));
-    return out.slice(0, 40);
-  }, [q, s, subNavs]);
+    return [...out.slice(0, 40), askLixiRow(q.trim())];
+  }, [q, s, subNavs, settings]);
 
-  const go = (row: PaletteRow) => { pushRecent(row); nav.go(row.path); onClose(); };
+  const go = (row: PaletteRow) => { if (row.action) { row.action(); onClose(); return; } pushRecent(row); nav.go(row.path); onClose(); };
   useEffect(() => { setHi(0); }, [q]);
   useEffect(() => { listRef.current?.querySelector<HTMLElement>('[data-hi="true"]')?.scrollIntoView({ block: 'nearest' }); }, [hi]);
 

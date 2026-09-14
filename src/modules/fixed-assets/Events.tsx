@@ -70,7 +70,7 @@ export function DisposeDrawer({ asset, onClose }: { asset: Asset | null; onClose
   const gain = asset ? f.proceeds - nbv(asset) : 0;
   return (
     <>
-      <Drawer open={!!asset && !confirm} onClose={onClose} title={asset ? `Dispose ${asset.number}` : ''} subtitle={asset ? `${asset.name} · NBV ${fmtMoney(nbv(asset), s.currency)} · accumulated ${fmtMoney(accumulated(asset), s.currency)}` : ''} width={520} footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="danger" onClick={() => setConfirm(true)} disabled={f.reason.trim().length < 10}>Review disposal</Button></>}>
+      <Drawer open={!!asset && !confirm} onClose={onClose} title={asset ? `Dispose ${asset.number}` : ''} subtitle={asset ? `${asset.name} · NBV ${fmtMoney(nbv(asset), s.currency)} · accumulated ${fmtMoney(accumulated(asset), s.currency)}` : ''} width={520} footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="tinted" tone="danger" onClick={() => setConfirm(true)} disabled={f.reason.trim().length < 10}>Review disposal</Button></>}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <DateField label="Disposal date" value={f.date} onChange={(v) => setF({ ...f, date: v })} checkPeriod required />
           <MoneyField label="Sale proceeds" value={f.proceeds} onChange={(v) => setF({ ...f, proceeds: v })} help="0 for scrapping / write-off" />

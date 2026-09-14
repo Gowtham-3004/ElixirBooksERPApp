@@ -32,7 +32,7 @@ export default function DataDemo() {
         </Card>
         <Card title="Reset demo data">
           <p style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 12 }}>Clears everything you changed and reseeds the demo dataset (Acme Group, two companies, {db.get(C.users).length} users). You will be signed out.</p>
-          <Button variant="danger" onClick={() => setReset(true)} disabled={!canManage} reason={canManage ? undefined : 'Requires admin.data permission'}>Reset demo data</Button>
+          <Button variant="tinted" tone="danger" onClick={() => setReset(true)} disabled={!canManage} reason={canManage ? undefined : 'Requires admin.data permission'}>Reset demo data</Button>
         </Card>
       </div>
       <Card title="Collections">

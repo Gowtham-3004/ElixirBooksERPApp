@@ -189,7 +189,7 @@ export function RevaluationPage() {
           <TextArea label="Reason / note" value={reason} onChange={setReason} rows={2} placeholder="Quarter-end close…" />
           {dup && <div className="banner danger">Duplicate: {dup.number} already revalued {currency} for {period}. Reverse it to re-run.</div>}
           {!periodChk.ok && <div className="banner warning">{periodChk.reason}</div>}
-          <Button variant="primary" onClick={() => setConfirm(true)} disabled={!canPost || !chosen || !!dup || !preview.length || (!periodChk.ok && !s.can('accounting.period.postclosed'))} reason={!canPost ? 'Requires post permission' : !chosen ? 'Approved closing rate required' : dup ? 'Duplicate run' : !preview.length ? 'Nothing to revalue' : undefined}>Post revaluation</Button>
+          <Button variant="primary" tone="good" onClick={() => setConfirm(true)} disabled={!canPost || !chosen || !!dup || !preview.length || (!periodChk.ok && !s.can('accounting.period.postclosed'))} reason={!canPost ? 'Requires post permission' : !chosen ? 'Approved closing rate required' : dup ? 'Duplicate run' : !preview.length ? 'Nothing to revalue' : undefined}>Post revaluation</Button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
@@ -222,7 +222,7 @@ export function RevaluationPage() {
                   <td>{r.journalId ? <span className="identifier link" onClick={() => nav.go(journalLink(r.journalId!))}>{r.journalNumber}</span> : '—'}</td>
                   <td>{rev ? <span className="identifier link" onClick={() => nav.go(journalLink(rev.id))}>{rev.number} · {fmtDate(rev.date)}</span> : r.autoReverse ? <span style={{ color: 'var(--ink-3)' }}>auto on {fmtDate(addDays(r.asOf, 1))}</span> : '—'}</td>
                   <td><Badge status={r.status} /></td>
-                  <td>{r.status === 'Posted' && <Button size="sm" variant="secondary" disabled={!canPost} onClick={() => setReverse(r)}>Reverse</Button>}</td>
+                  <td>{r.status === 'Posted' && <Button size="sm" variant="tinted" tone="danger" disabled={!canPost} onClick={() => setReverse(r)}>Reverse</Button>}</td>
                 </tr>
               ); })}
               {!runs.length && <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ink-3)', padding: 24 }}>No revaluation runs yet</td></tr>}

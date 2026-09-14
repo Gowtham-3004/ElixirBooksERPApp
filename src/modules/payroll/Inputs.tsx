@@ -41,7 +41,7 @@ export function InputsPage() {
         <div><h1 className="page-title">Payroll inputs</h1><div className="page-subtitle"><ScopeLine extra={`${periodLabel(period)} · ${rows.length} employees`} /></div></div>
         <div style={{ display: 'flex', gap: 8 }}>
           <Button variant="secondary" onClick={() => { const n = ensureInputs(period); toast.success(`${n.length} input rows ready for ${periodLabel(period)}`); }} disabled={locked}>Prepare rows</Button>
-          <Button variant="primary" onClick={() => setApproveOpen(true)} disabled={!rows.length || locked || rows.every((r) => r.status === 'Approved')} reason={locked ? 'Locked by finalized run' : undefined}>Approve inputs</Button>
+          <Button variant="primary" tone="good" onClick={() => setApproveOpen(true)} disabled={!rows.length || locked || rows.every((r) => r.status === 'Approved')} reason={locked ? 'Locked by finalized run' : undefined}>Approve inputs</Button>
         </div>
       </div>
       <div className="card toolbar" style={{ padding: '10px 14px', gap: 12, alignItems: 'flex-end' }}>

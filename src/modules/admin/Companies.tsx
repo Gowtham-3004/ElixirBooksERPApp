@@ -1,6 +1,6 @@
 // Companies (admin/companies, FR-ORG-001): tenant-owner list of legal entities with add-within-plan-limit and switch.
-import { useState } from 'react';
-import { db, C, engine, nav, session, useCollection, useSession } from '../../store';
+import { useEffect, useState } from 'react';
+import { db, C, engine, nav, session, useCollection, useRoute, useSession } from '../../store';
 import type { Company, Tenant, Branch, Plan, User } from '../../store';
 import { fmtDate } from '../../lib/format';
 import { PageHeader, Card, Button, Badge, Drawer, TextField, SelectField, RadioCards, Meter, Banner, KV, useToast, EmptyState } from '../../components/ui';
@@ -15,7 +15,10 @@ export default function Companies() {
   const plan = s.plan as Plan | undefined;
   const limit = plan?.limits.companies ?? 1;
   const atLimit = companies.length >= limit;
-  const [open, setOpen] = useState(false);
+  const route = useRoute();
+  // #/admin/companies?new=1 (from the company picker) lands straight in the Add company drawer
+  const [open, setOpen] = useState(route.params.new === '1');
+  useEffect(() => { if (route.params.new === '1') nav.replace('admin/companies'); }, [route.params.new]);
   const [f, setF] = useState({ name: '', country: 'IN', nature: 'Trading' as Company['nature'], fyStart: 4 });
 
   if (!s.isTenantOwner) {

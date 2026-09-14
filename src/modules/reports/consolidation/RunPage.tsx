@@ -64,7 +64,7 @@ export function RunPage({ id }: { id: string }) {
           <Button variant="secondary" onClick={() => nav.go('reports/consolidation/statements', { run: run.id })} disabled={!run.translatedLines.length} reason={!run.translatedLines.length ? 'Translate first' : undefined}>Translated statements</Button>
           {!frozen && <Button variant="secondary" onClick={() => setConfirm('retranslate')}>{run.translatedAt ? 'Re-translate' : 'Translate'}</Button>}
           {!frozen && <Button variant="primary" onClick={() => setConfirm('finalize')} disabled={!run.translatedLines.length || !!proposed.length} reason={!run.translatedLines.length ? 'Translate first' : proposed.length ? `${proposed.length} elimination(s) still proposed` : undefined}>Finalize run</Button>}
-          {run.status === 'Final' && <Button variant="danger" onClick={() => setConfirm('reverse')}>Reverse run</Button>}
+          {run.status === 'Final' && <Button variant="tinted" tone="danger" onClick={() => setConfirm('reverse')}>Reverse run</Button>}
         </>}
       />
 
@@ -206,7 +206,7 @@ export function RunPage({ id }: { id: string }) {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
                     {j.approvalId && <Button variant="secondary" size="sm" onClick={() => nav.go('approvals', { id: j.approvalId })}>Open approval</Button>}
-                    {j.status === 'Approved' && <Button variant="primary" size="sm" onClick={() => act(() => postApprovedAdjustment(j.id), 'Adjustment posted to the group book')}>Post adjustment</Button>}
+                    {j.status === 'Approved' && <Button variant="primary" tone="good" size="sm" onClick={() => act(() => postApprovedAdjustment(j.id), 'Adjustment posted to the group book')}>Post adjustment</Button>}
                     {j.status === 'Posted' && <Button variant="secondary" size="sm" disabled={!canAct} reason={frozen ? 'Run is frozen' : undefined} onClick={() => setReverseAdj(j)}>Reverse adjustment</Button>}
                   </div>
                 </div>

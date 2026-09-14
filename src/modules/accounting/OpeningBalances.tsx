@@ -118,7 +118,7 @@ export function OpeningBalancesPage() {
   return (
     <div className="page">
       <PageHeader title="Opening balances" subtitle={<ScopeLine extra={`as at ${fmtDate(obDate)} · ${alreadyPosted.length ? `${alreadyPosted.length} opening journal(s) posted` : 'not yet posted'}`} />}
-        actions={<><Button variant="secondary" onClick={() => setImp(true)}>Import CSV</Button><Button variant="primary" onClick={() => setConfirm(true)} disabled={!canPost || (!deltas.length && !parties.some((p) => !existingOpenItemIds.has(p.id)))} reason={!canPost ? 'Requires post permission' : !deltas.length ? 'No changes to post' : undefined}>Post opening balances</Button></>} />
+        actions={<><Button variant="secondary" onClick={() => setImp(true)}>Import CSV</Button><Button variant="primary" tone="good" onClick={() => setConfirm(true)} disabled={!canPost || (!deltas.length && !parties.some((p) => !existingOpenItemIds.has(p.id)))} reason={!canPost ? 'Requires post permission' : !deltas.length ? 'No changes to post' : undefined}>Post opening balances</Button></>} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
         <KpiTile label="Total debits" amount={totalDr} currency={s.currency} />
         <KpiTile label="Total credits" amount={totalCr} currency={s.currency} />

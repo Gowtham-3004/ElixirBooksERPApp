@@ -6,7 +6,8 @@ import type { User, Role, Tenant, Company, AuditEvent } from '../../store';
 import Login from './Login';
 import Register from './Register';
 import Onboarding from './Onboarding';
-import { Button, TwoLine, Badge } from '../../components/ui/primitives';
+import ChooseCompany from './ChooseCompany';
+import { Button, Badge } from '../../components/ui/primitives';
 import { TextField, Toggle } from '../../components/ui/fields';
 import { Frame, PasswordMeter, passwordStrength, deviceTrust } from './Frame';
 import { fmtDateTime } from '../../lib/format';
@@ -164,23 +165,3 @@ function AcceptInvitation() {
   );
 }
 
-function ChooseCompany() {
-  const s = useSession();
-  const [q, setQ] = useState('');
-  const list = s.companies.filter((c) => `${c.legalName} ${c.tradeName} ${c.country}`.toLowerCase().includes(q.toLowerCase()));
-  return (
-    <Frame title="Choose a company" subtitle={`${s.user?.name}, you have access to ${s.companies.length} companies. Permissions, defaults, currency and periods follow the company you pick.`}>
-      <TextField value={q} onChange={setQ} placeholder="Search companies…" autoFocus />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 12 }}>
-        {list.map((c) => (
-          <button key={c.id} type="button" className="menu-item" style={{ height: 'auto', padding: '10px 12px', border: '1px solid var(--line)' }} onClick={() => session.chooseCompany(c.id)}>
-            <div style={{ width: 28, height: 28, borderRadius: 7, background: c.brandColor ?? 'var(--accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, marginRight: 8 }}>{c.logoText ?? c.legalName[0]}</div>
-            <TwoLine primary={c.legalName} secondary={`${c.country} · ${c.baseCurrency} · ${c.nature}`} />
-          </button>
-        ))}
-        {list.length === 0 && <div style={{ fontSize: 13, color: 'var(--ink-3)', padding: 8 }}>No company matches "{q}".</div>}
-      </div>
-      <Button variant="link" style={{ marginTop: 16 }} onClick={() => session.logout()}>Sign out</Button>
-    </Frame>
-  );
-}

@@ -64,25 +64,25 @@ export function JournalPage({ id }: { id: string }) {
   const footer = (
     <>
       {j.status === 'Draft' && <>
-        <Button variant="danger" onClick={() => setDel(true)} disabled={!canEdit}>Delete draft</Button>
+        <Button variant="tinted" tone="danger" onClick={() => setDel(true)} disabled={!canEdit}>Delete draft</Button>
         <Button variant="secondary" onClick={() => nav.go(`accounting/journals/${j.id}?edit=1`)} disabled={!canEdit} reason={canEdit ? undefined : 'Requires journal edit permission'}>Edit</Button>
-        {workflow ? <Button variant="primary" onClick={() => setSubmit(true)} disabled={!canSubmit} reason={canSubmit ? undefined : 'Requires submit permission'}>Submit for approval</Button> : <Button variant="primary" onClick={() => setPost(true)} disabled={!canPost || !period.ok} reason={!canPost ? 'Requires post permission' : !period.ok ? period.reason : undefined}>Post journal</Button>}
+        {workflow ? <Button variant="primary" onClick={() => setSubmit(true)} disabled={!canSubmit} reason={canSubmit ? undefined : 'Requires submit permission'}>Submit for approval</Button> : <Button variant="primary" tone="good" onClick={() => setPost(true)} disabled={!canPost || !period.ok} reason={!canPost ? 'Requires post permission' : !period.ok ? period.reason : undefined}>Post journal</Button>}
       </>}
       {j.status === 'Submitted' && <>
         {canAct.ok ? <>
           <Button variant="secondary" onClick={() => { setDecide('Return'); setComment(''); }}>Return for changes</Button>
-          <Button variant="danger" onClick={() => { setDecide('Reject'); setComment(''); }}>Reject</Button>
-          <Button variant="primary" onClick={() => { setDecide('Approve'); setComment(''); }}>Approve</Button>
+          <Button variant="tinted" tone="danger" onClick={() => { setDecide('Reject'); setComment(''); }}>Reject</Button>
+          <Button variant="primary" tone="good" onClick={() => { setDecide('Approve'); setComment(''); }}>Approve</Button>
         </> : <>
           <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{canAct.reason ?? 'Awaiting approval'}</span>
           {req?.requesterId === s.user?.id && <Button variant="secondary" onClick={() => run(() => engine.actOnApproval(req!.id, 'Recall', { comment: 'Recalled by requester' }), 'Recalled to draft')}>Recall</Button>}
         </>}
       </>}
       {(j.status === 'Returned' as string || j.status === 'Rejected') && <Button variant="secondary" onClick={() => nav.go(`accounting/journals/${j.id}?edit=1`)} disabled={!canEdit}>Edit and resubmit</Button>}
-      {j.status === 'Approved' && <Button variant="primary" onClick={() => setPost(true)} disabled={!canPost || !period.ok} reason={!canPost ? 'Requires post permission' : !period.ok ? period.reason : undefined}>Post journal</Button>}
+      {j.status === 'Approved' && <Button variant="primary" tone="good" onClick={() => setPost(true)} disabled={!canPost || !period.ok} reason={!canPost ? 'Requires post permission' : !period.ok ? period.reason : undefined}>Post journal</Button>}
       {j.status === 'Posted' && <>
         <Button variant="secondary" onClick={() => nav.go(`accounting/journals/new?from=${j.id}`)} disabled={!canEdit}>Duplicate</Button>
-        <Button variant="danger" onClick={() => setReverse(true)} disabled={!canPost || !period.ok} reason={!canPost ? 'Requires post permission' : !period.ok ? period.reason : undefined}>Reverse</Button>
+        <Button variant="tinted" tone="danger" onClick={() => setReverse(true)} disabled={!canPost || !period.ok} reason={!canPost ? 'Requires post permission' : !period.ok ? period.reason : undefined}>Reverse</Button>
       </>}
       {j.status === 'Reversed' && reversal && <Button variant="secondary" onClick={() => nav.go(journalLink(reversal.id))}>View reversal {reversal.number}</Button>}
     </>

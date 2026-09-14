@@ -2,7 +2,7 @@
 // and routing. Each module lives in src/modules/<id>/index.tsx and renders its
 // own sub-routes from the Route it receives.
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
-import type { Route } from '../store';
+import type { Route, Scope } from '../store';
 import {
   HomeIcon, CheckCircleIcon, UsersIcon, ReceiptIcon, ShoppingCartIcon, PackageIcon, MonitorIcon, BookOpenIcon, BuildingIcon,
   PercentIcon, CreditCardIcon, LayersIcon, BarChartIcon, DatabaseIcon, CogIcon, FileTextIcon, ShieldCheckIcon, FactoryIcon, WalletIcon,
@@ -50,9 +50,24 @@ export const MODULES: ModuleDef[] = [
   { id: 'masters', label: 'Masters & Imports', group: 'SETUP', icon: DatabaseIcon, component: lazy(() => import('./masters')), permission: 'masters', description: 'All master registers with forms and import wizard' },
   { id: 'admin', label: 'Company Administration', group: 'SETUP', icon: CogIcon, component: lazy(() => import('./admin')), permission: 'admin', description: 'Company, branches, periods, users, roles, numbering, workflows, templates, localization, plan, audit, integrations' },
   { id: 'platform', label: 'Platform Administration', group: 'PLATFORM', icon: ShieldCheckIcon, component: lazy(() => import('./platform')), platformOnly: true, description: 'Plans, tenants, subscriptions, usage' },
+  // the All Settings hub — open to every signed-in user; each card link is gated on its own
+  { id: 'setup', label: 'All Settings', group: 'SETUP', icon: CogIcon, component: lazy(() => import('./setup')), description: 'Organization, module and developer settings in one place' },
 ];
 
 export const GROUP_ORDER: NavGroup[] = ['WORKSPACE', 'OPERATIONS', 'FINANCE', 'INSIGHT', 'SETUP', 'PLATFORM'];
+/** Groups the app sidebar lists — SETUP and PLATFORM live behind the Setup hub instead. */
+export const SIDEBAR_GROUPS: NavGroup[] = ['WORKSPACE', 'OPERATIONS', 'FINANCE', 'INSIGHT'];
+
+/** Modules the signed-in user can see: platform gate, plan entitlement, operating profile, permission. */
+export function visibleModuleIds(s: Scope): string[] {
+  return MODULES.filter((m) => {
+    if (m.platformOnly) return s.isPlatformAdmin;
+    if (!s.entitled(m.id)) return false;
+    if (m.profiles && s.profiles.length && !m.profiles.some((p) => s.profiles.includes(p))) return false;
+    if (m.permission && !s.canModule(m.permission)) return false;
+    return true;
+  }).map((m) => m.id);
+}
 
 export function moduleById(id: string): ModuleDef | undefined {
   return MODULES.find((m) => m.id === id);
