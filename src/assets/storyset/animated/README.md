@@ -28,5 +28,4 @@ Optional dark variant: colour `#6B85F2`, background `#171A1F`, saved as `<name>.
 | `no-connection.gif` | https://storyset.com/illustration/no-connection/rafiki | offline (POS pause, failed chunk load) |
 | `loading.gif` | https://storyset.com/illustration/loading/rafiki | `LoadingOverlay art` |
 
-Licence: Storyset free licence, attribution required — the app credits "Illustrations by Storyset" on the auth
-screens and under Help → About. Terms: https://storyset.com/terms
+Licence: Storyset free licence, attribution required — the app credits Storyset under Help → About. Terms: https://storyset.com/terms

@@ -9,13 +9,12 @@ export function BrandMark({ size = 36, light }: { size?: number; light?: boolean
   return <Logomark size={size} light={light} />;
 }
 
-/** Full-viewport canvas behind every auth card: token gradients, a faint Storyset scene, and the licence credit. */
+/** Full-viewport canvas behind every auth card: token gradients and a faint Storyset scene. */
 export function Backdrop({ children, scene = 'investing' }: { children: ReactNode; scene?: StorysetName }) {
   return (
     <div className="auth-backdrop" style={{ minHeight: '100vh', background: AUTH_BG, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontVariantNumeric: 'normal' }}>
       <Storyset name={scene} className="auth-backdrop-art" bg={false} />
       {children}
-      <div className="auth-attrib">Illustrations by <a href="https://storyset.com" target="_blank" rel="noreferrer">Storyset</a></div>
     </div>
   );
 }
