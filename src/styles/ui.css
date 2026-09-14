@@ -153,7 +153,10 @@ html { -webkit-text-size-adjust: 100%; }
 .sidebar.collapsed { width: 64px; }
 .sidebar-scrim { display: none; }
 .shell-header .hamburger { display: none; }
-.crumbs { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; overflow: hidden; }
+.crumbs { display: flex; align-items: center; gap: 4px; flex: 1 1 0; min-width: 0; overflow: hidden; }
+/* left crumbs and right actions share the leftover width equally so the search bar sits at the true centre */
+.shell-header-actions { flex: 1 1 0; justify-content: flex-end; }
+.shell-search { width: 360px; max-width: 34vw; flex-shrink: 1; justify-content: flex-start; gap: 8px; color: #5F6368; font-weight: 400; font-feature-settings: normal; }
 .crumbs > span { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
 .tab-strip { display: flex; border-bottom: 1px solid #EFEFEF; margin-top: -4px; overflow-x: auto; scrollbar-width: none; }
 .tab-strip::-webkit-scrollbar { display: none; }

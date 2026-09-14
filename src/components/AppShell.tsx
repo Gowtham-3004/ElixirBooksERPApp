@@ -211,14 +211,15 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
               </span>
             ))}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          {!compact && (
+            <button type="button" className="btn-secondary btn-sm shell-search" onClick={() => setSearchOpen(true)}>
+              <SearchIcon size={13} /> <span style={{ flex: 1, textAlign: 'left' }}>Search</span> <Kbd>{isWin ? 'Ctrl K' : '⌘K'}</Kbd>
+            </button>
+          )}
+          <div className="shell-header-actions" style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
             {!compact && contextControls}
-            {compact ? (
+            {compact && (
               <button type="button" className="btn-ghost" style={{ padding: '0 8px' }} aria-label="Search" onClick={() => setSearchOpen(true)}><SearchIcon size={16} /></button>
-            ) : (
-              <button type="button" className="btn-secondary btn-sm" style={{ gap: 6, color: '#5F6368', fontFeatureSettings: 'normal', fontWeight: 400 }} onClick={() => setSearchOpen(true)}>
-                <SearchIcon size={13} /> Search <Kbd>{isWin ? 'Ctrl K' : '⌘K'}</Kbd>
-              </button>
             )}
             {!compact && (
               <button type="button" className="btn-ghost" style={{ padding: '0 8px' }} title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" onClick={() => setHelpOpen(true)}>
