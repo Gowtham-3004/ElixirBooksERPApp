@@ -17,7 +17,7 @@ export default function Module({ route }: ModuleProps) {
   const s = useSession();
   const items = reportsNav(s);
   return (
-    <ModuleShell module="reports" title="Reports & CFO dashboard" items={items} defaultSub="dashboard">
+    <ModuleShell module="reports" title="Reports" items={items} defaultSub="dashboard">
       {(sub) => {
         if (!s.can('reports.view') && !s.can('reports.*') && !s.permissions.some((p) => p.startsWith('reports.'))) return <NoPermission what="Reports" />;
         switch (sub) {
