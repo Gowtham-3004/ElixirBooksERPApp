@@ -150,9 +150,9 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
                 )}
               </span>
             )}
-            <span style={{ padding: '2px 8px', background: 'var(--surface-3)', borderRadius: 9999, fontSize: 12, color: 'var(--ink-3)', fontVariantNumeric: 'normal' }}>FY {s.state.fy ?? '—'}</span>
+            <span style={{ padding: '2px 8px', background: 'var(--surface-3)', borderRadius: 9999, fontSize: 12, color: 'var(--ink-3)', fontVariantNumeric: 'normal', whiteSpace: 'nowrap' }}>FY {s.state.fy ?? '—'}</span>
             <span style={{ position: 'relative' }}>
-              <button type="button" onClick={() => setPeriodOpen(!periodOpen)} style={{ padding: '2px 8px', background: periodTone.bg, borderRadius: 9999, fontSize: 12, color: periodTone.fg, display: 'flex', alignItems: 'center', gap: 5, fontVariantNumeric: 'normal', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+              <button type="button" onClick={() => setPeriodOpen(!periodOpen)} style={{ padding: '2px 8px', background: periodTone.bg, borderRadius: 9999, fontSize: 12, color: periodTone.fg, display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap', fontVariantNumeric: 'normal', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
                 {s.period?.status === 'Locked' ? <LockIcon size={10} /> : <span style={{ width: 6, height: 6, borderRadius: '50%', background: periodTone.fg, display: 'inline-block' }} />}
                 {s.period?.label ?? fmtPeriod(s.state.periodCode)}
               </button>

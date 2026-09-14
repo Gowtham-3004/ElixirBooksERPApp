@@ -20,25 +20,25 @@
   --surface: #FFFFFF;
   --surface-2: #F8F8F7;
   --surface-3: #F1F1F0;
-  --neutral-bg: #E8E9EB;
+  --neutral-bg: #ECEDEF;
   /* accent — primary actions, links, active tabs, focus, selection */
-  --accent: #325CFF;
-  --accent-hover: #2A50E6;
-  --accent-active: #2446D6;
-  --accent-soft: #EEF2FF;
-  --accent-tint: #F5F7FF;
-  --accent-line: #D6E0FF;
-  /* semantic */
-  --good: #12784E;   --good-bg: #E6F7EE;   --good-line: #3FA97A;
-  --warn: #8A4B0F;   --warn-bg: #FCF1E6;   --warn-line: #E29A4B;
-  --danger: #C0393F; --danger-hover: #A8323A; --danger-bg: #FCEBEC; --danger-line: #E0455A;
-  --info: #3E5BA5;   --info-bg: #EAF2FB;
+  --accent: #3557CF;
+  --accent-hover: #2C4BB8;
+  --accent-active: #2540A0;
+  --accent-soft: #EDF1FB;
+  --accent-tint: #F5F7FD;
+  --accent-line: #CFD9F4;
+  /* semantic — quiet tints so a page full of status badges still reads as one surface */
+  --good: #1E6B47;   --good-bg: #E9F2ED;   --good-line: #7DB598;
+  --warn: #8A5A1B;   --warn-bg: #F6EFE4;   --warn-line: #D9AA66;
+  --danger: #B0383E; --danger-hover: #99303A; --danger-bg: #F8EAEA; --danger-line: #DB8A8E;
+  --info: #3A5893;   --info-bg: #EAEFF7;
   /* radii · shadows · ring · motion */
   --r-sm: 6px; --r-md: 8px; --r-lg: 12px;
   --shadow-sm: 0 1px 2px rgba(15,17,21,.04), 0 1px 1px rgba(15,17,21,.02);
   --shadow-md: 0 4px 12px rgba(15,17,21,.08), 0 1px 3px rgba(15,17,21,.06);
   --shadow-lg: 0 24px 48px -12px rgba(15,17,21,.22), 0 8px 24px rgba(15,17,21,.08), 0 0 0 1px rgba(15,17,21,.04);
-  --ring: 0 0 0 3px rgba(50,92,255,.16);
+  --ring: 0 0 0 3px rgba(53,87,207,.18);
   --ease: cubic-bezier(.2,.8,.2,1); --dur-fast: 120ms; --dur: 180ms;
 }
 
@@ -268,6 +268,10 @@ html, body, #root {
   vertical-align: middle;
 }
 .data-table td.right { text-align: right; }
+/* headers never wrap; register cells (DataTable) don't either — the wrapper scrolls sideways instead */
+.data-table th { white-space: nowrap; }
+.table-scroll .data-table td { white-space: nowrap; }
+.data-table td.wrap { white-space: normal; }
 .data-table tr:last-child td { border-bottom: none; }
 .data-table tr:hover td { background: var(--surface-2); }
 
@@ -303,7 +307,7 @@ html, body, #root {
 .cell-secondary { font-size: 12px; font-weight: 400; color: var(--ink-4); line-height: 16px; }
 
 /* Identifier style */
-.identifier { font-variant-numeric: tabular-nums slashed-zero; letter-spacing: 0.02em; }
+.identifier { font-variant-numeric: tabular-nums slashed-zero; letter-spacing: 0.02em; white-space: nowrap; }
 
 /* Input */
 .field-input {
