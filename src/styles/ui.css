@@ -198,9 +198,11 @@ html { -webkit-text-size-adjust: 100%; }
 .sidebar-fade { position: sticky; bottom: 0; height: 28px; margin-top: -28px; background: linear-gradient(to bottom, transparent, var(--bg)); pointer-events: none; }
 .sidebar-nav .section-label { padding: 6px 12px 2px; display: block; }
 /* branch · FY · period as one segmented control */
-.ctx-group { display: inline-flex; align-items: stretch; height: 32px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); box-shadow: var(--shadow-sm); overflow: hidden; }
+.ctx-group { display: inline-flex; align-items: stretch; height: 32px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); box-shadow: var(--shadow-sm); }
 .ctx-item { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; font-size: 12px; font-weight: 500; color: var(--ink-2); background: transparent; border: none; border-right: 1px solid var(--hairline); cursor: pointer; white-space: nowrap; font-family: inherit; font-variant-numeric: normal; transition: background var(--dur-fast) var(--ease); }
-.ctx-item:last-child { border-right: none; }
+.ctx-group > :first-child, .ctx-group > :first-child > .ctx-item { border-top-left-radius: var(--r-md); border-bottom-left-radius: var(--r-md); }
+.ctx-group > :last-child, .ctx-group > :last-child > .ctx-item { border-top-right-radius: var(--r-md); border-bottom-right-radius: var(--r-md); }
+.ctx-group > :last-child > .ctx-item, .ctx-item:last-child { border-right: none; }
 .ctx-item:hover { background: var(--surface-2); }
 .ctx-item.static { cursor: default; color: var(--ink-3); }
 .ctx-item.static:hover { background: transparent; }

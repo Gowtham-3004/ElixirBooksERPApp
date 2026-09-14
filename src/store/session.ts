@@ -120,7 +120,15 @@ export const session = {
     set({ branchId });
   },
   setPeriod(periodCode: string) {
-    set({ periodCode });
+    // picking a period in another fiscal year moves the FY with it
+    const p = db.where<Period>(C.periods, (x) => x.companyId === state.companyId && x.code === periodCode)[0];
+    set({ periodCode, fy: p?.fy ?? state.fy });
+  },
+  /** Switch fiscal year; the working period moves to that year's current/open month (or its first month). */
+  setFy(fy: string) {
+    const inYear = db.where<Period>(C.periods, (p) => p.companyId === state.companyId && p.fy === fy).sort((a, b) => a.code.localeCompare(b.code));
+    const target = inYear.find((p) => p.code === periodCodeOf(today())) ?? inYear.find((p) => p.status === 'Open' || p.status === 'Reopened') ?? inYear[0];
+    set({ fy, periodCode: target?.code ?? state.periodCode });
   },
   logout() {
     const user = db.find<User>(C.users, state.userId);

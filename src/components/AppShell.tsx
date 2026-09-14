@@ -28,6 +28,7 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
   const [sidebarCompanyOpen, setSidebarCompanyOpen] = useState(false);
   const [branchOpen, setBranchOpen] = useState(false);
   const [periodOpen, setPeriodOpen] = useState(false);
+  const [fyOpen, setFyOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.innerWidth < 1440);
@@ -154,7 +155,24 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
                 )}
               </span>
             )}
-            <span className="ctx-item static">FY {s.state.fy ?? '—'}</span>
+            <span style={{ position: 'relative', display: 'inline-flex' }}>
+              <button type="button" className="ctx-item" onClick={() => setFyOpen(!fyOpen)}>FY {s.state.fy ?? '—'} <ChevronDownIcon size={12} /></button>
+              {fyOpen && (
+                <Dropdown onClose={() => setFyOpen(false)} sheet={compact} width={220}>
+                  <div className="section-label" style={{ padding: '6px 10px' }}>Fiscal year</div>
+                  {Array.from(new Set(s.periods.map((p: Period) => p.fy))).sort().reverse().map((fy) => {
+                    const ps = s.periods.filter((p: Period) => p.fy === fy);
+                    const open = ps.filter((p: Period) => p.status === 'Open' || p.status === 'Reopened').length;
+                    return (
+                      <button key={fy} type="button" className="menu-item" style={{ background: fy === s.state.fy ? 'var(--accent-soft)' : undefined }} onClick={() => { session.setFy(fy); setFyOpen(false); }}>
+                        <span style={{ flex: 1 }}>FY {fy}</span>
+                        <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>{open ? `${open} open` : 'closed'}</span>
+                      </button>
+                    );
+                  })}
+                </Dropdown>
+              )}
+            </span>
             <span style={{ position: 'relative', display: 'inline-flex' }}>
               <button type="button" className="ctx-item" onClick={() => setPeriodOpen(!periodOpen)}>
                 {s.period?.status === 'Locked' ? <LockIcon size={11} /> : <span className="ctx-dot" style={{ background: periodTone.fg }} />}
