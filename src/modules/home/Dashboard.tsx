@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { db, C, engine, nav, useCollection, useSession } from '../../store';
 import type { Account, ApprovalRequest, Journal, OpenItem, Period, Company } from '../../store';
 import { fmtMoney, fmtMoneyCompact, fmtDate, fmtPct, daysBetween, today, addDays } from '../../lib/format';
-import { Badge, Button, KpiTile, Pill, Identifier, Money, Checklist, EmptyState } from '../../components/ui';
+import { Badge, Button, KpiTile, Pill, Identifier, Money, Checklist, EmptyState, BarChart } from '../../components/ui';
 import { readinessFor } from '../auth/provision';
 import { TrendingUpIcon, TrendingDownIcon, RefreshIcon, PlusIcon } from '../../components/Icons';
 
@@ -58,6 +58,29 @@ export default function Dashboard() {
     const cashAccounts = accounts.filter((a) => a.companyId === cid && a.status === 'Active' && (a.controlType === 'Bank' || a.controlType === 'Cash'));
     const cash = cashAccounts.reduce((a, acc) => a + engine.accountBalance(acc.id, { companyId: cid }).net, 0);
     return { revenue, delta, count: inPeriod(periodCode).length, arOut, arCount: ar.length, arOverdue: arOverdue.length, arOverdueAmt: arOverdue.reduce((a, o) => a + o.baseOutstanding, 0), apOut, apCount: ap.length, apDue7: apDue7.length, cash, cashAccounts: cashAccounts.length };
+  }, [invoices, openItems, accounts, cid, periodCode]);
+
+  // 7 month-end snapshots behind each KPI: revenue per month, AR/AP outstanding at month-end, cash book balance
+  const trends = useMemo(() => {
+    const months: string[] = [];
+    let code = periodCode;
+    for (let i = 0; i < 7; i++) { months.unshift(code); code = prevPeriodCode(code); }
+    const endOf = (m: string) => { const [y, mo] = m.split('-').map(Number); return `${m}-${String(new Date(y, mo, 0).getDate()).padStart(2, '0')}`; };
+    const posted = invoices.filter((i) => i.companyId === cid && i.status === 'Posted');
+    const outstandingAt = (partyType: 'Customer' | 'Supplier', end: string) => openItems
+      .filter((o) => o.companyId === cid && o.partyType === partyType && o.status !== 'Written Off' && o.date <= end)
+      .reduce((a, o) => {
+        const settled = (o.settlements ?? []).filter((st) => st.date <= end).reduce((x, st) => x + (st.baseAmount ?? st.amount), 0);
+        const open = Math.max(0, o.baseAmount - settled);
+        return a + (o.direction === 'Debit' ? open : -open);
+      }, 0);
+    const cashAccounts = accounts.filter((a) => a.companyId === cid && a.status === 'Active' && (a.controlType === 'Bank' || a.controlType === 'Cash'));
+    return {
+      revenue: months.map((m) => posted.filter((i) => String(i.date).slice(0, 7) === m).reduce((a, i) => a + (i.totals?.baseTotal ?? i.totals?.total ?? 0), 0)),
+      ar: months.map((m) => outstandingAt('Customer', endOf(m))),
+      ap: months.map((m) => outstandingAt('Supplier', endOf(m))),
+      cash: months.map((m) => cashAccounts.reduce((a, acc) => a + engine.accountBalance(acc.id, { companyId: cid, to: endOf(m) }).net, 0)),
+    };
   }, [invoices, openItems, accounts, cid, periodCode]);
 
   const chart = useMemo(() => {
@@ -128,10 +151,10 @@ export default function Dashboard() {
       )}
 
       <div className="grid-4">
-        <KpiTile label="Revenue" amount={kpis.revenue} currency={cur} sub={`${kpis.count} posted invoice${kpis.count === 1 ? '' : 's'}`} delta={kpis.delta !== undefined ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{kpis.delta >= 0 ? <TrendingUpIcon size={12} /> : <TrendingDownIcon size={12} />}{kpis.delta >= 0 ? '↑' : '↓'} {fmtPct(Math.abs(kpis.delta))} vs {monthLabel(prevPeriodCode(periodCode))}</span> : 'No prior period'} deltaTone={kpis.delta === undefined ? 'neutral' : kpis.delta >= 0 ? 'good' : 'bad'} onClick={() => nav.go('sales/invoices')} />
-        <KpiTile label="AR outstanding" amount={kpis.arOut} currency={cur} sub={`${kpis.arCount} open item${kpis.arCount === 1 ? '' : 's'}`} delta={kpis.arOverdue ? `${kpis.arOverdue} overdue · ${fmtMoneyCompact(kpis.arOverdueAmt, cur)}` : 'Nothing overdue'} deltaTone={kpis.arOverdue ? 'bad' : 'good'} meta="As of today" onClick={() => nav.go('sales/receivables')} />
-        <KpiTile label="AP outstanding" amount={kpis.apOut} currency={cur} sub={`${kpis.apCount} open bill${kpis.apCount === 1 ? '' : 's'}`} delta={kpis.apDue7 ? `${kpis.apDue7} due within 7 days` : 'Nothing due this week'} deltaTone={kpis.apDue7 ? 'neutral' : 'good'} meta="As of today" onClick={() => nav.go('purchase/payables')} />
-        <KpiTile label="Cash position" amount={kpis.cash} currency={cur} sub={`${kpis.cashAccounts} bank & cash account${kpis.cashAccounts === 1 ? '' : 's'}`} delta="Posted journals + opening" deltaTone="neutral" meta="Book balance · posted journals + opening" onClick={() => nav.go('banking')} />
+        <KpiTile label="Revenue" amount={kpis.revenue} currency={cur} trend={trends.revenue} sub={`${kpis.count} posted invoice${kpis.count === 1 ? '' : 's'}`} delta={kpis.delta !== undefined ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{kpis.delta >= 0 ? <TrendingUpIcon size={12} /> : <TrendingDownIcon size={12} />}{kpis.delta >= 0 ? '↑' : '↓'} {fmtPct(Math.abs(kpis.delta))} vs {monthLabel(prevPeriodCode(periodCode))}</span> : 'No prior period'} deltaTone={kpis.delta === undefined ? 'neutral' : kpis.delta >= 0 ? 'good' : 'bad'} onClick={() => nav.go('sales/invoices')} />
+        <KpiTile label="AR outstanding" amount={kpis.arOut} currency={cur} trend={trends.ar} sub={`${kpis.arCount} open item${kpis.arCount === 1 ? '' : 's'}`} delta={kpis.arOverdue ? `${kpis.arOverdue} overdue · ${fmtMoneyCompact(kpis.arOverdueAmt, cur)}` : 'Nothing overdue'} deltaTone={kpis.arOverdue ? 'bad' : 'good'} meta="As of today" onClick={() => nav.go('sales/receivables')} />
+        <KpiTile label="AP outstanding" amount={kpis.apOut} currency={cur} trend={trends.ap} sub={`${kpis.apCount} open bill${kpis.apCount === 1 ? '' : 's'}`} delta={kpis.apDue7 ? `${kpis.apDue7} due within 7 days` : 'Nothing due this week'} deltaTone={kpis.apDue7 ? 'neutral' : 'good'} meta="As of today" onClick={() => nav.go('purchase/payables')} />
+        <KpiTile label="Cash position" amount={kpis.cash} currency={cur} trend={trends.cash} sub={`${kpis.cashAccounts} bank & cash account${kpis.cashAccounts === 1 ? '' : 's'}`} delta={trends.cash.length > 1 ? `${trends.cash[trends.cash.length - 1] - trends.cash[trends.cash.length - 2] >= 0 ? '↑' : '↓'} ${fmtMoneyCompact(Math.abs(trends.cash[trends.cash.length - 1] - trends.cash[trends.cash.length - 2]), cur)} vs ${monthLabel(prevPeriodCode(periodCode))}` : undefined} deltaTone={trends.cash[trends.cash.length - 1] - trends.cash[trends.cash.length - 2] >= 0 ? 'good' : 'bad'} meta="Book balance · posted journals + opening" onClick={() => nav.go('banking')} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
@@ -141,28 +164,17 @@ export default function Dashboard() {
               <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', marginBottom: 2 }}>Revenue vs Expenses</h3>
               <p style={{ fontSize: 12, color: 'var(--ink-4)' }}>{meta('last 7 months · posted journals')}</p>
             </div>
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center', fontSize: 12, color: 'var(--ink-3)' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--accent)' }} /> Revenue</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--warn-line)' }} /> Expenses</span>
-            </div>
           </div>
           {chart.rows.every((r) => r.revenue === 0 && r.expenses === 0) ? (
             <EmptyState compact icon="📊" title={`No data for the last 7 months`} description="Posted journals on income and expense accounts will appear here." />
           ) : (
-            <>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: 150 }}>
-                {chart.rows.map((r, i) => (
-                  <div key={r.code} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer' }} onClick={() => nav.go('reports/profit-loss', { period: r.code })} title={`${monthLabel(r.code)}: revenue ${fmtMoney(r.revenue, cur)} · expenses ${fmtMoney(r.expenses, cur)}`}>
-                    <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 120, width: '100%', justifyContent: 'center', backgroundImage: 'repeating-linear-gradient(to top, var(--hairline) 0 1px, transparent 1px 30px)' }}>
-                      <div style={{ width: '28%', minWidth: 6, background: i === chart.rows.length - 1 ? 'var(--accent)' : 'var(--accent-line)', borderRadius: '2px 2px 0 0', height: `${(r.revenue / chart.max) * 120}px`, transition: 'height 0.3s' }} />
-                      <div style={{ width: '28%', minWidth: 6, background: i === chart.rows.length - 1 ? 'var(--warn-line)' : 'var(--warn-bg)', borderRadius: '2px 2px 0 0', height: `${(r.expenses / chart.max) * 120}px`, transition: 'height 0.3s' }} />
-                    </div>
-                    <span style={{ fontSize: 11, color: 'var(--ink-3)', fontVariantNumeric: 'normal' }}>{monthLabel(r.code)}</span>
-                  </div>
-                ))}
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, color: 'var(--ink-3)' }}><span>{fmtMoney(0, cur)}</span><span>{fmtMoneyCompact(chart.max, cur)}</span></div>
-            </>
+            <BarChart
+              categories={chart.rows.map((r) => monthLabel(r.code))}
+              series={[{ label: 'Revenue', values: chart.rows.map((r) => r.revenue), emphasizeLast: true }, { label: 'Expenses', values: chart.rows.map((r) => r.expenses), emphasizeLast: true }]}
+              height={190}
+              format={(v) => fmtMoneyCompact(v, cur).replace(/\.00\b/, '')}
+              onSelect={(i) => nav.go('reports/profit-loss', { period: chart.rows[i].code })}
+            />
           )}
         </div>
 

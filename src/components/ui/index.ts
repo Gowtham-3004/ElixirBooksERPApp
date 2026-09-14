@@ -6,3 +6,4 @@ export * from './DataTable';
 export * from './document';
 export * from './printsheet';
 export * from './composites';
+export * from './charts';

@@ -1,5 +1,6 @@
 import type { ComponentType, CSSProperties, ReactNode } from 'react';
 import { fmtMoney, fmtMoneyCompact, splitMoney, fmtDate, fmtDateTime } from '../../lib/format';
+import { Sparkline } from './charts';
 import { AlertCircleIcon, AlertTriangleIcon, ArrowsSwapIcon, BarChartIcon, BookOpenIcon, BuildingIcon, CheckCircleIcon, ClipboardIcon, ClockIcon, CompassIcon, CornerUpLeftIcon, FileTextIcon, FolderIcon, GitBranchIcon, InfoCircleIcon, LayersIcon, LockIcon, ReceiptIcon, RefreshIcon, ScissorsIcon, SearchIcon, ShieldCheckIcon, TrendingUpIcon, UsersIcon, WalletIcon, XIcon, ZapIcon } from '../Icons';
 
 // ── Status badge (design-system §8 taxonomy → badge class) ─────────────────
@@ -190,7 +191,7 @@ export function Meter({ value, max = 100, tone }: { value: number; max?: number;
 }
 
 /** Pass `amount` (+ `currency`) for a money KPI so the minor units are muted; `value` takes any node. */
-export function KpiTile({ label, value, amount, currency, compact, tone, delta, deltaTone = 'good', sub, meta, onClick, stale }: { label: string; value?: ReactNode; amount?: number; currency?: string; compact?: boolean; tone?: 'auto' | 'positive' | 'negative' | 'none'; delta?: ReactNode; deltaTone?: 'good' | 'bad' | 'neutral'; sub?: ReactNode; meta?: ReactNode; onClick?: () => void; stale?: boolean }) {
+export function KpiTile({ label, value, amount, currency, compact, tone, delta, deltaTone = 'good', sub, meta, onClick, stale, trend }: { label: string; value?: ReactNode; amount?: number; currency?: string; /** a short series (e.g. 7 month-ends) drawn as a sparkline beside the value */ trend?: number[]; compact?: boolean; tone?: 'auto' | 'positive' | 'negative' | 'none'; delta?: ReactNode; deltaTone?: 'good' | 'bad' | 'neutral'; sub?: ReactNode; meta?: ReactNode; onClick?: () => void; stale?: boolean }) {
   return (
     <div className="kpi-tile" style={{ cursor: onClick ? 'pointer' : undefined, display: 'flex', flexDirection: 'column', gap: 4 }} onClick={onClick}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -198,6 +199,7 @@ export function KpiTile({ label, value, amount, currency, compact, tone, delta, 
         {stale && <Pill tone="warning">Stale</Pill>}
       </div>
       <div className="kpi-value">{amount !== undefined ? <Money value={amount} currency={currency} compact={compact} tone={tone} size="xl" /> : value}</div>
+      {trend && trend.length > 1 && <div style={{ margin: '2px 0 4px' }}><Sparkline values={trend} width="auto" height={28} /></div>}
       {(delta || sub) && (
         <div style={{ fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
           {delta && <span style={{ color: deltaTone === 'good' ? 'var(--good)' : deltaTone === 'bad' ? 'var(--danger)' : 'var(--ink-3)', fontWeight: 500 }}>{delta}</span>}

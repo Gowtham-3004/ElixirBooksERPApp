@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { C, nav, useSession, useCollection, IDS, engine } from '../../store';
 import type { Journal, OpenItem, Branch } from '../../store';
-import { Button, KpiTile, Pill, Segmented, Card } from '../../components/ui';
+import { Button, KpiTile, Pill, Segmented, Card, BarChart } from '../../components/ui';
 import { RefreshIcon, DownloadIcon, TrendingUpIcon, TrendingDownIcon } from '../../components/Icons';
 import { fmtMoneyCompact, fmtMoney, fmtPct, fmtPeriod, toCSV, downloadText } from '../../lib/format';
 import { profitAndLoss, balanceSheet, ageing, ledgerBalances, presetRange, monthRange, shiftRange, periodsBetween, type Range } from './compute';
@@ -35,10 +35,10 @@ function Widget({ title, sub, children, meta, onDrill, stale, onRefresh, span }:
 }
 
 // CFO tiles are KpiTiles whose delta carries a trend arrow; `favorable` picks the tone.
-function Tile({ label, value, delta, favorable, sub, meta, onClick, stale }: { label: string; value: string; delta?: string; favorable?: boolean; sub?: string; meta: string; onClick?: () => void; stale?: boolean }) {
-  const trend = delta ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>{favorable ? <TrendingUpIcon size={11} /> : <TrendingDownIcon size={11} />}{delta}</span> : undefined;
+function Tile({ label, value, delta, favorable, sub, meta, onClick, stale, trend }: { label: string; value: string; delta?: string; favorable?: boolean; sub?: string; meta: string; onClick?: () => void; stale?: boolean; trend?: number[] }) {
+  const arrow = delta ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>{favorable ? <TrendingUpIcon size={11} /> : <TrendingDownIcon size={11} />}{delta}</span> : undefined;
   void meta; // the scope line lives in the page subtitle; tiles stay tile-specific
-  return <KpiTile label={label} value={value} delta={trend} deltaTone={favorable ? 'good' : 'bad'} sub={sub} onClick={onClick} stale={stale} />;
+  return <KpiTile label={label} value={value} delta={arrow} deltaTone={favorable ? 'good' : 'bad'} sub={sub} onClick={onClick} stale={stale} trend={trend} />;
 }
 
 export function CfoDashboard() {
@@ -72,7 +72,8 @@ export function CfoDashboard() {
     const gst = ledgerTax(period, 'output');
     const itc = ledgerTax(period, 'input');
     const tds = engine.accountBalance(IDS.accTDSPayable, { to: range.to }).net;
-    const trendPeriods = periodsBetween(shiftRange(monthRange(period), -5)).concat(period).slice(-6);
+    // the six months ending at `period` (shiftRange moves both ends, so build the span explicitly)
+    const trendPeriods = periodsBetween({ from: shiftRange(monthRange(period), -5).from, to: monthRange(period).to }).slice(-6);
     const trend = trendPeriods.map((p) => ({ period: p, revenue: profitAndLoss(monthRange(p)).revenue }));
     const byBranch = branches.map((b) => { const p = profitAndLoss(range, { branchId: b.id }); return { branch: b, revenue: p.revenue, gm: p.revenue ? (p.grossProfit / p.revenue) * 100 : 0, net: p.netProfit }; }).sort((a, b) => b.revenue - a.revenue);
     return { pl, plPrior, bs, cash, currentAssets, currentLiab, ar, ap, dso, dpo, bva, gst, itc, tds, trend, byBranch, overdueAr: ar.rows.filter((r) => r.overdueDays > 0).length };
@@ -87,7 +88,6 @@ export function CfoDashboard() {
     { metric: 'Cash & bank', value: data.cash }, { metric: 'AR outstanding', value: data.ar.totals.total }, { metric: 'AP outstanding', value: data.ap.totals.total }, { metric: 'Working capital', value: data.currentAssets - data.currentLiab },
     { metric: 'Budget variance (net)', value: data.bva.totals.net.variance }, { metric: 'GST payable (net, period)', value: data.gst.tax - data.itc.tax }, { metric: 'TDS payable', value: data.tds }, { metric: 'DSO', value: data.dso }, { metric: 'DPO', value: data.dpo },
   ]));
-  const maxT = Math.max(1, ...data.trend.map((t) => t.revenue));
   return (
     <div className="page">
       <div className="page-header">
@@ -102,7 +102,7 @@ export function CfoDashboard() {
         </div>
       </div>
       <div className="grid-4">
-        <Tile label="Revenue" value={fmtMoneyCompact(data.pl.revenue, s.currency)} delta={`${pct(data.pl.revenue, data.plPrior.revenue) >= 0 ? '↑' : '↓'} ${fmtPct(Math.abs(pct(data.pl.revenue, data.plPrior.revenue)))}`} favorable={data.pl.revenue >= data.plPrior.revenue} sub="vs prior" meta={meta} stale={fresh.stale} onClick={() => nav.go(`reports/pl?preset=${preset}`)} />
+        <Tile label="Revenue" trend={data.trend.map((t) => t.revenue)} value={fmtMoneyCompact(data.pl.revenue, s.currency)} delta={`${pct(data.pl.revenue, data.plPrior.revenue) >= 0 ? '↑' : '↓'} ${fmtPct(Math.abs(pct(data.pl.revenue, data.plPrior.revenue)))}`} favorable={data.pl.revenue >= data.plPrior.revenue} sub="vs prior" meta={meta} stale={fresh.stale} onClick={() => nav.go(`reports/pl?preset=${preset}`)} />
         <Tile label="Gross margin" value={fmtPct(gm)} delta={`${gm - gmPrior >= 0 ? '↑' : '↓'} ${Math.abs(gm - gmPrior).toFixed(1)} pp`} favorable={gm >= gmPrior} sub={`on ${fmtMoneyCompact(data.pl.revenue, s.currency)}`} meta={meta} stale={fresh.stale} onClick={() => nav.go('reports/margin')} />
         <Tile label="Operating expense" value={fmtMoneyCompact(data.pl.opex, s.currency)} delta={`${pct(data.pl.opex, data.plPrior.opex) >= 0 ? '↑' : '↓'} ${fmtPct(Math.abs(pct(data.pl.opex, data.plPrior.opex)))}`} favorable={data.pl.opex <= data.plPrior.opex} sub="vs prior" meta={meta} stale={fresh.stale} onClick={() => nav.go(`reports/pl?preset=${preset}`)} />
         <Tile label="Net profit" value={fmtMoneyCompact(data.pl.netProfit, s.currency)} delta={`${fmtPct(nm)} net margin`} favorable={data.pl.netProfit >= 0} sub="before tax" meta={meta} stale={fresh.stale} onClick={() => nav.go(`reports/pl?preset=${preset}`)} />
@@ -117,15 +117,7 @@ export function CfoDashboard() {
       </div>
       <div className="grid-2">
         <Widget title="Revenue trend" sub="Monthly revenue from posted journals · 6-month view" meta={meta} stale={fresh.stale} onRefresh={fresh.refresh} onDrill={() => nav.go('reports/sales-analysis?by=period&preset=YTD')}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 140 }}>
-            {data.trend.map((t, i) => (
-              <div key={t.period} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, height: '100%', justifyContent: 'flex-end' }}>
-                <span style={{ fontSize: 10, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{t.revenue ? fmtMoneyCompact(t.revenue, s.currency).replace(/\.\d+/, '') : ''}</span>
-                <div style={{ width: '60%', background: i === data.trend.length - 1 ? 'var(--accent)' : 'var(--accent-line)', borderRadius: '2px 2px 0 0', height: `${Math.max(2, (t.revenue / maxT) * 100)}px` }} title={fmtMoney(t.revenue, s.currency)} />
-                <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{fmtPeriod(t.period).slice(0, 3)}</span>
-              </div>
-            ))}
-          </div>
+          <BarChart categories={data.trend.map((t) => fmtPeriod(t.period).slice(0, 3))} series={[{ label: 'Revenue', values: data.trend.map((t) => t.revenue), emphasizeLast: true }]} height={170} legend={false} format={(v) => fmtMoneyCompact(v, s.currency).replace(/\.00\b/, '')} onSelect={() => nav.go('reports/sales-analysis')} />
         </Widget>
         <Widget title="Branch performance" sub={`Revenue & gross margin by branch · ${preset}`} meta={meta} stale={fresh.stale} onRefresh={fresh.refresh} onDrill={() => nav.go('reports/profitability?by=branch')}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
