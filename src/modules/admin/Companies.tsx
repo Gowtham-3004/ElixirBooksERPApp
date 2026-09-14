@@ -50,7 +50,7 @@ export default function Companies() {
   };
 
   return (
-    <div className="page" style={{ maxWidth: 1100 }}>
+    <div className="page">
       <PageHeader title="Companies" subtitle={`${tenant?.name} · ${companies.length} of ${limit} companies on the ${plan?.name} plan`} actions={<Button variant="primary" onClick={() => setOpen(true)} disabled={atLimit} reason={atLimit ? `Plan limit reached (${limit}) — upgrade under Plan & usage` : undefined}>+ Add company</Button>} />
       {atLimit && <Banner tone="warning" action={<Button variant="tinted" onClick={() => nav.go('admin/plan')}>Upgrade plan</Button>}>Your {plan?.name} plan includes {limit} compan{limit === 1 ? 'y' : 'ies'}. Upgrade to add another legal entity — no data is copied between companies.</Banner>}
       <div style={{ maxWidth: 360 }}><div className="section-label" style={{ marginBottom: 4 }}>Company usage</div><Meter value={companies.length} max={limit} /></div>

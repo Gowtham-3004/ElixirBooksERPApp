@@ -37,7 +37,7 @@ export default function Defaults() {
   const reload = () => { const fresh = db.find<Company>(C.companies, co.id)!; setD(fresh.defaults); setBase(fresh.version); setConflict(false); };
 
   return (
-    <div className="page" style={{ maxWidth: 1100 }}>
+    <div className="page">
       <PageHeader title="Defaults" subtitle={`${co.legalName} · applied to new documents; existing documents keep their snapshots`} actions={<>{dirty && <Button variant="ghost" onClick={reload}>Discard</Button>}<Button variant="primary" onClick={save} disabled={!canEdit || !dirty} reason={!canEdit ? 'Requires admin.company.edit' : !dirty ? 'No changes' : undefined}>Save defaults</Button></>} />
       {conflict && <Banner tone="danger" action={<Button variant="link" onClick={reload}>Reload</Button>}>Defaults were changed by someone else (CONFLICT). Reload to continue.</Banner>}
       <div className="grid-2">

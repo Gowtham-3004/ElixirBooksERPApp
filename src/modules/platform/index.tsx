@@ -21,7 +21,7 @@ function Usage() {
   const meta = `Platform · all tenants · INR · Updated ${updated}`;
   const max = Math.max(1, ...byState.map((b) => b.n));
   return (
-    <div className="page" style={{ maxWidth: 1100 }}>
+    <div className="page">
       <PageHeader title="Platform usage" subtitle={meta} />
       <div className="grid-4">
         <KpiTile label="Tenants" value={tenants.length} sub={`${byState.find((b) => b.st === 'Active')?.n ?? 0} active`} meta={meta} onClick={() => nav.go('platform/tenants')} />
@@ -48,7 +48,7 @@ function Usage() {
 function PlatformAudit() {
   const events = useCollection<AuditEvent>(C.audit).filter((e) => e.tenantId === 'tnt_platform' || e.objectType === 'Plan' || (e.objectType === 'Tenant' && /^tenant\./.test(e.action))).sort((a, b) => b.at.localeCompare(a.at));
   return (
-    <div className="page" style={{ maxWidth: 960 }}>
+    <div className="page">
       <PageHeader title="Platform audit" subtitle={`${events.length} platform-only events · plan and tenant changes never include tenant business data (E2E-04)`} />
       <Card>
         {events.length === 0 ? <EmptyState compact icon="🛡️" title="No platform events yet" /> : <Timeline items={events.map((e) => ({ type: /suspend|cancel|retire/.test(e.action) ? 'warning' as const : 'info' as const, event: e.action, predicate: `${e.objectType} ${e.objectNumber ?? ''} · by ${e.actor}`, time: e.at, note: e.detail, meta: <Identifier>{e.correlationId}</Identifier> }))} />}

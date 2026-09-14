@@ -87,7 +87,7 @@ export function CreditNoteForm({ id, invoiceId }: { id?: string; invoiceId?: str
   if (!inv) return <EmptyState icon="↩" title="Choose the invoice to credit" description="Credit notes always reference a posted invoice." action={<Button variant="primary" onClick={() => nav.go('sales/credit-notes')}>Back to credit notes</Button>} />;
   const invLine = (l: DocLine) => inv.lines.find((x) => x.id === l.sourceLineId);
   return (
-    <div className="page" style={{ maxWidth: 1100 }}>
+    <div className="page">
       <PageHeader back={{ label: 'Returns & credit notes', path: 'sales/credit-notes' }} title={<span style={{ display: 'flex', gap: 10, alignItems: 'center' }}>{id ? doc.number : 'New credit note'} <Badge status={doc.status} /></span>} subtitle={<>Against <span className="link identifier" onClick={() => nav.go(`sales/invoices/${inv.id}`)}>{inv.number}</span> · {inv.partyName} · invoice total {fmtMoney(inv.totals.total, inv.currency)} · due {fmtMoney(inv.totals.due, inv.currency)}</>} />
       {draft.conflict && <Banner tone="danger" action={<Button variant="link" onClick={draft.reload}>Reload</Button>}>Someone else changed this draft — reload to see their changes.</Banner>}
       {draft.errors.length > 0 && <ErrorSummary errors={draft.errors} />}

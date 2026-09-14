@@ -127,7 +127,7 @@ export default function Integrations({ initialTab }: { initialTab?: string }) {
   ];
 
   return (
-    <div className="page" style={{ maxWidth: 1200 }}>
+    <div className="page">
       <PageHeader title="Integrations & credentials" subtitle={`${co.legalName} · credentials are company/registration scoped, encrypted, masked and access-audited (FR-CMP-008)`}
         actions={tab === 'credentials' ? <Button variant="primary" disabled={!canEdit} reason={canEdit ? undefined : 'Requires admin.integrations.edit'} onClick={() => setCred({ provider: 'IRP', registrationId: regs[0]?.id })}>+ Add credential</Button>
           : tab === 'keys' ? <Button variant="primary" disabled={!canEdit} onClick={() => setKey({ name: '', scopes: [], expiresDays: 365 })}>+ Create API key</Button>

@@ -77,7 +77,7 @@ export default function InvoiceForm({ id, sourceOrderId, sourceDeliveryId }: { i
 
   const base = s.currency;
   return (
-    <div className="page" style={{ maxWidth: 1180 }}>
+    <div className="page">
       <PageHeader back={{ label: 'Sales invoices', path: 'sales/invoices' }} title={<span style={{ display: 'flex', gap: 10, alignItems: 'center' }}>{id ? doc.number : 'New sales invoice'} <Badge status={doc.status} /></span>} subtitle={<>{doc.number.includes('DRAFT') ? `Will be numbered ${engine.previewNumber('Sales Invoice', { date: doc.date, branchId: doc.branchId })} on post` : doc.number} · {s.branch?.name} · FY {s.state.fy}{doc.sourceNumber ? ` · from ${doc.sourceType} ${doc.sourceNumber}` : ''}</>} actions={editable && !doc.sourceId && doc.lines.length === 0 ? <><Button variant="secondary" onClick={() => setSourcePicker('order')}>From order</Button><Button variant="secondary" onClick={() => setSourcePicker('delivery')}>From delivery</Button></> : doc.sourceId ? <Button variant="ghost" onClick={() => set({ sourceId: undefined, sourceType: undefined, sourceNumber: undefined, deliveryIds: undefined, lines: [] })}>Detach source</Button> : undefined} />
       {draft.conflict && <Banner tone="danger" action={<Button variant="link" onClick={draft.reload}>Reload</Button>}>Someone else changed this draft — reload to see their changes.</Banner>}
       <PeriodBanner date={doc.date} />

@@ -24,7 +24,7 @@ export function SalesSettingsPage() {
     toast.success('Sales settings saved');
   };
   return (
-    <div className="page" style={{ maxWidth: 860 }}>
+    <div className="page">
       <PageHeader title="Sales settings" subtitle={<ScopeLine />} actions={<Button variant="primary" onClick={save} disabled={!dirty || !canEdit} reason={!canEdit ? 'Requires sales.settings.edit' : undefined}>Save settings</Button>} />
       <Card title="Invoice controls">
         <div className="grid-2">

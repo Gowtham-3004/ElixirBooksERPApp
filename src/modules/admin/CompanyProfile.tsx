@@ -66,7 +66,7 @@ export default function CompanyProfile() {
   const isIN = co.localizationPack === 'IN';
 
   return (
-    <div className="page" style={{ maxWidth: 1100 }}>
+    <div className="page">
       <PageHeader title="Company profile" subtitle={`${co.legalName} · ${co.country} · ${co.localizationPack} pack v${co.localizationVersion} · record v${co.version}`} actions={<>
         {dirty && <Button variant="ghost" onClick={reload}>Discard changes</Button>}
         <Button variant="primary" onClick={save} disabled={!canEdit || !dirty} reason={!canEdit ? 'Requires admin.company.edit' : !dirty ? 'No changes' : undefined}>Save profile</Button>

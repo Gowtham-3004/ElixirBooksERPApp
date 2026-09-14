@@ -54,7 +54,7 @@ export default function UserDetail({ id }: { id: string }) {
   };
 
   return (
-    <div className="page" style={{ maxWidth: 1100 }}>
+    <div className="page">
       <PageHeader back={{ label: 'Users & access', path: 'admin/users' }} title={<span style={{ display: 'inline-flex', gap: 12, alignItems: 'center' }}><Avatar name={u.name} size={36} />{u.name}</span>} subtitle={`${u.email} · ${u.isTenantOwner ? 'Tenant owner · ' : ''}last login ${u.lastLoginAt ? fmtDateTime(u.lastLoginAt) : 'never'}`}
         actions={<>
           <Badge status={u.status} />

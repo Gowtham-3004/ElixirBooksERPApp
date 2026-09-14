@@ -29,7 +29,7 @@ function RoleCards() {
     nav.go(`admin/roles/${r.id}`);
   };
   return (
-    <div className="page" style={{ maxWidth: 1100 }}>
+    <div className="page">
       <PageHeader title="Roles & permissions" subtitle={`${roles.length} roles · ${roles.filter((r) => r.isSystem).length} system · customisable per tenant`} actions={<Button variant="primary" onClick={() => setOpen(true)} disabled={!canEdit} reason={canEdit ? undefined : 'Requires admin.roles.create'}>+ New role</Button>} />
       <div className="grid-2">
         {roles.map((r) => {
@@ -137,7 +137,7 @@ function RoleEditor({ id }: { id: string }) {
   const count = useMemo(() => PERMISSION_MATRIX.reduce((n, md) => n + md.resources.reduce((x, r) => x + PERMISSION_ACTIONS.filter((a) => has(md.module, r.id, a)).length, 0), 0), [current]);
 
   return (
-    <div className="page" style={{ maxWidth: 1200 }}>
+    <div className="page">
       <PageHeader back={{ label: 'Roles & permissions', path: 'admin/roles' }} title={<span>{role.name} {role.isSystem && <Badge status="Locked">System role</Badge>}</span>} subtitle={`${role.code} · ${count} granted actions · ${users.length} user${users.length === 1 ? '' : 's'}`}
         actions={<>
           <Button variant="secondary" onClick={duplicate}>Duplicate</Button>

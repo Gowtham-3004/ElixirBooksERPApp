@@ -82,7 +82,7 @@ export default function Jobs({ initialTab }: { initialTab?: string }) {
   ];
 
   return (
-    <div className="page" style={{ maxWidth: 1200 }}>
+    <div className="page">
       <PageHeader title="Jobs & exports" subtitle={`${jobs.filter((j) => j.status === 'Dead-letter').length} dead-lettered · ${exportsRows.filter((e) => e.status === 'Ready').length} exports ready · ${imports.length} imports logged`} />
       <Tabs variant="filter" value={tab} onChange={setTab} tabs={[{ id: 'jobs', label: 'Background jobs', count: jobs.length }, { id: 'exports', label: 'Export jobs', count: exportsRows.length }, { id: 'imports', label: 'Import log', count: imports.length }]} />
       {tab === 'jobs' && <DataTable rows={jobs} columns={jobCols} emptyTitle="No background jobs" onRowClick={(j) => setJob(j)} rowClass={(j) => (j.status === 'Dead-letter' ? 'error-row' : undefined)} rowActions={(j) => [

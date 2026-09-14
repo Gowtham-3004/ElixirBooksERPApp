@@ -39,7 +39,7 @@ export default function Help() {
   };
 
   return (
-    <div className="page" style={{ maxWidth: 1100 }}>
+    <div className="page">
       <PageHeader title="Help & Support" subtitle={`${s.company?.tradeName ?? 'Workspace'} · ${s.plan?.name ?? 'Growth'} plan · support hours 09:00–18:00 IST`} />
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

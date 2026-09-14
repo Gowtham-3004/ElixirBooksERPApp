@@ -122,7 +122,7 @@ export default function Periods({ initialPeriod }: { initialPeriod?: string }) {
   const checklistRows: ChecklistRow[] = blockers.map((b) => ({ id: b.id, label: b.label, count: b.count, status: b.count === 0 ? 'Done' : b.blocking ? 'Blocked' : 'Warning', detail: b.count > 0 ? (b.blocking ? 'Must be resolved (or acknowledged) before lock' : 'Advisory — review before close') : undefined, link: b.count > 0 ? b.link : undefined }));
 
   return (
-    <div className="page" style={{ maxWidth: 1100 }}>
+    <div className="page">
       <PageHeader title="Financial periods" subtitle={`${co.legalName} · FY ${fy || '—'} · ${list.length} periods · fiscal year starts ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][co.fiscalYearStartMonth - 1]}`}
         actions={<>
           <SelectField value={fy} onChange={setFy} options={fys} size="sm" style={{ width: 140 }} />

@@ -2,8 +2,9 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEven
 import { db, C, nav, session, useCollection, useSession, useRoute, engine } from '../store';
 import type { Notification, Period } from '../store';
 import { MODULES, GROUP_ORDER, moduleById } from '../modules/registry';
-import { activeSubNav, useSubNavs, type SubNavItem } from '../modules/subnav';
+import { activeSubNav, settingsNav, useSubNavs, type SubNavItem } from '../modules/subnav';
 import { BellIcon, SearchIcon, ChevronDownIcon, HelpCircleIcon, CogIcon, LockIcon, XIcon, ArrowLeftIcon, MenuIcon } from './Icons';
+import type { ComponentType } from 'react';
 import { useIsMobile, useIsTablet } from '../lib/useMedia';
 import { Avatar, Badge, Button, Banner, Kbd, TwoLine } from './ui/primitives';
 import { Modal } from './ui/overlays';
@@ -48,6 +49,46 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
     if (m.permission && !s.canModule(m.permission)) return false;
     return true;
   }), [s]);
+
+  // the Settings hub lists every visible module's settings page plus the user's own pages (see settingsNav)
+  const settingsItems = useMemo(() => settingsNav(s, visibleModules.map((m) => m.id)), [s, visibleModules]);
+
+  // one sidebar entry; with sub-pages it opens a flyout (hover peeks, click pins; phones expand inline), without them it navigates
+  const sidebarEntry = (key: string, label: string, Icon: ComponentType<{ size?: number }>, o: { items: SubNavItem[]; active: boolean; activeId?: string; go: (id: string) => void; fallback?: () => void; badge?: number }) => {
+    const hasSub = o.items.length > 0;
+    const open = flyout?.id === key;
+    const anchorOf = (e: { currentTarget: HTMLElement }) => e.currentTarget.getBoundingClientRect();
+    // hover only for a real mouse — touch fires enter/leave around the tap and would fight the click toggle
+    const peek = (e: PointerEvent<HTMLDivElement>) => {
+      if (!hasSub || isMobile || e.pointerType !== 'mouse') return;
+      window.clearTimeout(flyoutTimer.current);
+      const anchor = anchorOf(e);
+      setFlyout((f) => (f?.id === key ? f : { id: key, pinned: false, anchor }));
+    };
+    const unpeek = (e: PointerEvent<HTMLDivElement>) => {
+      if (!hasSub || isMobile || e.pointerType !== 'mouse') return;
+      window.clearTimeout(flyoutTimer.current);
+      flyoutTimer.current = window.setTimeout(() => setFlyout((f) => (f?.id === key && !f.pinned ? null : f)), 150);
+    };
+    const toggle = (e: { currentTarget: HTMLElement }) => {
+      if (!hasSub) { o.fallback?.(); return; }
+      const anchor = anchorOf(e);
+      setFlyout((f) => (f?.id === key && f.pinned ? null : { id: key, pinned: true, anchor }));
+    };
+    return (
+      <div key={key} data-flyout={key} onPointerEnter={peek} onPointerLeave={unpeek}>
+        <button type="button" className={`nav-item ${o.active ? 'active' : ''}`} title={collapsed && !hasSub ? label : undefined} aria-label={label} aria-haspopup={hasSub ? 'menu' : undefined} aria-expanded={hasSub ? open : undefined} style={{ width: '100%', border: 'none', textAlign: 'left', background: o.active ? undefined : 'transparent', justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined, position: 'relative' }} onClick={toggle}>
+          <Icon size={16} />
+          {!collapsed && <span style={{ flex: 1 }}>{label}</span>}
+          {!!o.badge && <span style={{ background: '#325CFF', color: '#FFFFFF', fontSize: 11, fontWeight: 600, borderRadius: 9999, padding: '0 6px', minWidth: 18, textAlign: 'center', lineHeight: '18px', fontFeatureSettings: 'normal', ...(collapsed ? { position: 'absolute' as const, top: 2, right: 4, fontSize: 9, minWidth: 14, lineHeight: '14px', padding: '0 4px' } : {}) }}>{o.badge}</span>}
+          {!collapsed && hasSub && <span style={{ display: 'inline-flex', color: '#B0B5BF', transform: isMobile ? (open ? 'rotate(180deg)' : undefined) : 'rotate(-90deg)' }}><ChevronDownIcon size={12} /></span>}
+        </button>
+        {open && flyout && (isMobile
+          ? <SubNavList items={o.items} activeId={o.activeId} onPick={o.go} inline />
+          : <ModuleFlyout label={label} anchor={flyout.anchor} items={o.items} activeId={o.activeId} onPick={(id) => { setFlyout(null); o.go(id); }} />)}
+      </div>
+    );
+  };
 
   useEffect(() => {
     const typing = (e: KeyboardEvent) => { const t = e.target as HTMLElement | null; return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable); };
@@ -179,39 +220,7 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
                 {collapsed ? <div style={{ height: 1, background: '#F3F3F5', margin: '6px 8px' }} /> : <div className="section-label" style={{ padding: '8px 12px 4px', display: 'block' }}>{g}</div>}
                 {items.map((m) => {
                   const subItems = (subNavs[m.id] ?? []).filter((i) => !i.hidden);
-                  const hasSub = subItems.length > 0;
-                  const open = flyout?.id === m.id;
-                  const anchorOf = (e: { currentTarget: HTMLElement }) => e.currentTarget.getBoundingClientRect();
-                  // hover only for a real mouse — touch fires enter/leave around the tap and would fight the click toggle
-                  const peek = (e: PointerEvent<HTMLDivElement>) => {
-                    if (!hasSub || isMobile || e.pointerType !== 'mouse') return;
-                    window.clearTimeout(flyoutTimer.current);
-                    const anchor = anchorOf(e);
-                    setFlyout((f) => (f?.id === m.id ? f : { id: m.id, pinned: false, anchor }));
-                  };
-                  const unpeek = (e: PointerEvent<HTMLDivElement>) => {
-                    if (!hasSub || isMobile || e.pointerType !== 'mouse') return;
-                    window.clearTimeout(flyoutTimer.current);
-                    flyoutTimer.current = window.setTimeout(() => setFlyout((f) => (f?.id === m.id && !f.pinned ? null : f)), 150);
-                  };
-                  const toggle = (e: { currentTarget: HTMLElement }) => {
-                    if (!hasSub) { nav.go(m.id); return; }
-                    const anchor = anchorOf(e);
-                    setFlyout((f) => (f?.id === m.id && f.pinned ? null : { id: m.id, pinned: true, anchor }));
-                  };
-                  return (
-                    <div key={m.id} data-flyout={m.id} onPointerEnter={peek} onPointerLeave={unpeek}>
-                      <button type="button" className={`nav-item ${route.module === m.id ? 'active' : ''}`} title={collapsed && !hasSub ? m.label : undefined} aria-label={m.label} aria-haspopup={hasSub ? 'menu' : undefined} aria-expanded={hasSub ? open : undefined} style={{ width: '100%', border: 'none', textAlign: 'left', background: route.module === m.id ? undefined : 'transparent', justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined, position: 'relative' }} onClick={toggle}>
-                        <m.icon size={16} />
-                        {!collapsed && <span style={{ flex: 1 }}>{m.label}</span>}
-                        {m.id === 'approvals' && pendingApprovals > 0 && <span style={{ background: '#325CFF', color: '#FFFFFF', fontSize: 11, fontWeight: 600, borderRadius: 9999, padding: '0 6px', minWidth: 18, textAlign: 'center', lineHeight: '18px', fontFeatureSettings: 'normal', ...(collapsed ? { position: 'absolute' as const, top: 2, right: 4, fontSize: 9, minWidth: 14, lineHeight: '14px', padding: '0 4px' } : {}) }}>{pendingApprovals}</span>}
-                        {!collapsed && hasSub && <span style={{ display: 'inline-flex', color: '#B0B5BF', transform: isMobile ? (open ? 'rotate(180deg)' : undefined) : 'rotate(-90deg)' }}><ChevronDownIcon size={12} /></span>}
-                      </button>
-                      {open && flyout && (isMobile
-                        ? <SubNavList items={subItems} activeId={activeSubNav(route, m.id, subItems)} onPick={(id) => nav.go(`${m.id}/${id}`)} inline />
-                        : <ModuleFlyout label={m.label} anchor={flyout.anchor} items={subItems} activeId={activeSubNav(route, m.id, subItems)} onPick={(id) => { setFlyout(null); nav.go(`${m.id}/${id}`); }} />)}
-                    </div>
-                  );
+                  return sidebarEntry(m.id, m.label, m.icon, { items: subItems, active: route.module === m.id, activeId: activeSubNav(route, m.id, subItems), go: (id) => nav.go(`${m.id}/${id}`), fallback: () => nav.go(m.id), badge: m.id === 'approvals' ? pendingApprovals : 0 });
                 })}
               </div>
             );
@@ -221,9 +230,7 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
           <button type="button" className="nav-item" title="Help & Support" style={{ width: '100%', border: 'none', textAlign: 'left', background: 'transparent', justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined }} onClick={() => nav.go('home/help')}>
             <HelpCircleIcon size={16} />{!collapsed && <span>Help & Support</span>}
           </button>
-          <button type="button" className="nav-item" title="Settings" style={{ width: '100%', border: 'none', textAlign: 'left', background: 'transparent', justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined }} onClick={() => nav.go('admin')}>
-            <CogIcon size={16} />{!collapsed && <span>Settings</span>}
-          </button>
+          {sidebarEntry('settings', 'Settings', CogIcon, { items: settingsItems, active: false, activeId: settingsItems.find((i) => route.path === i.id || route.path.startsWith(`${i.id}/`))?.id, go: (id) => nav.go(id) })}
           {!isMobile && <button type="button" className="nav-item" title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} style={{ width: '100%', border: 'none', textAlign: 'left', background: 'transparent', justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined, color: '#5F6368' }} onClick={toggleRail}>
             <span style={{ display: 'inline-flex', transform: collapsed ? 'rotate(180deg)' : undefined }}><ArrowLeftIcon size={16} /></span>{!collapsed && <span>Collapse</span>}
           </button>}

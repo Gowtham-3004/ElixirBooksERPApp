@@ -23,7 +23,7 @@ export default function DataDemo() {
   };
 
   return (
-    <div className="page" style={{ maxWidth: 1000 }}>
+    <div className="page">
       <PageHeader title="Data & demo" subtitle={`${total.toLocaleString('en-IN')} records in ${collections.length} collections · ${(bytes / 1024).toFixed(0)} KB in browser storage`} />
       <div className="grid-2">
         <Card title="Export">

@@ -66,7 +66,7 @@ export function OrderForm({ id }: { id?: string }) {
   const save = () => { try { const o = draft.save(); if (o) toast.success(`Order ${o.number} saved`); return o; } catch (e: any) { toast.error(e.message); return undefined; } };
   const submit = () => { if (v.errors.length) { draft.setErrors(v.errors.map((m) => ({ message: m }))); toast.error('Fix the highlighted issues'); return; } const o = save(); if (!o) return; try { const r = submitOrder(o.id); toast.success(r.request ? `Submitted for approval · ${r.request.ruleName}` : `Order ${r.order.number} ${r.order.status === 'Confirmed' ? 'confirmed' : 'submitted'}`); nav.go(`sales/orders/${o.id}`); } catch (e: any) { toast.error(e.message); } };
   return (
-    <div className="page" style={{ maxWidth: 1180 }}>
+    <div className="page">
       <PageHeader back={{ label: 'Sales orders', path: 'sales/orders' }} title={<span style={{ display: 'flex', gap: 10, alignItems: 'center' }}>{id ? doc.number : 'New sales order'} <Badge status={doc.status} /></span>} subtitle={<>{doc.number.includes('DRAFT') ? `Will be numbered ${engine.previewNumber('Sales Order')} on save` : doc.number}{doc.sourceNumber ? ` · from ${doc.sourceType} ${doc.sourceNumber}` : ''} · {s.branch?.name}</>} />
       {draft.conflict && <Banner tone="danger" action={<Button variant="link" onClick={draft.reload}>Reload</Button>}>Someone else changed this draft — reload to see their changes.</Banner>}
       {draft.errors.length > 0 && <ErrorSummary errors={draft.errors} />}

@@ -45,7 +45,7 @@ export default function ActivityFeed() {
     ),
   }));
   return (
-    <div className="page" style={{ maxWidth: 960 }}>
+    <div className="page">
       <PageHeader title="Activity feed" subtitle={<ScopeLine extra={`${filtered.length} events`} />} actions={<Button variant="secondary" onClick={() => nav.go('admin/audit')}>Full audit log</Button>} />
       <div className="card" style={{ padding: 14, display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <ChipGroup label="Event type" multiple value={types} onChange={setTypes} options={TYPE_GROUPS.map((g) => ({ value: g.id, label: g.label }))} />

@@ -22,9 +22,18 @@ function OpenShiftScreen() {
   const toast = useToast();
   const terminals = useCollection<PosTerminal>(C.posTerminals).filter((t) => t.status === 'Active' && (!t.companyId || t.companyId === s.state.companyId));
   const shifts = useCollection<PosShift>(C.posShifts);
-  const [terminalId, setTerminalId] = useState(terminals.find((t) => t.branchId === s.branch?.id)?.id ?? terminals[0]?.id ?? '');
+  const openShiftOn = (terminal: string) => shifts.find((x) => x.status === 'Open' && x.terminalId === terminal);
+  // prefer a free terminal at the cashier's own branch, then any free one, so the screen is ready to open on arrival
+  const [terminalId, setTerminalId] = useState(() => {
+    const mine = terminals.filter((t) => t.branchId === s.branch?.id);
+    return (mine.find((t) => !openShiftOn(t.id)) ?? terminals.find((t) => !openShiftOn(t.id)) ?? mine[0] ?? terminals[0])?.id ?? '';
+  });
   const [float, setFloat] = useState(5000);
-  const busyTerminal = shifts.find((x) => x.status === 'Open' && x.terminalId === terminalId);
+  const busyTerminal = openShiftOn(terminalId);
+  const terminalLabel = (t: PosTerminal) => {
+    const busy = openShiftOn(t.id);
+    return `${t.code} · ${t.name} · ${db.find<any>(C.branches, t.branchId)?.name ?? '—'}${busy ? ` — in use by ${busy.cashierName}` : ''}`;
+  };
   const open = () => { try { const sh = openShift(terminalId, float); toast.success(`Shift ${sh.number} opened`); } catch (e: any) { toast.error(e.message); } };
   return (
     <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F9FBFC', padding: 16, overflow: 'auto' }}>
@@ -33,7 +42,7 @@ function OpenShiftScreen() {
         <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>POS terminal</h2>
         <p style={{ fontSize: 14, color: '#5F6368', textAlign: 'center', margin: 0 }}>Terminal is closed. Open a cashier shift to start billing (FR-POS-001).</p>
         <div className="card" style={{ padding: 24, width: '100%', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <SelectField label="Terminal" value={terminalId} onChange={setTerminalId} options={terminals.map((t) => ({ value: t.id, label: `${t.code} · ${t.name}${shifts.some((x) => x.status === 'Open' && x.terminalId === t.id) ? ' · in use' : ''}` }))} />
+          <SelectField label="Terminal" value={terminalId} onChange={setTerminalId} options={terminals.map((t) => ({ value: t.id, label: terminalLabel(t) }))} help={terminals.length === 0 ? 'No active terminals for this company — add one under POS administration' : undefined} />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span style={{ color: '#5F6368' }}>Cashier</span><span style={{ fontWeight: 500 }}>{s.user?.name}</span></div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span style={{ color: '#5F6368' }}>Branch · warehouse</span><span style={{ fontWeight: 500 }}>{db.find<any>(C.branches, terminals.find((t) => t.id === terminalId)?.branchId)?.name ?? '—'} · {db.find<any>(C.warehouses, terminals.find((t) => t.id === terminalId)?.warehouseId)?.name ?? '—'}</span></div>
           <MoneyField label="Opening float" value={float} onChange={setFloat} />

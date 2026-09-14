@@ -210,7 +210,7 @@ export function ReturnForm({ billId }: { billId?: string }) {
   const setQty = (srcId: string, qty: number) => setLines((prev) => prev.map((x) => (x.sourceLineId === srcId ? { ...x, qty } : x)));
   const submit = () => { try { const out = postReturn(input); toast.success(out.status === 'Posted' ? `Return ${out.number} posted · refund ${fmtMoney(out.totals.total)} by ${out.refund.type}` : `Return ${out.number} submitted for approval`); nav.go(`pos/returns/${out.id}`); } catch (e: any) { toast.error(e.message); } };
   return (
-    <div className="page" style={{ maxWidth: 1000 }}>
+    <div className="page">
       <PageHeader back={{ label: 'POS returns', path: 'pos/returns' }} title="New POS return" subtitle={shift ? `Shift ${shift.number} · ${shift.terminalName} · ${shift.cashierName}` : 'No open shift — open the terminal first'} />
       {!shift && <Banner tone="danger" action={<Button variant="link" onClick={() => nav.go('pos')}>Open terminal</Button>}>Returns are processed against an open shift.</Banner>}
       <Card title="Original bill">
@@ -276,7 +276,7 @@ export function PosAdmin() {
   const canAdmin = s.can('pos.admin.edit') || s.can('pos.*') || s.can('admin.company.edit') || s.isTenantOwner;
   const save = () => { if (!s.company) return; db.update<Company>(C.companies, s.company.id, { defaults: { ...s.company.defaults, ...cfg } }); engine.audit({ action: 'pos.settings_updated', objectType: 'Company', objectId: s.company.id, detail: JSON.stringify(cfg) }); setDirty(false); toast.success('POS settings saved'); };
   return (
-    <div className="page" style={{ maxWidth: 960 }}>
+    <div className="page">
       <PageHeader title="POS administration" subtitle="Terminals, tolerances and policies for this company." actions={<Button variant="primary" onClick={save} disabled={!dirty || !canAdmin} reason={!canAdmin ? 'Requires pos.admin.edit' : undefined}>Save settings</Button>} />
       <Card title="Terminals" actions={<Button size="sm" variant="secondary" onClick={() => setEdit('new')} disabled={!canAdmin}>+ Add terminal</Button>}>
         <DataTable rows={terminals} columns={[{ key: 'code', label: 'Code', render: (t: PosTerminal) => <span className="identifier">{t.code}</span> }, { key: 'name', label: 'Name', render: (t: PosTerminal) => t.name }, { key: 'branch', label: 'Branch', render: (t: PosTerminal) => db.find<any>(C.branches, t.branchId)?.name }, { key: 'wh', label: 'Warehouse', render: (t: PosTerminal) => db.find<any>(C.warehouses, t.warehouseId)?.name }, { key: 'cash', label: 'Cash account', render: (t: PosTerminal) => db.find<any>(C.accounts, t.cashAccountId ?? cfg.posCashAccountId)?.name }, { key: 'status', label: 'Status', render: (t: PosTerminal) => <Badge status={t.status} /> }]} dense rowActions={(t: PosTerminal) => [{ label: 'Edit', onClick: () => setEdit(t) }, { label: t.status === 'Active' ? 'Deactivate' : 'Activate', onClick: () => db.update<PosTerminal>(C.posTerminals, t.id, { status: t.status === 'Active' ? 'Inactive' : 'Active' }), disabled: !canAdmin }]} emptyTitle="No terminals" />

@@ -57,7 +57,7 @@ export default function PlanUsage() {
   ] : [];
 
   return (
-    <div className="page" style={{ maxWidth: 1100 }}>
+    <div className="page">
       <PageHeader title="Plan & usage" subtitle={`${tenant.name} · the only place unentitled capabilities are shown`} actions={<Button variant="tinted" onClick={() => { setTarget(plans.find((p) => tierRank(p.tier) === tierRank(plan.tier) + 1)?.id ?? ''); setChoose(true); }}>Upgrade plan</Button>} />
       {(tenant.subscriptionState === 'Grace' || tenant.subscriptionState === 'Suspended' || tenant.subscriptionState === 'Trial') && <Banner tone={tenant.subscriptionState === 'Suspended' ? 'danger' : 'warning'}>{stateText[tenant.subscriptionState]}</Banner>}
       <div className="grid-2">

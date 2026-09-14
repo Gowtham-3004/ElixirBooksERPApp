@@ -310,6 +310,37 @@ export function useSubNavs(): Record<string, SubNavItem[]> {
   }), [s, accounting, purchase, production, projects]);
 }
 
+/** Per-module settings pages, surfaced together by the sidebar's Settings hub. */
+export const MODULE_SETTINGS: { module: string; id: string; label: string }[] = [
+  { module: 'sales', id: 'sales/settings', label: 'Sales settings' },
+  { module: 'purchase', id: 'purchase/settings', label: 'Purchase settings' },
+  { module: 'inventory', id: 'inventory/settings', label: 'Inventory settings' },
+  { module: 'pos', id: 'pos/admin', label: 'POS administration' },
+  { module: 'projects', id: 'projects/settings', label: 'Projects settings' },
+  { module: 'production', id: 'production/settings', label: 'Production settings' },
+  { module: 'accounting', id: 'accounting/settings', label: 'Accounting settings' },
+  { module: 'banking', id: 'banking/settings', label: 'Banking settings' },
+  { module: 'taxation', id: 'taxation/settings', label: 'Taxation settings' },
+  { module: 'payroll', id: 'payroll/settings', label: 'Payroll settings' },
+  { module: 'budgets', id: 'budgets/settings', label: 'Expense settings' },
+];
+
+/**
+ * The sidebar's Settings hub — distinct from Company administration (the org: company,
+ * branches, periods, users, roles…). Ids are full paths. Lists the signed-in user's own
+ * pages, every visible module's settings page, and a link across to administration.
+ */
+export function settingsNav(s: Scope, visibleModules: string[]): SubNavItem[] {
+  const has = (m: string) => visibleModules.includes(m);
+  const notifications = adminNav(s).some((i) => i.id === 'notifications' && !i.hidden);
+  return [
+    ...(s.user ? [{ id: `admin/users/${s.user.id}`, label: 'Profile & security', group: 'You' }] : []),
+    ...(notifications ? [{ id: 'admin/notifications', label: 'Notification settings', group: 'You' }] : []),
+    ...MODULE_SETTINGS.filter((p) => has(p.module)).map((p) => ({ id: p.id, label: p.label, group: 'Modules' })),
+    ...(has('admin') ? [{ id: 'admin', label: 'Company administration →', group: 'Organisation' }] : []),
+  ];
+}
+
 /** Sub-nav items may nest ("consolidation/runs"); the deepest match wins. */
 export function activeSubNav(route: Route, moduleId: string, items: SubNavItem[]): string | undefined {
   if (route.module !== moduleId) return undefined;

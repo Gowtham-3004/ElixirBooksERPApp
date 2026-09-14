@@ -64,7 +64,7 @@ export function QuotationForm({ id, leadId }: { id?: string; leadId?: string }) 
   const saveDraft = () => { try { const out = draft.save(); if (out) toast.success(`Quotation ${out.number} saved`); } catch (e: any) { toast.error(e.message); } };
   const finish = () => { if (errors.length) { draft.setErrors(errors); toast.error('Fix the highlighted issues'); return; } try { const out = draft.save(); if (out) { toast.success(`Quotation ${out.number} saved`); nav.go(`sales/quotations/${out.id}`); } } catch (e: any) { toast.error(e.message); } };
   return (
-    <div className="page" style={{ maxWidth: 1180 }}>
+    <div className="page">
       <PageHeader back={{ label: 'Quotations', path: 'sales/quotations' }} title={<span style={{ display: 'flex', gap: 10, alignItems: 'center' }}>{id ? doc.number : 'New quotation'} <Badge status={doc.status} />{(doc.revision ?? 1) > 1 && <Badge status="Draft">Revision {doc.revision}</Badge>}</span>} subtitle={<>{doc.number.includes('DRAFT') ? `Will be numbered ${engine.previewNumber('Quotation', { date: doc.date, branchId: doc.branchId })} on save` : doc.number} · {s.branch?.name}</>} />
       {draft.conflict && <Banner tone="danger" action={<Button variant="link" onClick={draft.reload}>Reload</Button>}>Someone else changed this draft — reload to see their changes.</Banner>}
       {draft.errors.length > 0 && <ErrorSummary errors={draft.errors} />}

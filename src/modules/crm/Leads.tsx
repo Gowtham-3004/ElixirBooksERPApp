@@ -169,7 +169,7 @@ export function LeadDetail({ id, convert }: { id: string; convert?: boolean }) {
   const quotes = db.where<any>(C.quotations, (q) => q.leadId === lead.id || q.id === lead.quotationId);
   const doConvert = () => { try { const r = convertLead(lead.id, existing); toast.success(`${r.customer.name} ${existing ? 'linked' : 'created'} · lead won`, { label: 'Create quotation', path: `sales/quotations/new?lead=${lead.id}` }); setConv(false); } catch (e: any) { toast.error(e.message); } };
   return (
-    <div className="page" style={{ maxWidth: 1100 }}>
+    <div className="page">
       <PageHeader back={{ label: 'Leads', path: 'crm/leads' }} title={<span style={{ display: 'flex', gap: 10, alignItems: 'center' }}>{lead.name} <Badge status={lead.stage === 'Won' ? 'Approved' : lead.stage === 'Lost' ? 'Rejected' : 'Submitted'}>{lead.stage}</Badge></span>} subtitle={`${lead.company} · ${lead.source} · owner ${lead.ownerName}${lead.expectedClose ? ` · expected close ${fmtDate(lead.expectedClose)}` : ''}`}
         actions={<>
           <Button variant="secondary" onClick={() => setAct(true)}>Log activity</Button>

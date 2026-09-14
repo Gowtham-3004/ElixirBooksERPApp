@@ -48,7 +48,7 @@ export default function Localization() {
   };
 
   return (
-    <div className="page" style={{ maxWidth: 1100 }}>
+    <div className="page">
       <PageHeader title="Localization" subtitle={`${co.legalName} · ${co.country} · app version ${APP_VERSION}`} />
       <div className="grid-2">
         <Card title="Active pack">

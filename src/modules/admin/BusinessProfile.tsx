@@ -67,7 +67,7 @@ export default function BusinessProfile() {
   };
 
   return (
-    <div className="page" style={{ maxWidth: 1100 }}>
+    <div className="page">
       <PageHeader title="Business profile" subtitle={`${co.legalName} · ${co.nature} · template ${template?.name ?? '—'} v${template?.templateVersion ?? '—'}`} actions={<Button variant="primary" onClick={() => { setTo(co.profiles); setStep(1); setOpen(true); }} disabled={!canChange || !!pending} reason={pending ? 'A change is awaiting approval' : canChange ? undefined : 'Requires admin.company.edit'}>Change profile</Button>} />
       {pending && <Banner tone="warning" action={<Button variant="link" onClick={() => nav.go('approvals', { id: pending.id })}>View request</Button>}>Profile change awaiting approval: {pending.summary}</Banner>}
       <div className="grid-2">

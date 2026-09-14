@@ -63,7 +63,7 @@ export function DeliveryForm({ id, orderId }: { id?: string; orderId?: string })
   const post = () => { const o = save(); if (!o) return; try { const out = postDelivery(o.id); toast.success(`Delivery ${out.number} posted`, { label: 'Open', path: `sales/deliveries/${out.id}` }); nav.go(`sales/deliveries/${out.id}`); } catch (e: any) { toast.error(e.message); throw e; } };
   const needsBatch = doc.lines.some((l) => db.find<Item>(C.items, l.itemId)?.tracking !== 'None');
   return (
-    <div className="page" style={{ maxWidth: 1100 }}>
+    <div className="page">
       <PageHeader back={{ label: 'Deliveries', path: 'sales/deliveries' }} title={<span style={{ display: 'flex', gap: 10, alignItems: 'center' }}>{id ? doc.number : 'New delivery'} <Badge status={doc.status} /></span>} subtitle={<>{doc.number.includes('DRAFT') ? `Will be numbered ${engine.previewNumber('Delivery')} on post` : doc.number}{doc.sourceNumber ? ` · from ${doc.sourceNumber}` : ' · direct delivery'} · {s.branch?.name}</>} actions={!doc.sourceId ? <Button variant="secondary" onClick={() => setPicker(true)}>From sales order</Button> : <Button variant="ghost" onClick={() => set({ sourceId: undefined, sourceNumber: undefined, sourceType: undefined, lines: [] })}>Detach order</Button>} />
       {draft.conflict && <Banner tone="danger" action={<Button variant="link" onClick={draft.reload}>Reload</Button>}>Someone else changed this draft — reload to see their changes.</Banner>}
       {draft.errors.length > 0 && <ErrorSummary errors={draft.errors} />}

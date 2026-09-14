@@ -31,7 +31,7 @@ export default function Notifications() {
     { key: 'status', label: 'Delivery', render: (n) => <Badge status={n.status === 'delivered' ? 'Delivered' : n.status === 'failed' ? 'Failed' : n.status === 'sent' ? 'Sent' : 'Queued'}>{n.status ?? 'delivered'}</Badge> },
   ];
   return (
-    <div className="page" style={{ maxWidth: 1200 }}>
+    <div className="page">
       <PageHeader title="Notification settings" subtitle="Event-driven templates with per-channel delivery; failures never undo a valid posting (FR-NTF-002)" />
       <Tabs variant="filter" value={tab} onChange={setTab} tabs={[{ id: 'settings', label: 'Events & channels', count: settings.length }, { id: 'log', label: 'Delivery log', count: log.length }]} />
       {tab === 'settings' && (
