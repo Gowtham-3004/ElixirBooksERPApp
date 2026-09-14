@@ -131,7 +131,7 @@ input[type=number].field-input { -moz-appearance: textfield; }
 .shell { isolation: isolate; }
 .shell-watermark { position: fixed; right: 24px; bottom: 12px; width: 360px; height: 360px; z-index: -1; opacity: var(--illus-watermark-opacity); filter: grayscale(1); pointer-events: none; user-select: none; }
 .shell[data-decor="off"] .shell-watermark { display: none; }
-.sidebar-promo { margin: 4px 8px 6px; padding: 12px 12px 10px; border-radius: var(--r-lg); background: var(--surface); box-shadow: 0 0 0 1px var(--hairline), var(--shadow-sm); position: relative; display: flex; flex-direction: column; gap: 6px; }
+.sidebar-promo { margin: 0 0 8px; padding: 12px 12px 10px; border-radius: var(--r-lg); background: var(--surface); box-shadow: 0 0 0 1px var(--hairline), var(--shadow-sm); position: relative; display: flex; flex-direction: column; gap: 6px; }
 .sidebar-promo .btn-icon { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; color: var(--ink-4); }
 .auth-backdrop { position: relative; overflow: hidden; }
 .auth-backdrop > * { position: relative; z-index: 1; }
@@ -142,7 +142,7 @@ input[type=number].field-input { -moz-appearance: textfield; }
 .auth-attrib a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 @media (max-width: 1023px), print { .shell-watermark, .auth-backdrop-art { display: none !important; } }
 @media (max-width: 767px) { .illustrated-card { grid-template-columns: 1fr; } .illustrated-card .storyset, .illustrated-card .storyset-gif { display: none; } }
-@media (max-width: 899px) { .auth-attrib { position: static; text-align: center; padding: 12px 0 0; } }
+@media (max-width: 899px) { .auth-backdrop { flex-wrap: wrap; align-content: center; } .auth-attrib { position: static; flex-basis: 100%; text-align: center; padding: 12px 0 0; } }
 @media (max-height: 719px) { .auth-rail-art { display: none !important; } }
 .checklist-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--hairline); font-size: 13px; }
 .checklist-row:last-child { border-bottom: none; }

@@ -18,9 +18,12 @@ export const KIND_ART: Record<IllustrationKind, StorysetName> = {
 
 const MODULE_IDS = new Set<string>(['home', 'approvals', 'crm', 'sales', 'purchase', 'inventory', 'pos', 'projects', 'production', 'accounting', 'banking', 'taxation', 'payroll', 'fixed-assets', 'budgets', 'reports', 'masters', 'admin', 'platform']);
 
+const MODULE_ALIASES: Record<string, IllustrationKind> = { setup: 'admin' };
+
 /** The kind for a registry module id — `no-data` for anything unknown. */
 export function moduleKind(moduleId: string | undefined): IllustrationKind {
-  return moduleId && MODULE_IDS.has(moduleId) ? (moduleId as IllustrationKind) : 'no-data';
+  if (!moduleId) return 'no-data';
+  return MODULE_ALIASES[moduleId] ?? (MODULE_IDS.has(moduleId) ? (moduleId as IllustrationKind) : 'no-data');
 }
 
 export function Illustration({ kind, width = 160, animated, bg = true, label }: { kind: IllustrationKind; width?: number; animated?: boolean; bg?: boolean; label?: string }) {

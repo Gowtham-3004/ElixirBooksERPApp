@@ -12,6 +12,10 @@ import type { ComponentType } from 'react';
 import { useIsMobile, useIsTablet } from '../lib/useMedia';
 import { Avatar, Badge, Button, Banner, Kbd, TwoLine } from './ui/primitives';
 import { Modal } from './ui/overlays';
+import { Storyset } from './ui/storyset';
+import { KIND_ART, moduleKind } from './ui/illustrations';
+import SidebarPromo from './SidebarPromo';
+import { useOnline } from '../lib/useOnline';
 import { fmtDateTime, fmtMoney, fmtPeriod } from '../lib/format';
 
 interface AppShellProps {
@@ -32,7 +36,8 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
   const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.innerWidth < 1440);
   const [railPinned, setRailPinned] = useState<boolean | null>(() => { try { const v = localStorage.getItem('eb-sidebar'); return v === null ? null : v === 'expanded'; } catch { return null; } });
   // display density — read by CSS through data-density on the shell root ([data-density="compact"] rules in index.css)
-  const { density } = usePrefs();
+  const { density, decor } = usePrefs();
+  const online = useOnline();
   const lixiOpen = useLixi().open;
   const isMobile = useIsMobile();
   // below the laptop breakpoint the company/branch/period controls move to a strip under the header
@@ -205,7 +210,9 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
   }
 
   return (
-    <div className={`shell ${lixiOpen ? 'lixi-open' : ''}`} data-density={density}>
+    <div className={`shell ${lixiOpen ? 'lixi-open' : ''}`} data-density={density} data-decor={decor}>
+      {/* faint per-module scene under the workspace (z-index -1 inside the shell's stacking context; cards cover it) */}
+      {decor === 'on' && <Storyset key={route.module} name={KIND_ART[moduleKind(route.module)]} className="shell-watermark" bg={false} />}
       {isMobile && navOpen && <div className="sidebar-scrim" onClick={() => setNavOpen(false)} />}
       {/* Sidebar — fixed rail on desktop/tablet, off-canvas drawer on phones */}
       <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${navOpen ? 'open' : ''}`} aria-label="Sidebar" aria-hidden={isMobile && !navOpen ? true : undefined}>
@@ -259,6 +266,7 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
           <div className="sidebar-fade" />
         </nav>
         <div style={{ borderTop: '1px solid var(--hairline)', padding: '8px 8px' }}>
+          {!collapsed && !isMobile && <SidebarPromo />}
           <button type="button" className="nav-item" title="Help & Support" style={{ width: '100%', border: 'none', textAlign: 'left', background: 'transparent', justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined }} onClick={() => nav.go('home/help')}>
             <HelpCircleIcon size={16} />{!collapsed && <span>Help & Support</span>}
           </button>
@@ -333,7 +341,7 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
                     {unread > 0 && <button type="button" className="btn-link" style={{ fontSize: 12 }} onClick={() => myNotifs.filter((n) => !n.read).forEach((n) => db.patchSilent<Notification>(C.notifications, n.id, { read: true }))}>Mark all read</button>}
                   </div>
                   <div style={{ maxHeight: 420, overflow: 'auto' }}>
-                    {myNotifs.length === 0 && <div style={{ padding: 16, fontSize: 13, color: 'var(--ink-3)' }}>You're all caught up.</div>}
+                    {myNotifs.length === 0 && <div style={{ padding: '16px 16px 14px', fontSize: 13, color: 'var(--ink-3)', textAlign: 'center' }}><Storyset name="completed" width={96} bg={false} /><div style={{ marginTop: 4 }}>You're all caught up.</div></div>}
                     {myNotifs.slice(0, 30).map((n) => (
                       <button key={n.id} type="button" className="menu-item" style={{ height: 'auto', padding: '8px 10px', alignItems: 'flex-start', background: n.read ? undefined : 'var(--surface-2)' }} onClick={() => { db.patchSilent<Notification>(C.notifications, n.id, { read: true }); setNotifOpen(false); if (n.link) nav.go(n.link); }}>
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: n.read ? 'transparent' : 'var(--accent)', marginTop: 6, flexShrink: 0 }} />
@@ -354,6 +362,7 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
           </div>
         </header>
         {compact && <div className="shell-context">{contextControls}</div>}
+        {!online && <Banner tone="warning" full>You're offline — you can keep reading, but changes will be refused until the connection returns.</Banner>}
         {s.state.loginBanner && <Banner tone="success" full onDismiss={() => session.dismissBanner()}>{s.state.loginBanner}</Banner>}
         {s.tenant && (s.tenant.subscriptionState === 'Grace' || s.tenant.subscriptionState === 'Suspended' || s.tenant.subscriptionState === 'Trial') && s.isTenantOwner && (
           <Banner tone={s.tenant.subscriptionState === 'Suspended' ? 'danger' : 'warning'} full action={<Button variant="link" onClick={() => nav.go('admin/plan')}>Plan & usage</Button>}>
@@ -548,6 +557,7 @@ function GlobalSearch({ onClose }: { onClose: () => void }) {
         <div className="palette-body" ref={listRef}>
           {rows.length === 0 && (
             <div className="palette-empty">
+              <Storyset name={q ? 'search' : 'documents'} width={80} bg={false} style={{ display: 'block', margin: '0 auto 6px' }} />
               {q ? <>No matches for <strong>{q}</strong> in {s.company?.tradeName ?? 'this company'}.</> : <>Type to search documents, parties, items and pages. Recent destinations will show up here.</>}
             </div>
           )}

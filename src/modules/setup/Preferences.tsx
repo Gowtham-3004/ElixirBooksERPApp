@@ -18,16 +18,21 @@ function Row({ label, help, children }: { label: string; help: string; children:
 }
 
 export default function Preferences() {
-  const { theme, density } = usePrefs();
+  const { theme, density, decor } = usePrefs();
   const lx = useLixi();
   return (
     <div className="page" style={{ maxWidth: 720 }}>
       <PageHeader title="User preferences" subtitle="Apply to you, on this browser only. Company settings live under Organization." back={{ label: 'All settings', path: 'setup' }} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Card title="Appearance">
-          <Row label="Theme" help="System follows your OS setting">
-            <Segmented value={theme} onChange={prefs.setTheme} options={[{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }, { value: 'system', label: 'System' }]} />
-          </Row>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <Row label="Theme" help="System follows your OS setting">
+              <Segmented value={theme} onChange={prefs.setTheme} options={[{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }, { value: 'system', label: 'System' }]} />
+            </Row>
+            <Row label="Decorative art" help="Faint scene behind the workspace, sign-in backdrop and sidebar cards">
+              <Segmented value={decor} onChange={prefs.setDecor} options={[{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }]} />
+            </Row>
+          </div>
         </Card>
         <Card title="Display density">
           <Row label="Rows and spacing" help="Compact fits more rows on screen">

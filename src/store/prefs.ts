@@ -2,12 +2,15 @@
 // data-density on its root — and the Setup › User preferences page read and write the same value.
 import { useSyncExternalStore } from 'react';
 import { readTheme, setTheme, type ThemePref } from '../lib/theme';
+import { readDecor, setDecor, type DecorPref } from '../lib/decor';
 
 export type Density = 'comfortable' | 'compact';
 
 export interface Prefs {
   density: Density;
   theme: ThemePref;
+  /** decorative Storyset art (workspace watermark, auth backdrop scene, sidebar promo) */
+  decor: DecorPref;
 }
 
 const DENSITY_KEY = 'eb-density';
@@ -15,7 +18,7 @@ const DENSITY_KEY = 'eb-density';
 function load(): Prefs {
   let density: Density = 'comfortable';
   try { if (localStorage.getItem(DENSITY_KEY) === 'compact') density = 'compact'; } catch { /* ignore */ }
-  return { density, theme: readTheme() };
+  return { density, theme: readTheme(), decor: readDecor() };
 }
 
 let state: Prefs = load();
@@ -39,6 +42,10 @@ export const prefs = {
   setTheme(theme: ThemePref) {
     setTheme(theme);
     set({ theme });
+  },
+  setDecor(decor: DecorPref) {
+    setDecor(decor);
+    set({ decor });
   },
 };
 

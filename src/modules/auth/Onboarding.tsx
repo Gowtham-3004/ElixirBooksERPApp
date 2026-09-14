@@ -23,7 +23,7 @@ export const STEPS = [
 ] as const;
 
 /** Scene shown under the stepper while a step is active. */
-const STEP_ART: Record<(typeof STEPS)[number]['key'], StorysetName> = { nature: 'business-plan', legal: 'agreement', address: 'building', currency: 'currency', periods: 'calendar', users: 'add-user', masters: 'documents', opening: 'coins', ready: 'done' };
+const STEP_ART: Record<(typeof STEPS)[number]['key'], StorysetName> = { nature: 'business-plan', legal: 'agreement', address: 'building', currency: 'currency', periods: 'calendar', users: 'add-user', masters: 'documents', opening: 'coins', ready: 'checklist' };
 
 export interface WizardState {
   nature: Company['nature'] | '';
