@@ -425,7 +425,7 @@ function ModuleFlyout({ label, anchor, items, activeId, onPick }: { label: strin
   }, [anchor, items.length]);
   return (
     <div ref={ref} className="menu sidebar-flyout" role="menu" style={{ top, left: anchor.right + 6 }}>
-      <div className="section-label" style={{ padding: '6px 10px 4px', color: 'var(--ink)', textTransform: 'none', letterSpacing: 0, fontSize: 12, fontWeight: 600 }}>{label}</div>
+      <div className="flyout-title">{label}</div>
       <SubNavList items={items} activeId={activeId} onPick={onPick} />
     </div>
   );

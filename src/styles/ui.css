@@ -250,7 +250,10 @@ html { -webkit-text-size-adjust: 100%; }
 /* module sub-pages: a flyout beside the sidebar item (hover peeks, click pins) — as tall as its list, scrolling only past the viewport */
 .sidebar .nav-item[aria-expanded="true"] { background: var(--hover); color: var(--ink); }
 .sidebar-flyout { position: fixed; width: 240px; max-height: calc(100vh - 16px); overflow-y: auto; z-index: 70; }
-.sidebar-flyout .group-label, .sidebar-sub .group-label { padding: 10px 12px 4px; }
+/* three tiers inside a flyout: module title (13px semibold + rule) › items (13px) › group sub-titles (11px muted, hairline between groups) */
+.flyout-title { padding: 8px 12px 8px; margin-bottom: 4px; border-bottom: 1px solid var(--hairline); font-size: 13px; font-weight: 600; line-height: 18px; color: var(--ink); }
+.sidebar-flyout .group-label, .sidebar-sub .group-label { padding: 10px 12px 4px; font-size: 11px; font-weight: 500; line-height: 14px; color: var(--ink-4); }
+.sidebar-flyout div + div > .group-label, .sidebar-sub div + div > .group-label { border-top: 1px solid var(--hairline); margin-top: 4px; }
 .sidebar-flyout .menu-item.active, .sidebar-sub .menu-item.active { background: var(--surface-3); font-weight: 500; }
 /* phones: the drawer expands the list inline under the item instead */
 .sidebar-sub { padding: 2px 0 6px 22px; }
