@@ -217,9 +217,9 @@ const ALL_MODULES = ['home', 'approvals', 'crm', 'sales', 'purchase', 'inventory
 
 export function seedPlatform(): Partial<DB> {
   const plans: Plan[] = [
-    rec<Plan>(IDS.planLite, { code: 'LITE', name: 'Lite', tier: 'Lite', planVersion: 3, status: 'Active', modules: ['home', 'approvals', 'sales', 'reports', 'masters', 'admin'], limits: { users: 2, companies: 1, invoicesPerMonth: 100, storageMb: 500 }, priceMonthly: 999, currency: 'INR' }),
-    rec<Plan>(IDS.planGrowth, { code: 'GROWTH', name: 'Growth', tier: 'Growth', planVersion: 1, status: 'Active', modules: ALL_MODULES.filter((m) => m !== 'production'), limits: { users: 25, companies: 5, invoicesPerMonth: 10000, storageMb: 25000 }, priceMonthly: 7999, currency: 'INR' }),
-    rec<Plan>(IDS.planEnt, { code: 'ERP', name: 'ERP Enterprise', tier: 'Enterprise', planVersion: 1, status: 'Active', modules: ['*'], limits: { users: 500, companies: 50, invoicesPerMonth: 1000000, storageMb: 500000 }, priceMonthly: 24999, currency: 'INR' }),
+    rec<Plan>(IDS.planLite, { code: 'LITE', name: 'Lite', tier: 'Lite', planVersion: 3, status: 'Active', modules: ['home', 'approvals', 'sales', 'reports', 'masters', 'admin'], limits: { users: 2, companies: 1, invoicesPerMonth: 100, storageMb: 500 }, priceMonthly: 899, currency: 'INR' }),
+    rec<Plan>(IDS.planGrowth, { code: 'GROWTH', name: 'Growth', tier: 'Growth', planVersion: 1, status: 'Active', modules: ALL_MODULES.filter((m) => m !== 'production'), limits: { users: 25, companies: 5, invoicesPerMonth: 10000, storageMb: 25000 }, priceMonthly: 2099, currency: 'INR' }),
+    rec<Plan>(IDS.planEnt, { code: 'ERP', name: 'ERP Enterprise', tier: 'Enterprise', planVersion: 1, status: 'Active', modules: ['*'], limits: { users: 500, companies: 50, invoicesPerMonth: 1000000, storageMb: 500000 }, priceMonthly: 6999, currency: 'INR' }),
   ];
   const tenants: Tenant[] = [
     rec<Tenant>(IDS.tenant, { name: 'Acme Group', planId: IDS.planEnt, subscriptionState: 'Active', renewsAt: '2027-04-01', ownerUserId: IDS.uOwner, usage: { users: 9, companies: 2, invoicesPerMonth: 131, storageMb: 1840 }, country: 'IN' }),

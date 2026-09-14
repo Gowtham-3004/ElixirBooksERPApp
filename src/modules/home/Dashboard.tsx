@@ -107,13 +107,13 @@ export default function Dashboard() {
   const ageTone = (submittedAt: string, dueAt?: string): 'critical' | 'warning' | 'neutral' => (dueAt && new Date(dueAt) < new Date() ? 'critical' : daysBetween(submittedAt, today()) >= 2 ? 'warning' : 'neutral');
 
   return (
-    <div className="page" style={{ maxWidth: 1240 }}>
+    <div className="page">
       <div className="page-header">
         <div>
           <h1 className="page-title">{greeting}, {s.user?.name.split(' ')[0]}</h1>
           <div className="page-subtitle">{meta()}</div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="page-actions">
           {s.can('sales.invoice.create') && <Button variant="secondary" onClick={() => nav.go('sales/invoices/new')}>+ New invoice</Button>}
           <Button variant="secondary" icon={<RefreshIcon size={13} />} onClick={() => engine.notify({ type: 'system', title: 'Dashboard refreshed', body: `As of ${new Date().toLocaleTimeString('en-IN')}`, read: true })}>Refresh</Button>
         </div>
@@ -136,8 +136,8 @@ export default function Dashboard() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
         <div className="card" style={{ padding: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-            <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ minWidth: 0 }}>
               <h3 style={{ fontSize: 16, fontWeight: 600, color: '#0A0A0A', marginBottom: 2 }}>Revenue vs Expenses</h3>
               <p style={{ fontSize: 12, color: '#6E6E71' }}>{meta('last 7 months · posted journals')}</p>
             </div>

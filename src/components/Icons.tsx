@@ -53,6 +53,7 @@ export const LinkIcon = icon('M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.7
 export const ArrowsSwapIcon = icon('M7 16V4m0 0L3 8m4-4l4 4|M17 8v12m0 0l4-4m-4 4l-4-4');
 export const ShieldCheckIcon = icon('M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z|M9 12l2 2 4-4');
 export const XIcon = icon('M18 6L6 18|M6 6l12 12');
+export const MenuIcon = icon('M4 6h16|M4 12h16|M4 18h16');
 export const HelpCircleIcon = icon('M12 22a10 10 0 100-20 10 10 0 000 20z|M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3|M12 17h.01');
 export const UserIcon = icon('M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2|M12 11a4 4 0 100-8 4 4 0 000 8');
 export const SortIcon = icon('M3 6h18|M6 12h12|M9 18h6');

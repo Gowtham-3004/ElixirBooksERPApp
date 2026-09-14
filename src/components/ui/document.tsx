@@ -1,13 +1,13 @@
 // Document-page building blocks: line-item grid, totals ladder, tax breakup,
 // timelines, approvals/accounting/activity tabs, attachments, print sheet.
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode, useEffect, useRef } from 'react';
 import { db, C, engine, nav, useCollection, useSession } from '../../store';
 import type { ApprovalRequest, Attachment, AuditEvent, DocHeader, DocLine, DocTotals, Journal, Item } from '../../store';
 import { fmtMoney, fmtDateTime, fmtQty, amountInWords, fmtDate, uid } from '../../lib/format';
 import { Badge, Button, Money, SnapshotTag, TwoLine, Identifier, EmptyState, Pill } from './primitives';
 import { EntityPicker, NumberField, SelectField, useItemOptions, useTaxRateOptions, useWarehouseOptions, TextField } from './fields';
 import { Explain, ActionMenu } from './overlays';
-import { PlusIcon, XIcon, FileTextIcon, ShieldCheckIcon, LockIcon, ArrowLeftIcon } from '../Icons';
+import { PlusIcon, XIcon, FileTextIcon, ShieldCheckIcon, LockIcon, ArrowLeftIcon, ChevronDownIcon } from '../Icons';
 
 // ── Line item grid (design §7.8) ──────────────────────────────────────────
 
@@ -484,13 +484,22 @@ export function DocumentPage({ backLabel, onBack, number, badges, amount, due, r
   const [localTab, setLocalTab] = useState(tabs[0]?.id);
   const tab = activeTab ?? localTab;
   const setTab = onTab ?? setLocalTab;
+  // phones stack the rail above the tabs; its sections start collapsed so the lines are one tap away
+  const [railOpen, setRailOpen] = useState(false);
+  // on phones the footer is a sideways-scrolling strip; start it scrolled to the end so the
+  // primary action (rightmost, as on desktop) is what the user sees first
+  const footerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { const el = footerRef.current; if (el) el.scrollLeft = el.scrollWidth; }, [number]);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {banner}
-      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-        <aside className="doc-rail">
+      <div className="doc-layout">
+        <aside className={`doc-rail ${railOpen ? '' : 'rail-collapsed'}`}>
           <div>
-            <button type="button" className="btn-link" onClick={onBack} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 12, color: '#5F6368' }}><ArrowLeftIcon size={14} /> {backLabel}</button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+              <button type="button" className="btn-link" onClick={onBack} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 12, color: '#5F6368' }}><ArrowLeftIcon size={14} /> {backLabel}</button>
+              {rail && <button type="button" className="btn-link doc-rail-toggle" style={{ marginBottom: 12, color: '#5F6368', alignItems: 'center', gap: 4 }} onClick={() => setRailOpen((v) => !v)} aria-expanded={railOpen}>{railOpen ? 'Hide details' : 'Details'} <ChevronDownIcon size={12} /></button>}
+            </div>
             <div className="identifier" style={{ fontSize: 20, fontWeight: 600, color: '#0A0A0A', lineHeight: '28px' }}>{number}</div>
             {badges && <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>{badges}</div>}
             {(amount || due) && (
@@ -527,8 +536,8 @@ export function DocumentPage({ backLabel, onBack, number, badges, amount, due, r
               <button key={t.id} type="button" className={`doc-tab ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>{t.label}</button>
             ))}
           </div>
-          <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>{tabs.find((t) => t.id === tab)?.content}</div>
-          {footer && <div className="doc-footer">{footer}</div>}
+          <div className="doc-body">{tabs.find((t) => t.id === tab)?.content}</div>
+          {footer && <div className="doc-footer" ref={footerRef}>{footer}</div>}
         </div>
       </div>
     </div>

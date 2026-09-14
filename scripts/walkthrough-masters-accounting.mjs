@@ -70,8 +70,10 @@ try {
   await wait(300);
   await page.getByRole('button', { name: /Import \d+ rows/ }).click();
   await wait(600);
-  const earl = await page.getByText('Earl Grey Tea 250 g').count();
-  const washer = await page.getByText('Spring Washer M16').count();
+  // the register paginates, so search for each imported row rather than scanning page 1
+  const findRow = async (name) => { const q = page.locator('.toolbar .search-input input').first(); await q.fill(name); await wait(250); const n = await page.locator('tbody tr', { hasText: name }).count(); await q.fill(''); await wait(150); return n; };
+  const earl = await findRow('Earl Grey Tea 250 g');
+  const washer = await findRow('Spring Washer M16');
   step('Imported 2 items via wizard sample', earl > 0 && washer > 0, valid.replace(/\s+/g, ' ').slice(0, 80));
 
   // ── 3. Price-resolution tester ─────────────────────────────────────────

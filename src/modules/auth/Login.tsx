@@ -70,9 +70,9 @@ export default function Login({ onLogin, onCreateAccount }: LoginProps) {
 
   return (
     <Backdrop>
-      <div style={{ width: '100%', maxWidth: 960, background: '#FFFFFF', borderRadius: 16, boxShadow: '0 8px 48px rgba(0,0,0,0.10)', display: 'flex', overflow: 'hidden', minHeight: 560 }}>
+      <div className="auth-split" style={{ width: '100%', maxWidth: 960, background: '#FFFFFF', borderRadius: 16, boxShadow: '0 8px 48px rgba(0,0,0,0.10)', display: 'flex', overflow: 'hidden', minHeight: 560 }}>
         {/* Left – form */}
-        <div style={{ width: 420, flexShrink: 0, padding: '48px 40px', display: 'flex', flexDirection: 'column', borderRight: '1px solid #EFEFEF' }}>
+        <div className="auth-main" style={{ width: 420, flexShrink: 0, padding: '48px 40px', display: 'flex', flexDirection: 'column', borderRight: '1px solid #EFEFEF' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 36 }}>
             <BrandMark />
             <span style={{ fontSize: 18, fontWeight: 700, color: '#0A0A0A', letterSpacing: '-0.02em' }}>Elixir Books</span>
@@ -144,7 +144,7 @@ export default function Login({ onLogin, onCreateAccount }: LoginProps) {
         </div>
 
         {/* Right – preview */}
-        <div style={{ flex: 1, background: 'linear-gradient(160deg, #F0F4FF 0%, #F5F8FF 100%)', padding: 32, display: 'flex', flexDirection: 'column', gap: 16, overflow: 'hidden' }}>
+        <div className="auth-aside" style={{ flex: 1, background: 'linear-gradient(160deg, #F0F4FF 0%, #F5F8FF 100%)', padding: 32, display: 'flex', flexDirection: 'column', gap: 16, overflow: 'hidden' }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: '#325CFF', marginBottom: 4 }}>Elixir Books {preview.plan?.name ?? 'Growth'} · {preview.co?.legalName ?? 'Acme Private Limited'}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
             {KPI.map((kpi) => (

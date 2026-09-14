@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { db, C, nav, session, useCollection, useSession, useRoute, engine } from '../store';
 import type { Notification, Period } from '../store';
 import { MODULES, GROUP_ORDER, moduleById } from '../modules/registry';
-import { BellIcon, SearchIcon, ChevronDownIcon, HelpCircleIcon, CogIcon, LockIcon, XIcon, ArrowLeftIcon } from './Icons';
+import { BellIcon, SearchIcon, ChevronDownIcon, HelpCircleIcon, CogIcon, LockIcon, XIcon, ArrowLeftIcon, MenuIcon } from './Icons';
+import { useIsMobile, useIsTablet } from '../lib/useMedia';
 import { Avatar, Badge, Button, Banner, Kbd, TwoLine } from './ui/primitives';
 import { Modal } from './ui/overlays';
 import { fmtDateTime, fmtMoney, fmtPeriod } from '../lib/format';
@@ -25,7 +26,12 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
   const [helpOpen, setHelpOpen] = useState(false);
   const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.innerWidth < 1440);
   const [railPinned, setRailPinned] = useState<boolean | null>(() => { try { const v = localStorage.getItem('eb-sidebar'); return v === null ? null : v === 'expanded'; } catch { return null; } });
-  const collapsed = railPinned === null ? narrow : !railPinned;
+  const isMobile = useIsMobile();
+  // below the laptop breakpoint the company/branch/period controls move to a strip under the header
+  const compact = useIsTablet();
+  const [navOpen, setNavOpen] = useState(false);
+  // on phones the sidebar is an off-canvas drawer and always shows labels
+  const collapsed = isMobile ? false : railPinned === null ? narrow : !railPinned;
   const notifications = useCollection<Notification>(C.notifications);
   const myNotifs = notifications.filter((n) => !n.userId || n.userId === s.user?.id).sort((a, b) => b.at.localeCompare(a.at));
   const unread = myNotifs.filter((n) => !n.read).length;
@@ -51,12 +57,81 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
     window.addEventListener('resize', r);
     return () => { document.removeEventListener('keydown', h); window.removeEventListener('resize', r); };
   }, []);
+  useEffect(() => { setNavOpen(false); }, [route.path, isMobile]);
+  useEffect(() => {
+    if (!isMobile || !navOpen) return;
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') setNavOpen(false); };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, [isMobile, navOpen]);
   const toggleRail = () => { const next = collapsed; setRailPinned(next); try { localStorage.setItem('eb-sidebar', next ? 'expanded' : 'collapsed'); } catch { /* ignore */ } };
 
   const mod = moduleById(route.module);
   const crumbs = [mod?.group ? mod.group.charAt(0) + mod.group.slice(1).toLowerCase() : 'Workspace', mod?.label ?? route.module, ...(route.sub ? [route.sub.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())] : []), ...(route.params.crumb ? [route.params.crumb] : [])];
   const periodTone = s.period?.status === 'Open' ? { bg: '#E0F9EC', fg: '#12784E' } : s.period?.status === 'Locked' ? { bg: '#E7E9EB', fg: '#3C4043' } : { bg: '#FEF4EC', fg: '#8A4B0F' };
   const isWin = typeof navigator !== 'undefined' && /Win/.test(navigator.platform);
+
+  // company · branch · FY · period — in the header on desktop, in a scrollable strip under it on phones
+  const contextControls = (
+    <>
+            {s.companies.length > 0 && (
+              <span style={{ position: 'relative' }}>
+                <button type="button" className="btn-secondary btn-sm" style={{ gap: 6, fontFeatureSettings: 'normal' }} onClick={() => setCompanyOpen(!companyOpen)}>
+                  <span style={{ maxWidth: compact ? 150 : undefined, overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.company?.legalName ?? 'Select company'}</span> <ChevronDownIcon size={12} />
+                </button>
+                {companyOpen && (
+                  <Dropdown onClose={() => setCompanyOpen(false)} sheet={compact}>
+                    <div className="section-label" style={{ padding: '6px 10px' }}>Switch company</div>
+                    {s.companies.map((c) => (
+                      <button key={c.id} type="button" className="menu-item" style={{ height: 'auto', padding: '6px 10px', background: c.id === s.company?.id ? '#F2F5FF' : undefined }} onClick={() => { session.switchCompany(c.id); setCompanyOpen(false); nav.go('home'); }}>
+                        <TwoLine primary={c.legalName} secondary={`${c.country} · ${c.baseCurrency} · ${c.nature}`} />
+                      </button>
+                    ))}
+                    {s.isTenantOwner && (<><div className="menu-sep" /><button type="button" className="menu-item" style={{ color: '#325CFF' }} onClick={() => { setCompanyOpen(false); nav.go('admin/companies'); }}>+ Add company</button></>)}
+                  </Dropdown>
+                )}
+              </span>
+            )}
+            {s.branches.length > 1 && (
+              <span style={{ position: 'relative' }}>
+                <button type="button" className="btn-secondary btn-sm" style={{ gap: 6, fontFeatureSettings: 'normal' }} onClick={() => setBranchOpen(!branchOpen)}>
+                  {s.branch?.name ?? 'Branch'} <ChevronDownIcon size={12} />
+                </button>
+                {branchOpen && (
+                  <Dropdown onClose={() => setBranchOpen(false)} sheet={compact}>
+                    {s.branches.map((b) => (
+                      <button key={b.id} type="button" className="menu-item" style={{ background: b.id === s.branch?.id ? '#F2F5FF' : undefined }} onClick={() => { session.setBranch(b.id); setBranchOpen(false); }}>
+                        {b.name} <span style={{ color: '#B0B5BF', fontSize: 11, marginLeft: 'auto' }}>{b.type}</span>
+                      </button>
+                    ))}
+                  </Dropdown>
+                )}
+              </span>
+            )}
+            <span style={{ padding: '2px 8px', background: '#F3F5F5', borderRadius: 9999, fontSize: 12, color: '#5F6368', fontFeatureSettings: 'normal' }}>FY {s.state.fy ?? '—'}</span>
+            <span style={{ position: 'relative' }}>
+              <button type="button" onClick={() => setPeriodOpen(!periodOpen)} style={{ padding: '2px 8px', background: periodTone.bg, borderRadius: 9999, fontSize: 12, color: periodTone.fg, display: 'flex', alignItems: 'center', gap: 5, fontFeatureSettings: 'normal', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                {s.period?.status === 'Locked' ? <LockIcon size={10} /> : <span style={{ width: 6, height: 6, borderRadius: '50%', background: periodTone.fg, display: 'inline-block' }} />}
+                {s.period?.label ?? fmtPeriod(s.state.periodCode)}
+              </button>
+              {periodOpen && (
+                <Dropdown onClose={() => setPeriodOpen(false)} sheet={compact}>
+                  <div className="section-label" style={{ padding: '6px 10px' }}>Periods · {s.state.fy}</div>
+                  <div style={{ maxHeight: 300, overflow: 'auto' }}>
+                    {s.periods.map((p: Period) => (
+                      <button key={p.id} type="button" className="menu-item" style={{ background: p.code === s.period?.code ? '#F2F5FF' : undefined }} onClick={() => { session.setPeriod(p.code); setPeriodOpen(false); }}>
+                        <span style={{ flex: 1 }}>{p.label}</span>
+                        <Badge status={p.status} />
+                      </button>
+                    ))}
+                  </div>
+                  <div className="menu-sep" />
+                  <button type="button" className="menu-item" style={{ color: '#325CFF' }} onClick={() => { setPeriodOpen(false); nav.go('admin/periods'); }}>Manage periods →</button>
+                </Dropdown>
+              )}
+            </span>
+    </>
+  );
 
   if (fullBleed) {
     return (
@@ -67,9 +142,10 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100%', background: '#F7F7F7' }}>
-      {/* Sidebar */}
-      <aside style={{ width: collapsed ? 64 : 250, flexShrink: 0, background: '#FFFFFF', borderRight: '1px solid #EFEFEF', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'visible', transition: 'width 0.15s ease', position: 'relative' }} aria-label="Sidebar">
+    <div className="shell">
+      {isMobile && navOpen && <div className="sidebar-scrim" onClick={() => setNavOpen(false)} />}
+      {/* Sidebar — fixed rail on desktop/tablet, off-canvas drawer on phones */}
+      <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${navOpen ? 'open' : ''}`} aria-label="Sidebar" aria-hidden={isMobile && !navOpen ? true : undefined}>
         <div style={{ padding: collapsed ? '14px 0 12px' : '14px 16px 12px', borderBottom: '1px solid #EFEFEF', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : undefined, gap: 10, cursor: 'pointer', position: 'relative' }} onClick={() => setSidebarCompanyOpen(!sidebarCompanyOpen)} title={collapsed ? `${s.tenant?.name ?? ''} · ${s.company?.legalName ?? ''} — switch company` : 'Switch company'}>
           <div style={{ width: 32, height: 32, borderRadius: 8, background: s.company?.brandColor ?? '#325CFF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontWeight: 700 }}>
             {s.company?.logoText ?? 'E'}
@@ -83,9 +159,10 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
               </div>
             </div>
           )}
+          {isMobile && <button type="button" className="btn-icon" aria-label="Close navigation" onClick={(e) => { e.stopPropagation(); setNavOpen(false); }}><XIcon size={16} /></button>}
           {sidebarCompanyOpen && (
             <div onClick={(e) => e.stopPropagation()}>
-              <Dropdown onClose={() => setSidebarCompanyOpen(false)} width={260} align="left" top={collapsed ? 56 : undefined}>
+              <Dropdown onClose={() => setSidebarCompanyOpen(false)} width={260} align="left" top={collapsed ? 56 : undefined} sheet={isMobile}>
                 <div className="section-label" style={{ padding: '6px 10px' }}>Switch company</div>
                 {s.companies.map((c) => (
                   <button key={c.id} type="button" className="menu-item" style={{ height: 'auto', padding: '6px 10px', background: c.id === s.company?.id ? '#F2F5FF' : undefined }} onClick={() => { setSidebarCompanyOpen(false); if (c.id !== s.company?.id) { session.switchCompany(c.id); nav.go('home'); } }}>
@@ -123,9 +200,9 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
           <button type="button" className="nav-item" title="Settings" style={{ width: '100%', border: 'none', textAlign: 'left', background: 'transparent', justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined }} onClick={() => nav.go('admin')}>
             <CogIcon size={16} />{!collapsed && <span>Settings</span>}
           </button>
-          <button type="button" className="nav-item" title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} style={{ width: '100%', border: 'none', textAlign: 'left', background: 'transparent', justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined, color: '#5F6368' }} onClick={toggleRail}>
+          {!isMobile && <button type="button" className="nav-item" title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} style={{ width: '100%', border: 'none', textAlign: 'left', background: 'transparent', justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined, color: '#5F6368' }} onClick={toggleRail}>
             <span style={{ display: 'inline-flex', transform: collapsed ? 'rotate(180deg)' : undefined }}><ArrowLeftIcon size={16} /></span>{!collapsed && <span>Collapse</span>}
-          </button>
+          </button>}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : undefined, gap: 8, padding: collapsed ? '8px 0' : '8px 12px', borderRadius: 8, marginTop: 4, cursor: 'pointer' }} onClick={() => setUserOpen(true)} title={s.user?.name}>
             <Avatar name={s.user?.name ?? '?'} />
             {!collapsed && (
@@ -142,86 +219,38 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
       </aside>
 
       {/* Main */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
-        <header style={{ height: 48, background: '#F9FBFC', borderBottom: '1px solid #EFEFEF', display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
+      <div className="shell-main">
+        <header className="shell-header">
+          <button type="button" className="btn-ghost hamburger" style={{ padding: '0 8px' }} aria-label="Open navigation" onClick={() => setNavOpen(true)}><MenuIcon size={18} /></button>
+          <div className="crumbs">
             {crumbs.map((crumb, i) => (
-              <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                {i > 0 && <span style={{ fontSize: 12, color: '#B0B5BF' }}>›</span>}
+              <span key={i} className="crumb" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {i > 0 && <span className="crumb-sep" style={{ fontSize: 12, color: '#B0B5BF' }}>›</span>}
                 <span style={{ fontSize: 13, fontWeight: i === crumbs.length - 1 ? 500 : 400, color: i === crumbs.length - 1 ? '#0A0A0A' : '#5F6368', fontFeatureSettings: 'normal', cursor: i === 1 ? 'pointer' : undefined }} onClick={() => i === 1 && mod && nav.go(mod.id)}>{crumb}</span>
               </span>
             ))}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-            {s.companies.length > 0 && (
-              <span style={{ position: 'relative' }}>
-                <button type="button" className="btn-secondary btn-sm" style={{ gap: 6, fontFeatureSettings: 'normal' }} onClick={() => setCompanyOpen(!companyOpen)}>
-                  {s.company?.legalName ?? 'Select company'} <ChevronDownIcon size={12} />
-                </button>
-                {companyOpen && (
-                  <Dropdown onClose={() => setCompanyOpen(false)}>
-                    <div className="section-label" style={{ padding: '6px 10px' }}>Switch company</div>
-                    {s.companies.map((c) => (
-                      <button key={c.id} type="button" className="menu-item" style={{ height: 'auto', padding: '6px 10px', background: c.id === s.company?.id ? '#F2F5FF' : undefined }} onClick={() => { session.switchCompany(c.id); setCompanyOpen(false); nav.go('home'); }}>
-                        <TwoLine primary={c.legalName} secondary={`${c.country} · ${c.baseCurrency} · ${c.nature}`} />
-                      </button>
-                    ))}
-                    {s.isTenantOwner && (<><div className="menu-sep" /><button type="button" className="menu-item" style={{ color: '#325CFF' }} onClick={() => { setCompanyOpen(false); nav.go('admin/companies'); }}>+ Add company</button></>)}
-                  </Dropdown>
-                )}
-              </span>
-            )}
-            {s.branches.length > 1 && (
-              <span style={{ position: 'relative' }}>
-                <button type="button" className="btn-secondary btn-sm" style={{ gap: 6, fontFeatureSettings: 'normal' }} onClick={() => setBranchOpen(!branchOpen)}>
-                  {s.branch?.name ?? 'Branch'} <ChevronDownIcon size={12} />
-                </button>
-                {branchOpen && (
-                  <Dropdown onClose={() => setBranchOpen(false)}>
-                    {s.branches.map((b) => (
-                      <button key={b.id} type="button" className="menu-item" style={{ background: b.id === s.branch?.id ? '#F2F5FF' : undefined }} onClick={() => { session.setBranch(b.id); setBranchOpen(false); }}>
-                        {b.name} <span style={{ color: '#B0B5BF', fontSize: 11, marginLeft: 'auto' }}>{b.type}</span>
-                      </button>
-                    ))}
-                  </Dropdown>
-                )}
-              </span>
-            )}
-            <span style={{ padding: '2px 8px', background: '#F3F5F5', borderRadius: 9999, fontSize: 12, color: '#5F6368', fontFeatureSettings: 'normal' }}>FY {s.state.fy ?? '—'}</span>
-            <span style={{ position: 'relative' }}>
-              <button type="button" onClick={() => setPeriodOpen(!periodOpen)} style={{ padding: '2px 8px', background: periodTone.bg, borderRadius: 9999, fontSize: 12, color: periodTone.fg, display: 'flex', alignItems: 'center', gap: 5, fontFeatureSettings: 'normal', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                {s.period?.status === 'Locked' ? <LockIcon size={10} /> : <span style={{ width: 6, height: 6, borderRadius: '50%', background: periodTone.fg, display: 'inline-block' }} />}
-                {s.period?.label ?? fmtPeriod(s.state.periodCode)}
+            {!compact && contextControls}
+            {compact ? (
+              <button type="button" className="btn-ghost" style={{ padding: '0 8px' }} aria-label="Search" onClick={() => setSearchOpen(true)}><SearchIcon size={16} /></button>
+            ) : (
+              <button type="button" className="btn-secondary btn-sm" style={{ gap: 6, color: '#5F6368', fontFeatureSettings: 'normal', fontWeight: 400 }} onClick={() => setSearchOpen(true)}>
+                <SearchIcon size={13} /> Search <Kbd>{isWin ? 'Ctrl K' : '⌘K'}</Kbd>
               </button>
-              {periodOpen && (
-                <Dropdown onClose={() => setPeriodOpen(false)}>
-                  <div className="section-label" style={{ padding: '6px 10px' }}>Periods · {s.state.fy}</div>
-                  <div style={{ maxHeight: 300, overflow: 'auto' }}>
-                    {s.periods.map((p: Period) => (
-                      <button key={p.id} type="button" className="menu-item" style={{ background: p.code === s.period?.code ? '#F2F5FF' : undefined }} onClick={() => { session.setPeriod(p.code); setPeriodOpen(false); }}>
-                        <span style={{ flex: 1 }}>{p.label}</span>
-                        <Badge status={p.status} />
-                      </button>
-                    ))}
-                  </div>
-                  <div className="menu-sep" />
-                  <button type="button" className="menu-item" style={{ color: '#325CFF' }} onClick={() => { setPeriodOpen(false); nav.go('admin/periods'); }}>Manage periods →</button>
-                </Dropdown>
-              )}
-            </span>
-            <button type="button" className="btn-secondary btn-sm" style={{ gap: 6, color: '#5F6368', fontFeatureSettings: 'normal', fontWeight: 400 }} onClick={() => setSearchOpen(true)}>
-              <SearchIcon size={13} /> Search <Kbd>{isWin ? 'Ctrl K' : '⌘K'}</Kbd>
-            </button>
-            <button type="button" className="btn-ghost" style={{ padding: '0 8px' }} title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" onClick={() => setHelpOpen(true)}>
-              <HelpCircleIcon size={16} />
-            </button>
+            )}
+            {!compact && (
+              <button type="button" className="btn-ghost" style={{ padding: '0 8px' }} title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" onClick={() => setHelpOpen(true)}>
+                <HelpCircleIcon size={16} />
+              </button>
+            )}
             <span style={{ position: 'relative' }}>
               <button type="button" className="btn-ghost" style={{ padding: '0 8px', position: 'relative' }} onClick={() => setNotifOpen(!notifOpen)}>
                 <BellIcon size={16} />
                 {unread > 0 && <span style={{ position: 'absolute', top: 2, right: 2, minWidth: 16, height: 16, padding: '0 4px', background: '#325CFF', color: '#fff', borderRadius: 9999, fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #F9FBFC' }}>{unread}</span>}
               </button>
               {notifOpen && (
-                <Dropdown onClose={() => setNotifOpen(false)} width={380}>
+                <Dropdown onClose={() => setNotifOpen(false)} width={380} sheet={compact}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px' }}>
                     <span className="section-label">Notifications</span>
                     {unread > 0 && <button type="button" className="btn-link" style={{ fontSize: 12 }} onClick={() => myNotifs.filter((n) => !n.read).forEach((n) => db.patchSilent<Notification>(C.notifications, n.id, { read: true }))}>Mark all read</button>}
@@ -245,6 +274,7 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
             <span onClick={() => setUserOpen(true)} style={{ cursor: 'pointer' }}><Avatar name={s.user?.name ?? '?'} /></span>
           </div>
         </header>
+        {compact && <div className="shell-context">{contextControls}</div>}
         {s.state.loginBanner && <Banner tone="success" full onDismiss={() => session.dismissBanner()}>{s.state.loginBanner}</Banner>}
         {s.tenant && (s.tenant.subscriptionState === 'Grace' || s.tenant.subscriptionState === 'Suspended' || s.tenant.subscriptionState === 'Trial') && s.isTenantOwner && (
           <Banner tone={s.tenant.subscriptionState === 'Suspended' ? 'danger' : 'warning'} full action={<Button variant="link" onClick={() => nav.go('admin/plan')}>Plan & usage</Button>}>
@@ -297,13 +327,14 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
   );
 }
 
-function Dropdown({ children, onClose, width = 260, align = 'right', top }: { children: ReactNode; onClose: () => void; width?: number; align?: 'left' | 'right'; top?: number }) {
+function Dropdown({ children, onClose, width = 260, align = 'right', top, sheet }: { children: ReactNode; onClose: () => void; width?: number; align?: 'left' | 'right'; top?: number; sheet?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setTimeout(onClose, 0); };
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, [onClose]);
+  if (sheet) return <div ref={ref} className="menu mobile-sheet" style={{ zIndex: 60 }}>{children}</div>;
   return <div ref={ref} className="menu" style={{ [align === 'left' ? 'left' : 'right']: align === 'left' ? 8 : 0, top: top ?? '100%', marginTop: 4, width, zIndex: 60 }}>{children}</div>;
 }
 

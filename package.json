@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "format": "oxfmt",
     "typecheck": "tsc --noEmit",
-    "smoke": "node scripts/smoke.mjs http://localhost:5173"
+    "smoke": "node scripts/smoke.mjs http://localhost:5173",
+    "responsive": "node scripts/audit-responsive.mjs"
   },
   "dependencies": {
     "react": "^19.0.0",

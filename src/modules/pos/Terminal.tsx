@@ -27,8 +27,8 @@ function OpenShiftScreen() {
   const busyTerminal = shifts.find((x) => x.status === 'Open' && x.terminalId === terminalId);
   const open = () => { try { const sh = openShift(terminalId, float); toast.success(`Shift ${sh.number} opened`); } catch (e: any) { toast.error(e.message); } };
   return (
-    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F9FBFC' }}>
-      <div style={{ width: 420, display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
+    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F9FBFC', padding: 16, overflow: 'auto' }}>
+      <div style={{ width: 420, maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
         <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#325CFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>🖥️</div>
         <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>POS terminal</h2>
         <p style={{ fontSize: 14, color: '#5F6368', textAlign: 'center', margin: 0 }}>Terminal is closed. Open a cashier shift to start billing (FR-POS-001).</p>
@@ -110,11 +110,11 @@ function Register({ shift }: { shift: PosShift }) {
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#F7F7F7' }}>
-      <div style={{ height: 48, background: '#0A0A0A', color: '#fff', display: 'flex', alignItems: 'center', gap: 16, padding: '0 16px', fontSize: 13, flexShrink: 0 }}>
+      <div className="pos-topbar" style={{ height: 48, background: '#0A0A0A', color: '#fff', display: 'flex', alignItems: 'center', gap: 16, padding: '0 16px', fontSize: 13, flexShrink: 0 }}>
         <span style={{ fontWeight: 600 }}>Terminal {terminal?.code ?? ''}</span>
-        <span style={{ color: 'rgba(255,255,255,.7)' }}>Cashier {shift.cashierName}</span>
-        <span style={{ color: 'rgba(255,255,255,.7)' }}>Shift opened {fmtDateTime(shift.openedAt).split(',')[0]}</span>
-        <span style={{ color: 'rgba(255,255,255,.7)' }}>Float {fmtMoney(shift.openingFloat)}</span>
+        <span className="pos-meta" style={{ color: 'rgba(255,255,255,.7)' }}>Cashier {shift.cashierName}</span>
+        <span className="pos-meta" style={{ color: 'rgba(255,255,255,.7)' }}>Shift opened {fmtDateTime(shift.openedAt).split(',')[0]}</span>
+        <span className="pos-meta" style={{ color: 'rgba(255,255,255,.7)' }}>Float {fmtMoney(shift.openingFloat)}</span>
         <span style={{ color: 'rgba(255,255,255,.7)' }}>{shift.bills ?? 0} bills · {fmtMoney(shift.sales ?? 0)}</span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: online ? '#22C55E' : '#F97316' }} />{online ? 'Online' : 'Offline'}</span>
         <div style={{ flex: 1 }} />
@@ -123,9 +123,9 @@ function Register({ shift }: { shift: PosShift }) {
         <button type="button" onClick={() => setClosing(true)} style={{ ...btnDark, background: '#C0393F' }} data-testid="pos-close-shift">Close shift</button>
       </div>
       {!online && <Banner tone="danger" full>Connection lost — sales are paused until reconnected.</Banner>}
-      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+      <div className="pos-register" style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         {/* catalogue 40% */}
-        <div style={{ flex: '0 0 40%', display: 'flex', flexDirection: 'column', minWidth: 0, borderRight: '1px solid #EAEAEA', background: '#FFF' }}>
+        <div className="pos-catalogue" style={{ flex: '0 0 40%', display: 'flex', flexDirection: 'column', minWidth: 0, borderRight: '1px solid #EAEAEA', background: '#FFF' }}>
           <div style={{ padding: 12, borderBottom: '1px solid #EAEAEA' }}>
             <div className="search-input" style={{ width: '100%', height: 48 }}><SearchIcon size={16} /><input ref={searchRef} autoFocus value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onSearchKey} placeholder="Scan barcode or search item / SKU… (Enter adds an exact match)" style={{ fontSize: 15 }} data-testid="pos-search" /></div>
             <div style={{ display: 'flex', gap: 6, marginTop: 10, overflowX: 'auto' }}>{cats.map((c) => <button key={c} type="button" className={`chip ${cat === c ? 'selected' : ''}`} style={{ height: 36, flexShrink: 0 }} onClick={() => setCat(c)}>{c}</button>)}</div>
@@ -143,17 +143,17 @@ function Register({ shift }: { shift: PosShift }) {
           </div>
         </div>
         {/* cart 35% */}
-        <div style={{ flex: '0 0 35%', display: 'flex', flexDirection: 'column', minWidth: 0, background: '#FFF', borderRight: '1px solid #EAEAEA' }}>
+        <div className="pos-cart" style={{ flex: '0 0 35%', display: 'flex', flexDirection: 'column', minWidth: 0, background: '#FFF', borderRight: '1px solid #EAEAEA' }}>
           <div style={{ padding: '10px 12px', borderBottom: '1px solid #EAEAEA', display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>{lines.length} item{lines.length === 1 ? '' : 's'}</span>
             <div style={{ flex: 1 }}><EntityPicker size="sm" value={customerId} onChange={(id) => setCustomerId(id ?? cfg.posDefaultCustomerId)} options={custOpts} placeholder="Customer: Walk-in" allowClear={!isWalkin} recentKey="pos-customers" /></div>
             <Button size="sm" variant="ghost" onClick={hold} disabled={!lines.length} data-testid="pos-hold">Hold</Button>
             <Button size="sm" variant="ghost" onClick={() => setLines([])} disabled={!lines.length}>Clear</Button>
           </div>
-          <div style={{ flex: 1, overflow: 'auto' }}>
+          <div className="pos-cart-lines" style={{ flex: 1, overflow: 'auto' }}>
             {computed.length === 0 && <div style={{ padding: 40, textAlign: 'center', color: '#B0B5BF' }}>Scan or tap items to add them</div>}
             {computed.map((l) => (
-              <div key={l.id} style={{ display: 'grid', gridTemplateColumns: '1fr 112px 64px 90px 28px', gap: 8, alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid #F5F5F5', fontSize: 13 }} data-testid="pos-cart-line">
+              <div key={l.id} className="pos-line" style={{ display: 'grid', gridTemplateColumns: '1fr 112px 64px 90px 28px', gap: 8, alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid #F5F5F5', fontSize: 13 }} data-testid="pos-cart-line">
                 <div style={{ minWidth: 0 }}><div style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.itemName}</div><div style={{ fontSize: 11, color: '#5F6368' }}>{fmtMoney(l.rate)} × {fmtQty(l.qty)} · GST {l.taxRate}% incl.</div></div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}><button type="button" style={qtyBtn} onClick={() => setQty(l.id, l.qty - 1)}>−</button><input value={l.qty} onChange={(e) => setQty(l.id, Math.max(0, Number(e.target.value) || 0))} style={{ width: 40, height: 32, textAlign: 'center', border: '1px solid #EAEAEA', borderRadius: 6, fontFamily: 'inherit', fontFeatureSettings: '"tnum" 1' }} /><button type="button" style={qtyBtn} onClick={() => setQty(l.id, l.qty + 1)}>+</button></div>
                 <NumberField size="grid" value={l.discountPct} onChange={(v) => setDisc(l.id, v)} decimals={0} min={0} max={100} suffix="%" />
@@ -171,7 +171,7 @@ function Register({ shift }: { shift: PosShift }) {
           </div>
         </div>
         {/* tender 25% */}
-        <div style={{ flex: '1 1 25%', display: 'flex', flexDirection: 'column', background: '#FFF', padding: 14, gap: 12, minWidth: 0 }}>
+        <div className="pos-tender" style={{ flex: '1 1 25%', display: 'flex', flexDirection: 'column', background: '#FFF', padding: 14, gap: 12, minWidth: 0 }}>
           <div><div className="section-label">Payable</div><div className="money" style={{ fontSize: 32, fontWeight: 700, lineHeight: 1.1 }} data-testid="pos-payable">{fmtMoney(totals.total)}</div></div>
           <Segmented size="lg" value={tender} onChange={(v) => { setTender(v); setTendered(0); }} options={[{ value: 'Cash', label: 'Cash' }, { value: 'Card', label: 'Card' }, { value: 'UPI', label: 'UPI' }, { value: 'Mixed', label: 'Mixed' }, ...(!isWalkin && cfg.posAllowCredit ? [{ value: 'Credit' as const, label: 'Credit' }] : [])]} style={{ width: '100%', display: 'grid', gridTemplateColumns: `repeat(${!isWalkin && cfg.posAllowCredit ? 5 : 4}, 1fr)` }} />
           {tender === 'Cash' && <><MoneyField label="Tendered" value={tendered || totals.total} onChange={setTendered} /><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{[totals.total, Math.ceil(totals.total / 100) * 100, Math.ceil(totals.total / 500) * 500, Math.ceil(totals.total / 2000) * 2000].filter((v, i, a) => a.indexOf(v) === i).map((v) => <button key={v} type="button" className="chip" onClick={() => setTendered(v)} style={{ height: 36 }}>{fmtMoney(v)}</button>)}</div><Row k="Change" v={<span style={{ fontSize: 18, fontWeight: 700 }}>{fmtMoney(change)}</span>} /></>}

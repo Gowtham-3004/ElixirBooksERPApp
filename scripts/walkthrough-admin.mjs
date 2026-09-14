@@ -112,10 +112,13 @@ await page.goto(base + '/#/admin/plan', { waitUntil: 'networkidle' });
 await wait(300);
 await page.getByRole('button', { name: 'Upgrade plan' }).click();
 await wait(200);
-await page.locator('.modal .radio-card', { hasText: 'Enterprise' }).click();
-await page.locator('.modal').getByRole('button', { name: /Upgrade to Enterprise/ }).click();
+// the seeded tenant may already be on the top tier, so switch to whichever plan is not current
+const targetCard = page.locator('.modal .radio-card:not(.selected):not([disabled])', { hasText: /Enterprise|Growth/ }).first();
+const targetName = (await targetCard.innerText()).split('·')[0].trim();
+await targetCard.click();
+await page.locator('.modal').getByRole('button', { name: new RegExp(`(Upgrade|Switch) to ${targetName}`) }).click();
 await wait(500);
-ok('Plan changed to Enterprise', (await page.locator('main').getByText('Enterprise').first().count()) > 0 && (await page.getByText('You are now on Enterprise').count()) > 0);
+ok(`Plan changed to ${targetName}`, (await page.locator('main').getByText(targetName).first().count()) > 0 && (await page.getByText(`You are now on ${targetName}`).count()) > 0);
 
 // ── 6. Platform admin sanity ─────────────────────────────────────────────
 await signOut();

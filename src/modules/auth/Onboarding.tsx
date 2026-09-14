@@ -63,7 +63,7 @@ export default function Onboarding({ onComplete }: { onComplete?: () => void }) 
   if (!company) {
     return (
       <Backdrop>
-        <div style={{ width: 440, background: '#fff', borderRadius: 16, padding: 40, boxShadow: '0 8px 48px rgba(0,0,0,0.10)' }}>
+        <div style={{ width: 440, maxWidth: '100%', background: '#fff', borderRadius: 16, padding: 40, boxShadow: '0 8px 48px rgba(0,0,0,0.10)' }}>
           <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>No workspace to set up</h1>
           <p style={{ fontSize: 13, color: '#5F6368', marginBottom: 20 }}>Create a workspace first, or sign in to an existing company.</p>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -171,9 +171,9 @@ export default function Onboarding({ onComplete }: { onComplete?: () => void }) 
   const stepProps = { s, set, company, template, hasPostedJournal };
   return (
     <Backdrop>
-      <div style={{ width: '100%', maxWidth: 1160, background: '#FFFFFF', borderRadius: 20, boxShadow: '0 12px 64px rgba(0,0,0,0.12)', display: 'flex', overflow: 'hidden', minHeight: 660, maxHeight: 'calc(100vh - 48px)' }}>
+      <div className="auth-split" style={{ width: '100%', maxWidth: 1160, background: '#FFFFFF', borderRadius: 20, boxShadow: '0 12px 64px rgba(0,0,0,0.12)', display: 'flex', overflow: 'hidden', minHeight: 660, maxHeight: 'calc(100vh - 48px)' }}>
         {/* Left — explainer rail with vertical stepper */}
-        <div style={{ width: 280, flexShrink: 0, background: '#0A0A0A', padding: '36px 28px', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+        <div className="auth-aside" style={{ width: 280, flexShrink: 0, background: '#0A0A0A', padding: '36px 28px', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
             <BrandMark size={34} />
             <span style={{ fontSize: 16, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em' }}>Elixir Books</span>
@@ -213,12 +213,12 @@ export default function Onboarding({ onComplete }: { onComplete?: () => void }) 
         </div>
 
         {/* Right — step content */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-          <div style={{ padding: '14px 44px', borderBottom: '1px solid #EAEAEA', fontSize: 12, color: '#5F6368', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="auth-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+          <div className="auth-main-head" style={{ padding: '14px 44px', borderBottom: '1px solid #EAEAEA', fontSize: 12, color: '#5F6368', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
             <span>Step {step} of {totalSteps}: <strong style={{ color: '#0A0A0A' }}>{cur.label}</strong></span>
             <span>{company.legalName} · {company.country} · {company.baseCurrency}</span>
           </div>
-          <div style={{ flex: 1, padding: '32px 44px', overflow: 'auto' }}>
+          <div className="auth-main-body" style={{ flex: 1, padding: '32px 44px', overflow: 'auto' }}>
             {step === 1 && <StepNature {...stepProps} />}
             {step === 2 && <StepLegal {...stepProps} />}
             {step === 3 && <StepAddress {...stepProps} />}

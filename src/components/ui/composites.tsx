@@ -1,5 +1,5 @@
 // Module shell, page header, import wizard, checklist, period banner.
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { db, C, engine, nav, useRoute, useSession } from '../../store';
 import type { ImportJob } from '../../store';
 import { Button, Badge, Meter, Banner, SummaryBlock } from './primitives';
@@ -20,9 +20,17 @@ export function ModuleShell({ module, title, items, children, defaultSub }: { mo
   const path = route.path.startsWith(`${module}/`) ? route.path.slice(module.length + 1) : route.path;
   const matches = (id: string) => path === id || path.startsWith(`${id}/`);
   const isActive = (id: string) => (id.includes('/') ? matches(id) : sub === id && !visible.some((x) => x.id !== id && x.id.startsWith(`${id}/`) && matches(x.id)));
+  const navRef = useRef<HTMLElement>(null);
+  // on phones the sub-nav is a horizontal chip strip — scroll the active chip into view
+  useEffect(() => {
+    const el = navRef.current;
+    if (!el || el.scrollWidth <= el.clientWidth) return;
+    const active = el.querySelector<HTMLElement>('.nav-item.active');
+    if (active) el.scrollTo({ left: active.offsetLeft - (el.clientWidth - active.offsetWidth) / 2, behavior: 'smooth' });
+  }, [route.path]);
   return (
     <div className="module-shell">
-      <nav className="sub-nav">
+      <nav className="sub-nav" ref={navRef}>
         <div className="section-label" style={{ padding: '4px 12px 8px', fontSize: 12, color: '#0A0A0A', textTransform: 'none', letterSpacing: 0, fontWeight: 600 }}>{title}</div>
         {groups.map((g) => (
           <div key={g}>
@@ -49,7 +57,7 @@ export function PageHeader({ title, subtitle, actions, back }: { title: ReactNod
         <h1 className="page-title">{title}</h1>
         {subtitle && <div className="page-subtitle">{subtitle}</div>}
       </div>
-      {actions && <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>{actions}</div>}
+      {actions && <div className="page-actions">{actions}</div>}
     </div>
   );
 }
@@ -82,7 +90,7 @@ export function Checklist({ title, rows, action }: { title?: ReactNode; rows: Ch
     <div className="card" style={{ overflow: 'hidden' }}>
       {(title || action) && (
         <div style={{ padding: '14px 16px', borderBottom: '1px solid #EFEFEF' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', rowGap: 6, marginBottom: 8 }}>
             <div className="section-title" style={{ marginBottom: 0 }}>{title}</div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, color: '#5F6368' }}>{done} of {rows.length} complete {action}</div>
           </div>

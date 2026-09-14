@@ -131,6 +131,32 @@ with `reversedById`, create linked reversal doc with `reversalOfId`. Always requ
 - Posted documents show snapshot tags on party/price/tax; drafts autosave; use `expectedVersion` on saves of drafts.
 - Use existing CSS classes from `src/index.css` / `src/styles/ui.css` (`btn-*`, `badge-*`, `pill-*`, `data-table`, `field-input`, `card`, `page`, …). Inline styles are fine for layout; keep the Inter/blue look.
 
+## Responsive layout
+
+Breakpoints live in `src/lib/useMedia.ts` (`useIsMobile` ≤ 767px, `useIsTablet` ≤ 1023px) and are
+mirrored by the `@media` blocks at the bottom of `src/styles/ui.css`.
+
+- **Phone (≤ 767px)** — the sidebar is an off-canvas drawer (`.sidebar.open` + `.sidebar-scrim`,
+  hamburger in `.shell-header`); company · branch · FY · period move into the `.shell-context` strip
+  under the header; header dropdowns render as `.menu.mobile-sheet`. Module sub-navs become a
+  horizontal chip strip, `DocumentPage` stacks the rail above the tabs (rail sections collapsed behind
+  a *Details* toggle) and its footer is a sideways-scrolling strip that starts scrolled to the primary
+  action. Drawers are full-width, modals near full-screen, tables scroll sideways with no-wrap cells.
+- **Tablet (768–1023px)** — icon rail, context strip, chip sub-nav, two-column form grids, side
+  panels stacked, POS as catalogue | cart-over-tender.
+- **Desktop (≥ 1024px)** — unchanged; 1024–1279 narrows the sub-nav and document rail a little.
+
+Most page layouts are inline `display:grid` / `display:flex` styles, so the responsive layer matches
+the serialised `style` attribute (`[style*="grid-template-columns: 1fr 1fr"]`, …) and overrides with
+`!important`. Row grids that start with a px column (`90px 1fr`, `1fr 160px 32px`) are label/value or
+line rows and are deliberately left alone. `.doc-body` is a container-query root, so document-pane
+forms collapse on the pane's own width rather than the viewport. When you write new layout, prefer
+the shared classes — `.page-actions`, `.tab-strip`, `.table-scroll`, `.grid-2/3/4`, `.kv`,
+`.form-footer` — and inline grids with the templates listed above; both get the responsive behaviour
+for free. Verify with `node scripts/audit-responsive.mjs <baseUrl> <outDir> [routes…]` (`pnpm responsive`):
+it screenshots every route at 375 / 768 / 1024 / 1440 and fails if anything extends past the viewport
+outside an `overflow-x: auto` container.
+
 ## Permissions & entitlement
 
 `useSession()` → `{ user, company, branch, period, currency, roles, can(perm), entitled(moduleId), profiles, isTenantOwner }`.

@@ -107,8 +107,10 @@ input[type=number].field-input { -moz-appearance: textfield; }
 .summary-block { background: #F9FBFC; border-radius: 10px; padding: 14px 16px; }
 .doc-rail { width: 340px; flex-shrink: 0; border-right: 1px solid #EFEFEF; background: #FFF; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 18px; }
 .doc-pane { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
-.doc-footer { height: 64px; display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 0 24px; border-top: 1px solid #EFEFEF; background: #FFF; flex-shrink: 0; }
-.tab-bar { display: flex; gap: 20px; padding: 0 24px; border-bottom: 1px solid #EFEFEF; background: #FFF; flex-shrink: 0; }
+.doc-footer { min-height: 64px; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding: 8px 24px; border-top: 1px solid #EFEFEF; background: #FFF; flex-shrink: 0; }
+.tab-bar { display: flex; gap: 20px; padding: 0 24px; border-bottom: 1px solid #EFEFEF; background: #FFF; flex-shrink: 0; overflow-x: auto; scrollbar-width: none; }
+.tab-bar::-webkit-scrollbar { display: none; }
+.tab-bar .doc-tab { flex-shrink: 0; }
 .section-title { font-size: 14px; font-weight: 600; color: #0A0A0A; margin-bottom: 10px; }
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 48px 24px; color: #5F6368; text-align: center; }
 .empty-state h3 { font-size: 16px; font-weight: 600; color: #0A0A0A; }
@@ -133,7 +135,236 @@ input[type=number].field-input { -moz-appearance: textfield; }
 @keyframes popIn { from { transform: translate(-50%,-50%) scale(.97); opacity: 0 } to { transform: translate(-50%,-50%) scale(1); opacity: 1 } }
 @keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }
 
+/* ── Responsive layer ──────────────────────────────────────────────────────
+   Breakpoints (mirrored in src/lib/useMedia.ts):
+     mobile  ≤ 767px   off-canvas nav · single-column forms · stacked document rail
+     tablet  ≤ 1023px  icon rail · two-column forms · stacked side panels
+   Most page layouts are inline `display:grid` styles, so the rules below match the
+   serialised `style` attribute (`[style*="grid-template-columns: …"]`) and override
+   the column template with !important. Row grids that start with a px column
+   (`90px 1fr`, `1fr 160px 32px`) are label/value or line rows and are left alone.  */
+
+html { -webkit-text-size-adjust: 100%; }
+.shell { display: flex; height: 100%; background: #F7F7F7; }
+.shell-main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.shell-header { height: 48px; background: #F9FBFC; border-bottom: 1px solid #EFEFEF; display: flex; align-items: center; gap: 8px; padding: 0 16px; flex-shrink: 0; }
+.shell-context { display: none; }
+.sidebar { width: 250px; flex-shrink: 0; background: #FFF; border-right: 1px solid #EFEFEF; display: flex; flex-direction: column; height: 100%; overflow: visible; transition: width .15s ease; position: relative; }
+.sidebar.collapsed { width: 64px; }
+.sidebar-scrim { display: none; }
+.shell-header .hamburger { display: none; }
+.crumbs { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; overflow: hidden; }
+.crumbs > span { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.tab-strip { display: flex; border-bottom: 1px solid #EFEFEF; margin-top: -4px; overflow-x: auto; scrollbar-width: none; }
+.tab-strip::-webkit-scrollbar { display: none; }
+.tab-strip .filter-tab { flex-shrink: 0; }
+.doc-layout { display: flex; flex: 1; min-height: 0; }
+.doc-body { flex: 1; overflow: auto; padding: 24px; container-type: inline-size; }
+/* the document pane sits beside a 300–340px rail, so its forms collapse on the pane's own width */
+@container (max-width: 620px) {
+  .doc-body [style*="grid-template-columns: 1fr 1fr"],
+  .doc-body [style*="grid-template-columns: repeat("]:not([style*="repeat(auto-"]),
+  .doc-body [style*="grid-template-columns: 2fr 1fr"],
+  .doc-body [style*="grid-template-columns: 1fr 2fr"],
+  .doc-body [style*="grid-template-columns: 1.4fr"],
+  .doc-body [style*="grid-template-columns: 1.3fr 1fr"],
+  .doc-body [style*="grid-template-columns: 1fr 340px"],
+  .doc-body [style*="grid-template-columns: 1fr 320px"],
+  .doc-body [style*="grid-template-columns: 1fr 360px"] { grid-template-columns: minmax(0, 1fr) !important; }
+  .doc-body [style*="grid-template-columns: 140px 1fr 140px 1fr"] { grid-template-columns: minmax(0, 130px) minmax(0, 1fr) !important; }
+}
+.doc-rail-toggle { display: none; }
+.table-scroll { overflow: auto; -webkit-overflow-scrolling: touch; }
+/* modules render many bare <table class="data-table"> blocks; whichever box holds one scrolls sideways instead of pushing the page */
+div:has(> table.data-table) { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+.page-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+
+/* ── Small laptop / iPad landscape ──────────────────────────────────────── */
+@media (max-width: 1279px) {
+  .sub-nav { width: 176px; }
+  .doc-rail { width: 300px; padding: 16px; }
+}
+
+/* ── Tablet ─────────────────────────────────────────────────────────────── */
+@media (max-width: 1023px) {
+  .shell-context { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: #FFF; border-bottom: 1px solid #EFEFEF; overflow-x: auto; scrollbar-width: none; flex-shrink: 0; }
+  .shell-context::-webkit-scrollbar { display: none; }
+  .shell-context > * { flex-shrink: 0; }
+  .menu.mobile-sheet { position: fixed; right: 8px; left: auto; top: 96px; width: min(380px, calc(100vw - 16px)) !important; max-height: calc(100vh - 110px); overflow: auto; }
+  .page { padding: 20px; }
+  .page-header { flex-wrap: wrap; }
+  .page-header > div:first-child { flex: 1 1 240px; min-width: 0; }
+  .grid-4, .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .data-table th, .data-table td { white-space: nowrap; }
+  .data-table td { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+  .data-table td .badge, .data-table td .pill { white-space: nowrap; }
+  /* sticky form footers wrap instead of overflowing */
+  #root [style*="position: sticky"][style*="bottom: 0px"] { flex-wrap: wrap; height: auto !important; row-gap: 8px; }
+  .form-footer-status { flex-basis: 100%; }
+  /* module sub-nav → horizontal chip strip */
+  .module-shell { flex-direction: column; }
+  .sub-nav { width: auto; display: flex; align-items: center; gap: 4px; padding: 8px 12px; border-right: none; border-bottom: 1px solid #EFEFEF; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; flex-shrink: 0; }
+  .sub-nav::-webkit-scrollbar { display: none; }
+  .sub-nav > div { display: contents; }
+  .sub-nav > .section-label, .sub-nav .group-label { display: none; }
+  .sub-nav .nav-item { width: auto !important; flex-shrink: 0; height: 32px; padding: 0 12px; border-radius: 9999px; border: 1px solid #EAEAEA !important; background: #FFF !important; }
+  .sub-nav .nav-item.active { border-color: #325CFF !important; background: #EBF0FF !important; color: #325CFF; }
+  .sub-nav .nav-item > span:first-child { flex: none !important; }
+  .module-content { flex: 1; min-height: 0; }
+  .doc-rail { width: 300px; padding: 16px; }
+  .print-sheet { width: 100%; padding: 24px; }
+  .kpi-tile { padding: 16px 18px; }
+  .doc-footer { padding: 8px 16px; }
+  .tab-bar { overflow-x: auto; scrollbar-width: none; }
+  .tab-bar::-webkit-scrollbar { display: none; }
+  .doc-tab { flex-shrink: 0; }
+  /* 4+ column form grids → 2 columns; 5/6 → 3 */
+  #root [style*="grid-template-columns: repeat(4"],
+  #root [style*="grid-template-columns: 1fr 1fr 1fr 1fr"],
+  #root [style*="grid-template-columns: 2fr 1fr 1fr 1fr"],
+  #root [style*="grid-template-columns: 1fr 2fr 1fr 1fr"] { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  #root [style*="grid-template-columns: repeat(5"],
+  #root [style*="grid-template-columns: repeat(6"] { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  /* content + fixed side panel → stacked */
+  #root [style*="grid-template-columns: 1fr 340px"],
+  #root [style*="grid-template-columns: 1fr 320px"],
+  #root [style*="grid-template-columns: 1fr 360px"],
+  #root [style*="1fr) 380px"],
+  #root [style*="grid-template-columns: 400px 1fr"],
+  #root [style*="grid-template-columns: 380px 1fr"],
+  #root [style*="grid-template-columns: 360px 1fr"],
+  #root [style*="grid-template-columns: 260px 1fr"] { grid-template-columns: minmax(0, 1fr) !important; }
+  #root [style*="grid-template-columns: repeat(auto-fit, minmax(470px"],
+  #root [style*="grid-template-columns: repeat(auto-fill, minmax(360px"] { grid-template-columns: minmax(0, 1fr) !important; }
+}
+
+/* ── Mobile ─────────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  /* shell: sidebar becomes an off-canvas drawer, header gets a hamburger and a context strip */
+  .sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 280px !important; z-index: 101; transform: translateX(-100%); transition: transform .2s ease; box-shadow: none; }
+  .sidebar.open { transform: none; box-shadow: 8px 0 32px rgba(0,0,0,.14); }
+  .sidebar-scrim { display: block; position: fixed; inset: 0; background: rgba(10,10,10,.35); z-index: 100; animation: fadeIn .15s ease; }
+  .shell-header .hamburger { display: inline-flex; }
+  .shell-header { padding: 0 8px 0 4px; gap: 4px; }
+  .shell-header .crumb:not(:last-child), .shell-header .crumb-sep { display: none !important; }
+  .menu.mobile-sheet { left: 8px; right: 8px; width: auto !important; }
+
+  /* page chrome */
+  .page { padding: 16px; gap: 14px; }
+  .page-header { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; }
+  .page-header > div:first-child { flex: none; min-width: 0; }
+  #root main [style*="display: inline-flex"] { flex-wrap: wrap; }
+  .page-header > div:last-child { justify-content: flex-start; }
+  .page-actions { justify-content: flex-start; }
+  .page-title { font-size: 20px; line-height: 26px; }
+  .toolbar .search-input { width: 100% !important; flex-basis: 100%; }
+  .bulk-bar { flex-wrap: wrap; }
+  .kpi-tile { padding: 14px 16px; border-radius: 12px; }
+  .grid-2, .grid-3 { grid-template-columns: minmax(0, 1fr); }
+  .kv { grid-template-columns: minmax(0, 110px) minmax(0, 1fr); gap: 6px 10px; }
+  .card { border-radius: 10px; }
+  .empty-state { padding: 32px 16px; }
+  .print-sheet { padding: 16px; }
+  .print-sheet table { display: block; overflow-x: auto; }
+
+  /* document page → rail on top, pane below, one scroll */
+  .doc-layout { flex-direction: column; overflow: auto; }
+  .doc-rail { width: auto; border-right: none; border-bottom: 1px solid #EFEFEF; padding: 16px; gap: 14px; overflow: visible; flex-shrink: 0; }
+  .doc-rail-toggle { display: inline-flex; }
+  .doc-rail.rail-collapsed > :not(:first-child):not(.doc-rail-toggle) { display: none; }
+  .doc-pane { flex: none; overflow: visible; }
+  .doc-body { overflow: visible; padding: 16px; }
+  .tab-bar { overflow-x: auto; padding: 0 16px; gap: 16px; scrollbar-width: none; position: sticky; top: 0; z-index: 2; }
+  .tab-bar::-webkit-scrollbar { display: none; }
+  .doc-tab { flex-shrink: 0; }
+  .doc-footer { height: 56px; padding: 0 12px; justify-content: flex-start; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; position: sticky; bottom: 0; }
+  .doc-footer > :first-child { margin-left: auto; }
+  .doc-footer::-webkit-scrollbar { display: none; }
+  .doc-footer > * { flex-shrink: 0; }
+
+  /* overlays */
+  .drawer { width: 100vw !important; }
+  .drawer-header { padding: 12px 16px; }
+  .drawer-body { padding: 16px; }
+  .drawer-footer { padding: 10px 16px; flex-wrap: wrap; }
+  .modal { width: calc(100vw - 16px) !important; max-height: calc(100vh - 16px); }
+  .modal-header { padding: 16px 16px 6px; }
+  .modal-body { padding: 6px 16px 12px; }
+  .modal-footer { padding: 10px 16px 16px; flex-wrap: wrap; }
+  .popover { width: min(320px, calc(100vw - 32px)); }
+  .toast-stack { left: 12px; right: 12px; bottom: 12px; }
+  .toast { max-width: none; }
+  .menu { max-width: calc(100vw - 16px); }
+
+  /* tables */
+  .data-table th { padding: 0 12px; height: 36px; }
+  .data-table td { padding: 0 12px; height: 48px; font-size: 13px; }
+  .data-table.dense td, .data-table.dense th { padding: 0 8px; }
+
+  /* inline flex rows (page headers, action groups, meta lines) wrap instead of overflowing; deliberate
+     horizontal scrollers and column layouts are left alone */
+  #root main [style*="display: flex"]:not([style*="flex-direction: column"]):not([style*="overflow-x: auto"]):not([style*="overflow: auto"]):not([style*="flex-wrap: nowrap"]) { flex-wrap: wrap; }
+  .form-footer .btn-primary, .form-footer .btn-secondary, .form-footer .btn-ghost, .form-footer .btn-danger, .form-footer .btn-tinted { height: 36px; padding: 0 12px; font-size: 13px; }
+  /* inline grids: every fr-led / repeat() / minmax() template collapses to one column */
+  #root [style*="grid-template-columns: 1fr"],
+  #root [style*="grid-template-columns: 2fr"],
+  #root [style*="grid-template-columns: 1.2fr"],
+  #root [style*="grid-template-columns: 1.3fr"],
+  #root [style*="grid-template-columns: 1.4fr"],
+  #root [style*="grid-template-columns: repeat("]:not([style*="repeat(auto-"]),
+  #root [style*="grid-template-columns: repeat(auto-fill, minmax(2"],
+  #root [style*="grid-template-columns: minmax("],
+  #root [style*="grid-template-columns: 400px 1fr"],
+  #root [style*="grid-template-columns: 380px 1fr"],
+  #root [style*="grid-template-columns: 360px 1fr"],
+  #root [style*="grid-template-columns: 260px 1fr"] { grid-template-columns: minmax(0, 1fr) !important; }
+  #root [style*="grid-template-columns: 140px 1fr 140px 1fr"] { grid-template-columns: minmax(0, 110px) minmax(0, 1fr) !important; }
+  /* the two-column kv keeps label/value pairs together when it collapses */
+  .kv > div[style*="contents"] { display: contents; }
+}
+
+/* ── Auth split cards & POS register ─────────────────────────────────────── */
+@media (max-width: 899px) {
+  .auth-split { flex-direction: column; min-height: 0 !important; max-height: none !important; }
+  .auth-split > .auth-aside { display: none; }
+  .auth-split > .auth-main { width: auto !important; border-right: none !important; padding: 28px 20px !important; overflow: visible !important; }
+  .auth-main-head { padding: 12px 20px !important; }
+  .auth-main-body { padding: 20px !important; overflow: visible !important; }
+}
+@media (max-width: 1023px) {
+  .pos-register { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+  .pos-catalogue { grid-row: 1 / span 2; min-height: 0; }
+  .pos-cart { grid-row: 1; grid-column: 2; min-height: 0; border-right: none !important; }
+  .pos-tender { grid-row: 2; grid-column: 2; border-top: 1px solid #EAEAEA; max-height: 55vh; overflow: auto; }
+  /* narrow cart: name + amount on the left, qty stepper over discount, remove at the right */
+  .pos-line { grid-template-columns: minmax(0, 1fr) 104px 28px !important; grid-template-rows: auto auto; row-gap: 4px !important; }
+  .pos-line > :nth-child(2) { grid-column: 2; grid-row: 1; }
+  .pos-line > :nth-child(3) { grid-column: 2; grid-row: 2; }
+  .pos-line > :nth-child(4) { grid-column: 1; grid-row: 2; text-align: left !important; }
+  .pos-line > :nth-child(5) { grid-column: 3; grid-row: 1 / span 2; }
+  .pos-topbar { flex-wrap: wrap; height: auto !important; min-height: 48px; padding: 8px 12px !important; row-gap: 4px; column-gap: 12px !important; }
+}
+@media (max-width: 767px) {
+  .pos-topbar .pos-meta { display: none; }
+  .pos-register { display: flex !important; flex-direction: column; overflow: auto; }
+  .pos-catalogue { flex: none !important; height: 52vh; min-height: 320px; border-right: none !important; border-bottom: 1px solid #EAEAEA; }
+  .pos-cart { flex: none !important; min-height: 0; border-bottom: 1px solid #EAEAEA; }
+  .pos-cart-lines { max-height: 40vh; }
+  .pos-tender { flex: none !important; max-height: none; overflow: visible; }
+}
+
+@media (max-width: 479px) {
+  .grid-4 { grid-template-columns: minmax(0, 1fr); }
+  .kpi-tile { padding: 14px; }
+  .page { padding: 12px; }
+}
+
+/* Touch devices: no hover-only affordances */
+@media (hover: none) {
+  *::-webkit-scrollbar-thumb { background: #E0E2E6; }
+}
+
 @media print {
-  aside, header, .doc-footer, .sub-nav, .tab-bar, .toolbar, .no-print { display: none !important; }
+  aside, header, .doc-footer, .sub-nav, .tab-bar, .toolbar, .no-print, .shell-context, .sidebar-scrim, .doc-rail-toggle { display: none !important; }
   .print-sheet { border: none; width: auto; padding: 0; }
 }

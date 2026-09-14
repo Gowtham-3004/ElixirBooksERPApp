@@ -17,6 +17,9 @@
       .eyebrow { display: inline-block; background: #edf1ff; color: #3455d9; border-radius: 999px; padding: 7px 12px; font-weight: 750; font-size: 12px; letter-spacing: .03em; }
       h1 { font-size: clamp(34px, 5vw, 56px); letter-spacing: -2.5px; margin: 18px 0 14px; line-height: 1.05; }
       .hero p { max-width: 620px; margin: 0 auto; color: var(--muted); font-size: 17px; line-height: 1.6; }
+      .billing-toggle { display: inline-flex; align-items: center; gap: 4px; padding: 4px; margin-top: 26px; background: #e9edf5; border-radius: 10px; }
+      .billing-toggle button { border: 0; border-radius: 7px; padding: 9px 14px; background: transparent; color: #637087; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
+      .billing-toggle button.active { color: var(--ink); background: white; box-shadow: 0 1px 4px rgba(21, 37, 71, .13); } .billing-toggle .annual-label { color: #0b8756; }
       .plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; align-items: stretch; padding: 18px 0 34px; }
       .plan { background: white; border: 1px solid var(--line); border-radius: 18px; padding: 28px; display: flex; flex-direction: column; box-shadow: 0 4px 18px rgba(19, 37, 73, .04); }
       .plan.featured { border: 2px solid var(--blue); box-shadow: 0 14px 35px rgba(50, 92, 255, .16); position: relative; }
@@ -25,6 +28,8 @@
       .was-price { margin: 20px 0 -4px; color: #9ba5b5; font-size: 26px; font-weight: 800; letter-spacing: -1px; text-decoration: line-through; text-decoration-thickness: 3px; text-decoration-color: #ef5261; }
       .save { display: inline-block; margin: 6px 0 0; padding: 4px 8px; background: #fff0f1; color: #cf3345; border-radius: 5px; font-size: 11px; font-weight: 850; letter-spacing: .03em; }
       .price { margin: 5px 0 5px; font-size: 43px; letter-spacing: -1.8px; font-weight: 800; } .price small { font-size: 14px; font-weight: 600; color: var(--muted); letter-spacing: 0; }
+      body[data-billing="monthly"] .was-price, body[data-billing="monthly"] .save { display: none; }
+      body[data-billing="monthly"] .price { margin-top: 20px; }
       .hint { min-height: 36px; color: var(--muted); font-size: 12px; line-height: 1.45; }
       .button { display: block; border-radius: 9px; text-align: center; padding: 12px; margin: 21px 0; font-size: 14px; font-weight: 750; text-decoration: none; color: var(--blue); border: 1px solid #cdd7ff; background: #f6f8ff; }
       .featured .button { color: #fff; background: var(--blue); border-color: var(--blue); }
@@ -40,19 +45,20 @@
       @media (max-width: 820px) { .plans { grid-template-columns: 1fr; max-width: 440px; margin: auto; } .plan > p { min-height: auto; } .comparison { overflow-x: auto; } table { min-width: 630px; } }
     </style>
   </head>
-  <body>
+  <body data-billing="monthly">
     <header class="wrap"><nav><div class="brand">elixir<span>books</span></div><a class="nav-link" href="#compare">Compare plans</a></nav></header>
     <main class="wrap">
       <section class="hero">
         <div class="eyebrow">SIMPLE, SCALABLE PRICING</div>
         <h1>Start simple. Grow into ERP.</h1>
         <p>Three clear plans for businesses at every operating stage. Upgrade instantly as your needs expand.</p>
+        <div class="billing-toggle" aria-label="Billing frequency"><button class="active" type="button" data-billing="monthly">Monthly</button><button type="button" data-billing="annual">Annual <span class="annual-label">Save more</span></button></div>
       </section>
 
       <section class="plans" aria-label="Pricing plans">
         <article class="plan">
           <h2>Lite</h2><p>For small businesses ready to move sales and billing into one reliable system.</p>
-          <div class="was-price">₹1,999</div><span class="save">SAVE 50% TODAY</span><div class="price">₹999 <small>/ month</small></div><div class="hint">The essentials to invoice, collect, and stay in control.</div>
+          <div class="was-price" data-monthly="" data-annual="₹10,788"></div><span class="save" data-monthly="" data-annual="ANNUAL SAVER PRICE"></span><div class="price"><span data-monthly="₹899" data-annual="₹6,999">₹899</span> <small data-monthly="/ month" data-annual="/ year">/ month</small></div><div class="hint" data-monthly="The essentials to invoice, collect, and stay in control." data-annual="Billed annually · equivalent to ₹583/month.">The essentials to invoice, collect, and stay in control.</div>
           <a class="button" href="#">Start free trial</a>
           <div class="section-label">Included modules</div>
           <ul><li>Sales, quotations, invoices & receipts</li><li>Approvals, activity & document audit trail</li><li>Business reports, masters & administration</li><li><strong>AI:</strong> role-based daily briefing</li><li><strong>AI:</strong> conversational approval responses</li></ul>
@@ -62,7 +68,7 @@
         <article class="plan featured">
           <div class="tag">MOST POPULAR</div>
           <h2>Growth</h2><p>For growing trading, retail, and service businesses that need connected operations.</p>
-          <div class="was-price">₹15,999</div><span class="save">SAVE 50% TODAY</span><div class="price">₹7,999 <small>/ month</small></div><div class="hint">Everything except factory production and enterprise controls.</div>
+          <div class="was-price" data-monthly="" data-annual="₹25,188"></div><span class="save" data-monthly="" data-annual="ANNUAL SAVER PRICE"></span><div class="price"><span data-monthly="₹2,099" data-annual="₹8,999">₹2,099</span> <small data-monthly="/ month" data-annual="/ year">/ month</small></div><div class="hint" data-monthly="Everything except factory production and enterprise controls." data-annual="Billed annually · equivalent to ₹750/month.">Everything except factory production and enterprise controls.</div>
           <a class="button" href="#">Start free trial</a>
           <div class="section-label">Everything in Lite, plus</div>
           <ul><li>CRM, purchase, inventory & POS</li><li>Projects, contracts, payroll & fixed assets</li><li>Accounting, banking, taxation & budgets</li><li><strong>AI:</strong> Finance Copilot with cited transactions</li><li><strong>AI:</strong> smart document capture & coding</li><li><strong>AI:</strong> inventory intelligence & reorder recommendations</li><li><strong>AI:</strong> explainable anomaly alerts</li></ul>
@@ -71,7 +77,7 @@
 
         <article class="plan">
           <h2>ERP Enterprise</h2><p>For manufacturing, multi-entity, and controlled finance operations at scale.</p>
-          <div class="was-price">₹49,999</div><span class="save">SAVE 50% TODAY</span><div class="price">₹24,999 <small>/ month</small></div><div class="hint">The complete ERP suite, implementation support, and room to scale.</div>
+          <div class="was-price" data-monthly="" data-annual="₹33,998"></div><span class="save" data-monthly="" data-annual="ANNUAL SAVER PRICE"></span><div class="price"><span data-monthly="₹6,999" data-annual="₹16,999">₹6,999</span> <small data-monthly="/ month" data-annual="/ year">/ month</small></div><div class="hint" data-monthly="The complete ERP suite, implementation support, and room to scale." data-annual="Billed annually · equivalent to ₹1,417/month.">The complete ERP suite, implementation support, and room to scale.</div>
           <a class="button" href="#">Talk to sales</a>
           <div class="section-label">Everything in Growth, plus</div>
           <ul><li>Production, BOMs, routings, MRP & quality</li><li>Subcontracting & multi-company consolidation</li><li>Enterprise governance, integrations & priority support</li><li><strong>AI:</strong> Continuous Close readiness score</li><li><strong>AI:</strong> cash-flow forecasting & scenarios</li><li><strong>AI:</strong> India Compliance Copilot</li><li><strong>AI:</strong> process mining & bottleneck analytics</li></ul>
@@ -102,6 +108,16 @@
         <tr><td>Process mining: cycle-time bottlenecks and improvement recommendations</td><td>—</td><td>—</td><td class="yes enterprise">Included</td></tr>
       </tbody></table></section>
     </main>
-    <footer class="wrap">All prices are monthly and exclusive of applicable taxes. Need a custom rollout? Contact the Elixir Books team.</footer>
+    <footer class="wrap">Prices are exclusive of applicable taxes. Annual plans are charged upfront. Need a custom rollout? Contact the Elixir Books team.</footer>
+    <script>
+      const buttons = document.querySelectorAll("[data-billing]");
+      const pricedFields = document.querySelectorAll("[data-monthly][data-annual]");
+      buttons.forEach((button) => button.addEventListener("click", () => {
+        const billing = button.dataset.billing;
+        document.body.dataset.billing = billing;
+        buttons.forEach((item) => item.classList.toggle("active", item === button));
+        pricedFields.forEach((field) => { field.textContent = field.dataset[billing]; });
+      }));
+    </script>
   </body>
 </html>

@@ -228,8 +228,8 @@ export function TdsField({ value, onChange, disabled, customerId }: { value?: st
 /** Sticky form footer with the autosave indicator and conflict banner. */
 export function FormFooter({ savedAt, dirty, conflict, onReload, children, left }: { savedAt?: string; dirty?: boolean; conflict?: boolean; onReload?: () => void; children: ReactNode; left?: ReactNode }) {
   return (
-    <div style={{ position: 'sticky', bottom: 0, background: '#FFF', borderTop: '1px solid #EFEFEF', padding: '12px 0', display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, zIndex: 2 }}>
-      <div style={{ fontSize: 12, color: '#5F6368', display: 'flex', gap: 10, alignItems: 'center' }}>
+    <div className="form-footer" style={{ position: 'sticky', bottom: 0, background: '#FFF', borderTop: '1px solid #EFEFEF', padding: '12px 0', display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, zIndex: 2 }}>
+      <div className="form-footer-status" style={{ fontSize: 12, color: '#5F6368', display: 'flex', gap: 10, alignItems: 'center' }}>
         {conflict ? <span style={{ color: '#C0393F' }}>Someone else changed this draft — <button type="button" className="btn-link" style={{ fontSize: 12 }} onClick={onReload}>reload</button> to see their changes</span> : savedAt ? <span>Saved {fmtDateTime(savedAt).split(',')[0]}{dirty ? ' · unsaved changes' : ''}</span> : dirty ? <span>Unsaved changes</span> : null}
         {left}
       </div>

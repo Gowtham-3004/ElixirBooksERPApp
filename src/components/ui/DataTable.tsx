@@ -78,7 +78,7 @@ export function DataTable<T extends Record<string, any>>({ rows, columns, rowKey
     );
   }
   return (
-    <div className="card" style={{ overflow: 'auto', maxHeight, ...style }}>
+    <div className="card table-scroll" style={{ maxHeight, ...style }}>
       <table className={`data-table ${dense ? 'dense' : ''} ${compact ? 'compact' : ''}`}>
         <thead style={stickyHeader ? { position: 'sticky', top: 0, zIndex: 1 } : undefined}>
           <tr>
@@ -220,7 +220,7 @@ export function RegisterPage<T extends Record<string, any>>(props: RegisterProps
           <h1 className="page-title">{title}</h1>
           {subtitle && <div className="page-subtitle">{subtitle}</div>}
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+        <div className="page-actions">
           {actions}
           {importAction && <Button variant="secondary" onClick={importAction}>Import</Button>}
           <ActionMenu trigger={<Button variant="secondary" icon={<DownloadIcon size={14} />}>Export <ChevronDownIcon size={12} /></Button>} actions={[{ label: 'CSV', onClick: () => doExport('CSV') }, { label: 'XLSX', onClick: () => doExport('XLSX') }, { label: 'PDF', onClick: () => doExport('PDF') }]} />
@@ -229,7 +229,7 @@ export function RegisterPage<T extends Record<string, any>>(props: RegisterProps
       </div>
       {headerExtra}
       {tabs && (
-        <div style={{ display: 'flex', borderBottom: '1px solid #EFEFEF', marginTop: -4 }}>
+        <div className="tab-strip">
           {tabs.map((t) => {
             const n = t.count ?? (t.filter ? rows.filter(t.filter).length : rows.length);
             return (

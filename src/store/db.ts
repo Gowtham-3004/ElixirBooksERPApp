@@ -10,7 +10,7 @@ export type Row = BaseRecord & Record<string, any>;
 export type DB = Record<string, Row[]>;
 
 const STORAGE_KEY = 'elixir-books-db';
-export const SEED_VERSION = 'v2';
+export const SEED_VERSION = 'v3';
 
 let state: DB = {};
 let seedFn: (() => DB) | null = null;
@@ -27,9 +27,10 @@ let suppress = 0;
 function migrateV1ToV2(raw: DB): DB {
   const growthModules = ['home', 'approvals', 'crm', 'sales', 'purchase', 'inventory', 'pos', 'projects', 'accounting', 'banking', 'taxation', 'payroll', 'fixed-assets', 'budgets', 'reports', 'masters', 'admin'];
   const plans = (raw.plans ?? []).map((plan) => {
-    if (plan.id === 'plan_std') return { ...plan, code: 'GROWTH', name: 'Growth', tier: 'Growth', planVersion: 1, modules: growthModules };
+    if (plan.id === 'plan_lite') return { ...plan, priceMonthly: 899 };
+    if (plan.id === 'plan_std') return { ...plan, code: 'GROWTH', name: 'Growth', tier: 'Growth', planVersion: 1, modules: growthModules, priceMonthly: 2099 };
     if (plan.id === 'plan_pro') return { ...plan, code: 'PRO-LEGACY', name: 'Pro (legacy)', tier: 'Pro', status: 'Retired' };
-    if (plan.id === 'plan_ent') return { ...plan, code: 'ERP', name: 'ERP Enterprise', tier: 'Enterprise' };
+    if (plan.id === 'plan_ent') return { ...plan, code: 'ERP', name: 'ERP Enterprise', tier: 'Enterprise', priceMonthly: 6999 };
     return plan;
   });
   const tenants = (raw.tenants ?? []).map((tenant) => tenant.planId === 'plan_pro' ? { ...tenant, planId: 'plan_ent' } : tenant);
@@ -93,7 +94,7 @@ export const db = {
           state = parsed.state;
           return;
         }
-        if (parsed?.v === 'v1' && parsed.state && typeof parsed.state === 'object') {
+        if ((parsed?.v === 'v1' || parsed?.v === 'v2') && parsed.state && typeof parsed.state === 'object') {
           state = migrateV1ToV2(parsed.state);
           persist();
           return;
