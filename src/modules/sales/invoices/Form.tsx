@@ -82,7 +82,7 @@ export default function InvoiceForm({ id, sourceOrderId, sourceDeliveryId }: { i
       <PageHeader back={{ label: 'Sales invoices', path: 'sales/invoices' }} title={<span style={{ display: 'flex', gap: 10, alignItems: 'center' }}>{id ? doc.number : 'New sales invoice'} <Badge status={doc.status} /></span>} subtitle={<>{doc.number.includes('DRAFT') ? `Will be numbered ${engine.previewNumber('Sales Invoice', { date: doc.date, branchId: doc.branchId })} on post` : doc.number} · {s.branch?.name} · FY {s.state.fy}{doc.sourceNumber ? ` · from ${doc.sourceType} ${doc.sourceNumber}` : ''}</>} actions={editable && !doc.sourceId && doc.lines.length === 0 ? <><Button variant="secondary" onClick={() => setSourcePicker('order')}>From order</Button><Button variant="secondary" onClick={() => setSourcePicker('delivery')}>From delivery</Button></> : doc.sourceId ? <Button variant="ghost" onClick={() => set({ sourceId: undefined, sourceType: undefined, sourceNumber: undefined, deliveryIds: undefined, lines: [] })}>Detach source</Button> : undefined} />
       {draft.conflict && <Banner tone="danger" action={<Button variant="link" onClick={draft.reload}>Reload</Button>}>Someone else changed this draft — reload to see their changes.</Banner>}
       <PeriodBanner date={doc.date} />
-      {credit?.message && <Banner tone={credit.ok ? 'warning' : 'danger'}>{credit.message}{credit.needsApproval ? ' — submitting will route to approval as a credit exception.' : ''} <span style={{ color: '#5F6368' }}>Exposure {fmtMoney(credit.exposure)} · limit {fmtMoney(credit.limit)}</span></Banner>}
+      {credit?.message && <Banner tone={credit.ok ? 'warning' : 'danger'}>{credit.message}{credit.needsApproval ? ' — submitting will route to approval as a credit exception.' : ''} <span style={{ color: 'var(--ink-3)' }}>Exposure {fmtMoney(credit.exposure)} · limit {fmtMoney(credit.limit)}</span></Banner>}
       {doc.status === 'Returned' && <Banner tone="warning">This invoice was returned for changes — see the Approvals tab on the document for the approver's comment.</Banner>}
       {draft.errors.length > 0 && <ErrorSummary errors={draft.errors} />}
 
@@ -106,14 +106,14 @@ export default function InvoiceForm({ id, sourceOrderId, sourceDeliveryId }: { i
 
       <section>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <div className="section-title" style={{ marginBottom: 0 }}>Lines {doc.sourceNumber && <span style={{ fontSize: 12, color: '#5F6368', fontWeight: 400 }}>· from {doc.sourceType} {doc.sourceNumber} · eligibility capped at remaining +{settings.salesOverInvoiceTolerancePct}%</span>}</div>
+          <div className="section-title" style={{ marginBottom: 0 }}>Lines {doc.sourceNumber && <span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 400 }}>· from {doc.sourceType} {doc.sourceNumber} · eligibility capped at remaining +{settings.salesOverInvoiceTolerancePct}%</span>}</div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             {direct && <SelectField size="sm" label={undefined} value={doc.warehouseId ?? ''} onChange={(v) => set({ warehouseId: v || undefined, lines: doc.lines.map((l) => ({ ...l, warehouseId: v || l.warehouseId })) })} options={db.get<any>(C.warehouses).filter((w) => w.status === 'Active' && w.type === 'Standard').map((w) => ({ value: w.id, label: `Stock from ${w.name}` }))} style={{ width: 220 }} />}
             <NumberField size="sm" value={doc.headerDiscountPct ?? 0} onChange={setHeaderDiscount} suffix="% off" min={0} max={100} style={{ width: 130 }} />
           </div>
         </div>
         <LineItemGrid lines={doc.lines} onChange={setLines} partyId={doc.partyId} priceListId={doc.priceListId} currency={doc.currency} showWarehouse={direct && !!s.company?.defaults.directInvoiceStock} showBatch={direct && !!s.company?.defaults.directInvoiceStock} sourceLinked={!!doc.sourceId} totals={doc.totals} itemFilter={(i: Item) => i.status === 'Active'} />
-        {issues.length > 0 && <div style={{ fontSize: 12, color: '#5F6368', marginTop: 6 }}>Direct stock invoicing is on: {issues.map((p) => `${fmtQty(p.qty, p.item.baseUom)} ${p.item.name}`).join(', ')} will be issued from stock on post.</div>}
+        {issues.length > 0 && <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 6 }}>Direct stock invoicing is on: {issues.map((p) => `${fmtQty(p.qty, p.item.baseUom)} ${p.item.name}`).join(', ')} will be issued from stock on post.</div>}
       </section>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24, alignItems: 'start' }}>
@@ -136,7 +136,7 @@ export default function InvoiceForm({ id, sourceOrderId, sourceDeliveryId }: { i
           <Card title="Projected journal" padding={0}>
             <table className="data-table dense">
               <thead><tr><th>Account</th><th className="right">Dr</th><th className="right">Cr</th></tr></thead>
-              <tbody>{projected.map((l, i) => { const a = db.find<any>(C.accounts, l.accountId); return <tr key={i}><td><span className="identifier">{a?.code}</span> · {a?.name}{l.partyName ? <span style={{ color: '#5F6368' }}> · {l.partyName}</span> : null}</td><td className="right money">{l.dr ? fmtMoney(l.dr, doc.currency) : '—'}</td><td className="right money">{l.cr ? fmtMoney(l.cr, doc.currency) : '—'}</td></tr>; })}</tbody>
+              <tbody>{projected.map((l, i) => { const a = db.find<any>(C.accounts, l.accountId); return <tr key={i}><td><span className="identifier">{a?.code}</span> · {a?.name}{l.partyName ? <span style={{ color: 'var(--ink-3)' }}> · {l.partyName}</span> : null}</td><td className="right money">{l.dr ? fmtMoney(l.dr, doc.currency) : '—'}</td><td className="right money">{l.cr ? fmtMoney(l.cr, doc.currency) : '—'}</td></tr>; })}</tbody>
             </table>
           </Card>
         </div>
@@ -147,13 +147,13 @@ export default function InvoiceForm({ id, sourceOrderId, sourceDeliveryId }: { i
         </div>
       </div>
 
-      <FormFooter savedAt={draft.savedAt} dirty={draft.dirty} conflict={draft.conflict} onReload={draft.reload} left={errors.length > 0 ? <span style={{ color: '#C0393F' }}>{errors.length} issue{errors.length === 1 ? '' : 's'}</span> : undefined}>
+      <FormFooter savedAt={draft.savedAt} dirty={draft.dirty} conflict={draft.conflict} onReload={draft.reload} left={errors.length > 0 ? <span style={{ color: 'var(--danger)' }}>{errors.length} issue{errors.length === 1 ? '' : 's'}</span> : undefined}>
         <Button variant="ghost" onClick={() => nav.go(id ? `sales/invoices/${id}` : 'sales/invoices')}>Discard changes</Button>
         <Button variant="secondary" onClick={saveDraft} disabled={!draft.dirty && draft.persisted}>Save draft</Button>
         {needsWf || doc.status !== 'Approved' ? (
-          needsWf ? <Button variant="primary" onClick={submit} disabled={!canSubmit || dupBlocks} reason={!canSubmit ? 'Requires sales.invoice.submit' : dupBlocks ? 'Duplicate reference blocked by policy' : undefined} data-testid="submit-invoice">Submit for approval</Button>
-          : <Button variant="primary" onClick={() => { if (errors.length) { draft.setErrors(errors); toast.error('Fix the highlighted issues first'); return; } setConfirmPost(true); }} disabled={!canPost || !period.ok || dupBlocks} reason={!canPost ? 'Requires Finance role' : !period.ok ? period.reason : dupBlocks ? 'Duplicate reference blocked by policy' : undefined} data-testid="post-invoice">Post invoice</Button>
-        ) : <Button variant="primary" onClick={() => setConfirmPost(true)} disabled={!canPost || !period.ok} reason={!canPost ? 'Requires Finance role' : period.reason} data-testid="post-invoice">Post invoice</Button>}
+          needsWf ? <Button variant="primary" tone="good" onClick={submit} disabled={!canSubmit || dupBlocks} reason={!canSubmit ? 'Requires sales.invoice.submit' : dupBlocks ? 'Duplicate reference blocked by policy' : undefined} data-testid="submit-invoice">Submit for approval</Button>
+          : <Button variant="primary" tone="good" onClick={() => { if (errors.length) { draft.setErrors(errors); toast.error('Fix the highlighted issues first'); return; } setConfirmPost(true); }} disabled={!canPost || !period.ok || dupBlocks} reason={!canPost ? 'Requires Finance role' : !period.ok ? period.reason : dupBlocks ? 'Duplicate reference blocked by policy' : undefined} data-testid="post-invoice">Post invoice</Button>
+        ) : <Button variant="primary" tone="good" onClick={() => setConfirmPost(true)} disabled={!canPost || !period.ok} reason={!canPost ? 'Requires Finance role' : period.reason} data-testid="post-invoice">Post invoice</Button>}
       </FormFooter>
 
       <ConfirmDialog open={confirmPost} onClose={() => setConfirmPost(false)} title={`Post invoice for ${doc.partyName ?? 'customer'}?`} statement="Posting allocates the number, creates the receivable and journal and issues stock. It cannot be undone — reverse instead." confirmLabel="Post invoice" cancelLabel="Keep as draft" disabled={busy}
@@ -176,7 +176,7 @@ export default function InvoiceForm({ id, sourceOrderId, sourceDeliveryId }: { i
               {(sourcePicker === 'order' ? ordersEligibleForInvoice() : deliveriesEligibleForInvoice()).map((d: DocHeader) => (
                 <tr key={d.id}><td className="identifier">{d.number}</td><td>{fmtDate(d.date)}</td><td>{d.partyName}</td><td className="right">{d.lines.filter((l) => l.qty - (l.invoicedQty ?? 0) > 0.0005).length}</td><td><Button size="sm" variant="primary" onClick={() => applySource(sourcePicker!, d.id)}>Use</Button></td></tr>
               ))}
-              {(sourcePicker === 'order' ? ordersEligibleForInvoice() : deliveriesEligibleForInvoice()).length === 0 && <tr><td colSpan={5} style={{ textAlign: 'center', color: '#5F6368' }}>Nothing eligible</td></tr>}
+              {(sourcePicker === 'order' ? ordersEligibleForInvoice() : deliveriesEligibleForInvoice()).length === 0 && <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ink-3)' }}>Nothing eligible</td></tr>}
             </tbody>
           </table>
         </div>

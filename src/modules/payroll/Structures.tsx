@@ -110,9 +110,9 @@ export function StructuresPage({ id }: { id?: string }) {
             <div className="summary-block">
               <div className="section-label" style={{ marginBottom: 8 }}>CTC preview (monthly)</div>
               <div className="grid-4" style={{ gap: 10 }}>
-                {[['Gross earnings', preview.gross], ['PF (employee)', -preview.pf], ['ESI (employee)', -preview.esi], ['Professional tax', -preview.pt], ['TDS estimate', -preview.tds], ['Net pay', preview.net], ['Employer PF + ESI', preview.employer], ['Monthly CTC', preview.monthlyCtc]].map(([l, v]) => <div key={String(l)}><div style={{ fontSize: 11, color: '#5F6368' }}>{l}</div><div className="money" style={{ fontWeight: 600, color: Number(v) < 0 ? '#C0393F' : '#0A0A0A' }}>{fmtMoney(Number(v), s.currency)}</div></div>)}
+                {[['Gross earnings', preview.gross], ['PF (employee)', -preview.pf], ['ESI (employee)', -preview.esi], ['Professional tax', -preview.pt], ['TDS estimate', -preview.tds], ['Net pay', preview.net], ['Employer PF + ESI', preview.employer], ['Monthly CTC', preview.monthlyCtc]].map(([l, v]) => <div key={String(l)}><div style={{ fontSize: 11, color: 'var(--ink-3)' }}>{l}</div><div className="money" style={{ fontWeight: 600, color: Number(v) < 0 ? 'var(--danger)' : 'var(--ink)' }}>{fmtMoney(Number(v), s.currency)}</div></div>)}
               </div>
-              <div style={{ fontSize: 12, color: '#6E6E71', marginTop: 8 }}>Annual CTC {fmtMoney(preview.annualCtc, s.currency)} · {!canView && 'amounts visible to payroll users only'}</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 8 }}>Annual CTC {fmtMoney(preview.annualCtc, s.currency)} · {!canView && 'amounts visible to payroll users only'}</div>
             </div>
             <MoneyField label="Target annual CTC (rebuild standard split)" value={preview.annualCtc} onChange={(v) => setEdit({ ...edit, components: standardComponents(v, settings) })} help="Basic 50% · HRA 40% of basic · conveyance 1,600 · medical 1,250 · balance special allowance" />
             <TextArea label="Notes" value={edit.notes} onChange={(v) => setEdit({ ...edit, notes: v })} rows={2} />

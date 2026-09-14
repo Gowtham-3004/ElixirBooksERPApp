@@ -38,12 +38,12 @@ export function EmployeesPage() {
     { key: 'name', label: 'Employee', render: (e) => <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Avatar name={e.name} /><div><div className="cell-primary">{e.name}</div><div className="cell-secondary identifier">{e.code}</div></div></div>, sortable: true },
     { key: 'department', label: 'Department', sortable: true },
     { key: 'designation', label: 'Designation' },
-    { key: 'pan', label: 'PAN', render: (e) => <span className="identifier" style={{ fontSize: 11, color: '#6E6E71' }}>{canView ? e.pan ?? '—' : '••••'}</span> },
+    { key: 'pan', label: 'PAN', render: (e) => <span className="identifier" style={{ fontSize: 11, color: 'var(--ink-4)' }}>{canView ? e.pan ?? '—' : '••••'}</span> },
     { key: 'dateOfJoining', label: 'Joined', render: (e) => fmtDate(e.dateOfJoining), sortable: true },
     { key: 'ctc', label: 'Annual CTC', align: 'right', render: (e) => <span className="money">{money(e.ctc)}</span>, total: (rows) => <span className="money">{money(rows.reduce((x, e) => x + e.ctc, 0))}</span>, sortable: true },
     { key: 'structure', label: 'Structure', render: (e) => { const st = structures.find((x) => x.employeeId === e.id && x.status === 'Active'); return st ? <span className="link" onClick={(ev) => { ev.stopPropagation(); nav.go(`payroll/structures/${st.id}`); }}>v{st.structureVersion} · {fmtDate(st.effectiveFrom)}</span> : <Badge status="Returned">Missing</Badge>; } },
-    { key: 'pf', label: 'PF', render: (e) => <span style={{ color: e.pf ? '#12784E' : '#B0B5BF' }}>{e.pf ? '✓' : '—'}</span> },
-    { key: 'esi', label: 'ESI', render: (e) => <span style={{ color: e.esi ? '#12784E' : '#B0B5BF' }}>{e.esi ? '✓' : '—'}</span> },
+    { key: 'pf', label: 'PF', render: (e) => <span style={{ color: e.pf ? 'var(--good)' : 'var(--ink-5)' }}>{e.pf ? '✓' : '—'}</span> },
+    { key: 'esi', label: 'ESI', render: (e) => <span style={{ color: e.esi ? 'var(--good)' : 'var(--ink-5)' }}>{e.esi ? '✓' : '—'}</span> },
     { key: 'status', label: 'Status', render: (e) => <Badge status={e.status} /> },
   ];
   return (
@@ -62,7 +62,7 @@ export function EmployeesPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <KV items={[{ k: 'Annual CTC', v: money(open.ctc) }, { k: 'Joined', v: fmtDate(open.dateOfJoining) }, { k: 'Branch', v: db.find<any>(C.branches, open.branchId)?.name ?? '—' }, { k: 'Manager', v: db.find<Employee>(C.employees, open.managerId)?.name ?? '—' }, { k: 'Status', v: <Badge status={open.status} /> }]} />
             <div className="section-title">Bank detail (masked · reveal is audited)</div>
-            {form.bankDetail ? <KV items={[{ k: 'Bank', v: form.bankDetail.bankName }, { k: 'Account', v: canView ? <MaskedValue value={form.bankDetail.accountNumber} onReveal={() => revealAudit('bank account', open.id)} /> : '••••' }, { k: 'IFSC', v: <span className="identifier">{form.bankDetail.ifsc}</span> }, { k: 'Verification', v: <Badge status={form.bankDetail.status} /> }]} /> : <div style={{ fontSize: 13, color: '#6E6E71' }}>No bank detail on file — net pay will be held.</div>}
+            {form.bankDetail ? <KV items={[{ k: 'Bank', v: form.bankDetail.bankName }, { k: 'Account', v: canView ? <MaskedValue value={form.bankDetail.accountNumber} onReveal={() => revealAudit('bank account', open.id)} /> : '••••' }, { k: 'IFSC', v: <span className="identifier">{form.bankDetail.ifsc}</span> }, { k: 'Verification', v: <Badge status={form.bankDetail.status} /> }]} /> : <div style={{ fontSize: 13, color: 'var(--ink-4)' }}>No bank detail on file — net pay will be held.</div>}
             <div className="grid-2">
               <TextField label="Bank name" value={form.bankDetail?.bankName ?? ''} onChange={(v) => setForm({ ...form, bankDetail: { id: form.bankDetail?.id ?? 'b1', bankName: v, accountNumber: form.bankDetail?.accountNumber ?? '', ifsc: form.bankDetail?.ifsc ?? '', accountName: form.bankDetail?.accountName ?? open.name, status: 'Pending Approval' } })} disabled={!canEdit} />
               <TextField label="Account number" value={form.bankDetail?.accountNumber ?? ''} onChange={(v) => setForm({ ...form, bankDetail: { ...(form.bankDetail ?? { id: 'b1', bankName: '', ifsc: '', accountName: open.name }), accountNumber: v, status: 'Pending Approval' } })} disabled={!canEdit} help="Changes require Treasury verification before the next bank file" />

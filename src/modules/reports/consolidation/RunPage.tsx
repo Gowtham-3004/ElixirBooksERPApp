@@ -43,7 +43,7 @@ export function RunPage({ id }: { id: string }) {
 
   const lineCols: Column<TranslatedLine>[] = [
     { key: 'company', label: 'Company', render: (l) => companyName(l.companyId), value: (l) => companyName(l.companyId) },
-    { key: 'account', label: 'Account', render: (l) => (<div><span className="identifier">{l.accountCode}</span> {l.accountName}{l.note && <div style={{ fontSize: 11, color: '#6E6E71' }}>{l.note}</div>}</div>), value: (l) => l.accountCode },
+    { key: 'account', label: 'Account', render: (l) => (<div><span className="identifier">{l.accountCode}</span> {l.accountName}{l.note && <div style={{ fontSize: 11, color: 'var(--ink-4)' }}>{l.note}</div>}</div>), value: (l) => l.accountCode },
     { key: 'type', label: 'Type', render: (l) => l.type },
     { key: 'src', label: 'Source amount', align: 'right', render: (l) => <Money value={l.sourceAmount} currency={l.sourceCurrency} code tone="auto" />, value: (l) => l.sourceAmount, total: (rows) => `${rows.length} lines` },
     { key: 'rateType', label: 'Rate type', render: (l) => <Pill tone={l.rateType === 'Average' ? 'neutral' : l.rateType === 'Historical' ? 'warning' : 'good'}>{l.rateType}</Pill> },
@@ -64,13 +64,13 @@ export function RunPage({ id }: { id: string }) {
           <Button variant="secondary" onClick={() => nav.go('reports/consolidation/statements', { run: run.id })} disabled={!run.translatedLines.length} reason={!run.translatedLines.length ? 'Translate first' : undefined}>Translated statements</Button>
           {!frozen && <Button variant="secondary" onClick={() => setConfirm('retranslate')}>{run.translatedAt ? 'Re-translate' : 'Translate'}</Button>}
           {!frozen && <Button variant="primary" onClick={() => setConfirm('finalize')} disabled={!run.translatedLines.length || !!proposed.length} reason={!run.translatedLines.length ? 'Translate first' : proposed.length ? `${proposed.length} elimination(s) still proposed` : undefined}>Finalize run</Button>}
-          {run.status === 'Final' && <Button variant="danger" onClick={() => setConfirm('reverse')}>Reverse run</Button>}
+          {run.status === 'Final' && <Button variant="tinted" tone="danger" onClick={() => setConfirm('reverse')}>Reverse run</Button>}
         </>}
       />
 
       <div className="grid-4">
         <KpiTile label="Translated lines" value={String(run.translatedLines.length)} sub={`${run.companies.filter((c) => c.included).length} companies`} />
-        <KpiTile label={`Translation adjustment (CTA)`} value={fmtMoney(-run.cta, run.currency)} sub="Balancing figure, disclosed separately (FR-RPT-013)" deltaTone={run.cta === 0 ? 'neutral' : 'neutral'} />
+        <KpiTile label={`Translation adjustment (CTA)`} amount={-run.cta} currency={run.currency} sub="Balancing figure, disclosed separately (FR-RPT-013)" deltaTone={run.cta === 0 ? 'neutral' : 'neutral'} />
         <KpiTile label="Eliminations" value={`${accepted.length} accepted`} sub={proposed.length ? `${proposed.length} awaiting decision` : 'None outstanding'} onClick={() => setTab('eliminations')} />
         <KpiTile label="Consolidation adjustments" value={String(adjustments.filter((a) => a.status === 'Posted').length)} sub="Never written to legal books (FR-CNS-004)" onClick={() => setTab('adjustments')} />
       </div>
@@ -115,13 +115,13 @@ export function RunPage({ id }: { id: string }) {
                         <td className="right money"><Money value={-(run.ctaByCompany?.[c.companyId] ?? 0)} currency={run.currency} tone="auto" /></td>
                       </tr>
                     ))}
-                    <tr style={{ background: '#F9FBFC', fontWeight: 700 }}>
+                    <tr style={{ background: 'var(--surface-2)', fontWeight: 700 }}>
                       <td colSpan={5}>Total translation adjustment carried to the translation reserve</td>
                       <td className="right money"><Money value={-run.cta} currency={run.currency} tone="auto" /></td>
                     </tr>
                   </tbody>
                 </table>
-                <div style={{ fontSize: 12, color: '#6E6E71', marginTop: 8 }}>A company whose base currency is already {run.currency} produces no translation adjustment. The reserve arises because income is translated at the average rate, assets and liabilities at closing and equity at historical rates.</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 8 }}>A company whose base currency is already {run.currency} produces no translation adjustment. The reserve arises because income is translated at the average rate, assets and liabilities at closing and equity at historical rates.</div>
               </Card>
             </>
           )
@@ -130,7 +130,7 @@ export function RunPage({ id }: { id: string }) {
       {tab === 'eliminations' && (
         <>
           <div className="toolbar" style={{ justifyContent: 'space-between' }}>
-            <div style={{ fontSize: 13, color: '#5F6368' }}>Proposed from matched intercompany documents. Accepting one never touches the source books and can always be reversed (FR-CNS-006).</div>
+            <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>Proposed from matched intercompany documents. Accepting one never touches the source books and can always be reversed (FR-CNS-006).</div>
             <Button variant="secondary" size="sm" onClick={() => setElimOpen(true)} disabled={!canAct} reason={frozen ? 'Run is frozen' : undefined}>Add elimination</Button>
           </div>
           {run.eliminations.length === 0
@@ -148,10 +148,10 @@ export function RunPage({ id }: { id: string }) {
                     <div style={{ marginTop: 8, fontSize: 13 }}>
                       <div>Dr <span className="identifier">{e.drAccountCode}</span> {e.drAccountName}{e.drCompanyId ? ` (${companyName(e.drCompanyId)})` : ''} — <span className="money">{fmtMoney(e.drAmount, run.currency)}</span></div>
                       <div>Cr <span className="identifier">{e.crAccountCode}</span> {e.crAccountName}{e.crCompanyId ? ` (${companyName(e.crCompanyId)})` : ''} — <span className="money">{fmtMoney(e.crAmount, run.currency)}</span></div>
-                      {Math.abs(e.fxDifference) >= 0.005 && <div style={{ color: '#8A4B0F' }}>Difference {fmtMoney(e.fxDifference, run.currency)} → <span className="identifier">{e.differenceAccountCode}</span></div>}
+                      {Math.abs(e.fxDifference) >= 0.005 && <div style={{ color: 'var(--warn)' }}>Difference {fmtMoney(e.fxDifference, run.currency)} → <span className="identifier">{e.differenceAccountCode}</span></div>}
                     </div>
                     {e.warning && <div style={{ marginTop: 8 }}><Pill tone="warning">{e.warning}</Pill></div>}
-                    {e.reason && <div style={{ marginTop: 6, fontSize: 12, color: '#6E6E71' }}>{e.reason}{e.actedBy ? ` — ${e.actedBy}` : ''}</div>}
+                    {e.reason && <div style={{ marginTop: 6, fontSize: 12, color: 'var(--ink-4)' }}>{e.reason}{e.actedBy ? ` — ${e.actedBy}` : ''}</div>}
                     {e.sourceDocs.length > 0 && (
                       <div style={{ marginTop: 10 }}>
                         <SectionLabel>Source documents ({e.sourceDocs.length})</SectionLabel>
@@ -184,7 +184,7 @@ export function RunPage({ id }: { id: string }) {
       {tab === 'adjustments' && (
         <>
           <div className="toolbar" style={{ justifyContent: 'space-between' }}>
-            <div style={{ fontSize: 13, color: '#5F6368' }}>Consolidation journals live in their own book. They are never written to Acme or Acme Gulf journals and always require a reason plus workflow (FR-CNS-004).</div>
+            <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>Consolidation journals live in their own book. They are never written to Acme or Acme Gulf journals and always require a reason plus workflow (FR-CNS-004).</div>
             <Button variant="secondary" size="sm" onClick={() => setAdjOpen(true)} disabled={!canAct || !run.translatedLines.length} reason={frozen ? 'Run is frozen' : !run.translatedLines.length ? 'Translate first' : undefined}>New consolidation adjustment</Button>
           </div>
           {adjustments.length === 0
@@ -193,20 +193,20 @@ export function RunPage({ id }: { id: string }) {
               <Card key={j.id} padding={14}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
                   <div style={{ flex: 1, minWidth: 320 }}>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><span className="identifier">{j.number}</span><Badge status={j.status} /><span style={{ fontSize: 12, color: '#5F6368' }}>{fmtDate(j.date)}</span></div>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><span className="identifier">{j.number}</span><Badge status={j.status} /><span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{fmtDate(j.date)}</span></div>
                     <div style={{ marginTop: 6, fontWeight: 600 }}>{j.reason}</div>
                     <table className="data-table dense" style={{ marginTop: 8 }}>
                       <thead><tr><th>Account</th><th>Narration</th><th className="right">Dr</th><th className="right">Cr</th></tr></thead>
                       <tbody>
-                        {j.lines.map((l) => (<tr key={l.id}><td><span className="identifier">{l.accountCode}</span> {l.accountName}</td><td style={{ color: '#5F6368' }}>{l.narration ?? '—'}</td><td className="right money">{l.dr ? fmtMoney(l.dr, j.currency) : '—'}</td><td className="right money">{l.cr ? fmtMoney(l.cr, j.currency) : '—'}</td></tr>))}
-                        <tr style={{ background: '#F9FBFC', fontWeight: 700 }}><td colSpan={2}>Total</td><td className="right money">{fmtMoney(j.totalDr, j.currency)}</td><td className="right money">{fmtMoney(j.totalCr, j.currency)}</td></tr>
+                        {j.lines.map((l) => (<tr key={l.id}><td><span className="identifier">{l.accountCode}</span> {l.accountName}</td><td style={{ color: 'var(--ink-3)' }}>{l.narration ?? '—'}</td><td className="right money">{l.dr ? fmtMoney(l.dr, j.currency) : '—'}</td><td className="right money">{l.cr ? fmtMoney(l.cr, j.currency) : '—'}</td></tr>))}
+                        <tr style={{ background: 'var(--surface-2)', fontWeight: 700 }}><td colSpan={2}>Total</td><td className="right money">{fmtMoney(j.totalDr, j.currency)}</td><td className="right money">{fmtMoney(j.totalCr, j.currency)}</td></tr>
                       </tbody>
                     </table>
-                    {j.workflowNote && <div style={{ fontSize: 12, color: '#6E6E71', marginTop: 8 }}>{j.workflowNote}</div>}
+                    {j.workflowNote && <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 8 }}>{j.workflowNote}</div>}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
                     {j.approvalId && <Button variant="secondary" size="sm" onClick={() => nav.go('approvals', { id: j.approvalId })}>Open approval</Button>}
-                    {j.status === 'Approved' && <Button variant="primary" size="sm" onClick={() => act(() => postApprovedAdjustment(j.id), 'Adjustment posted to the group book')}>Post adjustment</Button>}
+                    {j.status === 'Approved' && <Button variant="primary" tone="good" size="sm" onClick={() => act(() => postApprovedAdjustment(j.id), 'Adjustment posted to the group book')}>Post adjustment</Button>}
                     {j.status === 'Posted' && <Button variant="secondary" size="sm" disabled={!canAct} reason={frozen ? 'Run is frozen' : undefined} onClick={() => setReverseAdj(j)}>Reverse adjustment</Button>}
                   </div>
                 </div>
@@ -230,14 +230,14 @@ export function RunPage({ id }: { id: string }) {
                   <td><span className="identifier">{c.baseCurrency} → {run.currency}</span></td>
                   <td>{label}</td>
                   <td className="right money">{i.rate}{i.overridden && <Pill tone="warning">overridden</Pill>}</td>
-                  <td style={{ fontSize: 12, color: '#5F6368' }}>{i.type} · {i.source}{i.note ? <div style={{ color: '#8A4B0F' }}>{i.note}</div> : null}{i.overridden ? <div style={{ color: '#8A4B0F' }}>was {i.overridden.original} — {i.overridden.reason} ({i.overridden.by})</div> : null}</td>
-                  <td style={{ fontSize: 12, color: '#5F6368' }}>{fmtDateTime(i.at)}</td>
+                  <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{i.type} · {i.source}{i.note ? <div style={{ color: 'var(--warn)' }}>{i.note}</div> : null}{i.overridden ? <div style={{ color: 'var(--warn)' }}>was {i.overridden.original} — {i.overridden.reason} ({i.overridden.by})</div> : null}</td>
+                  <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{fmtDateTime(i.at)}</td>
                   <td className="right">{c.baseCurrency === run.currency ? '—' : <Button variant="link" size="sm" disabled={frozen} onClick={() => setRateEdit({ companyId: c.companyId, which })}>Override</Button>}</td>
                 </tr>
               ))))}
             </tbody>
           </table>
-          <div style={{ padding: 12, fontSize: 12, color: '#6E6E71' }}>Every rate used by this run is stored on the run itself, so a finalized run always reproduces the same statements even if the rate master changes later.</div>
+          <div style={{ padding: 12, fontSize: 12, color: 'var(--ink-4)' }}>Every rate used by this run is stored on the run itself, so a finalized run always reproduces the same statements even if the rate master changes later.</div>
         </Card>
       )}
 
@@ -258,7 +258,7 @@ export function RunPage({ id }: { id: string }) {
                   const same = pre && post && pre.journals === post.journals && Math.abs(pre.totalDr - post.totalDr) < 0.011;
                   return (
                     <tr key={c.companyId}>
-                      <td>{c.companyName} <span className="identifier" style={{ color: '#6E6E71' }}>{c.baseCurrency}</span></td>
+                      <td>{c.companyName} <span className="identifier" style={{ color: 'var(--ink-4)' }}>{c.baseCurrency}</span></td>
                       <td className="right money">{pre ? pre.journals : '—'}</td>
                       <td className="right money">{pre ? fmtMoney(pre.totalDr, c.baseCurrency) : '—'}</td>
                       <td className="right money">{post ? post.journals : '—'}</td>
@@ -269,7 +269,7 @@ export function RunPage({ id }: { id: string }) {
                 })}
               </tbody>
             </table>
-            <div style={{ padding: 12, fontSize: 12, color: '#6E6E71' }}>
+            <div style={{ padding: 12, fontSize: 12, color: 'var(--ink-4)' }}>
               A difference here only ever comes from the company’s own operational postings (sales, purchases, payroll…), never from consolidation. {run.status === 'Final' ? 'A finalized run keeps the figures it was finalized with; create a new version to pick up later postings.' : 'Re-translate to pick them up.'}
             </div>
           </Card>
@@ -432,13 +432,13 @@ function AdjustmentDrawer({ open, run, chart, onClose }: { open: boolean; run: C
                 <td>{rows.length > 2 && <Button variant="ghost" size="sm" onClick={() => setRows(rows.filter((_, j) => j !== i))}>×</Button>}</td>
               </tr>
             ))}
-            <tr style={{ background: '#F9FBFC', fontWeight: 700 }}><td colSpan={2}>Total</td><td className="right money">{fmtMoney(totalDr, run.currency)}</td><td className="right money">{fmtMoney(totalCr, run.currency)}</td><td /></tr>
+            <tr style={{ background: 'var(--surface-2)', fontWeight: 700 }}><td colSpan={2}>Total</td><td className="right money">{fmtMoney(totalDr, run.currency)}</td><td className="right money">{fmtMoney(totalCr, run.currency)}</td><td /></tr>
           </tbody>
         </table>
         <Button variant="secondary" size="sm" style={{ marginTop: 8 }} onClick={() => setRows([...rows, { code: '', dr: 0, cr: 0, narration: '' }])}>Add line</Button>
         {!balanced && totalDr + totalCr > 0 && <Banner tone="warning">Out of balance by {fmtMoney(totalDr - totalCr, run.currency)} — a consolidation journal must balance just like any other.</Banner>}
       </div>
-      <div style={{ marginTop: 12, fontSize: 12, color: '#6E6E71' }}>Submitted as “Consolidation Adjustment” through the approval engine. If no workflow rule matches, it posts directly and is recorded in the audit trail.</div>
+      <div style={{ marginTop: 12, fontSize: 12, color: 'var(--ink-4)' }}>Submitted as “Consolidation Adjustment” through the approval engine. If no workflow rule matches, it posts directly and is recorded in the audit trail.</div>
     </Drawer>
   );
 }
@@ -465,7 +465,7 @@ function ManualEliminationModal({ open, run, chart, onClose }: { open: boolean; 
         <SelectField label="Credit account" value={cr} onChange={setCr} options={opts} />
       </div>
       <div style={{ marginTop: 12 }}><TextArea label="Reason" required value={reason} onChange={setReason} rows={2} placeholder="Recorded in the audit trail" /></div>
-      <div style={{ marginTop: 10, fontSize: 12, color: '#6E6E71' }}>Today is {fmtDate(today())}. This elimination applies to run {run.number} only.</div>
+      <div style={{ marginTop: 10, fontSize: 12, color: 'var(--ink-4)' }}>Today is {fmtDate(today())}. This elimination applies to run {run.number} only.</div>
     </Modal>
   );
 }

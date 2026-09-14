@@ -1,6 +1,7 @@
 // Journal document page (FR-ACC-015/016): rail + Lines / Approvals / Activity tabs, state-driven footer.
 import { useState } from 'react';
 import { db, C, engine, nav, useCollection, useRecord, useSession } from '../../store';
+import { AlertTriangleIcon, CheckCircleIcon } from '../../components/Icons';
 import type { ApprovalRequest, Branch, Journal } from '../../store';
 import { ActivityTab, ApprovalsTab, AttachmentsPanel, Badge, Button, ConfirmDialog, DimChip, DocumentPage, EmptyState, Modal, RailSection, ReasonField, useToast } from '../../components/ui';
 import { fmtDate, fmtDateTime, fmtMoney, fmtPeriod } from '../../lib/format';
@@ -41,11 +42,11 @@ export function JournalPage({ id }: { id: string }) {
           <tbody>
             {j.lines.map((l, i) => (
               <tr key={l.id}>
-                <td style={{ color: '#5F6368' }}>{i + 1}</td>
+                <td style={{ color: 'var(--ink-3)' }}>{i + 1}</td>
                 <td><span className="identifier link" style={{ fontWeight: 500 }} onClick={() => nav.go(`accounting/ledger?account=${l.accountId}`)}>{l.accountCode}</span> · {l.accountName}</td>
                 <td>{l.partyName ? <span className="link" onClick={() => nav.go(l.partyType === 'Customer' ? `masters/customers/${l.partyId}` : l.partyType === 'Supplier' ? `masters/suppliers/${l.partyId}` : `masters/employees/${l.partyId}`)}>{l.partyName}</span> : '—'}</td>
                 <td><span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>{Object.entries(l.dimensions ?? {}).filter(([k]) => k !== 'Branch').map(([k, v]) => { const d = db.find<any>(C.dimensions, v); return <DimChip key={k} label={d ? `${d.code}` : v} color={d?.color} />; })}{!Object.keys(l.dimensions ?? {}).filter((k) => k !== 'Branch').length && '—'}</span></td>
-                <td style={{ color: '#3C4043', maxWidth: 260 }}>{l.narration ?? '—'}</td>
+                <td style={{ color: 'var(--ink-2)', maxWidth: 260 }}>{l.narration ?? '—'}</td>
                 {j.currency !== s.currency && <><td className="right money">{l.dr ? fmtMoney(l.dr, j.currency, { code: true }) : '—'}</td><td className="right money">{l.cr ? fmtMoney(l.cr, j.currency, { code: true }) : '—'}</td></>}
                 <td className="right money">{l.drBase ? fmtMoney(l.drBase, s.currency) : '—'}</td>
                 <td className="right money">{l.crBase ? fmtMoney(l.crBase, s.currency) : '—'}</td>
@@ -55,7 +56,7 @@ export function JournalPage({ id }: { id: string }) {
           <tfoot><tr><td colSpan={j.currency !== s.currency ? 7 : 5}>Totals · {j.lines.length} lines</td><td className="right money">{fmtMoney(j.totalDr, s.currency)}</td><td className="right money">{fmtMoney(j.totalCr, s.currency)}</td></tr></tfoot>
         </table>
       </div>
-      <div style={{ marginTop: 10, fontSize: 12, color: Math.abs(j.totalDr - j.totalCr) < 0.01 ? '#12784E' : '#C0393F' }}>{Math.abs(j.totalDr - j.totalCr) < 0.01 ? `✓ Balanced in ${s.currency}` : '⚠ Unbalanced'}{j.currency !== s.currency ? ` · ${j.currency} @ ${j.rate}` : ''}{j.idempotencyKey ? ` · idempotency key ${j.idempotencyKey}` : ''}</div>
+      <div style={{ marginTop: 10, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, color: Math.abs(j.totalDr - j.totalCr) < 0.01 ? 'var(--good)' : 'var(--danger)' }}>{Math.abs(j.totalDr - j.totalCr) < 0.01 ? <CheckCircleIcon size={13} /> : <AlertTriangleIcon size={13} />}<span>{Math.abs(j.totalDr - j.totalCr) < 0.01 ? `Balanced in ${s.currency}` : 'Unbalanced'}{j.currency !== s.currency ? ` · ${j.currency} @ ${j.rate}` : ''}{j.idempotencyKey ? ` · idempotency key ${j.idempotencyKey}` : ''}</span></div>
       <div style={{ marginTop: 18 }}><div className="section-title">Attachments</div><AttachmentsPanel objectType="Journal" objectId={j.id} readOnly={j.status !== 'Draft'} /></div>
     </div>
   );
@@ -63,25 +64,25 @@ export function JournalPage({ id }: { id: string }) {
   const footer = (
     <>
       {j.status === 'Draft' && <>
-        <Button variant="danger" onClick={() => setDel(true)} disabled={!canEdit}>Delete draft</Button>
+        <Button variant="tinted" tone="danger" onClick={() => setDel(true)} disabled={!canEdit}>Delete draft</Button>
         <Button variant="secondary" onClick={() => nav.go(`accounting/journals/${j.id}?edit=1`)} disabled={!canEdit} reason={canEdit ? undefined : 'Requires journal edit permission'}>Edit</Button>
-        {workflow ? <Button variant="primary" onClick={() => setSubmit(true)} disabled={!canSubmit} reason={canSubmit ? undefined : 'Requires submit permission'}>Submit for approval</Button> : <Button variant="primary" onClick={() => setPost(true)} disabled={!canPost || !period.ok} reason={!canPost ? 'Requires post permission' : !period.ok ? period.reason : undefined}>Post journal</Button>}
+        {workflow ? <Button variant="primary" onClick={() => setSubmit(true)} disabled={!canSubmit} reason={canSubmit ? undefined : 'Requires submit permission'}>Submit for approval</Button> : <Button variant="primary" tone="good" onClick={() => setPost(true)} disabled={!canPost || !period.ok} reason={!canPost ? 'Requires post permission' : !period.ok ? period.reason : undefined}>Post journal</Button>}
       </>}
       {j.status === 'Submitted' && <>
         {canAct.ok ? <>
           <Button variant="secondary" onClick={() => { setDecide('Return'); setComment(''); }}>Return for changes</Button>
-          <Button variant="danger" onClick={() => { setDecide('Reject'); setComment(''); }}>Reject</Button>
-          <Button variant="primary" onClick={() => { setDecide('Approve'); setComment(''); }}>Approve</Button>
+          <Button variant="tinted" tone="danger" onClick={() => { setDecide('Reject'); setComment(''); }}>Reject</Button>
+          <Button variant="primary" tone="good" onClick={() => { setDecide('Approve'); setComment(''); }}>Approve</Button>
         </> : <>
-          <span style={{ fontSize: 12, color: '#5F6368' }}>{canAct.reason ?? 'Awaiting approval'}</span>
+          <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{canAct.reason ?? 'Awaiting approval'}</span>
           {req?.requesterId === s.user?.id && <Button variant="secondary" onClick={() => run(() => engine.actOnApproval(req!.id, 'Recall', { comment: 'Recalled by requester' }), 'Recalled to draft')}>Recall</Button>}
         </>}
       </>}
       {(j.status === 'Returned' as string || j.status === 'Rejected') && <Button variant="secondary" onClick={() => nav.go(`accounting/journals/${j.id}?edit=1`)} disabled={!canEdit}>Edit and resubmit</Button>}
-      {j.status === 'Approved' && <Button variant="primary" onClick={() => setPost(true)} disabled={!canPost || !period.ok} reason={!canPost ? 'Requires post permission' : !period.ok ? period.reason : undefined}>Post journal</Button>}
+      {j.status === 'Approved' && <Button variant="primary" tone="good" onClick={() => setPost(true)} disabled={!canPost || !period.ok} reason={!canPost ? 'Requires post permission' : !period.ok ? period.reason : undefined}>Post journal</Button>}
       {j.status === 'Posted' && <>
         <Button variant="secondary" onClick={() => nav.go(`accounting/journals/new?from=${j.id}`)} disabled={!canEdit}>Duplicate</Button>
-        <Button variant="danger" onClick={() => setReverse(true)} disabled={!canPost || !period.ok} reason={!canPost ? 'Requires post permission' : !period.ok ? period.reason : undefined}>Reverse</Button>
+        <Button variant="tinted" tone="danger" onClick={() => setReverse(true)} disabled={!canPost || !period.ok} reason={!canPost ? 'Requires post permission' : !period.ok ? period.reason : undefined}>Reverse</Button>
       </>}
       {j.status === 'Reversed' && reversal && <Button variant="secondary" onClick={() => nav.go(journalLink(reversal.id))}>View reversal {reversal.number}</Button>}
     </>
@@ -105,7 +106,7 @@ export function JournalPage({ id }: { id: string }) {
               {j.recurringId && <><span className="k">Recurring</span><span className="v link" onClick={() => nav.go('accounting/recurring')}>Generated from definition</span></>}
             </div>
           </RailSection>
-          <RailSection label="Narration"><div style={{ fontSize: 13, color: '#3C4043' }}>{j.narration}</div></RailSection>
+          <RailSection label="Narration"><div style={{ fontSize: 13, color: 'var(--ink-2)' }}>{j.narration}</div></RailSection>
           {req && <RailSection label="Approval"><div style={{ fontSize: 12 }}><Badge status={req.status === 'Pending' ? 'Submitted' : req.status} /> {req.ruleName} · step {req.currentStep}/{req.steps.length}</div></RailSection>}
         </>}
         tabs={[{ id: 'lines', label: 'Lines', content: lines }, { id: 'approvals', label: 'Approvals', content: <ApprovalsTab approvalId={j.approvalId} docId={j.id} /> }, { id: 'activity', label: 'Activity', content: <ActivityTab objectId={j.id} correlationId={j.correlationId} /> }]}

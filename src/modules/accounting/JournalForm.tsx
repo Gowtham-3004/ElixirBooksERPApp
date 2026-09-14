@@ -99,7 +99,7 @@ export function JournalForm({ editId, fromId }: { editId?: string; fromId?: stri
   if (editId && !existing) return <div className="page"><PageHeader title="Journal not found" back={{ label: 'Journals', path: 'accounting/journals' }} /></div>;
   if (locked) return <div className="page"><PageHeader title={`${existing!.number} cannot be edited`} subtitle={`Status ${existing!.status} — only drafts and returned journals are editable. Reverse a posted journal instead.`} back={{ label: 'Open journal', path: journalLink(existing!.id) }} /></div>;
   const headerIssues = issues.filter((i) => !i.lineId);
-  const baseAmt = (amt: number) => (currency === s.currency ? null : <span style={{ fontSize: 11, color: '#6E6E71' }}>≈ {fmtMoney(amt * rate, s.currency)}</span>);
+  const baseAmt = (amt: number) => (currency === s.currency ? null : <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>≈ {fmtMoney(amt * rate, s.currency)}</span>);
   return (
     <div className="page">
       <PageHeader back={{ label: 'Journals', path: existing ? journalLink(existing.id) : 'accounting/journals' }} title={existing ? `Edit ${existing.number}` : 'New manual journal'} subtitle={`${s.company?.tradeName} · ${branches.find((b) => b.id === branchId)?.name ?? ''} · ${workflow ? `Approval: ${workflow.name}` : 'No approval workflow — drafts post directly'}`}
@@ -119,7 +119,7 @@ export function JournalForm({ editId, fromId }: { editId?: string; fromId?: stri
           <TextArea label="Narration" required value={narration} onChange={setNarration} rows={2} style={{ gridColumn: 'span 3' }} error={touched ? issues.find((i) => i.field === 'narration')?.message : undefined} />
           <TextField label="Reference" value={reference} onChange={setReference} placeholder="Voucher / document ref" />
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12, fontSize: 12, color: '#5F6368' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12, fontSize: 12, color: 'var(--ink-3)' }}>
           Templates: {TEMPLATES.map((t) => <button key={t.id} type="button" className="chip" onClick={() => applyTemplate(t)}>{t.label}</button>)}
         </div>
       </div>
@@ -133,11 +133,11 @@ export function JournalForm({ editId, fromId }: { editId?: string; fromId?: stri
               const hasIssue = issues.some((x) => x.lineId === l.id);
               return (
                 <tr key={l.id} className={touched && hasIssue ? 'error-row' : ''}>
-                  <td style={{ color: '#5F6368' }}>{i + 1}</td>
+                  <td style={{ color: 'var(--ink-3)' }}>{i + 1}</td>
                   <td>
                     <EntityPicker value={l.accountId || undefined} onChange={(v) => setAccount(l.id, v)} options={accountOpts} size="grid" placeholder="Account…" error={touched ? issueFor(l.id, 'accountId') : undefined} />
-                    {acc?.isControl && <div style={{ fontSize: 11, color: '#8A4B0F', marginTop: 2 }}>Control ({acc.controlType}) — {acc.controlType === 'AR' || acc.controlType === 'AP' || acc.controlType === 'Employee' ? 'party required' : 'sub-ledger driven'}</div>}
-                    {acc && acc.requiredDimensions.filter((d) => d !== 'Branch').length > 0 && <div style={{ fontSize: 11, color: '#5F6368', marginTop: 2 }}>Requires {acc.requiredDimensions.filter((d) => d !== 'Branch').join(', ')}</div>}
+                    {acc?.isControl && <div style={{ fontSize: 11, color: 'var(--warn)', marginTop: 2 }}>Control ({acc.controlType}) — {acc.controlType === 'AR' || acc.controlType === 'AP' || acc.controlType === 'Employee' ? 'party required' : 'sub-ledger driven'}</div>}
+                    {acc && acc.requiredDimensions.filter((d) => d !== 'Branch').length > 0 && <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>Requires {acc.requiredDimensions.filter((d) => d !== 'Branch').join(', ')}</div>}
                   </td>
                   <td><Segmented value={l.side} onChange={(v) => update(l.id, { side: v })} options={['Dr', 'Cr']} /></td>
                   <td className="right">
@@ -145,14 +145,14 @@ export function JournalForm({ editId, fromId }: { editId?: string; fromId?: stri
                     {baseAmt(l.amount)}
                     {touched && issueFor(l.id, 'amount') && <div className="field-error">{issueFor(l.id, 'amount')}</div>}
                   </td>
-                  <td>{l.partyType ? <EntityPicker value={l.partyId} onChange={(v, opt) => update(l.id, { partyId: v, partyName: opt?.primary })} options={partyOpts} size="grid" placeholder={`${l.partyType}…`} error={touched ? issueFor(l.id, 'partyId') : undefined} /> : <span style={{ color: '#B0B5BF', fontSize: 12 }}>—</span>}</td>
+                  <td>{l.partyType ? <EntityPicker value={l.partyId} onChange={(v, opt) => update(l.id, { partyId: v, partyName: opt?.primary })} options={partyOpts} size="grid" placeholder={`${l.partyType}…`} error={touched ? issueFor(l.id, 'partyId') : undefined} /> : <span style={{ color: 'var(--ink-5)', fontSize: 12 }}>—</span>}</td>
                   {DIM_TYPES.map((d) => {
                     const req = acc?.requiredDimensions.includes(d.key);
                     const pro = acc?.prohibitedDimensions.includes(d.key);
                     return (
                       <td key={d.key}>
-                        {pro ? <span style={{ color: '#B0B5BF', fontSize: 12 }}>n/a</span> : (
-                          <select className={`field-input grid ${touched && issueFor(l.id, d.key) ? 'error' : ''}`} value={l.dimensions?.[d.key] ?? ''} onChange={(e) => update(l.id, { dimensions: { ...(l.dimensions ?? {}), ...(e.target.value ? { [d.key]: e.target.value } : {}) , ...(e.target.value ? {} : Object.fromEntries(Object.entries(l.dimensions ?? {}).filter(([k]) => k !== d.key))) } })} style={{ borderColor: req && !l.dimensions?.[d.key] ? '#E29A4B' : undefined }}>
+                        {pro ? <span style={{ color: 'var(--ink-5)', fontSize: 12 }}>n/a</span> : (
+                          <select className={`field-input grid ${touched && issueFor(l.id, d.key) ? 'error' : ''}`} value={l.dimensions?.[d.key] ?? ''} onChange={(e) => update(l.id, { dimensions: { ...(l.dimensions ?? {}), ...(e.target.value ? { [d.key]: e.target.value } : {}) , ...(e.target.value ? {} : Object.fromEntries(Object.entries(l.dimensions ?? {}).filter(([k]) => k !== d.key))) } })} style={{ borderColor: req && !l.dimensions?.[d.key] ? 'var(--warn-line)' : undefined }}>
                             <option value="">{req ? `${d.label} *` : '—'}</option>
                             {dims.filter((x) => x.type === d.key).map((x) => <option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}
                           </select>

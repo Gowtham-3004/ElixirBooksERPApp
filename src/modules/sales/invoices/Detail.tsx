@@ -56,7 +56,7 @@ export default function InvoiceDetail({ id, tab, onTab }: { id: string; tab?: st
         <Button variant="secondary" onClick={() => nav.go(`sales/invoices/${inv.id}`, { edit: 1 })} disabled={!s.can('sales.invoice.edit')} reason={!s.can('sales.invoice.edit') ? 'Requires sales.invoice.edit' : undefined}>Edit</Button>
         {needsWf
           ? <Button variant="primary" onClick={() => run(() => { const r = submitInvoice(inv.id); toast.success(r.request ? `Submitted for approval · ${r.request.ruleName}` : `Invoice ${r.invoice.number} posted`); })} disabled={!s.can('sales.invoice.submit')} reason={!s.can('sales.invoice.submit') ? 'Requires sales.invoice.submit' : undefined} data-testid="submit-invoice">Submit for approval</Button>
-          : <Button variant="primary" onClick={() => setDialog('post')} disabled={!canPost || !period.ok} reason={!canPost ? 'Requires Finance role' : period.reason} data-testid="post-invoice">Post invoice</Button>}
+          : <Button variant="primary" tone="good" onClick={() => setDialog('post')} disabled={!canPost || !period.ok} reason={!canPost ? 'Requires Finance role' : period.reason} data-testid="post-invoice">Post invoice</Button>}
       </>
     );
   } else if (inv.status === 'Submitted') {
@@ -66,10 +66,10 @@ export default function InvoiceDetail({ id, tab, onTab }: { id: string; tab?: st
         {canAct.ok ? (
           <>
             <Button variant="secondary" onClick={() => setDialog('return')}>Return for changes</Button>
-            <Button variant="danger" onClick={() => setDialog('reject')}>Reject</Button>
-            <Button variant="primary" onClick={() => setDialog('approve')} data-testid="approve-invoice">Approve</Button>
+            <Button variant="tinted" tone="danger" onClick={() => setDialog('reject')}>Reject</Button>
+            <Button variant="primary" tone="good" onClick={() => setDialog('approve')} data-testid="approve-invoice">Approve</Button>
           </>
-        ) : <span style={{ fontSize: 12, color: '#5F6368' }}>Awaiting {req?.steps.find((x) => x.order === req.currentStep)?.approverLabel ?? 'approver'}{canAct.reason ? ` · ${canAct.reason}` : ''}</span>}
+        ) : <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Awaiting {req?.steps.find((x) => x.order === req.currentStep)?.approverLabel ?? 'approver'}{canAct.reason ? ` · ${canAct.reason}` : ''}</span>}
       </>
     );
   } else if (inv.status === 'Approved') {
@@ -78,7 +78,7 @@ export default function InvoiceDetail({ id, tab, onTab }: { id: string; tab?: st
       <>
         <ActionMenu actions={overflow} trigger={<Button variant="secondary">⋮</Button>} />
         <Button variant="secondary" onClick={() => nav.go(`sales/invoices/${inv.id}`, { edit: 1 })} disabled={!s.can('sales.invoice.edit')} reason="Editing re-opens the draft and re-triggers approval">Edit</Button>
-        <Button variant="primary" onClick={() => setDialog('post')} disabled={!canPost || !period.ok} reason={!canPost ? 'Requires Finance role' : period.reason} data-testid="post-invoice">Post invoice</Button>
+        <Button variant="primary" tone="good" onClick={() => setDialog('post')} disabled={!canPost || !period.ok} reason={!canPost ? 'Requires Finance role' : period.reason} data-testid="post-invoice">Post invoice</Button>
       </>
     );
   } else if (posted) {
@@ -126,7 +126,7 @@ export default function InvoiceDetail({ id, tab, onTab }: { id: string; tab?: st
         amount={{ label: 'Total', value: inv.totals.total, currency: inv.currency, base: inv.currency !== s.currency ? inv.totals.baseTotal : undefined, baseCurrency: s.currency, rate: inv.rate }}
         due={posted ? { label: 'Due', value: inv.totals.due, currency: inv.currency, dueDate: inv.dueDate, overdueDays: overdue } : undefined}
         rail={<SalesRail doc={inv} showStatutory>
-          {oi && <RailSection label="Open item"><div style={{ fontSize: 12, color: '#5F6368' }}><Badge status={oi.status} /> · {oi.settlements.length} settlement(s) · outstanding {fmtMoney(oi.outstanding, oi.currency)}</div></RailSection>}
+          {oi && <RailSection label="Open item"><div style={{ fontSize: 12, color: 'var(--ink-3)' }}><Badge status={oi.status} /> · {oi.settlements.length} settlement(s) · outstanding {fmtMoney(oi.outstanding, oi.currency)}</div></RailSection>}
         </SalesRail>}
         activeTab={tab} onTab={onTab}
         banner={banner}
@@ -198,7 +198,7 @@ function EInvoicePanel({ open, onClose, inv }: { open: boolean; onClose: () => v
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
           <div className="section-label" style={{ marginBottom: 6 }}>Readiness check</div>
-          {ready.ok ? <div style={{ fontSize: 13, color: '#12784E' }}>✓ All checks passed — seller GSTIN, buyer GSTIN & PIN, place of supply, HSN on every line, positive total.</div> : <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: '#C0393F' }}>{ready.issues.map((i) => <li key={i}>{i}</li>)}</ul>}
+          {ready.ok ? <div style={{ fontSize: 13, color: 'var(--good)' }}>✓ All checks passed — seller GSTIN, buyer GSTIN & PIN, place of supply, HSN on every line, positive total.</div> : <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: 'var(--danger)' }}>{ready.issues.map((i) => <li key={i}>{i}</li>)}</ul>}
         </div>
         {inv.statutory?.eInvoiceError && <Banner tone="danger">Last response: {inv.statutory.eInvoiceError}. Fix the buyer's GSTIN under Masters › Customers and retry — the posted journal is unchanged.</Banner>}
         <KV items={[{ k: 'Seller GSTIN', v: db.find<any>(C.branches, inv.branchId)?.gstin ?? '—' }, { k: 'Buyer GSTIN', v: inv.partySnapshot?.gstin ?? '—' }, { k: 'Document', v: `${inv.number} · ${fmtDate(inv.date)} · ${fmtMoney(inv.totals.total, inv.currency)}` }, { k: 'Idempotency key', v: <span className="identifier">einv:{inv.id}</span> }]} />
@@ -250,7 +250,7 @@ function ApplyCreditModal({ open, onClose, inv, credits }: { open: boolean; onCl
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <SelectField label="Credit" value={sel} onChange={(v) => { setSel(v); setAmount(0); }} options={credits.map((x) => ({ value: x.id, label: `${x.docType} ${x.docNumber} · ${fmtDate(x.date)} · ${fmtMoney(x.outstanding, x.currency)} available` }))} />
         <MoneyField label={`Amount (max ${fmtMoney(max, inv.currency)})`} value={amount || max} onChange={setAmount} currency={inv.currency} max={max} />
-        <div style={{ fontSize: 12, color: '#5F6368' }}>{c?.docType === 'Receipt' ? 'Posts Dr Advances from customers · Cr Trade receivables and settles both open items.' : 'Settles the credit note against this invoice — no new journal (the credit note already reduced receivables).'}</div>
+        <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{c?.docType === 'Receipt' ? 'Posts Dr Advances from customers · Cr Trade receivables and settles both open items.' : 'Settles the credit note against this invoice — no new journal (the credit note already reduced receivables).'}</div>
       </div>
     </Modal>
   );

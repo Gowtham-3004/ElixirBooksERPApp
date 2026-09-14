@@ -1,6 +1,6 @@
 // Companies (admin/companies, FR-ORG-001): tenant-owner list of legal entities with add-within-plan-limit and switch.
-import { useState } from 'react';
-import { db, C, engine, nav, session, useCollection, useSession } from '../../store';
+import { useEffect, useState } from 'react';
+import { db, C, engine, nav, session, useCollection, useRoute, useSession } from '../../store';
 import type { Company, Tenant, Branch, Plan, User } from '../../store';
 import { fmtDate } from '../../lib/format';
 import { PageHeader, Card, Button, Badge, Drawer, TextField, SelectField, RadioCards, Meter, Banner, KV, useToast, EmptyState } from '../../components/ui';
@@ -15,7 +15,10 @@ export default function Companies() {
   const plan = s.plan as Plan | undefined;
   const limit = plan?.limits.companies ?? 1;
   const atLimit = companies.length >= limit;
-  const [open, setOpen] = useState(false);
+  const route = useRoute();
+  // #/admin/companies?new=1 (from the company picker) lands straight in the Add company drawer
+  const [open, setOpen] = useState(route.params.new === '1');
+  useEffect(() => { if (route.params.new === '1') nav.replace('admin/companies'); }, [route.params.new]);
   const [f, setF] = useState({ name: '', country: 'IN', nature: 'Trading' as Company['nature'], fyStart: 4 });
 
   if (!s.isTenantOwner) {
@@ -61,15 +64,15 @@ export default function Companies() {
           const open = periods.filter((p) => p.status === 'Open' || p.status === 'Reopened').length;
           const current = c.id === s.state.companyId;
           return (
-            <Card key={c.id} style={{ borderColor: current ? '#325CFF' : undefined }}>
+            <Card key={c.id} style={{ borderColor: current ? 'var(--accent)' : undefined }}>
               <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                <div style={{ width: 44, height: 44, borderRadius: 10, background: c.brandColor ?? '#325CFF', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 18, flexShrink: 0 }}>{c.logoText ?? c.legalName[0]}</div>
+                <div style={{ width: 44, height: 44, borderRadius: 10, background: c.brandColor ?? 'var(--accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 18, flexShrink: 0 }}>{c.logoText ?? c.legalName[0]}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                     <div style={{ fontSize: 15, fontWeight: 600 }}>{c.legalName}</div>
                     <div style={{ display: 'flex', gap: 6 }}>{current && <Badge status="Active">Current</Badge>}<Badge status={c.status} /></div>
                   </div>
-                  <div style={{ fontSize: 12, color: '#5F6368', marginBottom: 10 }}>{c.code} · {c.country} · {c.baseCurrency}{c.reportingCurrency ? ` (reports ${c.reportingCurrency})` : ''} · {c.nature}</div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 10 }}>{c.code} · {c.country} · {c.baseCurrency}{c.reportingCurrency ? ` (reports ${c.reportingCurrency})` : ''} · {c.nature}</div>
                   <KV columns={2} items={[{ k: 'Pack', v: `${c.localizationPack} v${c.localizationVersion}` }, { k: 'Profiles', v: c.profiles.join(' + ') }, { k: 'Branches', v: br }, { k: 'Periods', v: `${periods.length} · ${open} open` }, { k: 'FY starts', v: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][c.fiscalYearStartMonth - 1] }, { k: 'Books from', v: fmtDate(c.booksFrom) }]} />
                   <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                     {!current && <Button size="sm" variant="primary" onClick={() => { session.switchCompany(c.id); nav.go('home'); }}>Switch to {c.tradeName}</Button>}
@@ -82,7 +85,7 @@ export default function Companies() {
           );
         })}
       </div>
-      <div style={{ fontSize: 12, color: '#6E6E71' }}>Companies under one tenant may use different countries, currencies and profiles; ledgers, periods, statutory books, banks and number series stay company-specific (FRD §3.5). No transaction can mix companies (FR-ORG-011).</div>
+      <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>Companies under one tenant may use different countries, currencies and profiles; ledgers, periods, statutory books, banks and number series stay company-specific (FRD §3.5). No transaction can mix companies (FR-ORG-011).</div>
 
       <Drawer open={open} onClose={() => setOpen(false)} title="Add company" subtitle="Creates the legal entity with its own base currency, localization pack, default branch, fiscal periods and number series." width={560} footer={<><Button variant="secondary" onClick={() => setOpen(false)}>Discard</Button><Button variant="primary" onClick={create}>Create company</Button></>}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

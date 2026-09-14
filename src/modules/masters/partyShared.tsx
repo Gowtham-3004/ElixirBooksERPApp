@@ -87,11 +87,11 @@ export function AddressCard({ a }: { a: PartyAddress }) {
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
         <Badge status="Draft">{a.purpose}</Badge>
         {a.isDefault && <Badge status="Approved">Default</Badge>}
-        {a.label && <span style={{ color: '#5F6368' }}>{a.label}</span>}
+        {a.label && <span style={{ color: 'var(--ink-3)' }}>{a.label}</span>}
       </div>
       {a.address.line1}{a.address.line2 ? <>, {a.address.line2}</> : null}<br />
       {a.address.city}, {a.address.state} {a.address.pin}<br />
-      <span style={{ color: '#5F6368' }}>{a.address.country}{a.address.stateCode ? ` · state code ${a.address.stateCode}` : ''}{a.gstin ? ` · ${a.gstin}` : ''}</span>
+      <span style={{ color: 'var(--ink-3)' }}>{a.address.country}{a.address.stateCode ? ` · state code ${a.address.stateCode}` : ''}{a.gstin ? ` · ${a.gstin}` : ''}</span>
     </div>
   );
 }
@@ -104,7 +104,7 @@ export function ContactCard({ c }: { c: Contact }) {
         {c.isDefault && <Badge status="Approved">Default</Badge>}
         {c.purpose && c.purpose !== 'General' && <Badge status="Draft">{c.purpose}</Badge>}
       </div>
-      <div style={{ color: '#5F6368' }}>{[c.designation, c.email, c.phone].filter(Boolean).join(' · ') || '—'}</div>
+      <div style={{ color: 'var(--ink-3)' }}>{[c.designation, c.email, c.phone].filter(Boolean).join(' · ') || '—'}</div>
     </div>
   );
 }

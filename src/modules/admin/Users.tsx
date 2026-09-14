@@ -60,8 +60,8 @@ export default function Users() {
     { key: 'name', label: 'User', sortable: true, render: (u) => <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Avatar name={u.name} /><TwoLine primary={<span>{u.name}{u.isTenantOwner && <Badge status="Approved" style={{ marginLeft: 6 }}>Owner</Badge>}</span>} secondary={u.email} /></div> },
     { key: 'roles', label: 'Roles', render: (u) => <span style={{ fontSize: 13 }}>{u.roleIds.map((id) => roles.find((r) => r.id === id)?.name ?? id).join(', ') || (u.isPlatformAdmin ? 'Platform Admin' : '—')}</span> },
     { key: 'companies', label: 'Companies · branches', render: (u) => <TwoLine primary={u.companyIds.map((id) => companies.find((c) => c.id === id)?.tradeName ?? id).join(', ') || '—'} secondary={u.branchIds.length ? u.branchIds.map((id) => db.find<Branch>(C.branches, id)?.name ?? id).join(', ') : 'All branches'} /> },
-    { key: 'lastLoginAt', label: 'Last login', sortable: true, render: (u) => <span style={{ fontSize: 12, color: '#5F6368' }}>{u.lastLoginAt ? fmtDateTime(u.lastLoginAt) : u.status === 'Invited' ? `Invited ${fmtDateTime(u.invitedAt)}` : '—'}</span> },
-    { key: 'mfa', label: 'MFA', render: (u) => <span style={{ fontSize: 12, color: u.mfaEnabled ? '#12784E' : '#B0B5BF' }}>{u.mfaEnabled ? '✓ Enabled' : 'Disabled'}</span> },
+    { key: 'lastLoginAt', label: 'Last login', sortable: true, render: (u) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{u.lastLoginAt ? fmtDateTime(u.lastLoginAt) : u.status === 'Invited' ? `Invited ${fmtDateTime(u.invitedAt)}` : '—'}</span> },
+    { key: 'mfa', label: 'MFA', render: (u) => <span style={{ fontSize: 12, color: u.mfaEnabled ? 'var(--good)' : 'var(--ink-5)' }}>{u.mfaEnabled ? '✓ Enabled' : 'Disabled'}</span> },
     { key: 'status', label: 'Status', render: (u) => <Badge status={u.status} /> },
   ];
 
@@ -78,7 +78,7 @@ export default function Users() {
         filters={[{ key: 'role', label: 'Role', type: 'select', options: roles.map((r) => ({ value: r.id, label: r.name })) }, { key: 'mfa', label: 'MFA', type: 'select', options: [{ value: 'on', label: 'Enabled' }, { value: 'off', label: 'Disabled' }] }]}
         applyFilter={(u, v) => (!v.role || u.roleIds.includes(v.role)) && (!v.mfa || (v.mfa === 'on') === u.mfaEnabled)}
         primaryAction={{ label: 'Invite user', onClick: () => { setCreated(null); setOpen(true); }, disabled: !canInvite || atLimit, reason: !canInvite ? 'Requires admin.users.create' : atLimit ? `Plan limit of ${limit} users reached` : undefined }}
-        headerExtra={<div style={{ maxWidth: 320 }}><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#5F6368', marginBottom: 4 }}><span>User seats</span><span>{users.length} / {limit}</span></div><Meter value={users.length} max={limit} /></div>}
+        headerExtra={<div style={{ maxWidth: 320 }}><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--ink-3)', marginBottom: 4 }}><span>User seats</span><span>{users.length} / {limit}</span></div><Meter value={users.length} max={limit} /></div>}
         onRowClick={(u) => nav.go(`admin/users/${u.id}`)}
         rowActions={(u) => [
           { label: 'Open', onClick: () => nav.go(`admin/users/${u.id}`) },
@@ -104,7 +104,7 @@ export default function Users() {
             {conflicts.length > 0 && <Banner tone="warning">Segregation of duties: these roles let the user both create and approve <strong>{conflicts.join(', ')}</strong>. Self-approval stays blocked by the workflow, but consider splitting the roles (FRD §22).</Banner>}
             <ChipGroup label="Companies" multiple value={f.companyIds.filter(Boolean)} onChange={(v: string[]) => setF({ ...f, companyIds: v })} options={companies.map((c) => ({ value: c.id, label: c.tradeName }))} />
             <ChipGroup label={`Branches (${s.company?.tradeName}) — none selected = all`} multiple value={f.branchIds} onChange={(v: string[]) => setF({ ...f, branchIds: v })} options={branches.map((b) => ({ value: b.id, label: b.name }))} />
-            <div style={{ fontSize: 12, color: '#6E6E71' }}>Data scope comes from the role (company / branch / own). Security-sensitive changes are audited (FR-IAM-006).</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>Data scope comes from the role (company / branch / own). Security-sensitive changes are audited (FR-IAM-006).</div>
           </div>
         )}
       </Drawer>

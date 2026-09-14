@@ -75,10 +75,10 @@ export default function BusinessProfile() {
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>{co.profiles.map((p) => <Badge key={p} status="Active">{p}</Badge>)}<Pill tone="neutral">{co.nature}</Pill></div>
           {co.characteristics?.length ? <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 12 }}>{co.characteristics.map((c) => <span key={c} className="chip" style={{ fontSize: 11 }}>{c}</span>)}</div> : null}
           <KV items={[{ k: 'Modules shown', v: modulesFor(co.profiles).map((m) => m.label).join(', ') }, { k: 'COA template', v: template?.coaTemplate }, { k: 'Dimensions', v: template?.dimensions.join(', ') }, { k: 'Terminology', v: Object.entries(template?.terminology ?? {}).map(([k, v]) => `${k} → ${v}`).join(' · ') || 'standard' }]} />
-          <div style={{ fontSize: 12, color: '#6E6E71', marginTop: 10 }}>Navigation and defaults follow the effective profile; hidden modules remain routable and API-protected by entitlement and permission (FR-BIZ-008).</div>
+          <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 10 }}>Navigation and defaults follow the effective profile; hidden modules remain routable and API-protected by entitlement and permission (FR-BIZ-008).</div>
         </Card>
         <Card title="Profile change history">
-          {co.profileHistory.length === 0 && approvals.length === 0 ? <div style={{ fontSize: 13, color: '#5F6368' }}>No profile changes yet.</div> : (
+          {co.profileHistory.length === 0 && approvals.length === 0 ? <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>No profile changes yet.</div> : (
             <Timeline items={[
               ...co.profileHistory.map((h) => ({ type: 'success' as const, event: `${h.from.join(' + ') || '—'} → ${h.to.join(' + ')}`, predicate: `by ${h.by}`, time: h.at, note: h.reason })),
               ...approvals.filter((a) => a.status !== 'Approved').map((a) => ({ type: a.status === 'Pending' ? 'info' as const : 'warning' as const, event: `Change request ${a.status.toLowerCase()}`, predicate: `by ${a.requesterName}`, time: a.completedAt ?? a.submittedAt, note: a.summary })),
@@ -89,7 +89,7 @@ export default function BusinessProfile() {
       <Card title="Available profile templates">
         <table className="data-table dense">
           <thead><tr><th>Template</th><th>Nature</th><th>Modules</th><th>Dimensions</th><th>Workflows</th><th>Version</th></tr></thead>
-          <tbody>{templates.map((t) => <tr key={t.id} style={{ background: t.nature === co.nature ? '#F9FBFF' : undefined }}><td style={{ fontWeight: 500 }}>{t.name}{t.nature === co.nature && <Badge status="Active" style={{ marginLeft: 6 }}>current</Badge>}</td><td>{t.nature}</td><td style={{ fontSize: 12, color: '#5F6368' }}>{t.modules.join(', ')}</td><td style={{ fontSize: 12, color: '#5F6368' }}>{t.dimensions.join(', ')}</td><td style={{ fontSize: 12, color: '#5F6368' }}>{t.workflows.join(', ')}</td><td>v{t.templateVersion}</td></tr>)}</tbody>
+          <tbody>{templates.map((t) => <tr key={t.id} style={{ background: t.nature === co.nature ? 'var(--accent-tint)' : undefined }}><td style={{ fontWeight: 500 }}>{t.name}{t.nature === co.nature && <Badge status="Active" style={{ marginLeft: 6 }}>current</Badge>}</td><td>{t.nature}</td><td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{t.modules.join(', ')}</td><td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{t.dimensions.join(', ')}</td><td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{t.workflows.join(', ')}</td><td>v{t.templateVersion}</td></tr>)}</tbody>
         </table>
       </Card>
 
@@ -99,7 +99,7 @@ export default function BusinessProfile() {
         {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <ChipGroup label="Operating profiles" multiple value={to} onChange={setTo} options={PROFILES.map((p) => ({ value: p, label: p }))} />
-            <div style={{ fontSize: 13, color: '#5F6368' }}>Resulting nature: <strong>{natureFor(to)}</strong>. Modules: {modulesFor(to).map((m) => m.label).join(', ') || '—'}.</div>
+            <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>Resulting nature: <strong>{natureFor(to)}</strong>. Modules: {modulesFor(to).map((m) => m.label).join(', ') || '—'}.</div>
             {impact.unentitled.length > 0 && <Banner tone="warning">Not in your plan: {impact.unentitled.join(', ')}. The profile can be set, but those modules stay hidden until the plan is upgraded (FR-BIZ-004).</Banner>}
           </div>
         )}
@@ -117,11 +117,11 @@ export default function BusinessProfile() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <KV items={[{ k: 'From', v: co.profiles.join(' + ') }, { k: 'To', v: to.join(' + ') }, { k: 'Approval', v: rule ? `${rule.name} · ${rule.steps.map((st) => st.approverLabel).join(' → ')}` : 'None configured — applies immediately' }]} />
             <ReasonField value={reason} onChange={setReason} label="Reason for the change" />
-            <div style={{ fontSize: 12, color: '#6E6E71' }}>Recorded in the profile history and audit log with before/after values (FR-BIZ-006). Migration steps: navigation refresh, defaults refresh, number series for new document types created lazily.</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>Recorded in the profile history and audit log with before/after values (FR-BIZ-006). Migration steps: navigation refresh, defaults refresh, number series for new document types created lazily.</div>
           </div>
         )}
       </Drawer>
-      <div style={{ fontSize: 12, color: '#6E6E71' }}>Last changed {co.profileHistory.length ? fmtDateTime(co.profileHistory[co.profileHistory.length - 1].at) : 'never'}.</div>
+      <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>Last changed {co.profileHistory.length ? fmtDateTime(co.profileHistory[co.profileHistory.length - 1].at) : 'never'}.</div>
     </div>
   );
 }

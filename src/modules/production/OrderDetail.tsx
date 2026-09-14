@@ -64,12 +64,12 @@ export function OrderDetail({ id }: { id: string }) {
   });
   const footer = (
     <>
-      <div style={{ flex: 1, fontSize: 12, color: '#5F6368' }}>
+      <div style={{ flex: 1, fontSize: 12, color: 'var(--ink-3)' }}>
         {pending ? `Awaiting ${pending.steps.find((x) => x.order === pending.currentStep)?.approverLabel}` : heldReceipts.length ? `${heldReceipts.length} receipt(s) on QC hold` : isLate(o) ? `Late by ${daysBetween(o.plannedEnd, today())} day(s)` : o.status === 'Completed' ? 'Completed — close to post the variance' : ''}
       </div>
       {o.status === 'Draft' && <><Button onClick={() => nav.go(`production/orders/${o.id}/edit`)}>Edit</Button><Button variant="primary" onClick={() => run(() => A.planOrder(o.id), `${o.number} planned`)}>Plan order</Button></>}
-      {(o.status === 'Planned' || o.status === 'Approved') && <><Button onClick={() => nav.go(`production/orders/${o.id}/edit`)}>Edit</Button><Button variant="primary" onClick={doRelease}>Release order</Button></>}
-      {pending && <><Button variant="danger" disabled={!canAct.ok} reason={canAct.reason} onClick={() => confirm.open({ title: `Reject ${o.number}?`, reasonRequired: true, confirmLabel: 'Reject release', danger: true, onConfirm: (r) => engine.actOnApproval(pending.id, 'Reject', { comment: r }) })}>Reject</Button><Button variant="primary" disabled={!canAct.ok} reason={canAct.reason} onClick={() => confirm.open({ title: `Approve release of ${o.number}?`, statement: `${o.itemName} × ${o.qty}`, consequences: [{ engine: 'Workflow', text: 'Order becomes Released and materials can be issued' }], confirmLabel: 'Approve release', onConfirm: (r) => { engine.actOnApproval(pending.id, 'Approve', { comment: r }); A.releaseOrder(o.id, { acknowledgeShortfall: true }); } })}>Approve</Button></>}
+      {(o.status === 'Planned' || o.status === 'Approved') && <><Button onClick={() => nav.go(`production/orders/${o.id}/edit`)}>Edit</Button><Button variant="primary" tone="good" onClick={doRelease}>Release order</Button></>}
+      {pending && <><Button variant="tinted" tone="danger" disabled={!canAct.ok} reason={canAct.reason} onClick={() => confirm.open({ title: `Reject ${o.number}?`, reasonRequired: true, confirmLabel: 'Reject release', danger: true, onConfirm: (r) => engine.actOnApproval(pending.id, 'Reject', { comment: r }) })}>Reject</Button><Button variant="primary" tone="good" disabled={!canAct.ok} reason={canAct.reason} onClick={() => confirm.open({ title: `Approve release of ${o.number}?`, statement: `${o.itemName} × ${o.qty}`, consequences: [{ engine: 'Workflow', text: 'Order becomes Released and materials can be issued' }], confirmLabel: 'Approve release', onConfirm: (r) => { engine.actOnApproval(pending.id, 'Approve', { comment: r }); A.releaseOrder(o.id, { acknowledgeShortfall: true }); } })}>Approve</Button></>}
       {o.status === 'Released' && <Button variant="primary" onClick={() => run(() => A.startOrder(o.id), `${o.number} started`)}>Start production</Button>}
       {canIssue && <Button onClick={() => nav.go(`production/issues/new?order=${o.id}`)}>Issue materials</Button>}
       {canIssue && <Button variant={o.status === 'Released' ? 'secondary' : 'primary'} onClick={() => nav.go(`production/receipts/new?order=${o.id}`)}>Record output</Button>}
@@ -96,16 +96,16 @@ export function OrderDetail({ id }: { id: string }) {
           <>
             <RailSection label="Item">
               <div style={{ fontSize: 14, fontWeight: 600 }}><ItemLink id={o.itemId} name={o.itemName} /></div>
-              <div className="identifier" style={{ fontSize: 12, color: '#5F6368' }}>{o.itemCode}</div>
-              <div style={{ fontSize: 12, color: '#5F6368', marginTop: 2 }}>{o.qty} {o.uom} · tracking {o.tracking}{o.lotNumber ? ` · ${o.lotNumber}` : o.serialPrefix ? ` · ${o.serialPrefix}-…` : ''}</div>
-              <div style={{ marginTop: 8 }}><Progress done={o.receivedQty} total={o.qty} label="Output" />{o.scrapQty > 0 && <div style={{ fontSize: 11, color: '#C0393F', marginTop: 3 }}>Scrap {o.scrapQty} {o.uom} ({fmtPct((o.scrapQty / (o.receivedQty + o.scrapQty || 1)) * 100, 1)})</div>}</div>
+              <div className="identifier" style={{ fontSize: 12, color: 'var(--ink-3)' }}>{o.itemCode}</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>{o.qty} {o.uom} · tracking {o.tracking}{o.lotNumber ? ` · ${o.lotNumber}` : o.serialPrefix ? ` · ${o.serialPrefix}-…` : ''}</div>
+              <div style={{ marginTop: 8 }}><Progress done={o.receivedQty} total={o.qty} label="Output" />{o.scrapQty > 0 && <div style={{ fontSize: 11, color: 'var(--danger)', marginTop: 3 }}>Scrap {o.scrapQty} {o.uom} ({fmtPct((o.scrapQty / (o.receivedQty + o.scrapQty || 1)) * 100, 1)})</div>}</div>
             </RailSection>
             <RailSection label="Plan">
               <KV items={[{ k: 'BOM', v: <DocLink path={`production/boms/${o.bomId}`} number={`${o.bomCode} v${o.bomVersion}`} /> }, { k: 'Routing', v: o.routingCode ? <DocLink path={`production/routings/${o.routingId}`} number={o.routingCode} /> : '—' }, { k: 'Planned', v: `${fmtDate(o.plannedStart)} → ${fmtDate(o.plannedEnd)}` }, { k: 'Actual', v: o.actualStart ? `${fmtDate(o.actualStart)} → ${o.actualEnd ? fmtDate(o.actualEnd) : '…'}` : 'Not started' }, { k: 'FG warehouse', v: whName(o.warehouseId) }, { k: 'RM warehouse', v: whName(o.rmWarehouseId) }, { k: 'WIP', v: whName(o.wipWarehouseId) }, ...(o.sourceDemand ? [{ k: 'Source demand', v: <span className="link" onClick={() => nav.go(`sales/orders/${o.sourceDemand!.id}`)}>{o.sourceDemand.number}{o.sourceDemand.customerName ? ` · ${o.sourceDemand.customerName}` : ''}</span> }] : []), ...(o.mrpRunId ? [{ k: 'MRP run', v: <DocLink path={`production/mrp/${o.mrpRunId}`} number={db.find<any>(C.mrpRuns, o.mrpRunId)?.number} /> }] : [])]} />
             </RailSection>
             <RailSection label="Cost summary">
               <SummaryBlock style={{ flexDirection: 'column', gap: 8 }} items={[{ label: 'Standard', value: fmtMoney(c.totalStd, s.currency) }, { label: 'Actual', value: fmtMoney(c.totalActual, s.currency) }, { label: 'Variance', value: <VarianceCell std={c.totalStd} actual={c.totalActual} currency={s.currency} />, tone: c.variance > 0 ? 'danger' : 'good' }, { label: 'WIP balance', value: fmtMoney(wipBalance, s.currency), tone: Math.abs(wipBalance) > 0.01 && o.status === 'Closed' ? 'warn' : undefined }]} />
-              <div style={{ marginTop: 8, fontSize: 11, color: '#6E6E71' }}>Costing method: {o.costingMethod} · std unit {fmtMoney(o.stdUnitCost, s.currency)}</div>
+              <div style={{ marginTop: 8, fontSize: 11, color: 'var(--ink-4)' }}>Costing method: {o.costingMethod} · std unit {fmtMoney(o.stdUnitCost, s.currency)}</div>
               <div style={{ marginTop: 6 }}><Button size="sm" variant="link" onClick={() => nav.go('production/genealogy', { q: receipts.find((r) => r.status === 'Posted')?.batch ?? receipts.find((r) => r.status === 'Posted')?.serials?.[0] ?? '' })}>Genealogy →</Button></div>
             </RailSection>
             <RailSection label="Attachments"><AttachmentsPanel objectType="Production Order" objectId={o.id} readOnly={['Closed', 'Cancelled'].includes(o.status)} /></RailSection>
@@ -155,15 +155,15 @@ function ComponentsTab({ order, avail, canIssue }: { order: ProductionOrder; ava
                 <td className="right money">{fmtQty(c.issuedQty, undefined, 3)}</td>
                 <td className="right money">{c.returnedQty ? fmtQty(c.returnedQty, undefined, 3) : '—'}</td>
                 <td className="right money">{fmtQty(c.consumedQty, undefined, 3)}</td>
-                <td className="right money" style={{ color: remaining > 0 ? '#8A4B0F' : '#12784E' }}>{fmtQty(remaining, undefined, 3)}</td>
-                <td style={{ fontSize: 12 }}>{a && a.shortfall > 0 ? <Pill tone="critical">Short {fmtQty(a.shortfall, a.uom, 3)}</Pill> : a ? <span style={{ color: '#12784E' }}>{fmtQty(a.available, a.uom, 3)} available</span> : '—'}<div className="cell-secondary">{a?.warehouse}</div></td>
+                <td className="right money" style={{ color: remaining > 0 ? 'var(--warn)' : 'var(--good)' }}>{fmtQty(remaining, undefined, 3)}</td>
+                <td style={{ fontSize: 12 }}>{a && a.shortfall > 0 ? <Pill tone="critical">Short {fmtQty(a.shortfall, a.uom, 3)}</Pill> : a ? <span style={{ color: 'var(--good)' }}>{fmtQty(a.available, a.uom, 3)} available</span> : '—'}<div className="cell-secondary">{a?.warehouse}</div></td>
                 <td className="right money">{fmtMoney(c.plannedQty * componentUnitCost(findItem(c.itemId)), s.currency)}</td>
               </tr>);
           })}
         </tbody><tfoot><tr><td colSpan={9}>Planned material (standard)</td><td className="right money">{fmtMoney(order.costs.materialStd, s.currency)}</td></tr></tfoot></table>
       </SectionCard>
       <SectionCard title={`Issues & returns (${issues.length})`} padding={0}>
-        {issues.length === 0 ? <div style={{ padding: 16, fontSize: 13, color: '#5F6368' }}>Nothing issued yet.</div> : (
+        {issues.length === 0 ? <div style={{ padding: 16, fontSize: 13, color: 'var(--ink-3)' }}>Nothing issued yet.</div> : (
           <table className="data-table dense"><thead><tr><th>Document</th><th>Type</th><th>Date</th><th className="right">Lines</th><th className="right">Value</th><th>Journal</th><th>Status</th><th /></tr></thead><tbody>
             {issues.map((i) => (
               <tr key={i.id} className="clickable" onClick={() => nav.go(`production/issues/${i.id}`)}>
@@ -193,13 +193,13 @@ function OperationsTab({ order, subs, onRecord }: { order: ProductionOrder; subs
             return (
               <tr key={op.id}>
                 <td className="money">{op.seq}</td>
-                <td><div>{op.name}{op.parallel && <Pill tone="neutral">parallel</Pill>}{op.isRework && <Badge status="Returned" style={{ marginLeft: 4 }}>rework</Badge>}</div>{op.scrapReason && <div className="cell-secondary" style={{ color: '#C0393F' }}>{op.scrapReason}</div>}</td>
+                <td><div>{op.name}{op.parallel && <Pill tone="neutral">parallel</Pill>}{op.isRework && <Badge status="Returned" style={{ marginLeft: 4 }}>rework</Badge>}</div>{op.scrapReason && <div className="cell-secondary" style={{ color: 'var(--danger)' }}>{op.scrapReason}</div>}</td>
                 <td>{op.subcontract ? <span>{sub ? <DocLink path={`production/subcontracting/${sub.id}`} number={sub.number} /> : 'Subcontracted'}<div className="cell-secondary">{db.find<any>(C.suppliers, op.supplierId)?.name ?? '—'}</div></span> : op.workCentreName}</td>
                 <td><Badge status={op.status === 'Done' ? 'Completed' : op.status === 'In Progress' ? 'In Progress' : op.status === 'Skipped' ? 'Cancelled' : 'Draft'}>{op.status}</Badge></td>
                 <td className="right money">{std.minutes.toFixed(0)}</td>
                 <td className="right money">{op.actualSetupMin + op.actualRunMin ? (op.actualSetupMin + op.actualRunMin).toFixed(0) : '—'}</td>
                 <td className="right money">{op.completedQty || '—'}</td>
-                <td className="right money" style={{ color: op.scrapQty ? '#C0393F' : undefined }}>{op.scrapQty || '—'}</td>
+                <td className="right money" style={{ color: op.scrapQty ? 'var(--danger)' : undefined }}>{op.scrapQty || '—'}</td>
                 <td className="right money">{fmtMoney(op.labourCost, s.currency)}</td>
                 <td className="right money">{fmtMoney(op.machineCost, s.currency)}</td>
                 <td className="right money">{fmtMoney(op.overheadCost, s.currency)}</td>
@@ -214,10 +214,10 @@ function OperationsTab({ order, subs, onRecord }: { order: ProductionOrder; subs
                 </td>
               </tr>);
           })}
-          {order.operations.length === 0 && <tr><td colSpan={13} style={{ padding: 16, color: '#5F6368' }}>No routing linked — conversion cost is not tracked per operation.</td></tr>}
+          {order.operations.length === 0 && <tr><td colSpan={13} style={{ padding: 16, color: 'var(--ink-3)' }}>No routing linked — conversion cost is not tracked per operation.</td></tr>}
         </tbody><tfoot><tr><td colSpan={8}>Conversion cost</td><td className="right money">{fmtMoney(order.costs.labourActual, s.currency)}</td><td className="right money">{fmtMoney(order.costs.machineActual, s.currency)}</td><td className="right money">{fmtMoney(order.costs.overheadActual, s.currency)}</td><td className="right money">{fmtMoney(order.costs.subcontractActual, s.currency)}</td><td /></tr></tfoot></table>
       </SectionCard>
-      <div style={{ fontSize: 12, color: '#6E6E71' }}>Completing an operation posts Dr WIP 1220 / Cr Labour absorbed 5730 + Overhead absorbed 5740 for the recorded minutes × work-centre rates.</div>
+      <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>Completing an operation posts Dr WIP 1220 / Cr Labour absorbed 5730 + Overhead absorbed 5740 for the recorded minutes × work-centre rates.</div>
     </div>
   );
 }
@@ -263,7 +263,7 @@ function ReceiptsTab({ order, receipts, issues }: { order: ProductionOrder; rece
     { key: 'number', label: 'Receipt', render: (r) => <span className="identifier link">{r.number}</span> },
     { key: 'date', label: 'Date', render: (r) => fmtDate(r.date) },
     { key: 'qty', label: 'Good qty', align: 'right', render: (r) => <span className="money">{fmtQty(r.qty, r.uom, 3)}</span>, total: (rs) => <span className="money">{fmtQty(rs.filter((x) => x.status === 'Posted').reduce((a, x) => a + x.qty, 0), order.uom, 3)}</span> },
-    { key: 'scrapQty', label: 'Scrap', align: 'right', render: (r) => <span className="money" style={{ color: r.scrapQty ? '#C0393F' : undefined }}>{r.scrapQty || '—'}</span> },
+    { key: 'scrapQty', label: 'Scrap', align: 'right', render: (r) => <span className="money" style={{ color: r.scrapQty ? 'var(--danger)' : undefined }}>{r.scrapQty || '—'}</span> },
     { key: 'batch', label: 'Lot / serials', render: (r) => <span className="identifier" style={{ fontSize: 12 }}>{r.batch ?? (r.serials?.length ? `${r.serials[0]} … (${r.serials.length})` : '—')}</span> },
     { key: 'unitCost', label: 'Unit cost', align: 'right', render: (r) => <span className="money">{fmtMoney(r.unitCost, s.currency)}<div className="cell-secondary">{r.costBasis}</div></span> },
     { key: 'value', label: 'Value', align: 'right', render: (r) => <span className="money">{fmtMoney(r.value, s.currency)}</span>, total: (rs) => <span className="money">{fmtMoney(rs.filter((x) => x.status === 'Posted').reduce((a, x) => a + x.value, 0), s.currency)}</span> },
@@ -282,7 +282,7 @@ function ReceiptsTab({ order, receipts, issues }: { order: ProductionOrder; rece
           </tbody></table>
         </SectionCard>
       )}
-      {issues.some((i) => i.type === 'Backflush') && <div style={{ fontSize: 12, color: '#6E6E71' }}>Backflush issues were posted automatically with the receipts above.</div>}
+      {issues.some((i) => i.type === 'Backflush') && <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>Backflush issues were posted automatically with the receipts above.</div>}
     </div>
   );
 }
@@ -297,8 +297,8 @@ function QualityTab({ order, inspections }: { order: ProductionOrder; inspection
         { key: 'refNumber', label: 'Reference', render: (q) => <span style={{ fontSize: 12 }}>{q.refType} {q.refNumber}{q.operationName ? ` · ${q.operationName}` : ''}</span> },
         { key: 'date', label: 'Date', render: (q) => fmtDate(q.date) },
         { key: 'lotQty', label: 'Lot / sample', align: 'right', render: (q) => <span className="money">{q.lotQty} / {q.sampleQty}</span> },
-        { key: 'acceptedQty', label: 'Accepted', align: 'right', render: (q) => <span className="money" style={{ color: '#12784E' }}>{q.acceptedQty}</span> },
-        { key: 'rejectedQty', label: 'Rejected', align: 'right', render: (q) => <span className="money" style={{ color: q.rejectedQty ? '#C0393F' : undefined }}>{q.rejectedQty}</span> },
+        { key: 'acceptedQty', label: 'Accepted', align: 'right', render: (q) => <span className="money" style={{ color: 'var(--good)' }}>{q.acceptedQty}</span> },
+        { key: 'rejectedQty', label: 'Rejected', align: 'right', render: (q) => <span className="money" style={{ color: q.rejectedQty ? 'var(--danger)' : undefined }}>{q.rejectedQty}</span> },
         { key: 'disposition', label: 'Disposition', render: (q) => q.disposition ? <Badge status={q.disposition === 'Accept' ? 'Approved' : q.disposition === 'Reject' || q.disposition === 'Scrap' ? 'Rejected' : 'Returned'}>{q.disposition}</Badge> : '—' },
         { key: 'status', label: 'Status', render: (q) => <Badge status={q.status} /> },
       ] as Column<QualityInspection>[]} onRowClick={(q) => nav.go(`production/quality/${q.id}`)} emptyTitle="No inspections for this order" />
@@ -331,12 +331,12 @@ function CostingTab({ order, wipRows }: { order: ProductionOrder; wipRows: WipEn
       <SectionCard title="WIP ledger for this order" padding={0}>
         <table className="data-table dense"><thead><tr><th>Date</th><th>Type</th><th>Source</th><th>Description</th><th>Journal</th><th className="right">Into WIP</th><th className="right">Out of WIP</th><th className="right">Running</th></tr></thead><tbody>
           {(() => { let running = 0; return wipRows.slice().sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt)).map((w) => { running += w.amount; return (
-            <tr key={w.id}><td>{fmtDate(w.date)}</td><td><Badge status={w.type === 'Variance' ? 'Returned' : w.type === 'Scrap' ? 'Rejected' : w.amount > 0 ? 'In Progress' : 'Posted'}>{w.type}</Badge></td><td className="identifier" style={{ fontSize: 12 }}>{w.sourceNumber}</td><td style={{ fontSize: 12, color: '#5F6368' }}>{w.description ?? '—'}</td><td><JournalLink id={w.journalId} /></td>
+            <tr key={w.id}><td>{fmtDate(w.date)}</td><td><Badge status={w.type === 'Variance' ? 'Returned' : w.type === 'Scrap' ? 'Rejected' : w.amount > 0 ? 'In Progress' : 'Posted'}>{w.type}</Badge></td><td className="identifier" style={{ fontSize: 12 }}>{w.sourceNumber}</td><td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{w.description ?? '—'}</td><td><JournalLink id={w.journalId} /></td>
             <td className="right money">{w.amount > 0 ? fmtMoney(w.amount, s.currency) : '—'}</td><td className="right money">{w.amount < 0 ? fmtMoney(-w.amount, s.currency) : '—'}</td><td className="right money">{fmtMoney(running, s.currency)}</td></tr>); }); })()}
-          {wipRows.length === 0 && <tr><td colSpan={8} style={{ padding: 16, color: '#5F6368' }}>Nothing posted to WIP yet.</td></tr>}
-        </tbody><tfoot><tr><td colSpan={7}>Balance{order.status === 'Closed' ? ' after close' : ' (posts as variance on close)'}</td><td className="right money" style={{ color: Math.abs(balance) > 0.01 ? '#8A4B0F' : '#12784E' }}>{fmtMoney(balance, s.currency)}</td></tr></tfoot></table>
+          {wipRows.length === 0 && <tr><td colSpan={8} style={{ padding: 16, color: 'var(--ink-3)' }}>Nothing posted to WIP yet.</td></tr>}
+        </tbody><tfoot><tr><td colSpan={7}>Balance{order.status === 'Closed' ? ' after close' : ' (posts as variance on close)'}</td><td className="right money" style={{ color: Math.abs(balance) > 0.01 ? 'var(--warn)' : 'var(--good)' }}>{fmtMoney(balance, s.currency)}</td></tr></tfoot></table>
       </SectionCard>
-      {order.closeJournalId && <div style={{ fontSize: 12, color: '#5F6368' }}>Close variance {fmtMoney(order.costs.closeVariance, s.currency)} posted in <JournalLink id={order.closeJournalId} /> on {fmtDateTime(order.closedAt)} by {order.closedBy}.</div>}
+      {order.closeJournalId && <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Close variance {fmtMoney(order.costs.closeVariance, s.currency)} posted in <JournalLink id={order.closeJournalId} /> on {fmtDateTime(order.closedAt)} by {order.closedBy}.</div>}
     </div>
   );
 }

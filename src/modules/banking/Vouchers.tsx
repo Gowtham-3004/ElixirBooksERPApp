@@ -31,9 +31,9 @@ function VoucherRegister() {
         { key: 'voucherType', label: 'Type', sortable: true, render: (r) => <Badge status="Draft">{r.voucherType}</Badge> },
         { key: 'bankAccountName', label: 'Bank / cash', render: (r) => <span style={{ fontSize: 12 }}>{r.bankAccountName}</span> },
         { key: 'counterAccountName', label: 'Counter account', render: (r) => <TwoLine primary={r.counterAccountName} secondary={r.partyName} /> },
-        { key: 'narration', label: 'Narration', render: (r) => <span style={{ fontSize: 12, color: '#5F6368' }}>{r.narration}</span> },
-        { key: 'in', label: 'Money in', align: 'right', render: (r) => A.voucherDirection(r) === 'in' ? <span className="money" style={{ color: '#12784E' }}>{fmtMoney(r.amount, r.currency)}</span> : '—' },
-        { key: 'out', label: 'Money out', align: 'right', render: (r) => A.voucherDirection(r) === 'out' ? <span className="money" style={{ color: '#C0393F' }}>{fmtMoney(r.amount, r.currency)}</span> : '—', total: (rs) => fmtMoney(rs.reduce((x, r) => x + (A.voucherDirection(r) === 'out' ? r.amount : -r.amount), 0)) },
+        { key: 'narration', label: 'Narration', render: (r) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{r.narration}</span> },
+        { key: 'in', label: 'Money in', align: 'right', render: (r) => A.voucherDirection(r) === 'in' ? <span className="money" style={{ color: 'var(--good)' }}>{fmtMoney(r.amount, r.currency)}</span> : '—' },
+        { key: 'out', label: 'Money out', align: 'right', render: (r) => A.voucherDirection(r) === 'out' ? <span className="money" style={{ color: 'var(--danger)' }}>{fmtMoney(r.amount, r.currency)}</span> : '—', total: (rs) => fmtMoney(rs.reduce((x, r) => x + (A.voucherDirection(r) === 'out' ? r.amount : -r.amount), 0)) },
         { key: 'status', label: 'Status', render: (r) => <Badge status={r.status} /> },
       ]}
       tabs={[{ id: 'all', label: 'All' }, { id: 'draft', label: 'Draft', filter: (r) => r.status === 'Draft' }, { id: 'posted', label: 'Posted', filter: (r) => r.status === 'Posted' }, ...TYPES.map((t) => ({ id: t.value, label: t.label, filter: (r: BankVoucher) => r.voucherType === t.value })), { id: 'reversed', label: 'Reversed', filter: (r) => r.status === 'Reversed' }]}
@@ -60,8 +60,8 @@ export function VoucherForm({ prefill, existing, onDone }: { prefill?: Record<st
   return (
     <div className="page">
       <div className="page-header">
-        <div>{!onDone && <button type="button" className="btn-link" style={{ color: '#5F6368' }} onClick={() => nav.back('banking/vouchers')}>← Vouchers</button>}<h1 className="page-title">{existing ? `Edit ${existing.number}` : 'New bank / cash voucher'}</h1><div className="page-subtitle">{v.statementLineId ? 'Pre-filled from an unmatched statement line — posting creates the book entry to match against' : 'Posts a two-line journal: bank / cash against the chosen account'}</div></div>
-        <div style={{ display: 'flex', gap: 8 }}>{!onDone && <Button variant="ghost" onClick={() => nav.back('banking/vouchers')}>Discard</Button>}<Button onClick={saveDraft}>Save draft</Button><Button variant="primary" onClick={post}>Post voucher</Button></div>
+        <div>{!onDone && <button type="button" className="btn-link" style={{ color: 'var(--ink-3)' }} onClick={() => nav.back('banking/vouchers')}>← Vouchers</button>}<h1 className="page-title">{existing ? `Edit ${existing.number}` : 'New bank / cash voucher'}</h1><div className="page-subtitle">{v.statementLineId ? 'Pre-filled from an unmatched statement line — posting creates the book entry to match against' : 'Posts a two-line journal: bank / cash against the chosen account'}</div></div>
+        <div style={{ display: 'flex', gap: 8 }}>{!onDone && <Button variant="ghost" onClick={() => nav.back('banking/vouchers')}>Discard</Button>}<Button onClick={saveDraft}>Save draft</Button><Button variant="primary" tone="good" onClick={post}>Post voucher</Button></div>
       </div>
       <PeriodBanner date={v.date} />
       {errs.length > 0 && <Banner tone="danger" onDismiss={() => setErrs([])}><ul style={{ margin: 0, paddingLeft: 16 }}>{errs.map((e, i) => <li key={i}>{e}</li>)}</ul></Banner>}

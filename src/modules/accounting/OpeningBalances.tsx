@@ -106,7 +106,7 @@ export function OpeningBalancesPage() {
                   <td>{posted ? <Badge status="Posted" /> : <Button size="sm" variant="ghost" onClick={() => setParties((x) => x.filter((y) => y.id !== p.id))}>✕</Button>}</td>
                 </tr>
               ); })}
-              {!rows.length && <tr><td colSpan={5} style={{ color: '#5F6368', textAlign: 'center', padding: 20 }}>No party breakdown yet — the control balance is unallocated</td></tr>}
+              {!rows.length && <tr><td colSpan={5} style={{ color: 'var(--ink-3)', textAlign: 'center', padding: 20 }}>No party breakdown yet — the control balance is unallocated</td></tr>}
             </tbody>
             <tfoot><tr><td><Button size="sm" variant="secondary" onClick={() => addParty(kind)}>+ Add {kind.toLowerCase()}</Button></td><td colSpan={2}>Sum of party rows</td><td className="right money">{fmtMoney(kind === 'Customer' ? arSum : apSum, s.currency)}</td><td /></tr></tfoot>
           </table>
@@ -118,35 +118,35 @@ export function OpeningBalancesPage() {
   return (
     <div className="page">
       <PageHeader title="Opening balances" subtitle={<ScopeLine extra={`as at ${fmtDate(obDate)} · ${alreadyPosted.length ? `${alreadyPosted.length} opening journal(s) posted` : 'not yet posted'}`} />}
-        actions={<><Button variant="secondary" onClick={() => setImp(true)}>Import CSV</Button><Button variant="primary" onClick={() => setConfirm(true)} disabled={!canPost || (!deltas.length && !parties.some((p) => !existingOpenItemIds.has(p.id)))} reason={!canPost ? 'Requires post permission' : !deltas.length ? 'No changes to post' : undefined}>Post opening balances</Button></>} />
+        actions={<><Button variant="secondary" onClick={() => setImp(true)}>Import CSV</Button><Button variant="primary" tone="good" onClick={() => setConfirm(true)} disabled={!canPost || (!deltas.length && !parties.some((p) => !existingOpenItemIds.has(p.id)))} reason={!canPost ? 'Requires post permission' : !deltas.length ? 'No changes to post' : undefined}>Post opening balances</Button></>} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-        <KpiTile label="Total debits" value={<Money value={totalDr} currency={s.currency} />} />
-        <KpiTile label="Total credits" value={<Money value={totalCr} currency={s.currency} />} />
-        <KpiTile label="Difference" value={<Money value={diff} currency={s.currency} tone={Math.abs(diff) < 0.01 ? 'none' : 'negative'} />} sub={Math.abs(diff) < 0.01 ? '✓ Balanced' : `Will post to ${(obe ?? retained)?.code ?? '—'} · ${(obe ?? retained)?.name ?? 'configure in settings'}`} deltaTone={Math.abs(diff) < 0.01 ? 'good' : 'bad'} />
+        <KpiTile label="Total debits" amount={totalDr} currency={s.currency} />
+        <KpiTile label="Total credits" amount={totalCr} currency={s.currency} />
+        <KpiTile label="Difference" amount={diff} currency={s.currency} tone={Math.abs(diff) < 0.01 ? 'none' : 'negative'} sub={Math.abs(diff) < 0.01 ? '✓ Balanced' : `Will post to ${(obe ?? retained)?.code ?? '—'} · ${(obe ?? retained)?.name ?? 'configure in settings'}`} deltaTone={Math.abs(diff) < 0.01 ? 'good' : 'bad'} />
         <KpiTile label="Pending changes" value={deltas.length} sub={deltas.length ? `${deltas.length} account(s) differ from posted values` : 'Grid matches the ledger'} />
       </div>
       {obe && (current[obe.id] ?? 0) !== 0 && <div className="banner warning">Opening balances carry an unreconciled difference of {fmtMoney(current[obe.id] ?? 0, s.currency)} parked in {obe.code} · {obe.name}. Adjust the affected accounts and post again to clear it, or transfer it to retained earnings by manual journal.</div>}
-      <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #EFEFEF' }}>{([['ledger', 'Ledger accounts'], ['ar', `Customers (AR) · ${arParties.length}`], ['ap', `Suppliers (AP) · ${apParties.length}`]] as const).map(([k, l]) => <button key={k} type="button" className={`doc-tab ${tab === k ? 'active' : ''}`} onClick={() => setTab(k)}>{l}</button>)}</div>
+      <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--hairline)' }}>{([['ledger', 'Ledger accounts'], ['ar', `Customers (AR) · ${arParties.length}`], ['ap', `Suppliers (AP) · ${apParties.length}`]] as const).map(([k, l]) => <button key={k} type="button" className={`doc-tab ${tab === k ? 'active' : ''}`} onClick={() => setTab(k)}>{l}</button>)}</div>
       {tab === 'ledger' && (
         <>
-          <div className="toolbar"><div className="search-input" style={{ width: 260 }}><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search accounts…" /></div><span style={{ fontSize: 12, color: '#5F6368' }}>Enter balances on the account's normal side. Bank, tax, inventory and control accounts are included; edit the value and post the delta.</span></div>
+          <div className="toolbar"><div className="search-input" style={{ width: 260 }}><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search accounts…" /></div><span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Enter balances on the account's normal side. Bank, tax, inventory and control accounts are included; edit the value and post the delta.</span></div>
           <div className="card" style={{ overflow: 'auto' }}>
             <table className="data-table dense">
               <thead><tr><th>Code</th><th>Account</th><th>Group</th><th>Side</th><th className="right">Posted opening</th><th className="right">Opening balance</th><th className="right">Change</th></tr></thead>
               <tbody>
                 {filtered.map((a) => { const delta = round((grid[a.id] ?? 0) - (current[a.id] ?? 0)); return (
-                  <tr key={a.id} style={Math.abs(delta) >= 0.005 ? { background: '#FFFBEB' } : undefined}>
-                    <td className="identifier" style={{ color: '#5F6368' }}>{a.code}</td>
+                  <tr key={a.id} style={Math.abs(delta) >= 0.005 ? { background: 'var(--warn-bg)' } : undefined}>
+                    <td className="identifier" style={{ color: 'var(--ink-3)' }}>{a.code}</td>
                     <td>{a.name}{a.isControl && <span className="pill pill-neutral" style={{ marginLeft: 6 }}>{a.controlType}</span>}</td>
-                    <td style={{ color: '#5F6368' }}>{groups.find((g) => g.id === a.groupId)?.name ?? '—'}</td>
+                    <td style={{ color: 'var(--ink-3)' }}>{groups.find((g) => g.id === a.groupId)?.name ?? '—'}</td>
                     <td>{a.normalBalance}</td>
-                    <td className="right money" style={{ color: '#5F6368' }}>{current[a.id] ? fmtMoney(current[a.id], s.currency) : '—'}</td>
+                    <td className="right money" style={{ color: 'var(--ink-3)' }}>{current[a.id] ? fmtMoney(current[a.id], s.currency) : '—'}</td>
                     <td className="right"><input className="field-input grid num" type="number" step="0.01" value={grid[a.id] ?? 0} onChange={(e) => setGrid({ ...grid, [a.id]: Number(e.target.value) })} style={{ width: 160 }} disabled={!canPost || !a.postingAllowed} /></td>
-                    <td className="right money" style={{ color: delta ? '#8A4B0F' : '#B0B5BF' }}>{delta ? fmtMoney(delta, s.currency) : '—'}</td>
+                    <td className="right money" style={{ color: delta ? 'var(--warn)' : 'var(--ink-5)' }}>{delta ? fmtMoney(delta, s.currency) : '—'}</td>
                   </tr>
                 ); })}
               </tbody>
-              <tfoot><tr><td colSpan={4}>Totals · {sorted.length} accounts</td><td className="right money">Dr {fmtMoney(totalDr, s.currency)}</td><td className="right money">Cr {fmtMoney(totalCr, s.currency)}</td><td className="right money" style={{ color: Math.abs(diff) < 0.01 ? '#12784E' : '#C0393F' }}>{Math.abs(diff) < 0.01 ? 'Balanced' : fmtMoney(diff, s.currency)}</td></tr></tfoot>
+              <tfoot><tr><td colSpan={4}>Totals · {sorted.length} accounts</td><td className="right money">Dr {fmtMoney(totalDr, s.currency)}</td><td className="right money">Cr {fmtMoney(totalCr, s.currency)}</td><td className="right money" style={{ color: Math.abs(diff) < 0.01 ? 'var(--good)' : 'var(--danger)' }}>{Math.abs(diff) < 0.01 ? 'Balanced' : fmtMoney(diff, s.currency)}</td></tr></tfoot>
             </table>
           </div>
         </>

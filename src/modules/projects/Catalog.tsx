@@ -84,7 +84,7 @@ function ServiceDrawer({ value, onClose }: { value: Partial<Service>; onClose: (
         <CheckboxField checked={f.billableDefault ?? true} onChange={(v) => set({ billableDefault: v })} label="Billable by default" help="Timesheet rows using this service start as billable" />
         <SelectField label="Status" value={f.status ?? 'Active'} onChange={(v) => set({ status: v as Service['status'] })} options={['Active', 'Inactive']} />
       </div>
-      {value.id && <div style={{ marginTop: 16, fontSize: 12, color: '#5F6368' }}>Default rate {fmtMoney(value.defaultRate ?? 0)} · rate cards and contract rates override this when billing.</div>}
+      {value.id && <div style={{ marginTop: 16, fontSize: 12, color: 'var(--ink-3)' }}>Default rate {fmtMoney(value.defaultRate ?? 0)} · rate cards and contract rates override this when billing.</div>}
     </Drawer>
   );
 }

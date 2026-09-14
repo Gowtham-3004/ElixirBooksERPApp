@@ -70,14 +70,14 @@ export function DisposeDrawer({ asset, onClose }: { asset: Asset | null; onClose
   const gain = asset ? f.proceeds - nbv(asset) : 0;
   return (
     <>
-      <Drawer open={!!asset && !confirm} onClose={onClose} title={asset ? `Dispose ${asset.number}` : ''} subtitle={asset ? `${asset.name} · NBV ${fmtMoney(nbv(asset), s.currency)} · accumulated ${fmtMoney(accumulated(asset), s.currency)}` : ''} width={520} footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="danger" onClick={() => setConfirm(true)} disabled={f.reason.trim().length < 10}>Review disposal</Button></>}>
+      <Drawer open={!!asset && !confirm} onClose={onClose} title={asset ? `Dispose ${asset.number}` : ''} subtitle={asset ? `${asset.name} · NBV ${fmtMoney(nbv(asset), s.currency)} · accumulated ${fmtMoney(accumulated(asset), s.currency)}` : ''} width={520} footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="tinted" tone="danger" onClick={() => setConfirm(true)} disabled={f.reason.trim().length < 10}>Review disposal</Button></>}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <DateField label="Disposal date" value={f.date} onChange={(v) => setF({ ...f, date: v })} checkPeriod required />
           <MoneyField label="Sale proceeds" value={f.proceeds} onChange={(v) => setF({ ...f, proceeds: v })} help="0 for scrapping / write-off" />
           <TextField label="Buyer" value={f.buyer} onChange={(v) => setF({ ...f, buyer: v })} placeholder="Scrap dealer, employee buy-back, customer…" />
           <EntityPicker label="Proceeds received in" value={f.receiptAccountId} onChange={(v) => setF({ ...f, receiptAccountId: v ?? IDS.accHDFC })} options={accOpts} />
           <ReasonField value={f.reason} onChange={(v) => setF({ ...f, reason: v })} />
-          <KV items={[{ k: 'Gain / (loss)', v: <strong style={{ color: gain >= 0 ? '#12784E' : '#C0393F' }}>{fmtMoney(gain, s.currency)}</strong> }, { k: 'Journal', v: `Dr ${db.find<any>(C.accounts, f.receiptAccountId)?.name ?? 'bank'} ${fmtMoney(f.proceeds, s.currency)} · Dr accumulated dep ${fmtMoney(asset ? accumulated(asset) : 0, s.currency)} · Cr asset cost ${fmtMoney(asset ? asset.cost + asset.revaluation : 0, s.currency)} · ${gain >= 0 ? 'Cr gain (4130)' : 'Dr loss (5810)'}` }]} />
+          <KV items={[{ k: 'Gain / (loss)', v: <strong style={{ color: gain >= 0 ? 'var(--good)' : 'var(--danger)' }}>{fmtMoney(gain, s.currency)}</strong> }, { k: 'Journal', v: `Dr ${db.find<any>(C.accounts, f.receiptAccountId)?.name ?? 'bank'} ${fmtMoney(f.proceeds, s.currency)} · Dr accumulated dep ${fmtMoney(asset ? accumulated(asset) : 0, s.currency)} · Cr asset cost ${fmtMoney(asset ? asset.cost + asset.revaluation : 0, s.currency)} · ${gain >= 0 ? 'Cr gain (4130)' : 'Dr loss (5810)'}` }]} />
         </div>
       </Drawer>
       <ConfirmDialog open={confirm} onClose={() => setConfirm(false)} title={`Dispose ${asset?.number}`} statement="Removes the asset from the books. This cannot be undone — reverse the journal and re-capitalize to correct." confirmLabel="Dispose asset" cancelLabel="Keep asset" danger consequences={[{ engine: 'Journal', text: `Cost and accumulated depreciation written off · ${gain >= 0 ? 'gain' : 'loss'} ${fmtMoney(Math.abs(gain), s.currency)} to P&L`, tone: 'danger' }, { engine: 'Statutory', text: 'Asset status → Disposed; no further depreciation', tone: 'warning' }, { engine: 'Notification', text: 'Finance notified', tone: 'info' }]} onConfirm={() => { if (!asset) return; disposeAsset(asset, f); toast.success(`${asset.number} disposed`); setConfirm(false); onClose(); }} />
@@ -98,7 +98,7 @@ export function TransfersPage() {
     { key: 'date', label: 'Date', render: (e) => fmtDate(e.date), sortable: true },
     { key: 'from', label: 'From', render: (e) => <span style={{ fontSize: 12 }}>{e.from}</span> },
     { key: 'to', label: 'To', render: (e) => <span style={{ fontSize: 12 }}>{e.to}</span> },
-    { key: 'reason', label: 'Reason', render: (e) => <span style={{ fontSize: 12, color: '#5F6368' }}>{e.reason}</span> },
+    { key: 'reason', label: 'Reason', render: (e) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{e.reason}</span> },
     { key: 'by', label: 'By' },
     { key: 'status', label: 'Status', render: (e) => <Badge status={e.status === 'Pending' ? 'Submitted' : e.status ?? 'Posted'}>{e.status === 'Pending' ? 'Awaiting approval' : e.status ?? 'Posted'}</Badge> },
   ];
@@ -127,8 +127,8 @@ export function RevaluationPage() {
     { key: 'assetNumber', label: 'Asset', render: (e) => <div><span className="identifier link">{e.assetNumber}</span><div className="cell-secondary">{e.assetName}</div></div>, sortable: true },
     { key: 'date', label: 'Date', render: (e) => fmtDate(e.date), sortable: true },
     { key: 'type', label: 'Type', render: (e) => <Badge status={e.type === 'Revalued' ? 'Approved' : 'Returned'}>{e.type === 'Revalued' ? 'Revaluation' : 'Impairment'}</Badge> },
-    { key: 'amount', label: 'Amount', align: 'right', render: (e) => <span className="money" style={{ fontWeight: 600, color: (e.amount ?? 0) >= 0 ? '#12784E' : '#C0393F' }}>{fmtMoney(e.amount ?? 0, s.currency)}</span> },
-    { key: 'detail', label: 'Carrying amount', render: (e) => <span style={{ fontSize: 12, color: '#5F6368' }}>{e.detail}</span> },
+    { key: 'amount', label: 'Amount', align: 'right', render: (e) => <span className="money" style={{ fontWeight: 600, color: (e.amount ?? 0) >= 0 ? 'var(--good)' : 'var(--danger)' }}>{fmtMoney(e.amount ?? 0, s.currency)}</span> },
+    { key: 'detail', label: 'Carrying amount', render: (e) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{e.detail}</span> },
     { key: 'reason', label: 'Reason', render: (e) => <span style={{ fontSize: 12 }}>{e.reason}</span> },
     { key: 'journalNumber', label: 'Journal', render: (e) => <span className="identifier link" onClick={(ev) => { ev.stopPropagation(); e.journalId && nav.go(`accounting/journals/${e.journalId}`); }}>{e.journalNumber ?? '—'}</span> },
   ];
@@ -158,7 +158,7 @@ export function DisposalsPage() {
     { key: 'cost', label: 'Original cost', align: 'right', render: (a) => <span className="money">{fmtMoney(a.cost, s.currency)}</span> },
     { key: 'nbv', label: 'WDV at disposal', align: 'right', render: (a) => <span className="money">{fmtMoney(a.disposal?.nbvAtDisposal ?? 0, s.currency)}</span> },
     { key: 'proceeds', label: 'Sale proceeds', align: 'right', render: (a) => <span className="money">{fmtMoney(a.disposal?.proceeds ?? 0, s.currency)}</span> },
-    { key: 'gain', label: 'Gain / (loss)', align: 'right', render: (a) => <span className="money" style={{ fontWeight: 700, color: (a.disposal?.gainLoss ?? 0) >= 0 ? '#12784E' : '#C0393F' }}>{(a.disposal?.gainLoss ?? 0) >= 0 ? '+' : ''}{fmtMoney(a.disposal?.gainLoss ?? 0, s.currency)}</span>, total: (rs) => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(rs.reduce((x, a) => x + (a.disposal?.gainLoss ?? 0), 0), s.currency)}</span> },
+    { key: 'gain', label: 'Gain / (loss)', align: 'right', render: (a) => <span className="money" style={{ fontWeight: 700, color: (a.disposal?.gainLoss ?? 0) >= 0 ? 'var(--good)' : 'var(--danger)' }}>{(a.disposal?.gainLoss ?? 0) >= 0 ? '+' : ''}{fmtMoney(a.disposal?.gainLoss ?? 0, s.currency)}</span>, total: (rs) => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(rs.reduce((x, a) => x + (a.disposal?.gainLoss ?? 0), 0), s.currency)}</span> },
     { key: 'journal', label: 'Journal', render: (a) => <span className="identifier">{a.disposal?.journalNumber ?? '—'}</span> },
     { key: 'status', label: 'Status', render: () => <Badge status="Posted" /> },
   ];

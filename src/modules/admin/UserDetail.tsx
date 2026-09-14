@@ -19,7 +19,7 @@ export default function UserDetail({ id }: { id: string }) {
   const [name, setName] = useState(u?.name ?? '');
   const [phone, setPhone] = useState(u?.phone ?? '');
   const conflicts = useMemo(() => sodConflicts(u?.roleIds ?? []), [u?.roleIds]);
-  if (!u) return <div className="page"><EmptyState icon="🔒" title="User not found" description="The link may be stale, or you may not have access to this user." action={<Button variant="secondary" onClick={() => nav.go('admin/users')}>Back to users</Button>} /></div>;
+  if (!u) return <div className="page"><EmptyState illustration="not-found" title="User not found" description="The link may be stale, or you may not have access to this user." action={<Button variant="secondary" onClick={() => nav.go('admin/users')}>Back to users</Button>} /></div>;
   const isSelf = u.id === s.user?.id;
   const canEdit = s.can('admin.users.edit') || s.can('admin.users.*') || s.isTenantOwner;
   const canSecurity = canEdit || isSelf;
@@ -61,7 +61,7 @@ export default function UserDetail({ id }: { id: string }) {
           {u.status === 'Invited' && <><Button variant="secondary" onClick={resendInvite} disabled={!canEdit}>Resend invite</Button><Button variant="secondary" onClick={() => { navigator.clipboard?.writeText(inviteLink(u.inviteToken!)); toast.success('Invite link copied'); }} disabled={!u.inviteToken}>Copy invite link</Button></>}
           {u.status === 'Active' && !isSelf && !u.isTenantOwner && <Button variant="secondary" onClick={() => setConfirm('suspend')} disabled={!canEdit} reason={canEdit ? undefined : 'Requires admin.users.edit'}>Suspend</Button>}
           {u.status === 'Suspended' && <Button variant="primary" onClick={() => setConfirm('reactivate')} disabled={!canEdit}>Reactivate</Button>}
-          {u.status !== 'Deactivated' && !isSelf && !u.isTenantOwner && <Button variant="danger" onClick={() => setConfirm('deactivate')} disabled={!canEdit} reason={canEdit ? undefined : 'Requires admin.users.edit'}>Deactivate</Button>}
+          {u.status !== 'Deactivated' && !isSelf && !u.isTenantOwner && <Button variant="tinted" tone="danger" onClick={() => setConfirm('deactivate')} disabled={!canEdit} reason={canEdit ? undefined : 'Requires admin.users.edit'}>Deactivate</Button>}
         </>} />
       {u.status === 'Deactivated' && <Banner tone="danger">This account is deactivated and cannot be reactivated. Historical records keep the name.</Banner>}
       {u.isTenantOwner && <Banner tone="info">Tenant owner — cannot be suspended or deactivated from here. Ownership transfer is a platform operation.</Banner>}
@@ -84,11 +84,11 @@ export default function UserDetail({ id }: { id: string }) {
             </div>
             <div>
               <div className="section-label" style={{ marginBottom: 6 }}>Active sessions</div>
-              {(u.sessions ?? []).length === 0 && <div style={{ fontSize: 13, color: '#5F6368' }}>No active sessions.</div>}
+              {(u.sessions ?? []).length === 0 && <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>No active sessions.</div>}
               {(u.sessions ?? []).map((ss) => (
-                <div key={ss.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #F5F5F5', fontSize: 13 }}>
+                <div key={ss.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--hairline)', fontSize: 13 }}>
                   <span>{ss.device}{ss.current ? <Badge status="Active" style={{ marginLeft: 6 }}>this device</Badge> : null}</span>
-                  <span style={{ color: '#5F6368' }}>{fmtDateTime(ss.at)}</span>
+                  <span style={{ color: 'var(--ink-3)' }}>{fmtDateTime(ss.at)}</span>
                 </div>
               ))}
             </div>
@@ -96,7 +96,7 @@ export default function UserDetail({ id }: { id: string }) {
         </Card>
         <Card title="Roles">
           <ChipGroup multiple value={u.roleIds} onChange={(v: string[]) => canEdit && saveRoles(v)} options={roles.filter((r) => r.code !== 'OWNER' || u.isTenantOwner).map((r) => ({ value: r.id, label: r.name }))} />
-          <div style={{ marginTop: 10, fontSize: 12, color: '#5F6368' }}>
+          <div style={{ marginTop: 10, fontSize: 12, color: 'var(--ink-3)' }}>
             {u.roleIds.map((id) => roles.find((r) => r.id === id)).filter(Boolean).map((r) => <div key={r!.id}><strong>{r!.name}</strong> · {r!.dataScope} scope · {r!.description} <Button variant="link" size="sm" onClick={() => nav.go(`admin/roles/${r!.id}`)}>Permissions</Button></div>)}
             {!u.roleIds.length && 'No roles — the user can sign in but sees nothing.'}
           </div>
@@ -105,7 +105,7 @@ export default function UserDetail({ id }: { id: string }) {
           <ChipGroup label="Companies" multiple value={u.companyIds} onChange={(v: string[]) => canEdit && saveCompanies(v)} options={companies.map((c) => ({ value: c.id, label: `${c.tradeName} · ${c.country}` }))} />
           <div style={{ height: 12 }} />
           <ChipGroup label="Branches (none = all branches of each company)" multiple value={u.branchIds} onChange={(v: string[]) => canEdit && saveBranches(v)} options={branches.map((b) => ({ value: b.id, label: `${b.name} · ${companies.find((c) => c.id === b.companyId)?.tradeName ?? ''}` }))} />
-          <div style={{ marginTop: 10, fontSize: 12, color: '#5F6368' }}>Removing a company revokes access to its records on the next request (FR-IAM-004).</div>
+          <div style={{ marginTop: 10, fontSize: 12, color: 'var(--ink-3)' }}>Removing a company revokes access to its records on the next request (FR-IAM-004).</div>
         </Card>
       </div>
       <Card title="Activity">

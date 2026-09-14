@@ -5,6 +5,7 @@ import { ToastProvider } from './components/ui/overlays';
 import { EmptyState, Button, Skeleton } from './components/ui/primitives';
 import { MODULES, moduleById } from './modules/registry';
 import AuthGate from './modules/auth';
+import ErrorBoundary from './components/ErrorBoundary';
 
 export default function App() {
   return (
@@ -22,18 +23,18 @@ function Root() {
     if (s.state.auth === 'app' && (!route.path || route.path === 'home') && window.location.hash === '') nav.replace('home');
   }, [s.state.auth, route.path]);
 
-  if (s.state.auth !== 'app') return <AuthGate />;
+  if (s.state.auth !== 'app') return <ErrorBoundary resetKey={s.state.auth}><AuthGate /></ErrorBoundary>;
 
   const mod = moduleById(route.module) ?? moduleById('home')!;
   let body: React.ReactNode;
   if (!moduleById(route.module)) {
-    body = <EmptyState icon="🧭" title="Page not found" description={`There is no module called "${route.module}".`} action={<Button variant="primary" onClick={() => nav.go('home')}>Go home</Button>} />;
+    body = <EmptyState illustration="not-found" animated title="Page not found" description={`There is no module called "${route.module}".`} action={<Button variant="primary" onClick={() => nav.go('home')}>Go home</Button>} />;
   } else if (mod.platformOnly && !s.isPlatformAdmin) {
-    body = <EmptyState icon="🔒" title="Platform administration is restricted" description="Only platform users can open this area." action={<Button variant="primary" onClick={() => nav.go('home')}>Go home</Button>} />;
+    body = <EmptyState illustration="no-access" title="Platform administration is restricted" description="Only platform users can open this area." action={<Button variant="primary" onClick={() => nav.go('home')}>Go home</Button>} />;
   } else if (!s.entitled(mod.id)) {
-    body = <EmptyState icon="⚡" title={`${mod.label} is not included in your plan`} description={`Your ${s.plan?.name ?? ''} plan does not include this module (ENTITLEMENT_DENIED). The tenant owner can upgrade under Company administration › Plan & usage.`} action={s.isTenantOwner ? <Button variant="tinted" onClick={() => nav.go('admin/plan')}>View plan & usage</Button> : <Button variant="secondary" onClick={() => nav.go('home')}>Go home</Button>} />;
+    body = <EmptyState illustration="upgrade" animated title={`${mod.label} is not included in your plan`} description={`Your ${s.plan?.name ?? ''} plan does not include this module (ENTITLEMENT_DENIED). The tenant owner can upgrade under Company administration › Plan & usage.`} action={s.isTenantOwner ? <Button variant="tinted" onClick={() => nav.go('admin/plan')}>View plan & usage</Button> : <Button variant="secondary" onClick={() => nav.go('home')}>Go home</Button>} />;
   } else if (mod.permission && !s.canModule(mod.permission)) {
-    body = <EmptyState icon="🔒" title={`You don't have access to ${mod.label}`} description="Ask your company administrator to grant access (PERMISSION_DENIED)." action={<Button variant="link" onClick={() => session.setAuth('app')}>Request access</Button>} />;
+    body = <EmptyState illustration="no-access" title={`You don't have access to ${mod.label}`} description="Ask your company administrator to grant access (PERMISSION_DENIED)." action={<Button variant="link" onClick={() => session.setAuth('app')}>Request access</Button>} />;
   } else {
     const Comp = mod.component;
     body = (
@@ -45,7 +46,7 @@ function Root() {
 
   return (
     <AppShell fullBleed={mod.fullBleed && route.sub !== 'admin' && route.sub !== 'shifts' && route.sub !== 'bills' && route.sub !== 'returns'}>
-      {body}
+      <ErrorBoundary resetKey={route.path} onHome={() => nav.go('home')}>{body}</ErrorBoundary>
     </AppShell>
   );
 }

@@ -1,28 +1,30 @@
 // Step bodies for the onboarding wizard. Each receives the wizard state + setter and the company.
 import { useMemo, useState } from 'react';
-import { CheckIcon } from '../../components/Icons';
+import { CheckIcon, ShoppingCartIcon, BriefcaseIcon, FactoryIcon, ZapIcon, UploadIcon, StarIcon, EditIcon, SkipForwardIcon, BuildingIcon, MapPinIcon, WalletIcon, CalendarIcon, UsersIcon } from '../../components/Icons';
+import type { ComponentType } from 'react';
 import { db, C, useCollection, useSession } from '../../store';
 import type { Company, OperatingProfileTemplate, Registration, Role, Plan, Tenant } from '../../store';
 import { INDIA_STATES, stateNameOf, fmtDate, uid, validateGSTIN } from '../../lib/format';
 import { TextField, SelectField, IdentifierField, ChipGroup, CheckboxField, DateField, Segmented } from '../../components/ui/fields';
 import { Badge, Button, Checklist, Pill } from '../../components/ui';
+import { StorysetAnimated } from '../../components/ui/storyset';
 import type { WizardState } from './Onboarding';
 import { BUSINESS_TYPES, CURRENCIES, LOCALES, TIME_ZONES, buildFyPeriods, readinessFor } from './provision';
 
 interface StepProps { s: WizardState; set: (p: Partial<WizardState>) => void; company: Company; template?: OperatingProfileTemplate; hasPostedJournal: boolean }
 
 const NATURES = [
-  { id: 'Trading', label: 'Trading', icon: '🏬', desc: 'Buy, stock, and sell physical goods', color: '#F97316' },
-  { id: 'Services', label: 'Services', icon: '💼', desc: 'Time, projects, subscriptions & retainers', color: '#38BDF8' },
-  { id: 'Manufacturing', label: 'Manufacturing', icon: '🏭', desc: 'Produce and sell finished goods', color: '#22C55E' },
-  { id: 'Hybrid', label: 'Hybrid', icon: '⚡', desc: 'Combination of the profiles above', color: '#A855F7' },
+  { id: 'Trading', label: 'Trading', icon: ShoppingCartIcon, desc: 'Buy, stock, and sell physical goods', color: '#F97316' },
+  { id: 'Services', label: 'Services', icon: BriefcaseIcon, desc: 'Time, projects, subscriptions & retainers', color: '#38BDF8' },
+  { id: 'Manufacturing', label: 'Manufacturing', icon: FactoryIcon, desc: 'Produce and sell finished goods', color: '#22C55E' },
+  { id: 'Hybrid', label: 'Hybrid', icon: ZapIcon, desc: 'Combination of the profiles above', color: '#A855F7' },
 ] as const;
 
 function H({ title, sub }: { title: string; sub: string }) {
   return (
     <>
-      <h2 style={{ fontSize: 22, fontWeight: 700, color: '#0A0A0A', marginBottom: 8 }}>{title}</h2>
-      <p style={{ fontSize: 14, color: '#5F6368', marginBottom: 28, lineHeight: 1.6 }}>{sub}</p>
+      <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>{title}</h2>
+      <p style={{ fontSize: 14, color: 'var(--ink-3)', marginBottom: 28, lineHeight: 1.6 }}>{sub}</p>
     </>
   );
 }
@@ -44,14 +46,14 @@ export function StepNature({ s, set, template }: StepProps) {
       <H title="What does your business do?" sub="This shapes your navigation, default accounts, roles, workflows and document templates. Recommendations are proposed — review and change anything before it is activated (FR-BIZ-004)." />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
         {NATURES.map((n) => (
-          <button key={n.id} type="button" onClick={() => set({ nature: n.id, characteristics: [], overrides: {} })} style={{ padding: '16px', border: `1.5px solid ${s.nature === n.id ? n.color : '#EAEAEA'}`, borderRadius: 12, background: s.nature === n.id ? `${n.color}10` : '#FAFAFA', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s', display: 'flex', flexDirection: 'column', gap: 8, fontFamily: 'inherit' }}>
+          <button key={n.id} type="button" onClick={() => set({ nature: n.id, characteristics: [], overrides: {} })} style={{ padding: '16px', border: `1.5px solid ${s.nature === n.id ? n.color : 'var(--line)'}`, borderRadius: 12, background: s.nature === n.id ? `${n.color}10` : 'var(--surface-2)', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s', display: 'flex', flexDirection: 'column', gap: 8, fontFamily: 'inherit' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 26 }}>{n.icon}</span>
+              <span style={{ display: 'inline-flex', color: n.color }}><n.icon size={26} /></span>
               {s.nature === n.id && <div style={{ width: 20, height: 20, borderRadius: '50%', background: n.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CheckIcon size={11} color="#FFFFFF" /></div>}
             </div>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#0A0A0A', marginBottom: 2 }}>{n.label}</div>
-              <div style={{ fontSize: 12, color: '#6E6E71', lineHeight: 1.4 }}>{n.desc}</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 2 }}>{n.label}</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-4)', lineHeight: 1.4 }}>{n.desc}</div>
             </div>
           </button>
         ))}
@@ -62,17 +64,17 @@ export function StepNature({ s, set, template }: StepProps) {
             <ChipGroup label="Secondary characteristics" multiple value={s.characteristics} onChange={(v: string[]) => set({ characteristics: v })} options={template.secondaryCharacteristics} />
             <div className="field-help" style={{ marginTop: 6 }}>Refines defaults such as batch tracking, POS, milestone billing or subcontracting.</div>
           </div>
-          <div className="card" style={{ padding: 16, background: '#F9FBFC' }}>
+          <div className="card" style={{ padding: 16, background: 'var(--surface-2)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <div className="section-title" style={{ marginBottom: 0 }}>Recommended setup</div>
-              <span style={{ fontSize: 11, color: '#5F6368' }}>{template.name} · template v{template.templateVersion}</span>
+              <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{template.name} · template v{template.templateVersion}</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {rows.map((r) => (
                 <div key={r.key} style={{ fontSize: 12 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                    <span style={{ color: '#5F6368', width: 120, flexShrink: 0, paddingTop: 2 }}>{r.label}</span>
-                    <span style={{ flex: 1, color: '#0A0A0A', lineHeight: 1.5 }}>{r.values.join(', ') || '—'}{s.overrides[r.key] && <Pill tone="warning" title="Overridden from the template">changed</Pill>}</span>
+                    <span style={{ color: 'var(--ink-3)', width: 120, flexShrink: 0, paddingTop: 2 }}>{r.label}</span>
+                    <span style={{ flex: 1, color: 'var(--ink)', lineHeight: 1.5 }}>{r.values.join(', ') || '—'}{s.overrides[r.key] && <Pill tone="warning" title="Overridden from the template">changed</Pill>}</span>
                     {['modules', 'dimensions', 'roles', 'workflows'].includes(r.key) && <button type="button" className="btn-link" style={{ fontSize: 12 }} onClick={() => setEditing(editing === r.key ? null : r.key)}>{editing === r.key ? 'Done' : 'Change'}</button>}
                   </div>
                   {editing === r.key && (
@@ -83,7 +85,7 @@ export function StepNature({ s, set, template }: StepProps) {
                 </div>
               ))}
             </div>
-            <div style={{ fontSize: 11, color: '#6E6E71', marginTop: 10 }}>Terminology: {Object.entries(template.terminology).map(([k, v]) => `${k} → ${v}`).join(' · ') || 'standard'}. Overrides are applied within your plan entitlements and localization pack.</div>
+            <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 10 }}>Terminology: {Object.entries(template.terminology).map(([k, v]) => `${k} → ${v}`).join(' · ') || 'standard'}. Overrides are applied within your plan entitlements and localization pack.</div>
           </div>
         </div>
       )}
@@ -122,7 +124,7 @@ export function StepLegal({ s, set, company }: StepProps) {
                 <IdentifierField kind={r.type === 'GSTIN' ? 'GSTIN' : 'TRN'} label={r.type} value={r.number} onChange={(v) => setReg(r.id, { number: v, state: v.length >= 2 ? stateNameOf(v.slice(0, 2)) : undefined, stateCode: v.length >= 2 ? v.slice(0, 2) : undefined })} size="sm" />
                 <div>
                   <label className="field-label">State</label>
-                  <div style={{ height: 32, display: 'flex', alignItems: 'center', fontSize: 13 }}>{state ? `${state} (${r.number.slice(0, 2)})` : <span style={{ color: '#B0B5BF' }}>auto from GSTIN</span>}</div>
+                  <div style={{ height: 32, display: 'flex', alignItems: 'center', fontSize: 13 }}>{state ? `${state} (${r.number.slice(0, 2)})` : <span style={{ color: 'var(--ink-5)' }}>auto from GSTIN</span>}</div>
                 </div>
                 <CheckboxField checked={!!r.isSez} onChange={(v) => setReg(r.id, { isSez: v })} label="SEZ unit" style={{ paddingBottom: 8 }} />
                 <Button size="sm" variant="ghost" onClick={() => set({ registrations: regs.filter((x) => x.id !== r.id) })}>Remove</Button>
@@ -192,11 +194,11 @@ export function StepCurrency({ s, set, hasPostedJournal }: StepProps) {
         <div>
           <label className="field-label">Base (functional) currency <span className="req">*</span></label>
           {[{ code: 'INR', label: 'Indian Rupee (₹)', sub: 'Recommended for India-based entities' }, { code: 'USD', label: 'US Dollar ($)' }, { code: 'AED', label: 'UAE Dirham (AED)' }, { code: 'GBP', label: 'Pound Sterling (£)' }, { code: 'EUR', label: 'Euro (€)' }].map((c) => (
-            <label key={c.code} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: `1px solid ${s.baseCurrency === c.code ? '#325CFF' : '#EAEAEA'}`, borderRadius: 8, marginBottom: 8, cursor: hasPostedJournal ? 'not-allowed' : 'pointer', background: s.baseCurrency === c.code ? '#F2F7FF' : '#FAFAFA', opacity: hasPostedJournal && s.baseCurrency !== c.code ? 0.5 : 1 }}>
-              <input type="radio" name="currency" value={c.code} checked={s.baseCurrency === c.code} disabled={hasPostedJournal} onChange={() => set({ baseCurrency: c.code, permitted: Array.from(new Set([c.code, ...s.permitted])) })} style={{ accentColor: '#325CFF' }} />
+            <label key={c.code} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: `1px solid ${s.baseCurrency === c.code ? 'var(--accent)' : 'var(--line)'}`, borderRadius: 8, marginBottom: 8, cursor: hasPostedJournal ? 'not-allowed' : 'pointer', background: s.baseCurrency === c.code ? 'var(--accent-tint)' : 'var(--surface-2)', opacity: hasPostedJournal && s.baseCurrency !== c.code ? 0.5 : 1 }}>
+              <input type="radio" name="currency" value={c.code} checked={s.baseCurrency === c.code} disabled={hasPostedJournal} onChange={() => set({ baseCurrency: c.code, permitted: Array.from(new Set([c.code, ...s.permitted])) })} style={{ accentColor: 'var(--accent)' }} />
               <div>
-                <div style={{ fontSize: 14, fontWeight: 500, color: '#0A0A0A' }}>{c.label}</div>
-                {c.sub && <div style={{ fontSize: 12, color: '#5F6368' }}>{c.sub}</div>}
+                <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>{c.label}</div>
+                {c.sub && <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{c.sub}</div>}
               </div>
             </label>
           ))}
@@ -239,7 +241,7 @@ export function StepPeriods({ s, set, company }: StepProps) {
               return (
                 <tr key={p.code}>
                   <td style={{ fontWeight: 500 }}>{p.label}</td><td>{fmtDate(p.start)}</td><td>{fmtDate(p.end)}</td>
-                  <td><Badge status={ex?.status ?? p.status} />{ex && <span style={{ fontSize: 11, color: '#6E6E71', marginLeft: 6 }}>exists</span>}</td>
+                  <td><Badge status={ex?.status ?? p.status} />{ex && <span style={{ fontSize: 11, color: 'var(--ink-4)', marginLeft: 6 }}>exists</span>}</td>
                 </tr>
               );
             })}
@@ -269,7 +271,7 @@ export function StepUsers({ s, set, company }: StepProps) {
           </div>
         ))}
         <Button variant="secondary" onClick={() => set({ invites: [...s.invites, { id: uid('inv'), email: '', roleId: roles.find((r) => r.code === 'ACCOUNTANT')?.id ?? roles[0]?.id ?? '' }] })}>+ Add person</Button>
-        <div style={{ marginTop: 20, padding: '14px 16px', background: '#F9FBFC', border: '1px solid #EAEAEA', borderRadius: 8, fontSize: 13, color: '#5F6368', lineHeight: 1.6 }}>
+        <div style={{ marginTop: 20, padding: '14px 16px', background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 8, fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.6 }}>
           {plan ? <>Your <strong>{plan.name}</strong> plan includes <strong>{limit}</strong> users · {current} in use · {s.invites.filter((i) => i.email).length} to invite.</> : null} Users can belong to several companies and branches; data scope follows the role.
         </div>
       </div>
@@ -280,8 +282,8 @@ export function StepUsers({ s, set, company }: StepProps) {
 // ── 7. Masters ─────────────────────────────────────────────────────────────
 export function StepMasters({ s, set, template }: StepProps) {
   const opts = [
-    { id: 'import', icon: '📥', label: 'Import from CSV / Tally', desc: 'Customers, suppliers, items and chart of accounts through the import wizard (dry-run, row errors, duplicate blocking)' },
-    { id: 'start', icon: '✨', label: 'Start with the recommended masters', desc: `${template?.coaTemplate ?? 'Standard COA'}, ${template?.dimensions.join(', ') ?? 'Branch'} dimensions, common UOMs, tax rates and payment terms` },
+    { id: 'import', icon: UploadIcon, label: 'Import from CSV / Tally', desc: 'Customers, suppliers, items and chart of accounts through the import wizard (dry-run, row errors, duplicate blocking)' },
+    { id: 'start', icon: StarIcon, label: 'Start with the recommended masters', desc: `${template?.coaTemplate ?? 'Standard COA'}, ${template?.dimensions.join(', ') ?? 'Branch'} dimensions, common UOMs, tax rates and payment terms` },
   ] as const;
   return (
     <div>
@@ -290,7 +292,7 @@ export function StepMasters({ s, set, template }: StepProps) {
         {opts.map((o) => <Choice key={o.id} selected={s.mastersChoice === o.id} onClick={() => set({ mastersChoice: o.id })} icon={o.icon} label={o.label} desc={o.desc} />)}
       </div>
       {template && (
-        <div style={{ marginTop: 20, maxWidth: 560, fontSize: 12, color: '#5F6368' }}>
+        <div style={{ marginTop: 20, maxWidth: 560, fontSize: 12, color: 'var(--ink-3)' }}>
           Recommended imports for {template.name}: customers, suppliers, {template.terminology.item?.toLowerCase() ?? 'item'}s, price lists{template.nature === 'Manufacturing' || template.nature === 'Hybrid' ? ', BOMs, work centres' : ''}{template.nature === 'Services' ? ', rate cards, projects' : ''}.
         </div>
       )}
@@ -302,9 +304,9 @@ export function StepMasters({ s, set, template }: StepProps) {
 export function StepOpening({ s, set, company }: StepProps) {
   const blocked = company.onboarding.opening === 'Blocked';
   const opts = [
-    { id: 'import', icon: '📥', label: 'Import trial balance', desc: 'Upload a trial balance CSV or Tally XML to populate balances as of the opening-balance date' },
-    { id: 'manual', icon: '✏️', label: 'Enter manually', desc: 'Type opening balances account by account under Accounting › Opening balances' },
-    { id: 'skip', icon: '⏭️', label: 'Start fresh', desc: 'No opening balances — for new businesses or trial runs' },
+    { id: 'import', icon: UploadIcon, label: 'Import trial balance', desc: 'Upload a trial balance CSV or Tally XML to populate balances as of the opening-balance date' },
+    { id: 'manual', icon: EditIcon, label: 'Enter manually', desc: 'Type opening balances account by account under Accounting › Opening balances' },
+    { id: 'skip', icon: SkipForwardIcon, label: 'Start fresh', desc: 'No opening balances — for new businesses or trial runs' },
   ] as const;
   return (
     <div>
@@ -317,15 +319,15 @@ export function StepOpening({ s, set, company }: StepProps) {
   );
 }
 
-function Choice({ selected, onClick, icon, label, desc }: { selected: boolean; onClick: () => void; icon: string; label: string; desc: string }) {
+function Choice({ selected, onClick, icon: Icon, label, desc }: { selected: boolean; onClick: () => void; icon: ComponentType<{ size?: number }>; label: string; desc: string }) {
   return (
-    <button type="button" onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 18px', border: `1.5px solid ${selected ? '#325CFF' : '#EAEAEA'}`, borderRadius: 10, background: selected ? '#F2F7FF' : '#FAFAFA', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s', fontFamily: 'inherit' }}>
-      <span style={{ fontSize: 24, lineHeight: 1 }}>{icon}</span>
+    <button type="button" onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 18px', border: `1.5px solid ${selected ? 'var(--accent)' : 'var(--line)'}`, borderRadius: 10, background: selected ? 'var(--accent-tint)' : 'var(--surface-2)', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s', fontFamily: 'inherit' }}>
+      <span style={{ display: 'inline-flex', color: selected ? 'var(--accent)' : 'var(--ink-3)' }}><Icon size={22} /></span>
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#0A0A0A', marginBottom: 3 }}>{label}</div>
-        <div style={{ fontSize: 12, color: '#5F6368' }}>{desc}</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 3 }}>{label}</div>
+        <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{desc}</div>
       </div>
-      {selected && <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#325CFF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><CheckIcon size={11} color="#FFFFFF" /></div>}
+      {selected && <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><CheckIcon size={11} color="#FFFFFF" /></div>}
     </button>
   );
 }
@@ -338,30 +340,30 @@ export function StepReady({ s, company }: StepProps) {
   const done = rows.filter((r) => r.status === 'Done').length;
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const items = [
-    { label: 'Business nature', val: `${s.nature || live.nature} · ${live.profiles.join(' + ')}`, icon: '🏬' },
-    { label: 'Company', val: `${s.legalName || live.legalName}${s.pan ? ` · PAN ${s.pan}` : ''}`, icon: '🏢' },
-    { label: 'Registered address', val: s.address.city ? `${s.address.city}, ${s.address.state}${s.address.pin ? ' ' + s.address.pin : ''}` : '—', icon: '📍' },
-    { label: 'Currency & locale', val: `${s.baseCurrency}${s.reportingCurrency ? ` (reports in ${s.reportingCurrency})` : ''} · ${s.timeZone} · ${s.locale}`, icon: '💰' },
-    { label: 'Fiscal year', val: `Starts ${MONTHS[s.fyStart - 1]} · books from ${fmtDate(s.booksFrom)} · opening ${fmtDate(s.openingBalanceDate)}`, icon: '📅' },
-    { label: 'Team', val: `${db.count(C.users, (u) => u.companyIds?.includes(company.id))} user(s) · ${db.count(C.users, (u) => u.companyIds?.includes(company.id) && u.status === 'Invited')} invited`, icon: '👥' },
+    { label: 'Business nature', val: `${s.nature || live.nature} · ${live.profiles.join(' + ')}`, icon: ShoppingCartIcon },
+    { label: 'Company', val: `${s.legalName || live.legalName}${s.pan ? ` · PAN ${s.pan}` : ''}`, icon: BuildingIcon },
+    { label: 'Registered address', val: s.address.city ? `${s.address.city}, ${s.address.state}${s.address.pin ? ' ' + s.address.pin : ''}` : '—', icon: MapPinIcon },
+    { label: 'Currency & locale', val: `${s.baseCurrency}${s.reportingCurrency ? ` (reports in ${s.reportingCurrency})` : ''} · ${s.timeZone} · ${s.locale}`, icon: WalletIcon },
+    { label: 'Fiscal year', val: `Starts ${MONTHS[s.fyStart - 1]} · books from ${fmtDate(s.booksFrom)} · opening ${fmtDate(s.openingBalanceDate)}`, icon: CalendarIcon },
+    { label: 'Team', val: `${db.count(C.users, (u) => u.companyIds?.includes(company.id))} user(s) · ${db.count(C.users, (u) => u.companyIds?.includes(company.id) && u.status === 'Invited')} invited`, icon: UsersIcon },
   ];
   return (
     <div>
-      <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#E0F9EC', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, fontSize: 28 }}>🎉</div>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><StorysetAnimated name={done === rows.length ? 'celebration' : 'done'} width={200} label={done === rows.length ? 'Confetti — setup complete' : 'Setup nearly complete'} /></div>
       <H title={done === rows.length ? "You're all set!" : 'Almost there'} sub={`${done} of ${rows.length} setup items complete. Pending items stay on your Home checklist until they are done; blocked items name what clears them.`} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {items.map((it) => (
-            <div key={it.label} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#F9FBFC', border: '1px solid #EAEAEA', borderRadius: 8 }}>
-              <span style={{ fontSize: 18 }}>{it.icon}</span>
+            <div key={it.label} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 8 }}>
+              <span style={{ display: 'inline-flex', color: 'var(--ink-3)' }}><it.icon size={18} /></span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="section-label" style={{ marginBottom: 2 }}>{it.label}</div>
-                <div style={{ fontSize: 13, fontWeight: 500, color: '#0A0A0A' }}>{it.val}</div>
+                <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>{it.val}</div>
               </div>
-              <CheckIcon size={14} color="#12784E" />
+              <CheckIcon size={14} color="var(--good)" />
             </div>
           ))}
-          <div style={{ fontSize: 12, color: '#6E6E71' }}>Signed in as {sess.user?.name} · Tenant owner</div>
+          <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>Signed in as {sess.user?.name} · Tenant owner</div>
         </div>
         <Checklist title="Readiness" rows={rows.map((r) => ({ id: r.key, label: r.label, status: r.status, detail: r.detail }))} />
       </div>

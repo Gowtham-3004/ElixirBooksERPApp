@@ -53,9 +53,9 @@ export default function Expenses() {
     <div className="page">
       <PageHeader title="Expenses (billable)" subtitle={<ScopeLine extra="approved claim lines re-billed to customers" />} actions={<Button variant="secondary" onClick={() => nav.go('budgets/expenses')}>Open expense claims</Button>} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-        <KpiTile label="Ready to bill" value={fmtMoney(ready.reduce((a, b) => a + b.billAmount, 0), s.currency)} sub={`${ready.length} line(s)`} onClick={() => setTab('ready')} />
+        <KpiTile label="Ready to bill" amount={ready.reduce((a, b) => a + b.billAmount, 0)} currency={s.currency} sub={`${ready.length} line(s)`} onClick={() => setTab('ready')} />
         <KpiTile label="Candidates" value={candidates.length} sub="approved claim lines not yet flagged" onClick={() => setTab('candidates')} />
-        <KpiTile label="Invoiced" value={fmtMoney(invoiced.reduce((a, b) => a + b.billAmount, 0), s.currency)} sub={`${invoiced.length} line(s)`} onClick={() => setTab('invoiced')} />
+        <KpiTile label="Invoiced" amount={invoiced.reduce((a, b) => a + b.billAmount, 0)} currency={s.currency} sub={`${invoiced.length} line(s)`} onClick={() => setTab('invoiced')} />
       </div>
       <Tabs variant="filter" value={tab} onChange={setTab} tabs={[{ id: 'candidates', label: 'Candidates', count: candidates.length }, { id: 'ready', label: 'Ready to bill', count: ready.length }, { id: 'invoiced', label: 'Invoiced', count: invoiced.length }, { id: 'excluded', label: 'Excluded', count: excluded.length }]} />
       {tab === 'candidates' && <DataTable rows={candidates} columns={candCols} rowKey={(l) => `${l.claimId}:${l.lineId}`} dense emptyTitle="No approved claim lines" emptyDescription="Approved or reimbursed expense claims appear here; flag lines to a project to re-bill them." />}

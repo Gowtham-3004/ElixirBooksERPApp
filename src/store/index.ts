@@ -12,6 +12,8 @@ export type { CollectionName } from './collections';
 export { session, useSession, currentScope } from './session';
 export type { Scope, AuthState, SessionState } from './session';
 export { nav, useRoute, docLink } from './nav';
+export { prefs, usePrefs } from './prefs';
+export type { Prefs, Density } from './prefs';
 export type { Route } from './nav';
 export * from './types';
 export * as engine from './engine';

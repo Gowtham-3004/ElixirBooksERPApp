@@ -73,9 +73,9 @@ export function SupplierRegister() {
         bulkActions={(ids, sel) => bulkStatusActions(C.suppliers, 'Supplier', ids, sel, canEdit)}
         columns={[
           { key: 'name', label: 'Supplier', sortable: true, render: (r) => <TwoLine primary={r.displayName || r.name} secondary={r.gstin ?? r.code} mono />, value: (r) => r.name },
-          { key: 'group', label: 'Group', render: (r) => <span style={{ color: '#5F6368' }}>{r.group ?? '—'}</span> },
+          { key: 'group', label: 'Group', render: (r) => <span style={{ color: 'var(--ink-3)' }}>{r.group ?? '—'}</span> },
           { key: 'state', label: 'State', render: (r) => partyState(r), value: (r) => partyState(r) },
-          { key: 'purchaseTerms', label: 'Terms', render: (r) => <span style={{ color: '#5F6368' }}>{r.purchaseTerms}</span> },
+          { key: 'purchaseTerms', label: 'Terms', render: (r) => <span style={{ color: 'var(--ink-3)' }}>{r.purchaseTerms}</span> },
           { key: 'tds', label: 'TDS', render: (r) => { const t = db.find<TdsSection>(C.tdsSections, r.tdsSectionId); return t ? <span className="identifier">{t.section}</span> : '—'; } },
           { key: 'bank', label: 'Bank', render: (r) => { const p = r.bankDetails.filter((b) => b.status === 'Pending Approval').length; const a = r.bankDetails.filter((b) => b.status === 'Approved').length; return <span style={{ display: 'inline-flex', gap: 4 }}>{a ? <Badge status="Approved">{a} approved</Badge> : null}{p ? <Badge status="Pending Approval">{p} pending</Badge> : null}{!a && !p ? '—' : null}</span>; } },
           { key: 'payable', label: 'Payable', align: 'right', sortable: true, render: (r) => <Money value={payable(r.id)} currency={s.currency} />, value: (r) => payable(r.id), total: (rs) => <Money value={rs.reduce((a, r) => a + payable(r.id), 0)} currency={s.currency} /> },
@@ -244,13 +244,13 @@ export function BankDetailsList({ supplier, canManage }: { supplier: Supplier; c
         <div className="section-title" style={{ marginBottom: 0 }}>Bank details</div>
         <Button size="sm" variant="secondary" onClick={() => setForm({ open: true })} disabled={!canManage} reason={canManage ? undefined : 'Requires supplier edit permission'}>+ Add bank detail</Button>
       </div>
-      {supplier.bankDetails.length === 0 && <div style={{ fontSize: 13, color: '#5F6368' }}>No bank details — payments will be blocked until an approved account exists.</div>}
+      {supplier.bankDetails.length === 0 && <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>No bank details — payments will be blocked until an approved account exists.</div>}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {supplier.bankDetails.map((b) => (
           <div key={b.id} className="card" style={{ padding: 12, display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{b.bankName} <span style={{ fontWeight: 400, color: '#5F6368' }}>· {b.accountName}</span></div>
-              <div style={{ fontSize: 12, color: '#5F6368', marginTop: 2 }}>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>{b.bankName} <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>· {b.accountName}</span></div>
+              <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>
                 A/c <MaskedValue value={b.accountNumber} canReveal={canReveal} onReveal={() => engine.audit({ action: 'supplier.bank_revealed', objectType: 'Supplier', objectId: supplier.id, objectNumber: supplier.code, detail: `Revealed ${b.bankName} ••••${b.accountNumber.slice(-4)}`, sensitive: true })} /> · IFSC <span className="identifier">{b.ifsc}</span>
                 {b.approvedBy && <> · {b.status === 'Approved' ? 'approved' : 'reviewed'} by {b.approvedBy}</>}
               </div>

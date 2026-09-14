@@ -21,7 +21,7 @@ export function ItemLink({ id, name }: { id?: string; name?: string }) {
 }
 
 export function DocLink({ path, number, style }: { path?: string; number?: string; style?: React.CSSProperties }) {
-  if (!number) return <span style={{ color: '#B0B5BF' }}>—</span>;
+  if (!number) return <span style={{ color: 'var(--ink-5)' }}>—</span>;
   return <span className="identifier link" style={{ fontSize: 12, ...style }} onClick={(e) => { e.stopPropagation(); if (path) nav.go(path); }}>{number}</span>;
 }
 
@@ -31,7 +31,7 @@ export function OrderLink({ id, number }: { id?: string; number?: string }) {
 
 export function JournalLink({ id }: { id?: string }) {
   const j = db.find<Journal>(C.journals, id);
-  if (!j) return <span style={{ color: '#B0B5BF' }}>—</span>;
+  if (!j) return <span style={{ color: 'var(--ink-5)' }}>—</span>;
   return <DocLink path={`accounting/journals/${j.id}`} number={j.number} />;
 }
 
@@ -49,7 +49,7 @@ export function Progress({ done, total, label }: { done: number; total: number; 
   const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
   return (
     <div style={{ minWidth: 120 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#5F6368', marginBottom: 2 }}><span>{label ?? 'Received'}</span><span className="money">{done} / {total} · {pct}%</span></div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--ink-3)', marginBottom: 2 }}><span>{label ?? 'Received'}</span><span className="money">{done} / {total} · {pct}%</span></div>
       <div className={`meter ${pct >= 100 ? 'good' : ''}`}><div style={{ width: `${pct}%` }} /></div>
     </div>
   );
@@ -58,7 +58,7 @@ export function Progress({ done, total, label }: { done: number; total: number; 
 export function VarianceCell({ std, actual, currency = 'INR' }: { std: number; actual: number; currency?: string }) {
   const v = actual - std;
   const pct = std ? (v / std) * 100 : 0;
-  return <span className={`money ${v > 0 ? 'money-negative' : v < 0 ? 'money-positive' : ''}`}>{fmtMoney(v, currency)}{std ? <span style={{ fontSize: 11, color: '#6E6E71' }}> ({pct > 0 ? '+' : ''}{pct.toFixed(1)}%)</span> : null}</span>;
+  return <span className={`money ${v > 0 ? 'money-negative' : v < 0 ? 'money-positive' : ''}`}>{fmtMoney(v, currency)}{std ? <span style={{ fontSize: 11, color: 'var(--ink-4)' }}> ({pct > 0 ? '+' : ''}{pct.toFixed(1)}%)</span> : null}</span>;
 }
 
 export function SectionCard({ title, children, actions, padding = 16 }: { title?: ReactNode; children: ReactNode; actions?: ReactNode; padding?: number }) {

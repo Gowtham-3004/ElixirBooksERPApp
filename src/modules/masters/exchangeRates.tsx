@@ -124,7 +124,7 @@ function ExchangeRateForm({ rate, onClose }: { rate?: ExchangeRate; onClose: () 
           <TextField label="Effective time (UTC)" value={f.v.effectiveTime} onChange={(v) => f.set('effectiveTime', v)} disabled={readOnly} type="time" />
         </div>
         <TextArea label={needsApproval ? 'Reason (required)' : 'Reason / note'} required={needsApproval} value={f.v.reason ?? ''} onChange={(v) => f.set('reason', v)} disabled={readOnly} error={f.errors.reason} minLength={needsApproval ? 10 : undefined} />
-        {rate?.approvedBy && <div style={{ fontSize: 12, color: '#5F6368' }}>{rate.status} by {rate.approvedBy}</div>}
+        {rate?.approvedBy && <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{rate.status} by {rate.approvedBy}</div>}
       </div>
     </Drawer>
   );
@@ -153,7 +153,7 @@ export function RateResolver({ onClose }: { onClose: () => void }) {
       </div>
       <div className="card" style={{ padding: 18, marginTop: 16 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-          <span style={{ fontSize: 28, fontWeight: 600, fontFeatureSettings: '"tnum" 1' }}>{res.rate ? res.rate.toFixed(6) : '—'}</span>
+          <span style={{ fontSize: 28, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{res.rate ? res.rate.toFixed(6) : '—'}</span>
           <Badge status={res.rate ? 'Approved' : 'Rejected'}>{res.rate ? res.type : 'No rate'}</Badge>
         </div>
         <div style={{ fontSize: 13, marginTop: 6 }}>{res.rate ? <>1 {from} = {res.rate} {to} · source <strong>{res.source}</strong> · effective {fmtDateTime(res.at)}{res.id && <> · <span className="identifier">{res.id}</span></>}</> : `No approved rate for ${from}/${to} on or before ${fmtDate(date)} — postings in ${from} will be blocked (MISSING).`}</div>
@@ -161,11 +161,11 @@ export function RateResolver({ onClose }: { onClose: () => void }) {
         <table className="data-table dense">
           <thead><tr><th>Priority</th><th>Type</th><th>Direct {from}→{to}</th><th>Inverse {to}→{from}</th></tr></thead>
           <tbody>
-            {hierarchy.map((h, i) => { const hit = res.id && (h.direct?.id === res.id || h.inverse?.id === res.id); return <tr key={h.t} style={{ fontWeight: hit ? 600 : 400, color: hit ? '#12784E' : undefined }}><td>{i + 1}</td><td>{h.t}</td><td>{h.direct ? `${h.direct.rate} · ${fmtDate(h.direct.effectiveAt)}` : '—'}</td><td>{h.inverse ? `${h.inverse.rate} (→ ${(1 / h.inverse.rate).toFixed(6)}) · ${fmtDate(h.inverse.effectiveAt)}` : '—'}</td></tr>; })}
-            <tr style={{ color: res.type.startsWith('Cross') ? '#12784E' : undefined, fontWeight: res.type.startsWith('Cross') ? 600 : 400 }}><td>{hierarchy.length + 1}</td><td>Cross rate</td><td colSpan={2}>via INR then USD pivot{res.type.startsWith('Cross') ? ` — ${res.type}` : ''}</td></tr>
+            {hierarchy.map((h, i) => { const hit = res.id && (h.direct?.id === res.id || h.inverse?.id === res.id); return <tr key={h.t} style={{ fontWeight: hit ? 600 : 400, color: hit ? 'var(--good)' : undefined }}><td>{i + 1}</td><td>{h.t}</td><td>{h.direct ? `${h.direct.rate} · ${fmtDate(h.direct.effectiveAt)}` : '—'}</td><td>{h.inverse ? `${h.inverse.rate} (→ ${(1 / h.inverse.rate).toFixed(6)}) · ${fmtDate(h.inverse.effectiveAt)}` : '—'}</td></tr>; })}
+            <tr style={{ color: res.type.startsWith('Cross') ? 'var(--good)' : undefined, fontWeight: res.type.startsWith('Cross') ? 600 : 400 }}><td>{hierarchy.length + 1}</td><td>Cross rate</td><td colSpan={2}>via INR then USD pivot{res.type.startsWith('Cross') ? ` — ${res.type}` : ''}</td></tr>
           </tbody>
         </table>
-        <div style={{ fontSize: 12, color: '#6E6E71', marginTop: 10 }}>Only <strong>Approved</strong> rates participate. Pending manual rates are ignored until approved. Later corrections never change posted transactions (FR-FX-013).</div>
+        <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 10 }}>Only <strong>Approved</strong> rates participate. Pending manual rates are ignored until approved. Later corrections never change posted transactions (FR-FX-013).</div>
       </div>
     </Drawer>
   );

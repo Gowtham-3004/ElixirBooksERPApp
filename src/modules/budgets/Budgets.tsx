@@ -28,7 +28,7 @@ export function BudgetsRegister() {
         { key: 'lines', label: 'Accounts', align: 'right', render: (b) => b.lines.length },
         { key: 'totalIncome', label: 'Income', align: 'right', render: (b) => <span className="money">{fmtMoney(b.totalIncome, s.currency)}</span> },
         { key: 'totalExpense', label: 'Expense', align: 'right', render: (b) => <span className="money">{fmtMoney(b.totalExpense, s.currency)}</span> },
-        { key: 'net', label: 'Net', align: 'right', render: (b) => <span className="money" style={{ fontWeight: 600, color: b.totalIncome - b.totalExpense >= 0 ? '#12784E' : '#C0393F' }}>{fmtMoney(b.totalIncome - b.totalExpense, s.currency)}</span> },
+        { key: 'net', label: 'Net', align: 'right', render: (b) => <span className="money" style={{ fontWeight: 600, color: b.totalIncome - b.totalExpense >= 0 ? 'var(--good)' : 'var(--danger)' }}>{fmtMoney(b.totalIncome - b.totalExpense, s.currency)}</span> },
         { key: 'status', label: 'Status', render: (b) => <Badge status={b.status === 'Superseded' ? 'Cancelled' : b.status}>{b.status}</Badge> },
         { key: 'approvedAt', label: 'Approved', render: (b) => (b.approvedAt ? `${fmtDate(b.approvedAt)} · ${b.approvedBy}` : '—') },
       ]} entity="budgets" searchKeys={['name', 'code', 'fy']}
@@ -93,9 +93,9 @@ export function BudgetEditor({ id }: { id: string }) {
   return (
     <div className="page">
       <div className="page-header">
-        <div><button type="button" className="btn-link" style={{ color: '#5F6368', marginBottom: 6 }} onClick={() => nav.go('budgets/budgets')}>← Budgets</button><h1 className="page-title">{b.name}</h1><div className="page-subtitle">{b.code} · v{b.version}.{b.revision} · FY {b.fy} · <Badge status={b.status === 'Superseded' ? 'Cancelled' : b.status}>{b.status}</Badge>{b.approvedAt ? ` · approved ${fmtDateTime(b.approvedAt)} by ${b.approvedBy}` : ''}</div></div>
+        <div><button type="button" className="btn-link" style={{ color: 'var(--ink-3)', marginBottom: 6 }} onClick={() => nav.go('budgets/budgets')}>← Budgets</button><h1 className="page-title">{b.name}</h1><div className="page-subtitle">{b.code} · v{b.version}.{b.revision} · FY {b.fy} · <Badge status={b.status === 'Superseded' ? 'Cancelled' : b.status}>{b.status}</Badge>{b.approvedAt ? ` · approved ${fmtDateTime(b.approvedAt)} by ${b.approvedBy}` : ''}</div></div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {b.status === 'Draft' && <Button variant="primary" onClick={() => setConfirm('approve')} disabled={!canApprove || !b.lines.length} reason={!canApprove ? 'Requires budget approval permission' : !b.lines.length ? 'Add budget lines first' : undefined}>Approve budget</Button>}
+          {b.status === 'Draft' && <Button variant="primary" tone="good" onClick={() => setConfirm('approve')} disabled={!canApprove || !b.lines.length} reason={!canApprove ? 'Requires budget approval permission' : !b.lines.length ? 'Add budget lines first' : undefined}>Approve budget</Button>}
           {b.status === 'Approved' && <Button variant="primary" onClick={() => setConfirm('revise')} disabled={!s.can('budgets.*')}>Revise (new revision)</Button>}
           <Button variant="secondary" onClick={() => nav.go('budgets/variance')}>Budget vs actuals</Button>
         </div>
@@ -108,25 +108,25 @@ export function BudgetEditor({ id }: { id: string }) {
         <EntityPicker label="Cost centre scope" value={b.scope.costCentreId} onChange={(v) => save({ scope: { ...b.scope, costCentreId: v } })} options={ccOpts} disabled={!canEdit} placeholder="All cost centres" />
       </div>
       <SummaryBlock items={[{ label: 'Income', value: fmtMoney(b.totalIncome, s.currency), tone: 'good' }, { label: 'Expense', value: fmtMoney(b.totalExpense, s.currency) }, { label: 'Net', value: fmtMoney(b.totalIncome - b.totalExpense, s.currency), tone: b.totalIncome - b.totalExpense >= 0 ? 'good' : 'danger' }, { label: 'Lines', value: b.lines.length }]} />
-      {canEdit && <div className="card toolbar" style={{ padding: '10px 14px' }}><div style={{ width: 360 }}><EntityPicker label="Add account" value={addAcc} onChange={setAddAcc} options={accOpts.filter((o) => !b.lines.some((l) => l.accountId === o.id))} size="sm" /></div><Button size="sm" variant="secondary" onClick={addLine} disabled={!addAcc} style={{ marginTop: 18 }}>+ Add line</Button><div style={{ flex: 1 }} /><span style={{ fontSize: 12, color: '#6E6E71' }}>Tip: paste a row of 12 comma/tab-separated values into any month cell to fill the year.</span></div>}
+      {canEdit && <div className="card toolbar" style={{ padding: '10px 14px' }}><div style={{ width: 360 }}><EntityPicker label="Add account" value={addAcc} onChange={setAddAcc} options={accOpts.filter((o) => !b.lines.some((l) => l.accountId === o.id))} size="sm" /></div><Button size="sm" variant="secondary" onClick={addLine} disabled={!addAcc} style={{ marginTop: 18 }}>+ Add line</Button><div style={{ flex: 1 }} /><span style={{ fontSize: 12, color: 'var(--ink-4)' }}>Tip: paste a row of 12 comma/tab-separated values into any month cell to fill the year.</span></div>}
       <div className="card" style={{ overflow: 'auto' }}>
         <table className="data-table dense" style={{ minWidth: 1400 }}>
-          <thead><tr><th style={{ position: 'sticky', left: 0, background: '#F9FBFC', zIndex: 2, minWidth: 220 }}>Account</th>{periods.map((p) => <th key={p} className="right" style={{ minWidth: 90 }}>{fmtPeriod(p).slice(0, 3)}</th>)}<th className="right" style={{ minWidth: 120 }}>FY total</th>{canEdit && <th />}</tr></thead>
+          <thead><tr><th style={{ position: 'sticky', left: 0, background: 'var(--surface-2)', zIndex: 2, minWidth: 220 }}>Account</th>{periods.map((p) => <th key={p} className="right" style={{ minWidth: 90 }}>{fmtPeriod(p).slice(0, 3)}</th>)}<th className="right" style={{ minWidth: 120 }}>FY total</th>{canEdit && <th />}</tr></thead>
           <tbody>
             {grouped.map((g) => (<Fragment key={g.gid ?? 'g'}>
-              <tr style={{ background: '#F9FBFC' }}><td colSpan={14 + (canEdit ? 1 : 0)} style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#5F6368', fontWeight: 600 }}>{g.name}</td></tr>
+              <tr style={{ background: 'var(--surface-2)' }}><td colSpan={14 + (canEdit ? 1 : 0)} style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-3)', fontWeight: 600 }}>{g.name}</td></tr>
               {g.lines.map((l) => (
                 <tr key={l.id}>
-                  <td style={{ position: 'sticky', left: 0, background: '#FFF', zIndex: 1 }}><div className="cell-primary"><span className="identifier" style={{ color: '#6E6E71', marginRight: 6 }}>{l.accountCode}</span>{l.accountName}</div></td>
+                  <td style={{ position: 'sticky', left: 0, background: 'var(--surface)', zIndex: 1 }}><div className="cell-primary"><span className="identifier" style={{ color: 'var(--ink-4)', marginRight: 6 }}>{l.accountCode}</span>{l.accountName}</div></td>
                   {l.months.map((m, i) => <td key={i} className="right">{canEdit ? <input className="field-input grid num" style={{ width: 84 }} value={m} onChange={(e) => setCell(l.id, i, Number(e.target.value) || 0)} onPaste={(e) => { if (paste(l.id, i, e.clipboardData.getData('text'))) e.preventDefault(); }} /> : <span className="money">{m ? fmtMoney(m, s.currency, { decimals: 0 }) : '—'}</span>}</td>)}
                   <td className="right money" style={{ fontWeight: 600 }}>{canEdit ? <input className="field-input grid num" style={{ width: 110 }} value={l.total} onChange={(e) => spread(l.id, Number(e.target.value) || 0)} title="Type an annual amount to spread evenly" /> : fmtMoney(l.total, s.currency, { decimals: 0 })}</td>
                   {canEdit && <td><Button size="sm" variant="ghost" onClick={() => save({ lines: b.lines.filter((x) => x.id !== l.id) })}>✕</Button></td>}
                 </tr>
               ))}
             </Fragment>))}
-            {b.lines.length === 0 && <tr><td colSpan={14} style={{ padding: 24, textAlign: 'center', color: '#6E6E71' }}>No lines yet — add accounts above or import a CSV from the register.</td></tr>}
+            {b.lines.length === 0 && <tr><td colSpan={14} style={{ padding: 24, textAlign: 'center', color: 'var(--ink-4)' }}>No lines yet — add accounts above or import a CSV from the register.</td></tr>}
           </tbody>
-          <tfoot><tr style={{ fontWeight: 700 }}><td style={{ position: 'sticky', left: 0, background: '#F9FBFC' }}>Net (income − expense)</td>{periods.map((_, i) => <td key={i} className="right money">{fmtMoney(b.lines.reduce((x, l) => x + (l.accountType === 'Income' ? l.months[i] : -l.months[i]), 0), s.currency, { decimals: 0 })}</td>)}<td className="right money">{fmtMoney(b.totalIncome - b.totalExpense, s.currency, { decimals: 0 })}</td>{canEdit && <td />}</tr></tfoot>
+          <tfoot><tr style={{ fontWeight: 700 }}><td style={{ position: 'sticky', left: 0, background: 'var(--surface-2)' }}>Net (income − expense)</td>{periods.map((_, i) => <td key={i} className="right money">{fmtMoney(b.lines.reduce((x, l) => x + (l.accountType === 'Income' ? l.months[i] : -l.months[i]), 0), s.currency, { decimals: 0 })}</td>)}<td className="right money">{fmtMoney(b.totalIncome - b.totalExpense, s.currency, { decimals: 0 })}</td>{canEdit && <td />}</tr></tfoot>
         </table>
       </div>
       <TextArea label="Notes" value={b.notes} onChange={(v) => save({ notes: v })} disabled={!canEdit && b.status !== 'Approved'} rows={2} />

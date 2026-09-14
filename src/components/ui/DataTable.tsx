@@ -1,6 +1,7 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
-import { SortIcon, SearchIcon, FilterIcon, DownloadIcon, ColumnsIcon, ChevronDownIcon } from '../Icons';
+import { SortIcon, SearchIcon, FilterIcon, DownloadIcon, ColumnsIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon, XIcon } from '../Icons';
 import { Button, CountBadge, EmptyState } from './primitives';
+import type { IllustrationKind } from './illustrations';
 import { ActionMenu, type MenuAction } from './overlays';
 import { toCSV, downloadText } from '../../lib/format';
 import { db, C, engine } from '../../store';
@@ -35,6 +36,9 @@ export interface DataTableProps<T> {
   emptyTitle?: string;
   emptyDescription?: string;
   emptyAction?: ReactNode;
+  /** Scene for the empty state; defaults to the current module's domain art (see EmptyState). */
+  emptyIllustration?: IllustrationKind;
+  emptyAnimated?: boolean;
   rowClass?: (row: T) => string | undefined;
   sort?: { key: string; dir: 'asc' | 'desc' };
   onSort?: (s: { key: string; dir: 'asc' | 'desc' }) => void;
@@ -42,10 +46,11 @@ export interface DataTableProps<T> {
   showTotals?: boolean;
   style?: CSSProperties;
   maxHeight?: number | string;
+  /** headers stick inside a scrolling wrapper by default; pass false to opt out */
   stickyHeader?: boolean;
 }
 
-export function DataTable<T extends Record<string, any>>({ rows, columns, rowKey, onRowClick, rowActions, selectable, selected, onSelect, dense, compact, empty, emptyTitle = 'Nothing here yet', emptyDescription, emptyAction, rowClass, sort, onSort, totalsLabel, showTotals, style, maxHeight, stickyHeader }: DataTableProps<T>) {
+export function DataTable<T extends Record<string, any>>({ rows, columns, rowKey, onRowClick, rowActions, selectable, selected, onSelect, dense, compact, empty, emptyTitle = 'Nothing here yet', emptyDescription, emptyAction, emptyIllustration, emptyAnimated, rowClass, sort, onSort, totalsLabel, showTotals, style, maxHeight, stickyHeader }: DataTableProps<T>) {
   const [localSort, setLocalSort] = useState<{ key: string; dir: 'asc' | 'desc' } | undefined>();
   const s = sort ?? localSort;
   const setS = onSort ?? setLocalSort;
@@ -73,14 +78,14 @@ export function DataTable<T extends Record<string, any>>({ rows, columns, rowKey
   if (rows.length === 0) {
     return (
       <div className="card" style={{ overflow: 'hidden', ...style }}>
-        {empty ?? <EmptyState title={emptyTitle} description={emptyDescription} action={emptyAction} />}
+        {empty ?? <EmptyState title={emptyTitle} description={emptyDescription} action={emptyAction} illustration={emptyIllustration} animated={emptyAnimated} />}
       </div>
     );
   }
   return (
     <div className="card table-scroll" style={{ maxHeight, ...style }}>
-      <table className={`data-table ${dense ? 'dense' : ''} ${compact ? 'compact' : ''}`}>
-        <thead style={stickyHeader ? { position: 'sticky', top: 0, zIndex: 1 } : undefined}>
+      <table className={`data-table ${dense ? 'dense' : ''} ${compact ? 'compact' : ''} ${stickyHeader === false ? 'no-sticky' : ''}`}>
+        <thead>
           <tr>
             {selectable && (
               <th style={{ width: 40 }}>
@@ -224,7 +229,7 @@ export function RegisterPage<T extends Record<string, any>>(props: RegisterProps
           {actions}
           {importAction && <Button variant="secondary" onClick={importAction}>Import</Button>}
           <ActionMenu trigger={<Button variant="secondary" icon={<DownloadIcon size={14} />}>Export <ChevronDownIcon size={12} /></Button>} actions={[{ label: 'CSV', onClick: () => doExport('CSV') }, { label: 'XLSX', onClick: () => doExport('XLSX') }, { label: 'PDF', onClick: () => doExport('PDF') }]} />
-          {primaryAction && <Button variant="primary" onClick={primaryAction.onClick} disabled={primaryAction.disabled} reason={primaryAction.reason}>+ {primaryAction.label}</Button>}
+          {primaryAction && <Button variant="primary" onClick={primaryAction.onClick} disabled={primaryAction.disabled} reason={primaryAction.reason} icon={<PlusIcon size={14} />}>{primaryAction.label}</Button>}
         </div>
       </div>
       {headerExtra}
@@ -307,7 +312,7 @@ export function RegisterPage<T extends Record<string, any>>(props: RegisterProps
       {activeFilterCount > 0 && !showFilters && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {Object.entries(fv).filter(([, v]) => v !== undefined && v !== '').map(([k, v]) => (
-            <span key={k} className="chip selected" onClick={() => setFv({ ...fv, [k]: '' })}>{k}: {String(v)} <span className="x">✕</span></span>
+            <span key={k} className="chip selected" onClick={() => setFv({ ...fv, [k]: '' })}>{k}: {String(v)} <span className="x" style={{ display: 'inline-flex' }}><XIcon size={11} /></span></span>
           ))}
         </div>
       )}
@@ -320,10 +325,11 @@ export function RegisterPage<T extends Record<string, any>>(props: RegisterProps
         onSelect={setSelected}
         emptyTitle={q || activeFilterCount ? `No ${entity ?? 'records'} match these filters` : tableProps.emptyTitle ?? `No ${entity ?? 'records'} yet`}
         emptyAction={q || activeFilterCount ? <Button variant="link" onClick={() => { setQ(''); setFv({}); }}>Clear filters</Button> : tableProps.emptyAction ?? (primaryAction ? <Button variant="primary" onClick={primaryAction.onClick}>+ {primaryAction.label}</Button> : undefined)}
+        emptyIllustration={q || activeFilterCount ? 'search' : tableProps.emptyIllustration}
         totalsLabel={`Totals for ${filtered.length} filtered row${filtered.length === 1 ? '' : 's'}`}
       />
       {filtered.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13, color: '#5F6368' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13, color: 'var(--ink-3)' }}>
           <span>
             Show{' '}
             <select className="field-input sm" style={{ width: 70, display: 'inline-block', height: 30 }} value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}>
@@ -332,12 +338,12 @@ export function RegisterPage<T extends Record<string, any>>(props: RegisterProps
             per page · {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, filtered.length)} of {filtered.length}
           </span>
           <div style={{ display: 'flex', gap: 4 }}>
-            <Button size="sm" variant="ghost" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>‹ Prev</Button>
+            <Button size="sm" variant="ghost" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)} icon={<ChevronLeftIcon size={13} />}>Prev</Button>
             {Array.from({ length: Math.min(totalPages, 7) }).map((_, i) => {
               const p = totalPages <= 7 ? i + 1 : Math.max(1, Math.min(totalPages - 6, safePage - 3)) + i;
               return <Button key={p} size="sm" variant={p === safePage ? 'primary' : 'ghost'} onClick={() => setPage(p)}>{p}</Button>;
             })}
-            <Button size="sm" variant="ghost" disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>Next ›</Button>
+            <Button size="sm" variant="ghost" disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>Next <ChevronRightIcon size={13} /></Button>
           </div>
         </div>
       )}

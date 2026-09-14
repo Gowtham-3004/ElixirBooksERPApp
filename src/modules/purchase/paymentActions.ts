@@ -139,7 +139,7 @@ export function reversePayment(id: string, reason: string): Payment {
     if (p.journalId) engine.reverseJournal(p.journalId, { reason, date });
     p.allocations.forEach((a) => engine.unsettleOpenItem(a.openItemId, p.id));
     db.where<any>(C.journals, (j) => j.sourceType === 'FX Settlement' && j.sourceId === p.id && j.status === 'Posted').forEach((j) => engine.reverseJournal(j.id, { reason: `Reversal of ${p.number}`, date }));
-    if (adv) db.update<OpenItem>(C.openItems, adv.id, { status: 'Settled', outstanding: 0, baseOutstanding: 0 });
+    if (adv && adv.outstanding > 0.005) engine.settleOpenItem(adv.id, { amount: adv.outstanding, docType: 'Payment Reversal', docId: p.id, docNumber: p.number, date, rate: adv.rate, postFx: false });
     p.allocations.forEach((a) => { if (a.docType === 'Vendor Invoice') { const v = db.find<any>(C.vendorInvoices, a.docId); if (v) db.patchSilent<any>(C.vendorInvoices, v.id, { totals: { ...v.totals, paid: r2(Math.max(0, (v.totals.paid ?? 0) - a.amount)), due: r2(v.totals.due + a.amount) } }); } });
     if (p.batchId) { const b = db.find<PaymentBatch>(C.paymentBatches, p.batchId); if (b) db.update<PaymentBatch>(C.paymentBatches, b.id, { lines: b.lines.map((l) => (l.paymentId === p.id ? { ...l, status: 'Failed', error: `Reversed: ${reason}` } : l)), status: b.lines.every((l) => l.paymentId === p.id || l.status === 'Failed') ? 'Reversed' : 'Partially Completed' }); }
     const out = db.update<Payment>(C.payments, id, { status: 'Reversed', reversalReason: reason });

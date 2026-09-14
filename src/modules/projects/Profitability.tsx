@@ -34,7 +34,7 @@ export default function Profitability({ projectId }: { projectId?: string }) {
     { key: 'expenses', label: 'Expenses', align: 'right', render: (r) => r.expenses ? <Money value={r.expenses} currency={s.currency} /> : <Muted>—</Muted>, total: () => <span className="money">{fmtMoney(totals.expenses, s.currency)}</span> },
     { key: 'overhead', label: `Overhead ${settings.prjOverheadPct}%`, align: 'right', render: (r) => <Money value={r.overhead} currency={s.currency} />, total: () => <span className="money">{fmtMoney(totals.overhead, s.currency)}</span> },
     { key: 'cost', label: 'Total cost', align: 'right', render: (r) => <Money value={r.cost} currency={s.currency} />, total: () => <span className="money" style={{ fontWeight: 600 }}>{fmtMoney(totals.cost, s.currency)}</span> },
-    { key: 'margin', label: 'Margin', align: 'right', sortable: true, render: (r) => <div><Money value={r.margin} currency={s.currency} tone="auto" /><div><Muted>{fmtPct(r.marginPct)}</Muted></div></div>, total: () => <span className="money" style={{ fontWeight: 600, color: totals.margin >= 0 ? '#12784E' : '#C0393F' }}>{fmtMoney(totals.margin, s.currency)}</span> },
+    { key: 'margin', label: 'Margin', align: 'right', sortable: true, render: (r) => <div><Money value={r.margin} currency={s.currency} tone="auto" /><div><Muted>{fmtPct(r.marginPct)}</Muted></div></div>, total: () => <span className="money" style={{ fontWeight: 600, color: totals.margin >= 0 ? 'var(--good)' : 'var(--danger)' }}>{fmtMoney(totals.margin, s.currency)}</span> },
     { key: 'meter', label: 'Margin %', render: (r) => <div style={{ minWidth: 110 }}><Meter value={Math.max(0, r.marginPct)} max={100} tone={r.marginPct >= 30 ? 'good' : r.marginPct >= 10 ? 'warn' : 'danger'} /></div> },
   ];
   const exportCsv = () => {
@@ -53,16 +53,16 @@ export default function Profitability({ projectId }: { projectId?: string }) {
         </div>
       </Card>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12 }}>
-        <KpiTile label="Revenue (recognised)" value={fmtMoney(totals.revenue, s.currency)} sub={`${rows.length} ${group}(s)`} />
-        <KpiTile label="Total cost" value={fmtMoney(totals.cost, s.currency)} sub={`${totals.hours.toFixed(0)} h delivered`} />
-        <KpiTile label="Margin" value={fmtMoney(totals.margin, s.currency)} delta={fmtPct(totals.revenue ? (totals.margin / totals.revenue) * 100 : 0)} deltaTone={totals.margin >= 0 ? 'good' : 'bad'} sub="revenue − cost − overhead" />
+        <KpiTile label="Revenue (recognised)" amount={totals.revenue} currency={s.currency} sub={`${rows.length} ${group}(s)`} />
+        <KpiTile label="Total cost" amount={totals.cost} currency={s.currency} sub={`${totals.hours.toFixed(0)} h delivered`} />
+        <KpiTile label="Margin" amount={totals.margin} currency={s.currency} delta={fmtPct(totals.revenue ? (totals.margin / totals.revenue) * 100 : 0)} deltaTone={totals.margin >= 0 ? 'good' : 'bad'} sub="revenue − cost − overhead" />
         <KpiTile label="Cost mix" value={fmtPct(totals.cost ? (totals.resourceCost / totals.cost) * 100 : 0)} sub="resource share of cost" meta={`Purchases ${fmtMoney(totals.purchases, s.currency)} · expenses ${fmtMoney(totals.expenses, s.currency)}`} />
       </div>
       {focus && (
         <Card title={`Focus · ${focus.label}`} actions={<Button size="sm" variant="secondary" onClick={() => nav.go(`projects/projects/${focus.projectId}`)}>Open project</Button>}>
           <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap' }}>
             {[['Revenue', focus.revenue], ['Billed', focus.billed], ['Resource cost', focus.resourceCost], ['Purchases', focus.purchases], ['Expenses', focus.expenses], ['Overhead', focus.overhead], ['Margin', focus.margin]].map(([k, v]) => (
-              <div key={String(k)}><div className="section-label">{k}</div><div className="money" style={{ fontSize: 15, fontWeight: 600, color: k === 'Margin' ? ((v as number) >= 0 ? '#12784E' : '#C0393F') : undefined }}>{fmtMoney(v as number, s.currency)}</div></div>
+              <div key={String(k)}><div className="section-label">{k}</div><div className="money" style={{ fontSize: 15, fontWeight: 600, color: k === 'Margin' ? ((v as number) >= 0 ? 'var(--good)' : 'var(--danger)') : undefined }}>{fmtMoney(v as number, s.currency)}</div></div>
             ))}
           </div>
         </Card>
@@ -88,7 +88,7 @@ export default function Profitability({ projectId }: { projectId?: string }) {
                     <td className="right money">{fmtMoney(x.amount, s.currency)}</td>
                   </tr>
                 ))}
-                {!drill.sources.length && <tr><td colSpan={3} style={{ textAlign: 'center', color: '#5F6368', padding: 16 }}>No source documents in this window</td></tr>}
+                {!drill.sources.length && <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--ink-3)', padding: 16 }}>No source documents in this window</td></tr>}
               </tbody>
             </table>
           </>

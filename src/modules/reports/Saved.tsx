@@ -18,7 +18,7 @@ export function SavedReports() {
   const open = (v: SavedView) => nav.go(`reports/${v.register}`, Object.fromEntries(Object.entries(v.filters).map(([k, val]) => [k, String(val ?? '')])));
   const cols: Column<SavedView>[] = [
     { key: 'name', label: 'Report', render: (v) => <div><div className="cell-primary link">{v.name}</div><div className="cell-secondary">{REPORT_LABELS[v.register] ?? v.register}</div></div>, sortable: true },
-    { key: 'filters', label: 'Filters', render: (v) => <span className="identifier" style={{ fontSize: 11, color: '#5F6368' }}>{Object.entries(v.filters).filter(([, x]) => x !== '' && x !== undefined).map(([k, x]) => `${k}=${x}`).join(' · ') || 'defaults'}</span> },
+    { key: 'filters', label: 'Filters', render: (v) => <span className="identifier" style={{ fontSize: 11, color: 'var(--ink-3)' }}>{Object.entries(v.filters).filter(([, x]) => x !== '' && x !== undefined).map(([k, x]) => `${k}=${x}`).join(' · ') || 'defaults'}</span> },
     { key: 'ownerId', label: 'Owner', render: (v) => db.find<any>(C.users, v.ownerId)?.name ?? '—' },
     { key: 'shared', label: 'Visibility', render: (v) => <Badge status={v.shared ? 'Active' : 'Draft'}>{v.shared ? 'Shared' : 'Private'}</Badge> },
     { key: 'isDefault', label: 'Default', render: (v) => (v.isDefault ? <Badge status="Posted">Default</Badge> : '—') },

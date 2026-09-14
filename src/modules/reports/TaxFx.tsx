@@ -29,20 +29,20 @@ export function GstSummaryReport() {
       <div className="section-label">Outward supplies (output tax) — from registers</div>
       <div className="card" style={{ overflow: 'hidden' }}><table className="data-table dense"><thead><tr><th>Nature of supply</th><th className="right">Docs</th><th className="right">Taxable value</th><th className="right">CGST</th><th className="right">SGST</th><th className="right">IGST</th><th className="right">Cess</th></tr></thead><tbody>
         {heads.map((h) => <tr key={h.label} style={{ cursor: 'pointer' }} onClick={() => nav.go(h.label.startsWith('B2B') ? 'taxation/b2b' : h.label.startsWith('B2C') ? 'taxation/b2c' : 'taxation/cdn')}><td>{h.label}</td><td className="right">{h.count}</td>{cell(h.taxable)}{cell(h.cgst)}{cell(h.sgst)}{cell(h.igst)}{cell(h.cess)}</tr>)}
-        <tr style={{ background: '#F9FBFC', fontWeight: 700 }}><td>Total output tax (registers)</td><td /><td className="right money">{fmtMoney(outTotal.taxable, s.currency)}</td><td className="right money">{fmtMoney(outTotal.cgst, s.currency)}</td><td className="right money">{fmtMoney(outTotal.sgst, s.currency)}</td><td className="right money">{fmtMoney(outTotal.igst, s.currency)}</td><td /></tr>
-        <tr style={{ color: '#5F6368' }}><td>Output tax per ledger (2300/2301/2302 movement)</td><td /><td /><td className="right money">{fmtMoney(data.out.cgst, s.currency)}</td><td className="right money">{fmtMoney(data.out.sgst, s.currency)}</td><td className="right money">{fmtMoney(data.out.igst, s.currency)}</td><td /></tr>
+        <tr style={{ background: 'var(--surface-2)', fontWeight: 700 }}><td>Total output tax (registers)</td><td /><td className="right money">{fmtMoney(outTotal.taxable, s.currency)}</td><td className="right money">{fmtMoney(outTotal.cgst, s.currency)}</td><td className="right money">{fmtMoney(outTotal.sgst, s.currency)}</td><td className="right money">{fmtMoney(outTotal.igst, s.currency)}</td><td /></tr>
+        <tr style={{ color: 'var(--ink-3)' }}><td>Output tax per ledger (2300/2301/2302 movement)</td><td /><td /><td className="right money">{fmtMoney(data.out.cgst, s.currency)}</td><td className="right money">{fmtMoney(data.out.sgst, s.currency)}</td><td className="right money">{fmtMoney(data.out.igst, s.currency)}</td><td /></tr>
       </tbody></table></div>
       <div className="section-label">Input tax credit (ITC)</div>
       <div className="card" style={{ overflow: 'hidden' }}><table className="data-table dense"><thead><tr><th>Credit head</th><th className="right">Docs</th><th className="right">Taxable</th><th className="right">CGST</th><th className="right">SGST</th><th className="right">IGST</th></tr></thead><tbody>
         <tr style={{ cursor: 'pointer' }} onClick={() => nav.go('taxation/itc')}><td>Eligible ITC (registered suppliers)</td><td className="right">{data.elig.count}</td>{cell(data.elig.taxable)}{cell(data.elig.cgst)}{cell(data.elig.sgst)}{cell(data.elig.igst)}</tr>
         <tr style={{ cursor: 'pointer' }} onClick={() => nav.go('taxation/itc')}><td>Ineligible / blocked</td><td className="right">{data.inel.count}</td>{cell(data.inel.taxable)}{cell(data.inel.cgst)}{cell(data.inel.sgst)}{cell(data.inel.igst)}</tr>
-        <tr style={{ color: '#5F6368' }}><td>Input tax per ledger (1400/1401/1402 movement)</td><td /><td /><td className="right money">{fmtMoney(data.inp.cgst, s.currency)}</td><td className="right money">{fmtMoney(data.inp.sgst, s.currency)}</td><td className="right money">{fmtMoney(data.inp.igst, s.currency)}</td></tr>
+        <tr style={{ color: 'var(--ink-3)' }}><td>Input tax per ledger (1400/1401/1402 movement)</td><td /><td /><td className="right money">{fmtMoney(data.inp.cgst, s.currency)}</td><td className="right money">{fmtMoney(data.inp.sgst, s.currency)}</td><td className="right money">{fmtMoney(data.inp.igst, s.currency)}</td></tr>
       </tbody></table></div>
       <div className="grid-4">
-        <KpiTile label="Net CGST payable" value={fmtMoney(net.cgst, s.currency)} deltaTone={net.cgst > 0 ? 'bad' : 'good'} />
-        <KpiTile label="Net SGST payable" value={fmtMoney(net.sgst, s.currency)} deltaTone={net.sgst > 0 ? 'bad' : 'good'} />
-        <KpiTile label="Net IGST payable" value={fmtMoney(net.igst, s.currency)} deltaTone={net.igst > 0 ? 'bad' : 'good'} />
-        <KpiTile label="Total GST payable (before set-off)" value={fmtMoney(net.cgst + net.sgst + net.igst, s.currency)} onClick={() => nav.go(`taxation/gstr3b?period=${period}`)} sub="Open GSTR-3B for set-off →" />
+        <KpiTile label="Net CGST payable" amount={net.cgst} currency={s.currency} deltaTone={net.cgst > 0 ? 'bad' : 'good'} />
+        <KpiTile label="Net SGST payable" amount={net.sgst} currency={s.currency} deltaTone={net.sgst > 0 ? 'bad' : 'good'} />
+        <KpiTile label="Net IGST payable" amount={net.igst} currency={s.currency} deltaTone={net.igst > 0 ? 'bad' : 'good'} />
+        <KpiTile label="Total GST payable (before set-off)" amount={net.cgst + net.sgst + net.igst} currency={s.currency} onClick={() => nav.go(`taxation/gstr3b?period=${period}`)} sub="Open GSTR-3B for set-off →" />
       </div>
     </ReportFrame>
   );
@@ -61,7 +61,7 @@ export function TdsReport() {
     { key: 'section', label: 'Section', render: (r) => <Badge status="Draft">{r.section}</Badge> },
     { key: 'base', label: 'Base', align: 'right', render: (r) => <span className="money">{fmtMoney(r.base, s.currency)}</span> },
     { key: 'rate', label: 'Rate', render: (r) => (r.amount ? `${r.rate}%` : 'Nil') },
-    { key: 'amount', label: 'TDS / TCS', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600, color: r.amount ? '#C0393F' : '#B0B5BF' }}>{r.amount ? fmtMoney(r.amount, s.currency) : '—'}</span>, total: () => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(total, s.currency)}</span> },
+    { key: 'amount', label: 'TDS / TCS', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600, color: r.amount ? 'var(--danger)' : 'var(--ink-5)' }}>{r.amount ? fmtMoney(r.amount, s.currency) : '—'}</span>, total: () => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(total, s.currency)}</span> },
     { key: 'quarter', label: 'Quarter' },
     { key: 'certificateNo', label: 'Certificate', render: (r) => <span className="identifier">{r.certificateNo ?? '—'}</span> },
     { key: 'status', label: 'Status', render: (r) => <Badge status={r.status === 'Exempt' ? 'Cancelled' : r.status === 'Deducted' ? 'Posted' : r.status} >{r.status}</Badge> },
@@ -94,14 +94,14 @@ export function FxExposureReport() {
     { key: 'baseOutstanding', label: 'Base carrying', align: 'right', render: (r) => <span className="money">{fmtMoney(r.baseOutstanding, s.currency)}</span> },
     { key: 'currentRate', label: 'Current rate', align: 'right', render: (r) => <span className="money" title={r.rateSource}>{r.currentRate}</span> },
     { key: 'currentBase', label: 'At current rate', align: 'right', render: (r) => <span className="money">{fmtMoney(r.currentBase, s.currency)}</span> },
-    { key: 'unrealized', label: 'Unrealized gain / (loss)', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600, color: r.unrealized >= 0 ? '#12784E' : '#C0393F' }}>{fmtMoney(r.unrealized, s.currency)}</span>, total: (rs) => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(rs.reduce((x, r) => x + r.unrealized, 0), s.currency)}</span> },
+    { key: 'unrealized', label: 'Unrealized gain / (loss)', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600, color: r.unrealized >= 0 ? 'var(--good)' : 'var(--danger)' }}>{fmtMoney(r.unrealized, s.currency)}</span>, total: (rs) => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(rs.reduce((x, r) => x + r.unrealized, 0), s.currency)}</span> },
   ];
   return (
     <ReportFrame id="fx-exposure" title="Currency-wise AR / AP & exposure" rangeLabel={`As at ${fmtDate(f.asOf)}`} filterState={f} exportColumns={cols.map((c) => ({ key: c.key, label: String(c.label) }))} exportRows={() => rows as any}
       filters={<><div><label className="field-label">As at</label><input type="date" className="field-input sm" value={f.asOf} onChange={(e) => set({ asOf: e.target.value })} /></div><div><label className="field-label">Side</label><select className="field-input sm" value={f.side} onChange={(e) => set({ side: e.target.value })}><option value="">AR + AP</option><option value="Customer">Receivables</option><option value="Supplier">Payables</option></select></div></>}>
       <div className="grid-2" style={{ alignItems: 'start' }}>
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}><div style={{ padding: '10px 14px', fontWeight: 600, fontSize: 13, borderBottom: '1px solid #EFEFEF' }}>Exposure by currency</div><table className="data-table dense"><thead><tr><th>Currency</th><th className="right">AR (txn)</th><th className="right">AP (txn)</th><th className="right">Net base</th><th className="right">Unrealized</th></tr></thead><tbody>{byCur.map((c) => <tr key={c.currency}><td><span className="currency-tag">{c.currency}</span></td><td className="right money">{fmtMoney(c.ar, c.currency, { code: true })}</td><td className="right money">{fmtMoney(c.ap, c.currency, { code: true })}</td><td className="right money">{fmtMoney(c.arBase - c.apBase, s.currency)}</td><td className="right money" style={{ color: c.unrealized >= 0 ? '#12784E' : '#C0393F' }}>{fmtMoney(c.unrealized, s.currency)}</td></tr>)}{byCur.length === 0 && <tr><td colSpan={5} style={{ color: '#6E6E71' }}>No foreign-currency open items</td></tr>}</tbody></table></div>
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}><div style={{ padding: '10px 14px', fontWeight: 600, fontSize: 13, borderBottom: '1px solid #EFEFEF' }}>Bank balances by currency</div><table className="data-table dense"><thead><tr><th>Account</th><th>Currency</th><th className="right">Balance (base)</th></tr></thead><tbody>{banks.map((b) => <tr key={b.id} style={{ cursor: 'pointer' }} onClick={() => nav.go(`accounting/ledger?account=${b.id}`)}><td><span className="identifier">{b.code}</span> · {b.name}</td><td><span className="currency-tag">{b.currency}</span></td><td className="right money">{fmtMoney(b.balance, s.currency)}</td></tr>)}</tbody></table></div>
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}><div style={{ padding: '10px 14px', fontWeight: 600, fontSize: 13, borderBottom: '1px solid var(--hairline)' }}>Exposure by currency</div><table className="data-table dense"><thead><tr><th>Currency</th><th className="right">AR (txn)</th><th className="right">AP (txn)</th><th className="right">Net base</th><th className="right">Unrealized</th></tr></thead><tbody>{byCur.map((c) => <tr key={c.currency}><td><span className="currency-tag">{c.currency}</span></td><td className="right money">{fmtMoney(c.ar, c.currency, { code: true })}</td><td className="right money">{fmtMoney(c.ap, c.currency, { code: true })}</td><td className="right money">{fmtMoney(c.arBase - c.apBase, s.currency)}</td><td className="right money" style={{ color: c.unrealized >= 0 ? 'var(--good)' : 'var(--danger)' }}>{fmtMoney(c.unrealized, s.currency)}</td></tr>)}{byCur.length === 0 && <tr><td colSpan={5} style={{ color: 'var(--ink-4)' }}>No foreign-currency open items</td></tr>}</tbody></table></div>
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}><div style={{ padding: '10px 14px', fontWeight: 600, fontSize: 13, borderBottom: '1px solid var(--hairline)' }}>Bank balances by currency</div><table className="data-table dense"><thead><tr><th>Account</th><th>Currency</th><th className="right">Balance (base)</th></tr></thead><tbody>{banks.map((b) => <tr key={b.id} style={{ cursor: 'pointer' }} onClick={() => nav.go(`accounting/ledger?account=${b.id}`)}><td><span className="identifier">{b.code}</span> · {b.name}</td><td><span className="currency-tag">{b.currency}</span></td><td className="right money">{fmtMoney(b.balance, s.currency)}</td></tr>)}</tbody></table></div>
       </div>
       <DataTable rows={rows} rowKey={(r) => r.openItemId} columns={cols} dense showTotals onRowClick={(r) => nav.go(r.partyType === 'Customer' ? 'sales/ar' : 'purchase/ap')} emptyTitle="No foreign-currency open items" emptyDescription="Foreign invoices (e.g. USD export sales) appear here with their booked and current rates." />
     </ReportFrame>
@@ -129,16 +129,16 @@ export function FxGainLossReport() {
     { key: 'amount', label: 'Amount', align: 'right', render: (r) => <span className="money">{fmtMoney(r.amount, r.currency, { code: true })}</span> },
     { key: 'bookedRate', label: 'Booked', align: 'right' },
     { key: 'settledRate', label: 'Settled', align: 'right' },
-    { key: 'gainLoss', label: 'Realized gain / (loss)', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600, color: r.gainLoss >= 0 ? '#12784E' : '#C0393F' }}>{fmtMoney(r.gainLoss, s.currency)}</span>, total: (rs) => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(rs.reduce((x, r) => x + r.gainLoss, 0), s.currency)}</span> },
+    { key: 'gainLoss', label: 'Realized gain / (loss)', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600, color: r.gainLoss >= 0 ? 'var(--good)' : 'var(--danger)' }}>{fmtMoney(r.gainLoss, s.currency)}</span>, total: (rs) => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(rs.reduce((x, r) => x + r.gainLoss, 0), s.currency)}</span> },
   ];
   return (
     <ReportFrame id="fx-gainloss" title="FX gain / loss & revaluation" rangeLabel={rangeLabel(range)} filterState={f} exportColumns={cols.map((c) => ({ key: c.key, label: String(c.label) }))} exportRows={() => rows as any}
       filters={<RangeBar f={f} set={set} />}>
       <div className="grid-4">
-        <KpiTile label="Realized gain (ledger 4910)" value={fmtMoney(ledger.realizedGain, s.currency)} onClick={() => nav.go(`accounting/ledger?account=${IDS.accFxGain}`)} />
-        <KpiTile label="Realized loss (ledger 5600)" value={fmtMoney(ledger.realizedLoss, s.currency)} onClick={() => nav.go(`accounting/ledger?account=${IDS.accFxLoss}`)} />
-        <KpiTile label="Unrealized gain (4920)" value={fmtMoney(ledger.unrealGain, s.currency)} sub="period-end revaluation" />
-        <KpiTile label="Unrealized loss (5610)" value={fmtMoney(ledger.unrealLoss, s.currency)} sub="period-end revaluation" />
+        <KpiTile label="Realized gain (ledger 4910)" amount={ledger.realizedGain} currency={s.currency} onClick={() => nav.go(`accounting/ledger?account=${IDS.accFxGain}`)} />
+        <KpiTile label="Realized loss (ledger 5600)" amount={ledger.realizedLoss} currency={s.currency} onClick={() => nav.go(`accounting/ledger?account=${IDS.accFxLoss}`)} />
+        <KpiTile label="Unrealized gain (4920)" amount={ledger.unrealGain} currency={s.currency} sub="period-end revaluation" />
+        <KpiTile label="Unrealized loss (5610)" amount={ledger.unrealLoss} currency={s.currency} sub="period-end revaluation" />
       </div>
       <div className="section-title">Realized gain / loss on settlements (from open-item settlement history)</div>
       <DataTable rows={rows} rowKey={(r) => r.docNumber + r.settledBy + r.date} columns={cols} dense showTotals emptyTitle="No realized FX in this range" emptyDescription="Settling a foreign-currency invoice at a different rate posts a realized gain or loss." />
@@ -146,7 +146,7 @@ export function FxGainLossReport() {
       <div className="card" style={{ overflow: 'hidden' }}><table className="data-table dense"><thead><tr><th>Run / journal</th><th>Date</th><th>Type</th><th>Narration</th><th className="right">Amount</th><th>Status</th></tr></thead><tbody>
         {revals.map((r: any) => <tr key={r.id} style={{ cursor: 'pointer' }} onClick={() => nav.go('accounting/revaluation')}><td className="identifier link">{r.number ?? r.id}</td><td>{fmtDate(r.date ?? r.asOf)}</td><td>Revaluation</td><td>{r.narration ?? `${r.currency ?? ''} @ ${r.rate ?? ''}`}</td><td className="right money">{fmtMoney(r.total ?? r.amount ?? 0, s.currency)}</td><td><Badge status={r.status ?? 'Posted'} /></td></tr>)}
         {fxJournals.map((j) => <tr key={j.id} style={{ cursor: 'pointer' }} onClick={() => nav.go(`accounting/journals/${j.id}`)}><td className="identifier link">{j.number}</td><td>{fmtDate(j.date)}</td><td>{j.sourceType}</td><td>{j.narration}</td><td className="right money">{fmtMoney(j.totalDr, s.currency)}</td><td><Badge status={j.status} /></td></tr>)}
-        {revals.length + fxJournals.length === 0 && <tr><td colSpan={6} style={{ color: '#6E6E71' }}>No revaluation runs or FX journals in this range — run one under Accounting › FX revaluation.</td></tr>}
+        {revals.length + fxJournals.length === 0 && <tr><td colSpan={6} style={{ color: 'var(--ink-4)' }}>No revaluation runs or FX journals in this range — run one under Accounting › FX revaluation.</td></tr>}
       </tbody></table></div>
     </ReportFrame>
   );
@@ -169,7 +169,7 @@ export function RateAuditReport() {
   return (
     <ReportFrame id="fx-rates" title="Exchange rate audit" rangeLabel={`${rows.length} rates on file`} exportColumns={cols.filter((c) => c.key !== 'pair').map((c) => ({ key: c.key, label: String(c.label) }))} exportRows={() => rows as any}>
       <DataTable rows={rows} columns={cols} dense onRowClick={() => nav.go('accounting/fx-rates')} emptyTitle="No exchange rates" />
-      <div style={{ fontSize: 12, color: '#6E6E71' }}>Resolution hierarchy: Spot → Closing → Manual → Imported → Historical → Average; cross via INR/USD (FR-FX-003). Current USD/INR: {engine.resolveRate('USD', s.currency).rate} ({engine.resolveRate('USD', s.currency).type}).</div>
+      <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>Resolution hierarchy: Spot → Closing → Manual → Imported → Historical → Average; cross via INR/USD (FR-FX-003). Current USD/INR: {engine.resolveRate('USD', s.currency).rate} ({engine.resolveRate('USD', s.currency).type}).</div>
     </ReportFrame>
   );
 }

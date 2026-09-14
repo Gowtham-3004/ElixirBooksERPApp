@@ -35,15 +35,15 @@ function RoleCards() {
         {roles.map((r) => {
           const n = users.filter((u) => u.roleIds.includes(r.id)).length;
           return (
-            <div key={r.id} className="card" style={{ padding: '16px 20px', cursor: 'pointer', display: 'flex', gap: 14, alignItems: 'flex-start' }} onClick={() => nav.go(`admin/roles/${r.id}`)} onMouseOver={(e) => (e.currentTarget.style.borderColor = r.color ?? '#325CFF')} onMouseOut={(e) => (e.currentTarget.style.borderColor = '#EAEAEA')}>
-              <div style={{ width: 36, height: 36, borderRadius: 9, background: (r.color ?? '#325CFF') + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><span style={{ fontSize: 16 }}>👤</span></div>
+            <div key={r.id} className="card" style={{ padding: '16px 20px', cursor: 'pointer', display: 'flex', gap: 14, alignItems: 'flex-start' }} onClick={() => nav.go(`admin/roles/${r.id}`)} onMouseOver={(e) => (e.currentTarget.style.borderColor = r.color ?? 'var(--accent)')} onMouseOut={(e) => (e.currentTarget.style.borderColor = 'var(--line)')}>
+              <div style={{ width: 36, height: 36, borderRadius: 9, background: r.color ? r.color + '20' : 'var(--accent-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><span style={{ fontSize: 16 }}>👤</span></div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, gap: 8 }}>
                   <span style={{ fontSize: 14, fontWeight: 600 }}>{r.name} {r.isSystem && <Badge status="Locked">System</Badge>}</span>
-                  <span style={{ fontSize: 12, color: '#5F6368', whiteSpace: 'nowrap' }}>{n} user{n !== 1 ? 's' : ''}</span>
+                  <span style={{ fontSize: 12, color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>{n} user{n !== 1 ? 's' : ''}</span>
                 </div>
-                <div style={{ fontSize: 12, color: '#5F6368', lineHeight: 1.5 }}>{r.description}</div>
-                <div style={{ fontSize: 11, color: '#6E6E71', marginTop: 6 }}>{r.code} · {r.dataScope} scope · {r.permissions.includes('*') ? 'all permissions' : `${r.permissions.length} permission rule${r.permissions.length === 1 ? '' : 's'}`}</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.5 }}>{r.description}</div>
+                <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 6 }}>{r.code} · {r.dataScope} scope · {r.permissions.includes('*') ? 'all permissions' : `${r.permissions.length} permission rule${r.permissions.length === 1 ? '' : 's'}`}</div>
               </div>
             </div>
           );
@@ -54,7 +54,7 @@ function RoleCards() {
           <TextField label="Name" required value={f.name} onChange={(v) => setF({ ...f, name: v })} autoFocus />
           <TextField label="Code" value={f.code} onChange={(v) => setF({ ...f, code: v })} placeholder="Derived from the name" uppercase />
           <TextArea label="Description" value={f.description} onChange={(v) => setF({ ...f, description: v })} rows={2} />
-          <div style={{ fontSize: 12, color: '#6E6E71' }}>Permissions are set in the editor after creation.</div>
+          <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>Permissions are set in the editor after creation.</div>
         </div>
       </Drawer>
     </div>
@@ -69,7 +69,7 @@ function RoleEditor({ id }: { id: string }) {
   const [perms, setPerms] = useState<string[] | null>(null);
   const [meta, setMeta] = useState<{ name: string; description: string; dataScope: Role['dataScope'] } | null>(null);
   const [del, setDel] = useState(false);
-  if (!role) return <div className="page"><EmptyState icon="🔒" title="Role not found" action={<Button variant="secondary" onClick={() => nav.go('admin/roles')}>Back to roles</Button>} /></div>;
+  if (!role) return <div className="page"><EmptyState illustration="not-found" title="Role not found" action={<Button variant="secondary" onClick={() => nav.go('admin/roles')}>Back to roles</Button>} /></div>;
   const current = perms ?? role.permissions;
   const m = meta ?? { name: role.name, description: role.description, dataScope: role.dataScope };
   const readOnly = role.isSystem || !(s.can('admin.roles.edit') || s.can('admin.roles.*') || s.isTenantOwner);
@@ -141,7 +141,7 @@ function RoleEditor({ id }: { id: string }) {
       <PageHeader back={{ label: 'Roles & permissions', path: 'admin/roles' }} title={<span>{role.name} {role.isSystem && <Badge status="Locked">System role</Badge>}</span>} subtitle={`${role.code} · ${count} granted actions · ${users.length} user${users.length === 1 ? '' : 's'}`}
         actions={<>
           <Button variant="secondary" onClick={duplicate}>Duplicate</Button>
-          {!role.isSystem && <Button variant="danger" onClick={() => setDel(true)} disabled={readOnly || users.length > 0} reason={users.length ? `${users.length} user(s) hold this role` : undefined}>Delete</Button>}
+          {!role.isSystem && <Button variant="tinted" tone="danger" onClick={() => setDel(true)} disabled={readOnly || users.length > 0} reason={users.length ? `${users.length} user(s) hold this role` : undefined}>Delete</Button>}
           {dirty && <Button variant="ghost" onClick={() => { setPerms(null); setMeta(null); }}>Discard</Button>}
           <Button variant="primary" onClick={save} disabled={readOnly || !dirty} reason={readOnly ? (role.isSystem ? 'System roles are read-only — duplicate to customise' : 'Requires admin.roles.edit') : !dirty ? 'No changes' : undefined}>Save role</Button>
         </>} />
@@ -156,14 +156,14 @@ function RoleEditor({ id }: { id: string }) {
                   const full = md.resources.every((r) => PERMISSION_ACTIONS.every((a) => has(md.module, r.id, a)));
                   return (
                     <Fragment key={md.module}>
-                      <tr style={{ background: '#F9FBFC' }}>
+                      <tr style={{ background: 'var(--surface-2)' }}>
                         <td colSpan={PERMISSION_ACTIONS.length + 1} style={{ fontWeight: 600 }}>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: readOnly ? 'default' : 'pointer' }}><input type="checkbox" className="checkbox" checked={full} disabled={readOnly} onChange={() => toggleModule(md.module)} /> {md.label} <span style={{ fontSize: 11, color: '#6E6E71', fontWeight: 400 }}>{md.module}.*</span></label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: readOnly ? 'default' : 'pointer' }}><input type="checkbox" className="checkbox" checked={full} disabled={readOnly} onChange={() => toggleModule(md.module)} /> {md.label} <span style={{ fontSize: 11, color: 'var(--ink-4)', fontWeight: 400 }}>{md.module}.*</span></label>
                         </td>
                       </tr>
                       {md.resources.map((r) => (
                         <tr key={`${md.module}.${r.id}`}>
-                          <td style={{ paddingLeft: 32 }}>{r.label} <span style={{ fontSize: 11, color: '#B0B5BF' }}>{r.id}</span></td>
+                          <td style={{ paddingLeft: 32 }}>{r.label} <span style={{ fontSize: 11, color: 'var(--ink-5)' }}>{r.id}</span></td>
                           {PERMISSION_ACTIONS.map((a) => (
                             <td key={a} style={{ textAlign: 'center' }}><input type="checkbox" className="checkbox" checked={has(md.module, r.id, a)} disabled={readOnly} onChange={() => toggle(md.module, r.id, a)} title={`${md.module}.${r.id}.${a}`} /></td>
                           ))}
@@ -185,12 +185,12 @@ function RoleEditor({ id }: { id: string }) {
             </div>
           </Card>
           <Card title="Permission strings">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{current.length ? current.map((p) => <span key={p} className="chip" style={{ fontSize: 11 }}>{p}</span>) : <span style={{ fontSize: 12, color: '#5F6368' }}>No permissions granted</span>}</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{current.length ? current.map((p) => <span key={p} className="chip" style={{ fontSize: 11 }}>{p}</span>) : <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>No permissions granted</span>}</div>
           </Card>
           <Card title={`Users in role · ${users.length}`}>
-            {users.length === 0 && <div style={{ fontSize: 13, color: '#5F6368' }}>No users hold this role.</div>}
+            {users.length === 0 && <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>No users hold this role.</div>}
             {users.map((u) => (
-              <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid #F5F5F5', cursor: 'pointer' }} onClick={() => nav.go(`admin/users/${u.id}`)}>
+              <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--hairline)', cursor: 'pointer' }} onClick={() => nav.go(`admin/users/${u.id}`)}>
                 <Avatar name={u.name} size={24} /><span style={{ flex: 1, fontSize: 13 }}>{u.name}</span><Badge status={u.status} />
               </div>
             ))}

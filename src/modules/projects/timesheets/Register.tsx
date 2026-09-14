@@ -27,7 +27,7 @@ export default function TimesheetRegister({ tab, employeeId, projectId }: { tab?
     { key: 'projects', label: 'Projects', render: (t) => <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{Array.from(new Set(t.rows.map((r) => r.projectId))).map((p) => <span key={p} className="dim-chip">{projectOf(p)?.code ?? '—'}</span>)}</div> },
     { key: 'totalHours', label: 'Hours', align: 'right', sortable: true, render: (t) => <span className="money">{t.totalHours} h</span>, total: (rs) => <span className="money" style={{ fontWeight: 600 }}>{rs.reduce((a, t) => a + t.totalHours, 0).toFixed(1)} h</span> },
     { key: 'billableHours', label: 'Billable', align: 'right', render: (t) => <span className="money">{t.billableHours} h</span>, total: (rs) => <span className="money" style={{ fontWeight: 600 }}>{rs.reduce((a, t) => a + t.billableHours, 0).toFixed(1)} h</span> },
-    { key: 'unbilled', label: 'Unbilled', align: 'right', render: (t) => (t.status === 'Approved' || t.status === 'Invoiced') && unbilledHours(t) > 0 ? <span className="money" style={{ color: '#8A4B0F' }}>{unbilledHours(t)} h</span> : <span style={{ color: '#B0B5BF' }}>—</span> },
+    { key: 'unbilled', label: 'Unbilled', align: 'right', render: (t) => (t.status === 'Approved' || t.status === 'Invoiced') && unbilledHours(t) > 0 ? <span className="money" style={{ color: 'var(--warn)' }}>{unbilledHours(t)} h</span> : <span style={{ color: 'var(--ink-5)' }}>—</span> },
     { key: 'status', label: 'Status', sortable: true, render: (t) => <div><Badge status={t.status} />{t.status === 'Submitted' && <div><Muted>Awaiting {(approvals.find((a) => a.id === t.approvalId)?.steps[0]?.approverLabel) ?? 'manager'}</Muted></div>}</div> },
   ];
   const rowActions = (t: Timesheet): MenuAction[] => {

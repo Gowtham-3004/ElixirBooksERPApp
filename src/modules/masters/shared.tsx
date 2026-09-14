@@ -228,21 +228,21 @@ export function ChangeHistory({ objectId }: { objectId: string }) {
         return (
           <div key={e.id} className="card" style={{ padding: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
-              <div style={{ fontSize: 13 }}><strong>{e.action.split('.').pop()?.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase())}</strong> <span style={{ color: '#5F6368' }}>by {e.actor} · {e.channel}</span>{e.sensitive && <Badge status="Returned" style={{ marginLeft: 8 }}>sensitive</Badge>}</div>
-              <span style={{ fontSize: 12, color: '#6E6E71', whiteSpace: 'nowrap' }}>{fmtDateTime(e.at)}</span>
+              <div style={{ fontSize: 13 }}><strong>{e.action.split('.').pop()?.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase())}</strong> <span style={{ color: 'var(--ink-3)' }}>by {e.actor} · {e.channel}</span>{e.sensitive && <Badge status="Returned" style={{ marginLeft: 8 }}>sensitive</Badge>}</div>
+              <span style={{ fontSize: 12, color: 'var(--ink-4)', whiteSpace: 'nowrap' }}>{fmtDateTime(e.at)}</span>
             </div>
-            {e.detail && <div style={{ fontSize: 12, color: '#3C4043', marginTop: 4 }}>{e.detail}</div>}
+            {e.detail && <div style={{ fontSize: 12, color: 'var(--ink-2)', marginTop: 4 }}>{e.detail}</div>}
             {keys.length > 0 && (
               <table className="data-table dense" style={{ marginTop: 8 }}>
                 <thead><tr><th style={{ width: 160 }}>Field</th><th>Before</th><th>After</th></tr></thead>
                 <tbody>
                   {keys.map((k) => (
-                    <tr key={k}><td className="identifier">{k}</td><td style={{ color: '#8A4B0F' }}>{e.sensitive && SENSITIVE.includes(k) ? '•••• (masked)' : fmt(e.before?.[k])}</td><td style={{ color: '#12784E' }}>{e.sensitive && SENSITIVE.includes(k) ? '•••• (masked)' : fmt(e.after?.[k])}</td></tr>
+                    <tr key={k}><td className="identifier">{k}</td><td style={{ color: 'var(--warn)' }}>{e.sensitive && SENSITIVE.includes(k) ? '•••• (masked)' : fmt(e.before?.[k])}</td><td style={{ color: 'var(--good)' }}>{e.sensitive && SENSITIVE.includes(k) ? '•••• (masked)' : fmt(e.after?.[k])}</td></tr>
                   ))}
                 </tbody>
               </table>
             )}
-            <div style={{ fontSize: 11, color: '#B0B5BF', marginTop: 6 }}>Correlation {e.correlationId}</div>
+            <div style={{ fontSize: 11, color: 'var(--ink-5)', marginTop: 6 }}>Correlation {e.correlationId}</div>
           </div>
         );
       })}

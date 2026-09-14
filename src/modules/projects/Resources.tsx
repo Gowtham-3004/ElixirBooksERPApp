@@ -35,7 +35,7 @@ function ResourceList() {
     { key: 'role', label: 'Role', sortable: true },
     { key: 'costRate', label: 'Cost / h', align: 'right', sortable: true, render: (r) => <Money value={r.costRate} currency={s.currency} /> },
     { key: 'billRate', label: 'Bill / h', align: 'right', sortable: true, render: (r) => <Money value={r.billRate} currency={s.currency} /> },
-    { key: 'margin', label: 'Margin', align: 'right', render: (r) => <span className="money" style={{ color: r.billRate > r.costRate ? '#12784E' : '#C0393F' }}>{r.billRate ? fmtPct(((r.billRate - r.costRate) / r.billRate) * 100) : '—'}</span> },
+    { key: 'margin', label: 'Margin', align: 'right', render: (r) => <span className="money" style={{ color: r.billRate > r.costRate ? 'var(--good)' : 'var(--danger)' }}>{r.billRate ? fmtPct(((r.billRate - r.costRate) / r.billRate) * 100) : '—'}</span> },
     { key: 'capacityHoursPerWeek', label: 'Capacity', align: 'right', render: (r) => <span className="money">{r.capacityHoursPerWeek} h/wk</span> },
     { key: 'status', label: 'Status', render: (r) => <Badge status={r.status} /> },
   ];
@@ -165,7 +165,7 @@ function Capacity() {
                 <td><div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{r.projects.map(([pid, h]) => <span key={pid} className="dim-chip" title={employeeName(r.employeeId)}>{projectOf(pid)?.code ?? pid} · {h.toFixed(0)} h</span>)}{!r.projects.length && <Muted>—</Muted>}</div></td>
               </tr>
             ))}
-            {!rows.length && <tr><td colSpan={8} style={{ textAlign: 'center', color: '#5F6368', padding: 24 }}>No active resources</td></tr>}
+            {!rows.length && <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ink-3)', padding: 24 }}>No active resources</td></tr>}
           </tbody>
         </table>
       </div>

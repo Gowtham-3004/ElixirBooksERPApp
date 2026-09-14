@@ -27,7 +27,7 @@ await page.locator('input[type=email]').first().fill('rahul@acmepvt.com');
 await page.locator('button[type=submit]').first().click();
 await page.waitForTimeout(800);
 if (await page.locator('input[placeholder="123456"]').count()) { await page.locator('input[placeholder="123456"]').fill('123456'); await page.getByText('Verify and sign in').click(); await page.waitForTimeout(400); }
-if (await page.getByText('Choose a company').count()) { await page.getByText('Acme Private Limited').first().click(); await page.waitForTimeout(400); }
+if (await page.locator('.company-picker').count()) { await page.locator('.company-card:not(.create)').first().click(); await page.waitForTimeout(400); }
 
 const probe = () => page.evaluate(() => {
   const main = document.querySelector('main') ?? document.body;

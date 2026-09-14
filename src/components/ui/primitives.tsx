@@ -1,5 +1,9 @@
-import type { CSSProperties, ReactNode } from 'react';
-import { fmtMoney, fmtMoneyCompact, fmtDate, fmtDateTime } from '../../lib/format';
+import type { ComponentType, CSSProperties, ReactNode } from 'react';
+import { fmtMoney, fmtMoneyCompact, splitMoney, fmtDate, fmtDateTime } from '../../lib/format';
+import { Sparkline } from './charts';
+import { Illustration, moduleKind, type IllustrationKind } from './illustrations';
+import { useRoute } from '../../store';
+import { AlertCircleIcon, AlertTriangleIcon, ArrowsSwapIcon, BarChartIcon, BookOpenIcon, BuildingIcon, CheckCircleIcon, ClipboardIcon, ClockIcon, CompassIcon, CornerUpLeftIcon, FileTextIcon, FolderIcon, GitBranchIcon, InfoCircleIcon, LayersIcon, LockIcon, ReceiptIcon, RefreshIcon, ScissorsIcon, SearchIcon, ShieldCheckIcon, TrendingUpIcon, UsersIcon, WalletIcon, XIcon, ZapIcon } from '../Icons';
 
 // ── Status badge (design-system §8 taxonomy → badge class) ─────────────────
 
@@ -31,11 +35,11 @@ export function Pill({ tone = 'neutral', children, title }: { tone?: 'critical' 
 }
 
 export function CountBadge({ n }: { n: number }) {
-  return <span style={{ background: '#F3F3F5', borderRadius: 9999, padding: '0 6px', fontSize: 11, color: '#5F6368', minWidth: 18, textAlign: 'center', lineHeight: '18px', display: 'inline-block', fontFeatureSettings: 'normal' }}>{n}</span>;
+  return <span style={{ background: 'var(--surface-3)', borderRadius: 9999, padding: '0 6px', fontSize: 11, color: 'var(--ink-3)', minWidth: 18, textAlign: 'center', lineHeight: '18px', display: 'inline-block', fontVariantNumeric: 'normal' }}>{n}</span>;
 }
 
 export function DimChip({ label, color }: { label: string; color?: string }) {
-  return <span className="dim-chip" style={{ ['--dot' as string]: color ?? '#325CFF' }}>{label}</span>;
+  return <span className="dim-chip" style={{ ['--dot' as string]: color ?? 'var(--accent)' }}>{label}</span>;
 }
 
 export function CurrencyTag({ code }: { code: string }) {
@@ -53,18 +57,30 @@ export function SnapshotTag({ label = 'snapshot' }: { label?: string }) {
 
 // ── Money ──────────────────────────────────────────────────────────────────
 
-export function Money({ value, currency = 'INR', base, baseCurrency, rate, compact, tone, code, style, decimals }: { value: number; currency?: string; base?: number; baseCurrency?: string; rate?: number; compact?: boolean; tone?: 'auto' | 'positive' | 'negative' | 'none'; code?: boolean; style?: CSSProperties; decimals?: number }) {
-  const cls = tone === 'positive' ? 'money money-positive' : tone === 'negative' ? 'money money-negative' : tone === 'auto' ? (value < 0 ? 'money money-negative' : value > 0 ? 'money money-positive' : 'money') : 'money';
-  const text = compact ? fmtMoneyCompact(value, currency) : fmtMoney(value, currency, { code, decimals });
+export type MoneySize = 'md' | 'lg' | 'xl';
+
+/** A money figure. `size` lg/xl are the hero sizes (KPI tiles, document rails) and mute the minor units;
+ *  `parens` renders negatives accounting-style — (1,000.00) — and is meant for statements, not lists. */
+export function Money({ value, currency = 'INR', base, baseCurrency, rate, compact, tone, code, style, decimals, size = 'md', parens, minor }: { value: number; currency?: string; base?: number; baseCurrency?: string; rate?: number; compact?: boolean; tone?: 'auto' | 'positive' | 'negative' | 'none'; code?: boolean; style?: CSSProperties; decimals?: number; size?: MoneySize; parens?: boolean; minor?: 'plain' | 'muted' }) {
+  const toneCls = tone === 'positive' ? ' money-positive' : tone === 'negative' ? ' money-negative' : tone === 'auto' ? (value < 0 ? ' money-negative' : value > 0 ? ' money-positive' : '') : '';
+  const cls = `money money-${size}${toneCls}`;
+  const muted = (minor ?? (size === 'md' ? 'plain' : 'muted')) === 'muted';
+  const figure = (v: number, cur: string, o: { code?: boolean; decimals?: number } = {}) => {
+    if (compact) return fmtMoneyCompact(v, cur);
+    const p = splitMoney(v, cur, { ...o, parens });
+    if (!p) return '—';
+    const open = p.negative && parens ? '(' : p.sign;
+    return <>{open}{p.mark}{p.integer}{p.minor && (muted ? <span className="money-minor">{p.minor}</span> : p.minor)}{p.negative && parens ? ')' : ''}</>;
+  };
   if (base !== undefined && baseCurrency && baseCurrency !== currency) {
     return (
       <span className={cls} style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2, ...style }} title={rate ? `Rate ${rate}` : undefined}>
-        <span>{fmtMoney(value, currency, { code: true })}</span>
-        <span style={{ fontSize: 11, color: '#6E6E71' }}>≈ {fmtMoney(base, baseCurrency)}{rate ? ` @ ${rate}` : ''}</span>
+        <span>{figure(value, currency, { code: true })}</span>
+        <span className="money-base">≈ {fmtMoney(base, baseCurrency)}{rate ? ` @ ${rate}` : ''}</span>
       </span>
     );
   }
-  return <span className={cls} style={style}>{text}</span>;
+  return <span className={cls} style={style}>{figure(value, currency, { code, decimals })}</span>;
 }
 
 export function DateText({ value, time }: { value?: string; time?: boolean }) {
@@ -74,11 +90,13 @@ export function DateText({ value, time }: { value?: string; time?: boolean }) {
 // ── Buttons ────────────────────────────────────────────────────────────────
 
 export type ButtonVariant = 'primary' | 'secondary' | 'tinted' | 'ghost' | 'danger' | 'link';
+/** Semantic colour for the action: solid on primary, soft fill on tinted (tone-* rules in index.css). */
+export type ButtonTone = 'good' | 'warn' | 'danger' | 'info';
 
-export function Button({ variant = 'secondary', size, loading, icon, children, className = '', disabled, title, reason, type = 'button', ...rest }: { variant?: ButtonVariant; size?: 'sm'; loading?: boolean; icon?: ReactNode; reason?: string } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+export function Button({ variant = 'secondary', tone, size, loading, icon, children, className = '', disabled, title, reason, type = 'button', ...rest }: { variant?: ButtonVariant; tone?: ButtonTone; size?: 'sm'; loading?: boolean; icon?: ReactNode; reason?: string } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   const base = variant === 'link' ? 'btn-link' : `btn-${variant}`;
   return (
-    <button type={type} className={`${base} ${size === 'sm' ? 'btn-sm' : ''} ${className}`} disabled={disabled || loading} title={reason ?? title} {...rest}>
+    <button type={type} className={`${base} ${size === 'sm' ? 'btn-sm' : ''} ${tone ? `tone-${tone}` : ''} ${className}`} disabled={disabled || loading} title={reason ?? title} {...rest}>
       {loading ? <Spinner /> : icon}
       {children}
     </button>
@@ -137,7 +155,7 @@ export function SectionLabel({ children, style }: { children: ReactNode; style?:
 }
 
 export function Divider({ style }: { style?: CSSProperties }) {
-  return <div style={{ height: 1, background: '#EFEFEF', ...style }} />;
+  return <div style={{ height: 1, background: 'var(--hairline)', ...style }} />;
 }
 
 export function KV({ items, columns = 1 }: { items: { k: ReactNode; v: ReactNode }[]; columns?: 1 | 2 }) {
@@ -159,7 +177,7 @@ export function SummaryBlock({ items, style }: { items: { label: string; value: 
       {items.map((it) => (
         <div key={it.label}>
           <div className="section-label" style={{ marginBottom: 2 }}>{it.label}</div>
-          <div style={{ fontSize: 15, fontWeight: 600, fontFeatureSettings: '"tnum" 1', color: it.tone === 'warn' ? '#8A4B0F' : it.tone === 'danger' ? '#C0393F' : it.tone === 'good' ? '#12784E' : '#0A0A0A' }}>{it.value}</div>
+          <div style={{ fontSize: 15, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: it.tone === 'warn' ? 'var(--warn)' : it.tone === 'danger' ? 'var(--danger)' : it.tone === 'good' ? 'var(--good)' : 'var(--ink)' }}>{it.value}</div>
         </div>
       ))}
     </div>
@@ -176,29 +194,54 @@ export function Meter({ value, max = 100, tone }: { value: number; max?: number;
   );
 }
 
-export function KpiTile({ label, value, delta, deltaTone = 'good', sub, meta, onClick, stale }: { label: string; value: ReactNode; delta?: ReactNode; deltaTone?: 'good' | 'bad' | 'neutral'; sub?: ReactNode; meta?: ReactNode; onClick?: () => void; stale?: boolean }) {
+/** Pass `amount` (+ `currency`) for a money KPI so the minor units are muted; `value` takes any node. */
+export function KpiTile({ label, value, amount, currency, compact, tone, delta, deltaTone = 'good', sub, meta, onClick, stale, trend }: { label: string; value?: ReactNode; amount?: number; currency?: string; /** a short series (e.g. 7 month-ends) drawn as a sparkline beside the value */ trend?: number[]; compact?: boolean; tone?: 'auto' | 'positive' | 'negative' | 'none'; delta?: ReactNode; deltaTone?: 'good' | 'bad' | 'neutral'; sub?: ReactNode; meta?: ReactNode; onClick?: () => void; stale?: boolean }) {
   return (
     <div className="kpi-tile" style={{ cursor: onClick ? 'pointer' : undefined, display: 'flex', flexDirection: 'column', gap: 4 }} onClick={onClick}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span className="section-label">{label}</span>
         {stale && <Pill tone="warning">Stale</Pill>}
       </div>
-      <div style={{ fontSize: 24, fontWeight: 600, lineHeight: '32px', fontFeatureSettings: '"tnum" 1', color: '#0A0A0A' }}>{value}</div>
+      <div className="kpi-value">{amount !== undefined ? <Money value={amount} currency={currency} compact={compact} tone={tone} size="xl" /> : value}</div>
+      {trend && trend.length > 1 && <div style={{ margin: '2px 0 4px' }}><Sparkline values={trend} width="auto" height={28} /></div>}
       {(delta || sub) && (
         <div style={{ fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
-          {delta && <span style={{ color: deltaTone === 'good' ? '#12784E' : deltaTone === 'bad' ? '#C0393F' : '#5F6368', fontWeight: 500 }}>{delta}</span>}
-          {sub && <span style={{ color: '#5F6368' }}>{sub}</span>}
+          {delta && <span style={{ color: deltaTone === 'good' ? 'var(--good)' : deltaTone === 'bad' ? 'var(--danger)' : 'var(--ink-3)', fontWeight: 500 }}>{delta}</span>}
+          {sub && <span style={{ color: 'var(--ink-3)' }}>{sub}</span>}
         </div>
       )}
-      {meta && <div style={{ fontSize: 11, color: '#6E6E71', marginTop: 6, borderTop: '1px solid #F3F5F5', paddingTop: 8, fontFeatureSettings: 'normal' }}>{meta}</div>}
+      {meta && <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 6, borderTop: '1px solid var(--surface-3)', paddingTop: 8, fontVariantNumeric: 'normal' }}>{meta}</div>}
     </div>
   );
 }
 
-export function EmptyState({ title, description, action, icon = '📋', compact }: { title: string; description?: string; action?: ReactNode; icon?: ReactNode; compact?: boolean }) {
+// Call sites historically passed an emoji (or a line icon) as `icon`; it only hints which scene to draw now.
+const ILLUSTRATION_FOR: Record<string, IllustrationKind> = { '🔒': 'no-access', '🧭': 'not-found', '✓': 'all-done', '🔍': 'search', '⚡': 'upgrade' };
+function illustrationFor(icon: ReactNode): IllustrationKind {
+  if (typeof icon === 'string') return ILLUSTRATION_FOR[icon] ?? 'no-data';
+  if (icon && typeof icon === 'object' && 'type' in icon) {
+    const t = (icon as { type: unknown }).type;
+    if (t === LockIcon) return 'no-access';
+    if (t === CompassIcon) return 'not-found';
+    if (t === CheckCircleIcon) return 'all-done';
+    if (t === SearchIcon) return 'search';
+    if (t === ZapIcon) return 'upgrade';
+  }
+  return 'no-data';
+}
+
+/**
+ * Empty states draw a Storyset scene: an explicit `illustration` wins, then the legacy `icon` hint, and a plain
+ * "nothing here" falls back to the current module's domain art. `compact` (inside cards and panels) draws a smaller
+ * scene without the background blob; `animated` swaps in the GIF export where one exists.
+ */
+export function EmptyState({ title, description, action, icon, compact, illustration, animated }: { title: string; description?: string; action?: ReactNode; icon?: ReactNode; compact?: boolean; illustration?: IllustrationKind; animated?: boolean }) {
+  const route = useRoute();
+  const hinted = illustrationFor(icon);
+  const kind = illustration ?? (hinted === 'no-data' ? moduleKind(route.module) : hinted);
   return (
-    <div className="empty-state" style={compact ? { padding: '24px 16px' } : undefined}>
-      <div style={{ width: 44, height: 44, borderRadius: 12, background: '#F3F5F5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{icon}</div>
+    <div className="empty-state" style={compact ? { padding: '20px 16px', gap: 6 } : undefined}>
+      <Illustration kind={kind} width={compact ? 72 : 168} bg={!compact} animated={animated && !compact} />
       <h3>{title}</h3>
       {description && <p style={{ fontSize: 13, maxWidth: 380 }}>{description}</p>}
       {action && <div style={{ marginTop: 4, display: 'flex', gap: 8 }}>{action}</div>}
@@ -207,7 +250,7 @@ export function EmptyState({ title, description, action, icon = '📋', compact 
 }
 
 export function NoPermission({ what }: { what: string }) {
-  return <EmptyState icon="🔒" title={`You don't have access to ${what}`} description="Ask your company administrator to grant access." action={<Button variant="link">Request access</Button>} />;
+  return <EmptyState icon={<LockIcon size={20} />} title={`You don't have access to ${what}`} description="Ask your company administrator to grant access." action={<Button variant="link">Request access</Button>} />;
 }
 
 export function Skeleton({ rows = 5, height = 44 }: { rows?: number; height?: number }) {
@@ -219,13 +262,13 @@ export function Skeleton({ rows = 5, height = 44 }: { rows?: number; height?: nu
 }
 
 export function Banner({ tone = 'info', children, action, onDismiss, full, style }: { tone?: 'info' | 'warning' | 'danger' | 'success'; children: ReactNode; action?: ReactNode; onDismiss?: () => void; full?: boolean; style?: CSSProperties }) {
-  const icon = tone === 'danger' ? '⚠' : tone === 'warning' ? '⚠' : tone === 'success' ? '✓' : 'ⓘ';
+  const Icon = tone === 'danger' ? AlertCircleIcon : tone === 'warning' ? AlertTriangleIcon : tone === 'success' ? CheckCircleIcon : InfoCircleIcon;
   return (
     <div className={`banner ${tone} ${full ? 'full' : ''}`} style={style}>
-      <span style={{ fontWeight: 600 }}>{icon}</span>
+      <span style={{ display: 'inline-flex', flexShrink: 0 }}><Icon size={16} /></span>
       <span style={{ flex: 1 }}>{children}</span>
       {action}
-      {onDismiss && <button className="btn-icon" onClick={onDismiss} style={{ width: 24, height: 24, color: 'inherit' }}>✕</button>}
+      {onDismiss && <button className="btn-icon" onClick={onDismiss} style={{ width: 24, height: 24, color: 'inherit' }} aria-label="Dismiss"><XIcon size={14} /></button>}
     </div>
   );
 }
@@ -233,7 +276,7 @@ export function Banner({ tone = 'info', children, action, onDismiss, full, style
 export function Tabs<T extends string>({ tabs, value, onChange, counts, variant = 'doc' }: { tabs: { id: T; label: string; count?: number }[]; value: T; onChange: (v: T) => void; counts?: Partial<Record<T, number>>; variant?: 'doc' | 'filter' }) {
   const cls = variant === 'doc' ? 'doc-tab' : 'filter-tab';
   return (
-    <div style={{ display: 'flex', gap: variant === 'doc' ? 20 : 0, borderBottom: '1px solid #EFEFEF' }}>
+    <div style={{ display: 'flex', gap: variant === 'doc' ? 20 : 0, borderBottom: '1px solid var(--hairline)' }}>
       {tabs.map((t) => (
         <button key={t.id} type="button" className={`${cls} ${value === t.id ? 'active' : ''}`} onClick={() => onChange(t.id)}>
           {t.label}
@@ -244,9 +287,10 @@ export function Tabs<T extends string>({ tabs, value, onChange, counts, variant 
   );
 }
 
-export function Avatar({ name, size = 28, color = '#325CFF' }: { name: string; size?: number; color?: string }) {
+export function Avatar({ name, size = 28, color, tone = 'accent' }: { name: string; size?: number; color?: string; tone?: 'accent' | 'neutral' }) {
   const ini = name.split(' ').filter(Boolean).map((n) => n[0]).join('').slice(0, 2).toUpperCase();
-  return <div style={{ width: size, height: size, borderRadius: '50%', background: color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.4, fontWeight: 600, flexShrink: 0, fontFeatureSettings: 'normal' }}>{ini}</div>;
+  const neutral = tone === 'neutral' && !color;
+  return <div style={{ width: size, height: size, borderRadius: '50%', background: color ?? (neutral ? 'var(--surface-3)' : 'var(--accent)'), color: neutral ? 'var(--ink-2)' : '#fff', boxShadow: neutral ? 'inset 0 0 0 1px var(--hairline)' : undefined, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.4, fontWeight: 600, flexShrink: 0, fontVariantNumeric: 'normal' }}>{ini}</div>;
 }
 
 export function TwoLine({ primary, secondary, mono }: { primary: ReactNode; secondary?: ReactNode; mono?: boolean }) {

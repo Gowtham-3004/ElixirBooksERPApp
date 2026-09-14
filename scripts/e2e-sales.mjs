@@ -32,8 +32,8 @@ async function login(email) {
   await wait(800);
   const mfa = page.locator('input[placeholder="123456"]');
   if (await mfa.count()) { await mfa.fill('123456'); await page.getByText('Verify and sign in').click(); await wait(400); }
-  const choose = page.getByText('Choose a company');
-  if (await choose.count()) { await page.getByText('Acme Private Limited').first().click(); await wait(300); }
+  const choose = page.locator('.company-picker');
+  if (await choose.count()) { await page.locator('.company-card:not(.create)').first().click(); await wait(300); }
   await wait(300);
 }
 async function go(path) { await page.goto(`${base}/#/${path}`, { waitUntil: 'networkidle' }); await wait(400); }

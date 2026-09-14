@@ -117,7 +117,9 @@ export function duplicateReference(inv: Pick<SalesInvoice, 'id' | 'partyId' | 'r
 export function refreshOrderStatus(orderId: string) {
   const so = db.find<SalesOrder>(C.salesOrders, orderId);
   if (!so) return;
-  const keep: SalesOrder['status'][] = ['Draft', 'Submitted', 'Approved', 'Returned', 'Rejected', 'Cancelled', 'Short Closed', 'Closed'];
+  // 'Closed' is derived here (all delivered + all invoiced), so it must be re-derived too — reversing
+  // an invoice or delivery reopens the order; only user-driven terminal states are kept.
+  const keep: SalesOrder['status'][] = ['Draft', 'Submitted', 'Approved', 'Returned', 'Rejected', 'Cancelled', 'Short Closed'];
   if (keep.includes(so.status)) return;
   const stockLines = so.lines.filter((l) => db.find<Item>(C.items, l.itemId)?.isStock);
   const allDelivered = stockLines.every((l) => (l.deliveredQty ?? 0) >= l.qty - 0.0005);

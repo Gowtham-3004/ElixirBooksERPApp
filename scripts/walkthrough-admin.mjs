@@ -30,7 +30,7 @@ async function signIn(email) {
   await wait(800);
   const mfa = page.locator('input[placeholder="123456"]');
   if (await mfa.count()) { await mfa.fill('123456'); await page.getByText('Verify and sign in').click(); await wait(300); }
-  if (await page.getByText('Choose a company').count()) { await page.getByText('Acme Private Limited').first().click(); await wait(300); }
+  if (await page.locator('.company-picker').count()) { await page.locator('.company-card:not(.create)').first().click(); await wait(300); }
 }
 async function signOut() {
   await page.evaluate(() => { localStorage.setItem('elixir-books-session', JSON.stringify({ auth: 'login' })); });

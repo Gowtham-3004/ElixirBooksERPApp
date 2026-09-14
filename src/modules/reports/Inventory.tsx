@@ -32,8 +32,8 @@ export function StockLedger() {
     { key: 'warehouseName', label: 'Warehouse', render: (m) => m.warehouseName ?? m.warehouseId },
     { key: 'type', label: 'Type', render: (m) => <Badge status="Draft">{m.type}</Badge> },
     { key: 'sourceNumber', label: 'Source', render: (m) => <span className="identifier link">{m.sourceNumber}</span> },
-    { key: 'in', label: 'In', align: 'right', render: (m) => <span className="money" style={{ color: '#12784E' }}>{m.baseQty > 0 ? fmtQty(m.baseQty, m.uom) : '—'}</span>, total: (r) => <span className="money">{fmtQty(r.reduce((x, m) => x + Math.max(0, m.baseQty), 0))}</span> },
-    { key: 'out', label: 'Out', align: 'right', render: (m) => <span className="money" style={{ color: '#C0393F' }}>{m.baseQty < 0 ? fmtQty(-m.baseQty, m.uom) : '—'}</span>, total: (r) => <span className="money">{fmtQty(r.reduce((x, m) => x + Math.max(0, -m.baseQty), 0))}</span> },
+    { key: 'in', label: 'In', align: 'right', render: (m) => <span className="money" style={{ color: 'var(--good)' }}>{m.baseQty > 0 ? fmtQty(m.baseQty, m.uom) : '—'}</span>, total: (r) => <span className="money">{fmtQty(r.reduce((x, m) => x + Math.max(0, m.baseQty), 0))}</span> },
+    { key: 'out', label: 'Out', align: 'right', render: (m) => <span className="money" style={{ color: 'var(--danger)' }}>{m.baseQty < 0 ? fmtQty(-m.baseQty, m.uom) : '—'}</span>, total: (r) => <span className="money">{fmtQty(r.reduce((x, m) => x + Math.max(0, -m.baseQty), 0))}</span> },
     { key: 'rate', label: 'Rate', align: 'right', render: (m) => <span className="money">{fmtMoney(m.rate, s.currency)}</span> },
     { key: 'value', label: 'Value', align: 'right', render: (m) => <span className="money">{fmtMoney(m.value * Math.sign(m.baseQty || 1), s.currency)}</span>, total: (r) => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(r.reduce((x, m) => x + m.value * Math.sign(m.baseQty || 1), 0), s.currency)}</span> },
     { key: 'running', label: 'Balance', align: 'right', render: (m) => <span className="money" style={{ fontWeight: 600 }}>{m.running !== undefined ? fmtQty(m.running) : (m.balanceAfter !== undefined ? fmtQty(m.balanceAfter) : '—')}</span> },
@@ -61,7 +61,7 @@ export function OnHandReport() {
     { key: 'warehouse', label: 'Warehouse', sortable: true },
     { key: 'onHand', label: 'On hand', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600 }}>{fmtQty(r.onHand, r.uom)}</span>, sortable: true },
     { key: 'reserved', label: 'Reserved', align: 'right', render: (r) => <span className="money">{r.reserved ? fmtQty(r.reserved) : '—'}</span> },
-    { key: 'available', label: 'Available', align: 'right', render: (r) => <span className="money" style={{ color: r.available < 0 ? '#C0393F' : '#12784E', fontWeight: 600 }}>{fmtQty(r.available)}</span> },
+    { key: 'available', label: 'Available', align: 'right', render: (r) => <span className="money" style={{ color: r.available < 0 ? 'var(--danger)' : 'var(--good)', fontWeight: 600 }}>{fmtQty(r.available)}</span> },
     { key: 'inTransit', label: 'In transit', align: 'right', render: (r) => <span className="money">{r.inTransit ? fmtQty(r.inTransit) : '—'}</span> },
     { key: 'committed', label: 'On order', align: 'right', render: (r) => <span className="money">{r.committed ? fmtQty(r.committed) : '—'}</span> },
     { key: 'projected', label: 'Projected', align: 'right', render: (r) => <span className="money">{fmtQty(r.projected)}</span> },
@@ -87,7 +87,7 @@ export function ValuationReport() {
     { key: 'uom', label: 'UOM' },
     { key: 'qty', label: 'Qty on hand', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600 }}>{fmtQty(r.qty)}</span> },
     { key: 'avgRate', label: 'Avg cost', align: 'right', render: (r) => <span className="money">{fmtMoney(r.avgRate, s.currency)}</span> },
-    { key: 'value', label: 'Stock value', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600 }}>{fmtMoney(r.value, s.currency)}</span>, total: () => <span className="money" style={{ fontWeight: 700, color: '#12784E' }}>{fmtMoney(total, s.currency)}</span>, sortable: true },
+    { key: 'value', label: 'Stock value', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600 }}>{fmtMoney(r.value, s.currency)}</span>, total: () => <span className="money" style={{ fontWeight: 700, color: 'var(--good)' }}>{fmtMoney(total, s.currency)}</span>, sortable: true },
     { key: 'warehouse', label: 'Warehouse' },
     { key: 'method', label: 'Method', render: () => <Badge status="Draft">{s.company?.defaults.valuationMethod ?? 'AVCO'}</Badge> },
   ];
@@ -98,9 +98,9 @@ export function ValuationReport() {
     <ReportFrame id="stock-valuation" title="Stock valuation" rangeLabel={`As at ${fmtDate(f.asOf)} · ${s.company?.defaults.valuationMethod ?? 'AVCO'}`} filterState={f} exportColumns={cols.filter((c) => c.key !== 'method').map((c) => ({ key: c.key, label: String(c.label) }))} exportRows={() => rows as any}
       filters={<><div><label className="field-label">As at</label><input type="date" className="field-input sm" value={f.asOf} onChange={(e) => set({ asOf: e.target.value })} /></div><WarehousePicker value={f.warehouseId} onChange={(v) => set({ warehouseId: v })} /></>}>
       <div className="grid-3">
-        <KpiTile label="Stock value (sub-ledger)" value={fmtMoney(total, s.currency)} sub={`${rows.length} item-warehouse lines`} />
-        <KpiTile label="Inventory GL balance" value={fmtMoney(ledgerInv, s.currency)} sub="1200 + 1210 + 1220 as at date" onClick={() => nav.go('accounting/ledger?account=acc_1200')} />
-        <KpiTile label="Difference" value={fmtMoney(Math.round((total - ledgerInv) * 100) / 100, s.currency)} deltaTone={Math.abs(total - ledgerInv) < 1 ? 'good' : 'bad'} delta={Math.abs(total - ledgerInv) < 1 ? 'Reconciled' : 'Sub-ledger ≠ GL'} sub="FR-RPT-009 exception if non-zero" />
+        <KpiTile label="Stock value (sub-ledger)" amount={total} currency={s.currency} sub={`${rows.length} item-warehouse lines`} />
+        <KpiTile label="Inventory GL balance" amount={ledgerInv} currency={s.currency} sub="1200 + 1210 + 1220 as at date" onClick={() => nav.go('accounting/ledger?account=acc_1200')} />
+        <KpiTile label="Difference" amount={Math.round((total - ledgerInv) * 100) / 100} currency={s.currency} deltaTone={Math.abs(total - ledgerInv) < 1 ? 'good' : 'bad'} delta={Math.abs(total - ledgerInv) < 1 ? 'Reconciled' : 'Sub-ledger ≠ GL'} sub="FR-RPT-009 exception if non-zero" />
       </div>
       <DataTable rows={rows} rowKey={(r) => r.itemId + r.warehouseId} columns={cols} dense showTotals onRowClick={(r) => nav.go(`inventory/ledger?item=${r.itemId}`)} emptyTitle="No stock to value" />
     </ReportFrame>
@@ -126,9 +126,9 @@ export function MovementReport() {
   const cols: Column<(typeof rows)[number]>[] = [
     { key: 'label', label: f.by === 'type' ? 'Movement type' : f.by === 'period' ? 'Period' : f.by === 'warehouse' ? 'Warehouse' : 'Item', sortable: true },
     { key: 'count', label: 'Movements', align: 'right' },
-    { key: 'inQty', label: 'Qty in', align: 'right', render: (r) => <span className="money" style={{ color: '#12784E' }}>{fmtQty(r.inQty)}</span> },
+    { key: 'inQty', label: 'Qty in', align: 'right', render: (r) => <span className="money" style={{ color: 'var(--good)' }}>{fmtQty(r.inQty)}</span> },
     { key: 'inValue', label: 'Value in', align: 'right', render: (r) => <span className="money">{fmtMoney(r.inValue, s.currency)}</span>, total: (rs) => <span className="money">{fmtMoney(rs.reduce((x, r) => x + r.inValue, 0), s.currency)}</span> },
-    { key: 'outQty', label: 'Qty out', align: 'right', render: (r) => <span className="money" style={{ color: '#C0393F' }}>{fmtQty(r.outQty)}</span> },
+    { key: 'outQty', label: 'Qty out', align: 'right', render: (r) => <span className="money" style={{ color: 'var(--danger)' }}>{fmtQty(r.outQty)}</span> },
     { key: 'outValue', label: 'Value out', align: 'right', render: (r) => <span className="money">{fmtMoney(r.outValue, s.currency)}</span>, total: (rs) => <span className="money">{fmtMoney(rs.reduce((x, r) => x + r.outValue, 0), s.currency)}</span> },
     { key: 'net', label: 'Net value', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600 }}>{fmtMoney(r.inValue - r.outValue, s.currency)}</span> },
   ];
@@ -151,7 +151,7 @@ export function StockAgeingReport() {
     { key: 'd030', label: '0–30 d', align: 'right', render: (r) => <span className="money">{r.d030 ? fmtQty(r.d030) : '—'}</span> },
     { key: 'd3160', label: '31–60 d', align: 'right', render: (r) => <span className="money" style={{ color: '#F97316' }}>{r.d3160 ? fmtQty(r.d3160) : '—'}</span> },
     { key: 'd6190', label: '61–90 d', align: 'right', render: (r) => <span className="money" style={{ color: '#EF4444' }}>{r.d6190 ? fmtQty(r.d6190) : '—'}</span> },
-    { key: 'd90p', label: '> 90 d', align: 'right', render: (r) => <span className="money" style={{ color: '#C0393F', fontWeight: 600 }}>{r.d90p ? fmtQty(r.d90p) : '—'}</span> },
+    { key: 'd90p', label: '> 90 d', align: 'right', render: (r) => <span className="money" style={{ color: 'var(--danger)', fontWeight: 600 }}>{r.d90p ? fmtQty(r.d90p) : '—'}</span> },
     { key: 'total', label: 'On hand', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600 }}>{fmtQty(r.total)}</span> },
     { key: 'value', label: 'Value (FIFO)', align: 'right', render: (r) => <span className="money">{fmtMoney(r.value, s.currency)}</span>, total: (rs) => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(rs.reduce((x, r) => x + r.value, 0), s.currency)}</span> },
   ];
@@ -171,7 +171,7 @@ export function ReorderReport() {
     { key: 'code', label: 'Item', render: (r) => <div><div className="cell-primary">{r.name}</div><div className="cell-secondary identifier">{r.code}</div></div> },
     { key: 'onHand', label: 'On hand', align: 'right', render: (r) => <span className="money">{fmtQty(r.onHand, r.uom)}</span> },
     { key: 'onOrder', label: 'On order', align: 'right', render: (r) => <span className="money">{r.onOrder ? fmtQty(r.onOrder) : '—'}</span> },
-    { key: 'projected', label: 'Projected', align: 'right', render: (r) => <span className="money" style={{ color: r.projected < r.safetyStock ? '#C0393F' : '#0A0A0A' }}>{fmtQty(r.projected)}</span> },
+    { key: 'projected', label: 'Projected', align: 'right', render: (r) => <span className="money" style={{ color: r.projected < r.safetyStock ? 'var(--danger)' : 'var(--ink)' }}>{fmtQty(r.projected)}</span> },
     { key: 'reorderLevel', label: 'Reorder level', align: 'right', render: (r) => <span className="money">{fmtQty(r.reorderLevel)}</span> },
     { key: 'shortfall', label: 'Shortfall', align: 'right', render: (r) => <Pill tone={r.projected < r.safetyStock ? 'critical' : 'warning'}>{fmtQty(r.shortfall)}</Pill> },
     { key: 'reorderQty', label: 'Suggested qty', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600 }}>{fmtQty(Math.max(r.reorderQty, r.shortfall), r.uom)}</span> },
@@ -196,7 +196,7 @@ export function CountVarianceReport() {
     { key: 'itemName', label: 'Item', render: (r) => <div><div className="cell-primary">{r.itemName}</div><div className="cell-secondary identifier">{r.itemCode}</div></div> },
     { key: 'system', label: 'System', align: 'right', render: (r) => <span className="money">{fmtQty(r.system)}</span> },
     { key: 'counted', label: 'Counted', align: 'right', render: (r) => <span className="money">{fmtQty(r.counted)}</span> },
-    { key: 'variance', label: 'Variance', align: 'right', render: (r) => <span className="money" style={{ color: r.variance < 0 ? '#C0393F' : r.variance > 0 ? '#12784E' : '#5F6368', fontWeight: 600 }}>{r.variance === 0 ? '—' : fmtQty(r.variance)}</span> },
+    { key: 'variance', label: 'Variance', align: 'right', render: (r) => <span className="money" style={{ color: r.variance < 0 ? 'var(--danger)' : r.variance > 0 ? 'var(--good)' : 'var(--ink-3)', fontWeight: 600 }}>{r.variance === 0 ? '—' : fmtQty(r.variance)}</span> },
     { key: 'value', label: 'Variance value', align: 'right', render: (r) => <span className="money">{fmtMoney(r.variance * r.rate, s.currency)}</span>, total: (rs) => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(rs.reduce((x, r) => x + r.variance * r.rate, 0), s.currency)}</span> },
     { key: 'status', label: 'Status', render: (r) => <Badge status={r.status} /> },
   ];

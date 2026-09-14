@@ -56,28 +56,28 @@ export default function Jobs({ initialTab }: { initialTab?: string }) {
 
   const jobCols: Column<BackgroundJob>[] = [
     { key: 'name', label: 'Job', render: (j) => <TwoLine primary={j.name} secondary={`${j.type} · ${j.correlationId}`} mono /> },
-    { key: 'attempts', label: 'Attempts', render: (j) => <span style={{ fontFeatureSettings: '"tnum" 1' }}>{j.attempts} / {j.maxAttempts}</span> },
-    { key: 'startedAt', label: 'Started', render: (j) => <span style={{ fontSize: 12, color: '#5F6368' }}>{j.startedAt ? fmtDateTime(j.startedAt) : '—'}</span> },
-    { key: 'finishedAt', label: 'Finished', render: (j) => <span style={{ fontSize: 12, color: '#5F6368' }}>{j.finishedAt ? fmtDateTime(j.finishedAt) : '—'}</span> },
-    { key: 'lastError', label: 'Last error', render: (j) => <span style={{ fontSize: 12, color: '#C0393F' }}>{j.lastError ?? ''}</span> },
+    { key: 'attempts', label: 'Attempts', render: (j) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{j.attempts} / {j.maxAttempts}</span> },
+    { key: 'startedAt', label: 'Started', render: (j) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{j.startedAt ? fmtDateTime(j.startedAt) : '—'}</span> },
+    { key: 'finishedAt', label: 'Finished', render: (j) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{j.finishedAt ? fmtDateTime(j.finishedAt) : '—'}</span> },
+    { key: 'lastError', label: 'Last error', render: (j) => <span style={{ fontSize: 12, color: 'var(--danger)' }}>{j.lastError ?? ''}</span> },
     { key: 'status', label: 'Status', render: (j) => <Badge status={j.status} /> },
   ];
   const expCols: Column<ExportJob>[] = [
     { key: 'name', label: 'Export', render: (e) => <TwoLine primary={e.name} secondary={`${e.entity} · ${e.format} · ${e.scope}`} /> },
     { key: 'rows', label: 'Rows', align: 'right', render: (e) => e.rows.toLocaleString('en-IN') },
-    { key: 'filters', label: 'Filters', render: (e) => <span style={{ fontSize: 11, color: '#5F6368' }} className="identifier">{JSON.stringify(e.filters)}</span> },
+    { key: 'filters', label: 'Filters', render: (e) => <span style={{ fontSize: 11, color: 'var(--ink-3)' }} className="identifier">{JSON.stringify(e.filters)}</span> },
     { key: 'requestedBy', label: 'Requested by', render: (e) => <TwoLine primary={e.requestedBy} secondary={fmtDateTime(e.createdAt)} /> },
-    { key: 'expiresAt', label: 'Expires', render: (e) => <span style={{ fontSize: 12, color: e.status === 'Expired' ? '#C0393F' : '#5F6368' }}>{e.expiresAt ? fmtDateTime(e.expiresAt) : '—'}</span> },
+    { key: 'expiresAt', label: 'Expires', render: (e) => <span style={{ fontSize: 12, color: e.status === 'Expired' ? 'var(--danger)' : 'var(--ink-3)' }}>{e.expiresAt ? fmtDateTime(e.expiresAt) : '—'}</span> },
     { key: 'masked', label: 'Masking', render: (e) => (e.masked ? <Pill tone="warning">masked</Pill> : <Pill tone="neutral">full</Pill>) },
     { key: 'status', label: 'Status', render: (e) => <Badge status={e.status} /> },
   ];
   const impCols: Column<ImportJob>[] = [
     { key: 'entity', label: 'Import', render: (i) => <TwoLine primary={`${i.entity} · ${i.fileName}`} secondary={`${i.fingerprint} · by ${i.by}`} mono /> },
     { key: 'rows', label: 'Rows', align: 'right' },
-    { key: 'valid', label: 'Valid', align: 'right', render: (i) => <span style={{ color: '#12784E' }}>{i.valid}</span> },
-    { key: 'errors', label: 'Errors', align: 'right', render: (i) => <span style={{ color: i.errors ? '#C0393F' : undefined }}>{i.errors}</span> },
-    { key: 'duplicates', label: 'Duplicates', align: 'right', render: (i) => <span style={{ color: i.duplicates ? '#8A4B0F' : undefined }}>{i.duplicates}</span> },
-    { key: 'committedAt', label: 'Committed', render: (i) => <span style={{ fontSize: 12, color: '#5F6368' }}>{i.committedAt ? fmtDateTime(i.committedAt) : '—'}</span> },
+    { key: 'valid', label: 'Valid', align: 'right', render: (i) => <span style={{ color: 'var(--good)' }}>{i.valid}</span> },
+    { key: 'errors', label: 'Errors', align: 'right', render: (i) => <span style={{ color: i.errors ? 'var(--danger)' : undefined }}>{i.errors}</span> },
+    { key: 'duplicates', label: 'Duplicates', align: 'right', render: (i) => <span style={{ color: i.duplicates ? 'var(--warn)' : undefined }}>{i.duplicates}</span> },
+    { key: 'committedAt', label: 'Committed', render: (i) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{i.committedAt ? fmtDateTime(i.committedAt) : '—'}</span> },
     { key: 'status', label: 'Status', render: (i) => <Badge status={i.status} /> },
   ];
 
@@ -98,12 +98,12 @@ export default function Jobs({ initialTab }: { initialTab?: string }) {
       {tab === 'imports' && <DataTable rows={imports} columns={impCols} emptyTitle="No imports yet" onRowClick={(i) => setImp(i)} rowActions={(i) => [{ label: 'Error rows', onClick: () => setImp(i) }, { label: 'Download errors (CSV)', onClick: () => downloadText(`${i.fileName}-errors.csv`, toCSV(i.errorRows)), disabled: !i.errorRows.length }]} />}
 
       <Drawer open={!!job} onClose={() => setJob(null)} title={job?.name ?? ''} subtitle={job ? `${job.type} · ${job.status}` : ''} width={560} headerRight={job && <Badge status={job.status} />}
-        footer={job && job.status === 'Dead-letter' ? <><span style={{ fontSize: 12, color: '#6E6E71' }}>Replay requires admin.jobs.edit</span><Button variant="danger" onClick={() => setReplay(job)} disabled={!canReplay}>Replay job</Button></> : job && (job.status === 'Queued' || job.status === 'Retrying') ? <><span /><Button variant="primary" onClick={() => { runJob(job); setJob(null); }}>Run now</Button></> : undefined}>
+        footer={job && job.status === 'Dead-letter' ? <><span style={{ fontSize: 12, color: 'var(--ink-4)' }}>Replay requires admin.jobs.edit</span><Button variant="tinted" tone="danger" onClick={() => setReplay(job)} disabled={!canReplay}>Replay job</Button></> : job && (job.status === 'Queued' || job.status === 'Retrying') ? <><span /><Button variant="primary" onClick={() => { runJob(job); setJob(null); }}>Run now</Button></> : undefined}>
         {job && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {job.status === 'Dead-letter' && <Banner tone="danger">Dead-lettered after {job.attempts} attempts: {job.lastError}. Replay re-runs with the same idempotency key so the effect cannot duplicate (FRD §20).</Banner>}
             <KV items={[{ k: 'Correlation', v: <Identifier>{job.correlationId}</Identifier> }, { k: 'Idempotency', v: <Identifier>{job.idempotencyKey ?? '—'}</Identifier> }, { k: 'Attempts', v: `${job.attempts} / ${job.maxAttempts}` }, { k: 'Started', v: job.startedAt ? fmtDateTime(job.startedAt) : '—' }, { k: 'Finished', v: job.finishedAt ? fmtDateTime(job.finishedAt) : '—' }, { k: 'Last error', v: job.lastError ?? '—' }]} />
-            <div><div className="section-label" style={{ marginBottom: 4 }}>Payload</div><pre style={{ background: '#F9FBFC', padding: 10, borderRadius: 8, fontSize: 11, overflow: 'auto' }}>{JSON.stringify(job.payload ?? {}, null, 2)}</pre></div>
+            <div><div className="section-label" style={{ marginBottom: 4 }}>Payload</div><pre style={{ background: 'var(--surface-2)', padding: 10, borderRadius: 8, fontSize: 11, overflow: 'auto' }}>{JSON.stringify(job.payload ?? {}, null, 2)}</pre></div>
           </div>
         )}
       </Drawer>
@@ -112,10 +112,10 @@ export default function Jobs({ initialTab }: { initialTab?: string }) {
         {imp && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <KV items={[{ k: 'Fingerprint', v: <Identifier>{imp.fingerprint}</Identifier> }, { k: 'By', v: imp.by }, { k: 'Committed', v: imp.committedAt ? fmtDateTime(imp.committedAt) : 'not committed' }]} />
-            {imp.errorRows.length === 0 ? <div style={{ fontSize: 13, color: '#12784E' }}>No row errors.</div> : (
+            {imp.errorRows.length === 0 ? <div style={{ fontSize: 13, color: 'var(--good)' }}>No row errors.</div> : (
               <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><div className="section-title" style={{ marginBottom: 0 }}>Row errors</div><Button size="sm" variant="secondary" onClick={() => downloadText(`${imp.fileName}-errors.csv`, toCSV(imp.errorRows))}>Download errors (CSV)</Button></div>
-                <table className="data-table dense"><thead><tr><th>Row</th><th>Field</th><th>Code</th><th>Message</th></tr></thead><tbody>{imp.errorRows.map((e, i) => <tr key={i} className="error-row"><td>{e.row}</td><td>{e.field}</td><td className="identifier">{e.code}</td><td style={{ color: '#C0393F' }}>{e.message}</td></tr>)}</tbody></table>
+                <table className="data-table dense"><thead><tr><th>Row</th><th>Field</th><th>Code</th><th>Message</th></tr></thead><tbody>{imp.errorRows.map((e, i) => <tr key={i} className="error-row"><td>{e.row}</td><td>{e.field}</td><td className="identifier">{e.code}</td><td style={{ color: 'var(--danger)' }}>{e.message}</td></tr>)}</tbody></table>
               </>
             )}
           </div>

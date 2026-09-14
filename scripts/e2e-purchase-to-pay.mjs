@@ -34,7 +34,7 @@ async function login(email) {
   const emailInput = page.locator('input[type=email]').first();
   await emailInput.fill(email); await page.locator('button[type=submit]').first().click(); await page.waitForTimeout(700);
   const mfa = page.locator('input[placeholder="123456"]'); if (await mfa.count()) { await mfa.fill('123456'); await page.getByText('Verify and sign in').click(); await page.waitForTimeout(400); }
-  const choose = page.getByText('Choose a company'); if (await choose.count()) { await page.getByText('Acme Private Limited').first().click(); await page.waitForTimeout(400); }
+  const choose = page.locator('.company-picker'); if (await choose.count()) { await page.locator('.company-card:not(.create)').first().click(); await page.waitForTimeout(400); }
   log('logged in as', email);
 }
 const pickEntity = async (scope, query) => { const box = scope.locator('.field-input').first(); await box.click(); await page.waitForTimeout(100); const input = scope.locator('input[placeholder]').first(); await input.click(); await input.fill(query); await page.waitForTimeout(250); await page.locator('.menu .menu-item').first().click(); await page.waitForTimeout(200); };

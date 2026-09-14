@@ -47,8 +47,8 @@ export default function SupplierDetail({ id }: { id: string }) {
         </>}
       />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
-        <KpiTile label="Payable" value={<Money value={out.outstanding} currency={s.currency} />} sub={`${mine.length} open item${mine.length === 1 ? '' : 's'}`} onClick={() => setTab('items')} />
-        <KpiTile label="Overdue" value={<Money value={out.overdue} currency={s.currency} tone={out.overdue > 0 ? 'negative' : 'none'} />} sub={sup.msmeNumber ? 'MSME · 45-day rule' : 'Per purchase terms'} />
+        <KpiTile label="Payable" amount={out.outstanding} currency={s.currency} sub={`${mine.length} open item${mine.length === 1 ? '' : 's'}`} onClick={() => setTab('items')} />
+        <KpiTile label="Overdue" amount={out.overdue} currency={s.currency} tone={out.overdue > 0 ? 'negative' : 'none'} sub={sup.msmeNumber ? 'MSME · 45-day rule' : 'Per purchase terms'} />
         <KpiTile label="Bank for payments" value={approvedBank ? `${approvedBank.bankName} ••••${approvedBank.accountNumber.slice(-4)}` : 'None approved'} sub={sup.bankDetails.some((b) => b.status === 'Pending Approval') ? 'Change awaiting Treasury approval' : approvedBank ? 'Approved' : 'Payments blocked'} deltaTone={approvedBank ? 'good' : 'bad'} />
         <KpiTile label="Documents" value={docs.length} sub={refs.detail || 'No references yet'} onClick={() => setTab('docs')} />
       </div>
@@ -72,8 +72,8 @@ export default function SupplierDetail({ id }: { id: string }) {
       {tab === 'docs' && <RecentDocsTable docs={docs} currency={s.currency} />}
       {tab === 'contacts' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          <div><div className="section-title">Addresses</div><div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{sup.addresses.length ? sup.addresses.map((a) => <AddressCard key={a.id} a={a} />) : <span style={{ fontSize: 13, color: '#5F6368' }}>No addresses</span>}</div></div>
-          <div><div className="section-title">Contacts</div><div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{sup.contacts.length ? sup.contacts.map((ct) => <ContactCard key={ct.id} c={ct} />) : <span style={{ fontSize: 13, color: '#5F6368' }}>No contacts</span>}</div></div>
+          <div><div className="section-title">Addresses</div><div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{sup.addresses.length ? sup.addresses.map((a) => <AddressCard key={a.id} a={a} />) : <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>No addresses</span>}</div></div>
+          <div><div className="section-title">Contacts</div><div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{sup.contacts.length ? sup.contacts.map((ct) => <ContactCard key={ct.id} c={ct} />) : <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>No contacts</span>}</div></div>
         </div>
       )}
       {tab === 'history' && <ChangeHistory objectId={id} />}

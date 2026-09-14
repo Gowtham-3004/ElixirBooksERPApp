@@ -51,9 +51,9 @@ export default function Inbox({ openId }: { openId?: string }) {
     const reason = chk.ok ? undefined : chk.reason;
     return (
       <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-        <Button size={size} variant="secondary" disabled={!chk.ok} reason={reason} onClick={() => setAct({ ids: [r.id], action: 'Reject' })}>Reject</Button>
+        <Button size={size} variant="tinted" tone="danger" disabled={!chk.ok} reason={reason} onClick={() => setAct({ ids: [r.id], action: 'Reject' })}>Reject</Button>
         <Button size={size} variant="secondary" disabled={!chk.ok} reason={reason} onClick={() => setAct({ ids: [r.id], action: 'Return' })}>Return</Button>
-        <Button size={size} variant="primary" disabled={!chk.ok} reason={reason} onClick={() => setAct({ ids: [r.id], action: 'Approve' })}>Approve</Button>
+        <Button size={size} variant="primary" tone="good" disabled={!chk.ok} reason={reason} onClick={() => setAct({ ids: [r.id], action: 'Approve' })}>Approve</Button>
       </div>
     );
   };
@@ -73,15 +73,15 @@ export default function Inbox({ openId }: { openId?: string }) {
   const columns: Column<ApprovalRequest>[] = [
     { key: 'docNumber', label: 'Document', sortable: true, render: (r) => (
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ width: 32, height: 32, borderRadius: 8, background: '#F3F5F5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>{TYPE_ICON[r.docType] ?? '📄'}</div>
+        <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>{TYPE_ICON[r.docType] ?? '📄'}</div>
         <TwoLine primary={<Identifier link onClick={(e) => { e.stopPropagation(); nav.go(docPath(r)); }}>{r.docNumber}</Identifier>} secondary={`${r.docType} · ${r.requesterName}`} />
       </div>
     ) },
-    { key: 'step', label: 'Awaiting', render: (r) => { const st = currentStep(r); const esc = escalation(r); return r.status === 'Pending' ? <TwoLine primary={st?.approverLabel ?? '—'} secondary={esc ? <span style={{ color: '#C0393F' }}>Escalated to {esc.toRole} · after {esc.afterHours} h</span> : `Step ${r.currentStep} of ${r.steps.length}`} /> : <Badge status={r.status} />; } },
+    { key: 'step', label: 'Awaiting', render: (r) => { const st = currentStep(r); const esc = escalation(r); return r.status === 'Pending' ? <TwoLine primary={st?.approverLabel ?? '—'} secondary={esc ? <span style={{ color: 'var(--danger)' }}>Escalated to {esc.toRole} · after {esc.afterHours} h</span> : `Step ${r.currentStep} of ${r.steps.length}`} /> : <Badge status={r.status} />; } },
     { key: 'amount', label: 'Amount', align: 'right', sortable: true, value: (r) => r.amount, render: (r) => <Money value={r.amount} currency={r.currency} code={r.currency !== s.currency} />, total: (rs) => <Money value={rs.reduce((a, r) => a + r.amount, 0)} currency={s.currency} /> },
-    { key: 'branchId', label: 'Branch', render: (r) => <span style={{ color: '#5F6368' }}>{branchName(r.branchId)}</span> },
-    { key: 'submittedAt', label: 'Submitted', sortable: true, render: (r) => <span style={{ color: '#5F6368' }}>{fmtDate(r.submittedAt)}</span> },
-    { key: 'age', label: 'Ageing', value: (r) => ageing(r).days, sortable: true, render: (r) => { const a = ageing(r); const esc = escalation(r); return r.status === 'Pending' ? <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><Pill tone={a.tone} title={a.overdue ? `SLA breached by ${a.hoursOver} h` : `Due ${fmtDateTime(currentStep(r)?.dueAt)}`}>{a.label}</Pill>{esc && <Badge status="Escalated" />}</span> : <span style={{ color: '#5F6368', fontSize: 12 }}>{fmtDate(r.completedAt)}</span>; } },
+    { key: 'branchId', label: 'Branch', render: (r) => <span style={{ color: 'var(--ink-3)' }}>{branchName(r.branchId)}</span> },
+    { key: 'submittedAt', label: 'Submitted', sortable: true, render: (r) => <span style={{ color: 'var(--ink-3)' }}>{fmtDate(r.submittedAt)}</span> },
+    { key: 'age', label: 'Ageing', value: (r) => ageing(r).days, sortable: true, render: (r) => { const a = ageing(r); const esc = escalation(r); return r.status === 'Pending' ? <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><Pill tone={a.tone} title={a.overdue ? `SLA breached by ${a.hoursOver} h` : `Due ${fmtDateTime(currentStep(r)?.dueAt)}`}>{a.label}</Pill>{esc && <Badge status="Escalated" />}</span> : <span style={{ color: 'var(--ink-3)', fontSize: 12 }}>{fmtDate(r.completedAt)}</span>; } },
     { key: 'actions', label: '', render: (r) => (r.status === 'Pending' ? actions(r) : <Button size="sm" variant="ghost" onClick={() => setOpen(r.id)}>View</Button>) },
   ];
 
@@ -114,7 +114,9 @@ export default function Inbox({ openId }: { openId?: string }) {
           return [{ label: `Approve ${ids.size} selected`, onClick: () => setAct({ ids: Array.from(ids), action: 'Approve' }), disabled: !allOk, reason: allOk ? undefined : bad ? `${bad.docNumber}: ${bad.status !== 'Pending' ? bad.status.toLowerCase() : canAct(bad).reason}` : 'Select rows' }];
         }}
         emptyTitle="Nothing to approve"
-        emptyDescription="Requests routed to your role or to you directly appear here."
+        emptyDescription="You are all caught up — requests routed to your role or to you directly appear here."
+        emptyIllustration="all-done"
+        emptyAnimated
       />
 
       {/* Row detail drawer */}
@@ -135,7 +137,7 @@ export default function Inbox({ openId }: { openId?: string }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             {!canAct(openReq).ok && openReq.status === 'Pending' && <Banner tone="info">{canAct(openReq).reason}</Banner>}
             {escalation(openReq) && <Banner tone="warning">SLA breached by {ageing(openReq).hoursOver} h — escalated to {escalation(openReq)!.toRole} (after {escalation(openReq)!.afterHours} h). Reminders were sent to the assigned approver.</Banner>}
-            <div className="card" style={{ padding: 14, background: '#F9FBFC' }}>
+            <div className="card" style={{ padding: 14, background: 'var(--surface-2)' }}>
               <KV columns={2} items={[
                 { k: 'Amount', v: <Money value={openReq.amount} currency={openReq.currency} code /> },
                 { k: 'Branch', v: branchName(openReq.branchId) },

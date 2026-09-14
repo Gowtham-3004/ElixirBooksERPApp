@@ -62,7 +62,7 @@ export default function PlanUsage() {
       {(tenant.subscriptionState === 'Grace' || tenant.subscriptionState === 'Suspended' || tenant.subscriptionState === 'Trial') && <Banner tone={tenant.subscriptionState === 'Suspended' ? 'danger' : 'warning'}>{stateText[tenant.subscriptionState]}</Banner>}
       <div className="grid-2">
         <Card title="Plan">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}><span style={{ fontSize: 22, fontWeight: 700 }}>{plan.name}</span><Badge status={tenant.subscriptionState} /><span style={{ fontSize: 12, color: '#6E6E71' }}>v{plan.planVersion}</span></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}><span style={{ fontSize: 22, fontWeight: 700 }}>{plan.name}</span><Badge status={tenant.subscriptionState} /><span style={{ fontSize: 12, color: 'var(--ink-4)' }}>v{plan.planVersion}</span></div>
           <KV items={[{ k: 'Tier', v: plan.tier }, { k: 'Price', v: `${fmtMoney(plan.priceMonthly, plan.currency)} / month` }, { k: tenant.subscriptionState === 'Trial' ? 'Trial ends' : 'Renews', v: fmtDate(tenant.subscriptionState === 'Trial' ? tenant.trialEndsAt : tenant.renewsAt) }, { k: 'State', v: stateText[tenant.subscriptionState] }]} />
         </Card>
         <Card title="Usage against limits">
@@ -72,7 +72,7 @@ export default function PlanUsage() {
               const pct = max ? (live / max) * 100 : 0;
               return (
                 <div key={k}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}><span>{LIMIT_LABEL[k] ?? k}</span><span style={{ fontFeatureSettings: '"tnum" 1', color: pct >= 100 ? '#C0393F' : pct >= 80 ? '#8A4B0F' : '#5F6368' }}>{live.toLocaleString('en-IN')} / {max.toLocaleString('en-IN')}{pct >= 80 ? ` · ${Math.round(pct)}%` : ''}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}><span>{LIMIT_LABEL[k] ?? k}</span><span style={{ fontVariantNumeric: 'tabular-nums', color: pct >= 100 ? 'var(--danger)' : pct >= 80 ? 'var(--warn)' : 'var(--ink-3)' }}>{live.toLocaleString('en-IN')} / {max.toLocaleString('en-IN')}{pct >= 80 ? ` · ${Math.round(pct)}%` : ''}</span></div>
                   <Meter value={live} max={max} />
                 </div>
               );
@@ -90,7 +90,7 @@ export default function PlanUsage() {
               return (
                 <tr key={m.id}>
                   <td style={{ fontWeight: 500 }}>{m.label}</td>
-                  <td style={{ fontSize: 12, color: '#5F6368' }}>{m.description}</td>
+                  <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{m.description}</td>
                   <td>{ok ? <Badge status="Active">Included</Badge> : <Badge status="Draft">Not in plan</Badge>}</td>
                   <td style={{ textAlign: 'right' }}>{!ok && <Button size="sm" variant="tinted" onClick={() => { setTarget(minPlan?.id ?? ''); setChoose(true); }}>Upgrade{minPlan ? ` to ${minPlan.name}` : ''}</Button>}</td>
                 </tr>
@@ -99,7 +99,7 @@ export default function PlanUsage() {
           </tbody>
         </table>
       </Card>
-      <div style={{ fontSize: 12, color: '#6E6E71' }}>API and UI enforce the same effective entitlements (FR-PLT-004). Upgrades unlock capabilities in place — no tenant data is copied (FR-PLT-005).</div>
+      <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>API and UI enforce the same effective entitlements (FR-PLT-004). Upgrades unlock capabilities in place — no tenant data is copied (FR-PLT-005).</div>
 
       <ConfirmDialog open={choose} onClose={() => setChoose(false)} title={targetPlan ? `Change plan to ${targetPlan.name}?` : 'Choose a plan'} statement={targetPlan ? `${fmtMoney(targetPlan.priceMonthly, targetPlan.currency)} / month · billed from today · ${blockers.length ? 'this switch is blocked until current usage fits the selected plan' : isUpgrade ? 'capabilities unlock immediately' : 'capabilities above the new plan become unavailable at once'}.` : undefined}
         consequences={consequences} confirmLabel={targetPlan ? (isUpgrade ? `Upgrade to ${targetPlan.name}` : `Switch to ${targetPlan.name}`) : 'Choose plan'} cancelLabel={`Stay on ${plan.name}`} disabled={!targetPlan || targetPlan.id === plan.id || blockers.length > 0} onConfirm={change}>

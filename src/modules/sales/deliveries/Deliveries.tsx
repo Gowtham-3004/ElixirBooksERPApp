@@ -17,7 +17,7 @@ export function DeliveryRegister() {
   const columns: Column<Delivery>[] = [
     { key: 'number', label: 'Delivery #', sortable: true, render: (r) => <Identifier link onClick={(e) => { e.stopPropagation(); nav.go(`sales/deliveries/${r.id}`); }}>{r.number}</Identifier>, value: (r) => r.number },
     { key: 'date', label: 'Date', sortable: true, render: (r) => fmtDate(r.date), value: (r) => r.date },
-    { key: 'sourceNumber', label: 'Sales order', render: (r) => r.sourceNumber ? <Identifier link onClick={(e) => { e.stopPropagation(); nav.go(`sales/orders/${r.sourceId}`); }}>{r.sourceNumber}</Identifier> : <span style={{ color: '#B0B5BF' }}>—</span>, value: (r) => r.sourceNumber },
+    { key: 'sourceNumber', label: 'Sales order', render: (r) => r.sourceNumber ? <Identifier link onClick={(e) => { e.stopPropagation(); nav.go(`sales/orders/${r.sourceId}`); }}>{r.sourceNumber}</Identifier> : <span style={{ color: 'var(--ink-5)' }}>—</span>, value: (r) => r.sourceNumber },
     { key: 'partyName', label: 'Customer', sortable: true, render: (r) => <TwoLine primary={r.partyName} secondary={r.partySnapshot?.gstin} mono />, value: (r) => r.partyName },
     { key: 'wh', label: 'Warehouse', render: (r) => db.find<any>(C.warehouses, r.warehouseId ?? r.lines[0]?.warehouseId)?.name ?? '—' },
     { key: 'lines', label: 'Lines', align: 'right', render: (r) => r.lines.length, value: (r) => r.lines.length },
@@ -78,20 +78,20 @@ export function DeliveryForm({ id, orderId }: { id?: string; orderId?: string })
         </div>
       </Card>
       <section>
-        <div className="section-title">Lines {doc.sourceNumber && <span style={{ fontSize: 12, fontWeight: 400, color: '#5F6368' }}>· capped at remaining order quantity</span>}</div>
+        <div className="section-title">Lines {doc.sourceNumber && <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--ink-3)' }}>· capped at remaining order quantity</span>}</div>
         <LineItemGrid lines={doc.lines} onChange={setLines} partyId={doc.partyId} currency={doc.currency} showDiscount={false} showTax={false} showWarehouse showBatch={needsBatch || !doc.sourceId} sourceLinked={!!doc.sourceId} itemFilter={(i: Item) => i.isStock && i.status === 'Active'} />
-        {errors.length > 0 && doc.lines.length > 0 && <div style={{ fontSize: 12, color: '#C0393F', marginTop: 6 }}>{errors[0]}{errors.length > 1 ? ` (+${errors.length - 1} more)` : ''}</div>}
+        {errors.length > 0 && doc.lines.length > 0 && <div style={{ fontSize: 12, color: 'var(--danger)', marginTop: 6 }}>{errors[0]}{errors.length > 1 ? ` (+${errors.length - 1} more)` : ''}</div>}
       </section>
       <Card title="Notes" padding={16}><TextArea value={doc.notes ?? ''} onChange={(v) => set({ notes: v })} rows={2} placeholder="Delivery instructions, gate pass…" /></Card>
       {draft.persisted && <Card title="Attachments" padding={16}><AttachmentsPanel objectType="Delivery" objectId={doc.id} /></Card>}
       <FormFooter savedAt={draft.savedAt} dirty={draft.dirty} conflict={draft.conflict} onReload={draft.reload}>
         <Button variant="ghost" onClick={() => nav.go(id ? `sales/deliveries/${id}` : 'sales/deliveries')}>Discard changes</Button>
         <Button variant="secondary" onClick={save}>Save draft</Button>
-        <Button variant="primary" onClick={() => { if (errors.length) { draft.setErrors(errors.map((m) => ({ message: m }))); toast.error('Fix the highlighted issues'); return; } setConfirm(true); }} disabled={!s.can('sales.delivery.post') && !s.can('sales.delivery.*')} reason="Requires sales.delivery.post" data-testid="post-delivery">Post delivery</Button>
+        <Button variant="primary" tone="good" onClick={() => { if (errors.length) { draft.setErrors(errors.map((m) => ({ message: m }))); toast.error('Fix the highlighted issues'); return; } setConfirm(true); }} disabled={!s.can('sales.delivery.post') && !s.can('sales.delivery.*')} reason="Requires sales.delivery.post" data-testid="post-delivery">Post delivery</Button>
       </FormFooter>
       <ConfirmDialog open={confirm} onClose={() => setConfirm(false)} title="Post this delivery?" statement="Stock is issued from the selected warehouse and the order fulfilment updated. Reverse to undo." confirmLabel="Post delivery" cancelLabel="Keep as draft" consequences={[{ engine: 'Numbering', text: `Number ${engine.previewNumber('Delivery')} will be allocated` }, { engine: 'Stock', text: doc.lines.map((l) => `−${fmtQty(l.qty)} ${l.itemName} @ ${db.find<any>(C.warehouses, l.warehouseId ?? doc.warehouseId)?.name ?? '—'}`).join(' · ') }, ...(doc.sourceNumber ? [{ engine: 'Workflow', text: `${doc.sourceNumber} delivered quantity and reservations updated` }] : [])]} onConfirm={() => post()} />
       <Modal open={picker} onClose={() => setPicker(false)} title="Deliver against a sales order" description="Only confirmed orders with undelivered stock lines are listed." width={700}>
-        <div className="card" style={{ overflow: 'auto', maxHeight: 400 }}><table className="data-table dense"><thead><tr><th>Order</th><th>Date</th><th>Customer</th><th className="right">Pending lines</th><th /></tr></thead><tbody>{ordersEligibleForDelivery().map((so) => <tr key={so.id}><td className="identifier">{so.number}</td><td>{fmtDate(so.date)}</td><td>{so.partyName}</td><td className="right">{so.lines.filter((l) => l.qty - (l.deliveredQty ?? 0) > 0.0005).length}</td><td><Button size="sm" variant="primary" onClick={() => useOrder(so.id)}>Use</Button></td></tr>)}{ordersEligibleForDelivery().length === 0 && <tr><td colSpan={5} style={{ textAlign: 'center', color: '#5F6368' }}>No orders awaiting delivery</td></tr>}</tbody></table></div>
+        <div className="card" style={{ overflow: 'auto', maxHeight: 400 }}><table className="data-table dense"><thead><tr><th>Order</th><th>Date</th><th>Customer</th><th className="right">Pending lines</th><th /></tr></thead><tbody>{ordersEligibleForDelivery().map((so) => <tr key={so.id}><td className="identifier">{so.number}</td><td>{fmtDate(so.date)}</td><td>{so.partyName}</td><td className="right">{so.lines.filter((l) => l.qty - (l.deliveredQty ?? 0) > 0.0005).length}</td><td><Button size="sm" variant="primary" onClick={() => useOrder(so.id)}>Use</Button></td></tr>)}{ordersEligibleForDelivery().length === 0 && <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ink-3)' }}>No orders awaiting delivery</td></tr>}</tbody></table></div>
       </Modal>
     </div>
   );
@@ -107,13 +107,13 @@ export function DeliveryDetail({ id }: { id: string }) {
   const [email, setEmail] = useState(false);
   if (!d) return <EmptyState title="Delivery not found" action={<Button variant="primary" onClick={() => nav.go('sales/deliveries')}>Back</Button>} />;
   const block = d.status === 'Posted' ? deliveryReverseBlock(d) : undefined;
-  const footer = d.status === 'Draft' ? <><Button variant="danger" onClick={() => setDialog('delete')}>Delete draft</Button><Button variant="secondary" onClick={() => nav.go(`sales/deliveries/${d.id}`, { edit: 1 })}>Edit</Button><Button variant="primary" onClick={() => setDialog('post')} disabled={!s.can('sales.delivery.post') && !s.can('sales.delivery.*')} reason="Requires sales.delivery.post">Post delivery</Button></>
+  const footer = d.status === 'Draft' ? <><Button variant="tinted" tone="danger" onClick={() => setDialog('delete')}>Delete draft</Button><Button variant="secondary" onClick={() => nav.go(`sales/deliveries/${d.id}`, { edit: 1 })}>Edit</Button><Button variant="primary" tone="good" onClick={() => setDialog('post')} disabled={!s.can('sales.delivery.post') && !s.can('sales.delivery.*')} reason="Requires sales.delivery.post">Post delivery</Button></>
     : d.status === 'Posted' ? <><Button variant="secondary" onClick={() => setDialog('reverse')} disabled={!!block} reason={block}>Reverse</Button><Button variant="secondary" onClick={() => setPdf(true)}>Print challan</Button><Button variant="secondary" onClick={() => setEmail(true)}>Send</Button>{!d.invoiced && <Button variant="primary" onClick={() => nav.go('sales/invoices/new', { delivery: d.id })} data-testid="invoice-from-delivery">Create invoice</Button>}</>
     : <Button variant="secondary" onClick={() => setPdf(true)}>Print challan</Button>;
   return (
     <>
       <DocumentPage backLabel="Deliveries" onBack={() => nav.go('sales/deliveries')} number={d.number} badges={<><Badge status={d.status} />{d.status === 'Posted' && (d.invoiced ? <Badge status="Invoiced" /> : <Badge status="Pending">Awaiting invoice</Badge>)}</>}
-        rail={<SalesRail doc={d}><RailSection label="Dispatch"><div style={{ fontSize: 12, color: '#5F6368' }}>{db.find<any>(C.warehouses, d.warehouseId ?? d.lines[0]?.warehouseId)?.name ?? '—'}{d.vehicleNo ? ` · ${d.vehicleNo}` : ''}{d.transporter ? ` · ${d.transporter}` : ''}</div></RailSection></SalesRail>}
+        rail={<SalesRail doc={d}><RailSection label="Dispatch"><div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{db.find<any>(C.warehouses, d.warehouseId ?? d.lines[0]?.warehouseId)?.name ?? '—'}{d.vehicleNo ? ` · ${d.vehicleNo}` : ''}{d.transporter ? ` · ${d.transporter}` : ''}</div></RailSection></SalesRail>}
         banner={d.status === 'Reversed' ? <Banner tone="warning" full>Reversed: {d.reversalReason}</Banner> : undefined}
         tabs={[{ id: 'details', label: 'Details', content: <DocDetailsTab doc={d} header={[...docHeaderRows(d), { k: 'Vehicle', v: d.vehicleNo ?? '—' }, { k: 'Transporter', v: d.transporter ?? '—' }]} showTax={false} showCharges={false} showLadder={false} showWarehouse showBatch sourceLinked={!!d.sourceId} lineExtraColumns={[{ key: 'inv', label: 'Invoiced', render: (l: any) => fmtQty(l.invoicedQty ?? 0) }]} extra={<StockMovesPanel sourceId={d.id} />} /> }, { id: 'activity', label: 'Activity', content: <ActivityTab objectId={d.id} correlationId={d.correlationId} /> }]}
         footer={footer} />

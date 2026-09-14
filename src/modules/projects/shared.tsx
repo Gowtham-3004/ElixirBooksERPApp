@@ -10,19 +10,19 @@ import { periodsBetween, currentPeriod } from './data';
 
 export function ContractLink({ id, number }: { id?: string; number?: string }) {
   const c = db.find<Contract>(C.contracts, id);
-  if (!c) return <span style={{ color: '#B0B5BF' }}>{number ?? '—'}</span>;
+  if (!c) return <span style={{ color: 'var(--ink-5)' }}>{number ?? '—'}</span>;
   return <Identifier link onClick={(e) => { e.stopPropagation(); nav.go(`projects/contracts/${c.id}`); }}>{c.number}</Identifier>;
 }
 
 export function ProjectLink({ id }: { id?: string }) {
   const p = db.find<Project>(C.projects, id);
-  if (!p) return <span style={{ color: '#B0B5BF' }}>—</span>;
+  if (!p) return <span style={{ color: 'var(--ink-5)' }}>—</span>;
   return <Identifier link onClick={(e) => { e.stopPropagation(); nav.go(`projects/projects/${p.id}`); }}>{p.code}</Identifier>;
 }
 
 export function InvoiceLink({ id, number }: { id?: string; number?: string }) {
   const inv = db.find<DocHeader>(C.salesInvoices, id);
-  if (!inv) return <span style={{ color: '#B0B5BF' }}>{number ?? '—'}</span>;
+  if (!inv) return <span style={{ color: 'var(--ink-5)' }}>{number ?? '—'}</span>;
   return (
     <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
       <Identifier link onClick={(e) => { e.stopPropagation(); nav.go(`sales/invoices/${inv.id}`); }}>{inv.number}</Identifier>
@@ -72,5 +72,5 @@ export function DateRange({ from, to }: { from?: string; to?: string }) {
 }
 
 export function Muted({ children }: { children: ReactNode }) {
-  return <span style={{ color: '#5F6368', fontSize: 12 }}>{children}</span>;
+  return <span style={{ color: 'var(--ink-3)', fontSize: 12 }}>{children}</span>;
 }

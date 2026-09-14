@@ -39,7 +39,7 @@ export function TradeAnalysis({ direction }: { direction: 'sale' | 'purchase' })
     { key: 'total', label: 'Gross', align: 'right', render: (r) => <span className="money">{fmtMoney(r.total, s.currency)}</span>, total: () => <span className="money">{fmtMoney(totals.total, s.currency)}</span> },
     ...(direction === 'sale' ? [
       { key: 'cogs', label: 'COGS (avg cost)', align: 'right', render: (r) => <span className="money">{fmtMoney(r.cogs, s.currency)}</span>, total: () => <span className="money">{fmtMoney(totals.cogs, s.currency)}</span> } as Column<AnalysisRow>,
-      { key: 'margin', label: 'Gross margin', align: 'right', render: (r) => <span className="money" style={{ color: r.margin >= 0 ? '#12784E' : '#C0393F', fontWeight: 600 }}>{fmtMoney(r.margin, s.currency)}</span>, total: () => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(totals.margin, s.currency)}</span>, sortable: true } as Column<AnalysisRow>,
+      { key: 'margin', label: 'Gross margin', align: 'right', render: (r) => <span className="money" style={{ color: r.margin >= 0 ? 'var(--good)' : 'var(--danger)', fontWeight: 600 }}>{fmtMoney(r.margin, s.currency)}</span>, total: () => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(totals.margin, s.currency)}</span>, sortable: true } as Column<AnalysisRow>,
       { key: 'marginPct', label: 'GM %', align: 'right', render: (r) => <span className="money">{fmtPct(r.marginPct)}</span>, sortable: true } as Column<AnalysisRow>,
     ] : []),
     { key: 'share', label: 'Share', width: 140, render: (r) => <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ flex: 1 }}><Meter value={totals.taxable ? (r.taxable / totals.taxable) * 100 : 0} tone="good" /></div><span style={{ fontSize: 11, width: 36, textAlign: 'right' }}>{totals.taxable ? fmtPct((r.taxable / totals.taxable) * 100, 0) : '—'}</span></div> },
@@ -49,9 +49,9 @@ export function TradeAnalysis({ direction }: { direction: 'sale' | 'purchase' })
     <ReportFrame id={id} title={direction === 'sale' ? 'Sales analysis' : 'Purchase analysis'} rangeLabel={rangeLabel(range)} filterState={f} exportColumns={cols.filter((c) => c.key !== 'share').map((c) => ({ key: c.key, label: String(c.label) }))} exportRows={() => rows as any}
       filters={<><RangeBar f={f} set={set} /><BranchPicker value={f.branchId} onChange={(v) => set({ branchId: v })} /><PartyPicker collection={direction === 'sale' ? 'customers' : 'suppliers'} label={direction === 'sale' ? 'Customer' : 'Supplier'} value={f.partyId} onChange={(v) => set({ partyId: v })} /><PartyPicker collection="items" label="Item" value={f.itemId} onChange={(v) => set({ itemId: v })} /><DimensionPicker type="Project" value={f.project} onChange={(v) => set({ project: v })} /><div><label className="field-label">Group by</label><Segmented value={f.by} onChange={(v) => set({ by: v })} options={direction === 'sale' ? DIMS_SALE : DIMS_PUR} /></div><div><label className="field-label">Notes</label><Segmented value={f.includeCredits} onChange={(v) => set({ includeCredits: v })} options={[{ value: '1', label: 'Net of credits' }, { value: '0', label: 'Gross' }]} /></div></>}>
       <div className="grid-4">
-        <KpiTile label={direction === 'sale' ? 'Net sales' : 'Net purchases'} value={fmtMoney(totals.taxable, s.currency)} sub={`${totals.docs} documents`} />
-        <KpiTile label="Tax" value={fmtMoney(totals.tax, s.currency)} />
-        {direction === 'sale' ? <KpiTile label="Gross margin" value={fmtMoney(totals.margin, s.currency)} delta={totals.taxable ? fmtPct((totals.margin / totals.taxable) * 100) : '—'} deltaTone={totals.margin >= 0 ? 'good' : 'bad'} sub="revenue − COGS at average cost" /> : <KpiTile label="Suppliers" value={new Set(rows.map((r) => r.key)).size} />}
+        <KpiTile label={direction === 'sale' ? 'Net sales' : 'Net purchases'} amount={totals.taxable} currency={s.currency} sub={`${totals.docs} documents`} />
+        <KpiTile label="Tax" amount={totals.tax} currency={s.currency} />
+        {direction === 'sale' ? <KpiTile label="Gross margin" amount={totals.margin} currency={s.currency} delta={totals.taxable ? fmtPct((totals.margin / totals.taxable) * 100) : '—'} deltaTone={totals.margin >= 0 ? 'good' : 'bad'} sub="revenue − COGS at average cost" /> : <KpiTile label="Suppliers" value={new Set(rows.map((r) => r.key)).size} />}
         <KpiTile label="Top line share" value={rows[0] ? fmtPct(totals.taxable ? (rows[0].taxable / totals.taxable) * 100 : 0, 0) : '—'} sub={rows[0]?.label} />
       </div>
       <DataTable rows={rows} rowKey={(r) => r.key} columns={cols} dense showTotals onRowClick={(r) => { if (f.by === 'customer') nav.go(`sales/invoices?customer=${r.key}`); else if (f.by === 'supplier') nav.go(`purchase/vendor-invoices?supplier=${r.key}`); else if (f.by === 'item') nav.go(`masters/items/${r.key}`); }} emptyTitle={`No posted ${direction === 'sale' ? 'sales' : 'purchase'} documents in ${rangeLabel(range)}`} emptyDescription={direction === 'sale' ? 'Posted sales invoices and POS bills feed this report.' : 'Posted vendor invoices feed this report.'} />
@@ -73,7 +73,7 @@ export function MarginReport() {
     { key: 'qty', label: 'Qty sold', align: 'right', render: (r) => <span className="money">{fmtQty(r.qty)}</span> },
     { key: 'taxable', label: 'Revenue', align: 'right', render: (r) => <span className="money">{fmtMoney(r.taxable, s.currency)}</span>, total: () => <span className="money">{fmtMoney(totals.taxable, s.currency)}</span>, sortable: true },
     { key: 'cogs', label: 'COGS (avg cost)', align: 'right', render: (r) => <span className="money">{fmtMoney(r.cogs, s.currency)}</span>, total: () => <span className="money">{fmtMoney(totals.cogs, s.currency)}</span> },
-    { key: 'margin', label: 'Gross margin', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600, color: r.margin >= 0 ? '#12784E' : '#C0393F' }}>{fmtMoney(r.margin, s.currency)}</span>, total: () => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(totals.margin, s.currency)}</span>, sortable: true },
+    { key: 'margin', label: 'Gross margin', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600, color: r.margin >= 0 ? 'var(--good)' : 'var(--danger)' }}>{fmtMoney(r.margin, s.currency)}</span>, total: () => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(totals.margin, s.currency)}</span>, sortable: true },
     { key: 'marginPct', label: 'GM %', align: 'right', render: (r) => <span className="money">{fmtPct(r.marginPct)}</span>, sortable: true },
     { key: 'bar', label: '', width: 120, render: (r) => <Meter value={Math.max(0, r.marginPct)} max={100} tone={r.marginPct < 10 ? 'danger' : r.marginPct < 25 ? 'warn' : 'good'} /> },
   ];
@@ -81,10 +81,10 @@ export function MarginReport() {
     <ReportFrame id="margin" title="Gross margin analysis" subtitle="Invoice revenue vs cost of goods at average cost (FR-TRD-004) — compared with the ledger gross profit" rangeLabel={rangeLabel(range)} filterState={f} exportColumns={cols.filter((c) => c.key !== 'bar').map((c) => ({ key: c.key, label: String(c.label) }))} exportRows={() => byItem as any}
       filters={<><RangeBar f={f} set={set} /><BranchPicker value={f.branchId} onChange={(v) => set({ branchId: v })} /></>}>
       <div className="grid-4">
-        <KpiTile label="Revenue (invoices)" value={fmtMoney(totals.taxable, s.currency)} />
-        <KpiTile label="COGS at avg cost" value={fmtMoney(totals.cogs, s.currency)} />
-        <KpiTile label="Gross margin (invoices)" value={fmtMoney(totals.margin, s.currency)} delta={totals.taxable ? fmtPct((totals.margin / totals.taxable) * 100) : '—'} deltaTone="good" />
-        <KpiTile label="Gross profit (ledger)" value={fmtMoney(pl.grossProfit, s.currency)} sub={`revenue ${fmtMoney(pl.revenue, s.currency)} · COGS ${fmtMoney(pl.cogs, s.currency)}`} onClick={() => nav.go('reports/pl')} />
+        <KpiTile label="Revenue (invoices)" amount={totals.taxable} currency={s.currency} />
+        <KpiTile label="COGS at avg cost" amount={totals.cogs} currency={s.currency} />
+        <KpiTile label="Gross margin (invoices)" amount={totals.margin} currency={s.currency} delta={totals.taxable ? fmtPct((totals.margin / totals.taxable) * 100) : '—'} deltaTone="good" />
+        <KpiTile label="Gross profit (ledger)" amount={pl.grossProfit} currency={s.currency} sub={`revenue ${fmtMoney(pl.revenue, s.currency)} · COGS ${fmtMoney(pl.cogs, s.currency)}`} onClick={() => nav.go('reports/pl')} />
       </div>
       <DataTable rows={byItem} rowKey={(r) => r.key} columns={cols} dense showTotals emptyTitle="No sales in this range" />
     </ReportFrame>
@@ -113,7 +113,7 @@ export function ProfitabilityReport() {
     { key: 'grossProfit', label: 'Gross profit', align: 'right', render: (r) => <span className="money">{fmtMoney(r.grossProfit, s.currency)}</span> },
     { key: 'gmPct', label: 'GM %', align: 'right', render: (r) => <span className="money">{fmtPct(r.gmPct)}</span> },
     { key: 'opex', label: 'Opex', align: 'right', render: (r) => <span className="money">{fmtMoney(r.opex, s.currency)}</span> },
-    { key: 'netProfit', label: 'Net profit', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600, color: r.netProfit >= 0 ? '#12784E' : '#C0393F' }}>{fmtMoney(r.netProfit, s.currency)}</span>, total: () => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(total.netProfit, s.currency)}</span>, sortable: true },
+    { key: 'netProfit', label: 'Net profit', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600, color: r.netProfit >= 0 ? 'var(--good)' : 'var(--danger)' }}>{fmtMoney(r.netProfit, s.currency)}</span>, total: () => <span className="money" style={{ fontWeight: 700 }}>{fmtMoney(total.netProfit, s.currency)}</span>, sortable: true },
     { key: 'nmPct', label: 'NM %', align: 'right', render: (r) => <span className="money">{fmtPct(r.nmPct)}</span> },
     { key: 'share', label: 'Revenue share', width: 140, render: (r) => <Meter value={total.revenue ? (r.revenue / total.revenue) * 100 : 0} tone="good" /> },
   ];
@@ -136,25 +136,25 @@ export function BudgetVarianceReport() {
   const res = useMemo(() => budgetVsActual(budget, range, { branchId: f.branchId || undefined }), [budget, range, f.branchId, journals]);
   const rows = [...res.rows, res.totals.income, res.totals.expense, res.totals.net];
   const cols: Column<(typeof rows)[number]>[] = [
-    { key: 'name', label: 'Account / cost head', render: (r) => <span style={{ fontWeight: r.kind === 'account' ? 400 : 600, paddingLeft: r.kind === 'account' ? 16 : 0, textTransform: r.kind === 'group' ? 'uppercase' : undefined, fontSize: r.kind === 'group' ? 11 : 13, color: r.kind === 'group' ? '#5F6368' : '#0A0A0A' }}>{r.code && <span className="identifier" style={{ marginRight: 6, color: '#6E6E71' }}>{r.code}</span>}{r.name}</span> },
+    { key: 'name', label: 'Account / cost head', render: (r) => <span style={{ fontWeight: r.kind === 'account' ? 400 : 600, paddingLeft: r.kind === 'account' ? 16 : 0, textTransform: r.kind === 'group' ? 'uppercase' : undefined, fontSize: r.kind === 'group' ? 11 : 13, color: r.kind === 'group' ? 'var(--ink-3)' : 'var(--ink)' }}>{r.code && <span className="identifier" style={{ marginRight: 6, color: 'var(--ink-4)' }}>{r.code}</span>}{r.name}</span> },
     { key: 'budgetFy', label: 'Budget (FY)', align: 'right', render: (r) => <span className="money">{fmtMoney(r.budgetFy, s.currency)}</span> },
     { key: 'budgetPeriod', label: 'Budget (range)', align: 'right', render: (r) => <span className="money">{fmtMoney(r.budgetPeriod, s.currency)}</span> },
     { key: 'actual', label: 'Actual', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600 }}>{fmtMoney(r.actual, s.currency)}</span> },
-    { key: 'committed', label: 'Committed', align: 'right', render: (r) => <span className="money" style={{ color: r.committed ? '#F97316' : '#B0B5BF' }}>{r.committed ? fmtMoney(r.committed, s.currency) : '—'}</span> },
-    { key: 'variance', label: 'Variance', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600, color: r.favorable ? '#12784E' : '#C0393F' }}>{r.favorable ? '+' : ''}{fmtMoney(r.variance, s.currency)}</span> },
+    { key: 'committed', label: 'Committed', align: 'right', render: (r) => <span className="money" style={{ color: r.committed ? '#F97316' : 'var(--ink-5)' }}>{r.committed ? fmtMoney(r.committed, s.currency) : '—'}</span> },
+    { key: 'variance', label: 'Variance', align: 'right', render: (r) => <span className="money" style={{ fontWeight: 600, color: r.favorable ? 'var(--good)' : 'var(--danger)' }}>{r.favorable ? '+' : ''}{fmtMoney(r.variance, s.currency)}</span> },
     { key: 'util', label: 'Utilization', width: 150, render: (r) => r.type === 'Expense' && r.kind === 'account' ? <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ flex: 1 }}><Meter value={Math.min(r.utilizationPct, 100)} /></div><span style={{ fontSize: 11, width: 36, textAlign: 'right' }}>{r.utilizationPct === 999 ? '∞' : fmtPct(r.utilizationPct, 0)}</span></div> : null },
   ];
   return (
     <ReportFrame id="budget-variance" title="Budget variance" subtitle={budget ? `${budget.name} · v${budget.version}.${budget.revision} · ${budget.status}` : `No budget approved for FY ${fy}`} rangeLabel={rangeLabel(range)} filterState={f} exportColumns={cols.filter((c) => c.key !== 'util').map((c) => ({ key: c.key, label: String(c.label) }))} exportRows={() => rows as any}
       filters={<><RangeBar f={f} set={set} /><BranchPicker value={f.branchId} onChange={(v) => set({ branchId: v })} /></>}>
       <div className="grid-4">
-        <KpiTile label="Income vs budget" value={fmtMoney(res.totals.income.actual, s.currency)} delta={`${res.totals.income.favorable ? '+' : ''}${fmtMoney(res.totals.income.variance, s.currency)}`} deltaTone={res.totals.income.favorable ? 'good' : 'bad'} sub={`budget ${fmtMoney(res.totals.income.budgetPeriod, s.currency)}`} />
-        <KpiTile label="Expenses vs budget" value={fmtMoney(res.totals.expense.actual, s.currency)} delta={`${res.totals.expense.favorable ? '+' : ''}${fmtMoney(res.totals.expense.variance, s.currency)} available`} deltaTone={res.totals.expense.favorable ? 'good' : 'bad'} sub={`budget ${fmtMoney(res.totals.expense.budgetPeriod, s.currency)} · committed ${fmtMoney(res.totals.expense.committed, s.currency)}`} />
-        <KpiTile label="Net result" value={fmtMoney(res.totals.net.actual, s.currency)} delta={`${res.totals.net.favorable ? '+' : ''}${fmtMoney(res.totals.net.variance, s.currency)} vs plan`} deltaTone={res.totals.net.favorable ? 'good' : 'bad'} />
+        <KpiTile label="Income vs budget" amount={res.totals.income.actual} currency={s.currency} delta={`${res.totals.income.favorable ? '+' : ''}${fmtMoney(res.totals.income.variance, s.currency)}`} deltaTone={res.totals.income.favorable ? 'good' : 'bad'} sub={`budget ${fmtMoney(res.totals.income.budgetPeriod, s.currency)}`} />
+        <KpiTile label="Expenses vs budget" amount={res.totals.expense.actual} currency={s.currency} delta={`${res.totals.expense.favorable ? '+' : ''}${fmtMoney(res.totals.expense.variance, s.currency)} available`} deltaTone={res.totals.expense.favorable ? 'good' : 'bad'} sub={`budget ${fmtMoney(res.totals.expense.budgetPeriod, s.currency)} · committed ${fmtMoney(res.totals.expense.committed, s.currency)}`} />
+        <KpiTile label="Net result" amount={res.totals.net.actual} currency={s.currency} delta={`${res.totals.net.favorable ? '+' : ''}${fmtMoney(res.totals.net.variance, s.currency)} vs plan`} deltaTone={res.totals.net.favorable ? 'good' : 'bad'} />
         <KpiTile label="Expense utilization" value={fmtPct(res.totals.expense.utilizationPct, 0)} sub="actual + committed ÷ budget" />
       </div>
       <DataTable rows={rows} rowKey={(r) => r.accountId || r.name} columns={cols} dense rowClass={(r) => (r.kind !== 'account' ? 'selected' : undefined)} onRowClick={(r) => r.accountId && drillToLedger(r.accountId, range)} emptyTitle="No budget lines or actuals" emptyDescription="Approve a budget under Budgets & Expenses to compare against actuals." />
-      <div style={{ fontSize: 12, color: '#6E6E71' }}>Committed = unreceived value of approved purchase orders in the range · {db.count(C.purchaseOrders)} POs on file.</div>
+      <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>Committed = unreceived value of approved purchase orders in the range · {db.count(C.purchaseOrders)} POs on file.</div>
     </ReportFrame>
   );
 }

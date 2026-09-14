@@ -34,8 +34,8 @@ function QualityRegister() {
     { key: 'itemName', label: 'Item', render: (q) => <div><div>{q.itemName}</div><div className="cell-secondary identifier">{q.batch ?? q.itemCode}</div></div> },
     { key: 'refNumber', label: 'Reference', render: (q) => <div style={{ fontSize: 12 }}>{q.refType}<div><DocLink path={refPath(q)} number={q.refNumber} /></div></div> },
     { key: 'lotQty', label: 'Lot / sample', align: 'right', render: (q) => <span className="money">{fmtQty(q.lotQty, undefined, 3)} / {q.sampleQty}</span> },
-    { key: 'acceptedQty', label: 'Accepted', align: 'right', render: (q) => <span className="money" style={{ color: '#12784E' }}>{q.acceptedQty || '—'}</span> },
-    { key: 'rejectedQty', label: 'Rejected', align: 'right', render: (q) => <span className="money" style={{ color: q.rejectedQty ? '#C0393F' : undefined }}>{q.rejectedQty || '—'}</span> },
+    { key: 'acceptedQty', label: 'Accepted', align: 'right', render: (q) => <span className="money" style={{ color: 'var(--good)' }}>{q.acceptedQty || '—'}</span> },
+    { key: 'rejectedQty', label: 'Rejected', align: 'right', render: (q) => <span className="money" style={{ color: q.rejectedQty ? 'var(--danger)' : undefined }}>{q.rejectedQty || '—'}</span> },
     { key: 'disposition', label: 'Disposition', render: (q) => q.disposition ? <Badge status={dispositionBadge(q.disposition)}>{q.disposition}</Badge> : '—' },
     { key: 'status', label: 'Status', render: (q) => <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><Badge status={q.status} />{q.outcome && <Pill tone={q.outcome === 'Pass' ? 'good' : q.outcome === 'Fail' ? 'critical' : 'warning'}>{q.outcome}</Pill>}</span> },
   ];
@@ -63,7 +63,7 @@ function QualityRegister() {
           { key: 'code', label: 'Plan', render: (p) => <span className="identifier link" style={{ fontWeight: 500 }}>{p.code}</span> },
           { key: 'name', label: 'Name' },
           { key: 'type', label: 'Type', render: (p) => <Badge status={p.type === 'Incoming' ? 'Submitted' : p.type === 'In-process' ? 'In Progress' : 'Approved'}>{p.type}</Badge> },
-          { key: 'itemName', label: 'Item', render: (p) => p.itemName ?? <span style={{ color: '#5F6368' }}>Any item</span> },
+          { key: 'itemName', label: 'Item', render: (p) => p.itemName ?? <span style={{ color: 'var(--ink-3)' }}>Any item</span> },
           { key: 'checks', label: 'Checks', render: (p) => <span style={{ fontSize: 12 }}>{p.checks.map((c) => c.name).join(' · ')}</span> },
           { key: 'samplePct', label: 'Sample %', align: 'right', render: (p) => <span className="money">{p.samplePct}%</span> },
           { key: 'status', label: 'Status', render: (p) => <Badge status={p.status} /> },
@@ -103,21 +103,21 @@ function QcStats({ stats, inspections }: { stats: ReturnType<typeof qcStats>; in
         <SectionCard title="First-pass yield by inspection type">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {stats.byType.map((t) => (
-              <div key={t.type}><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 3 }}><span>{t.type} <span style={{ color: '#5F6368' }}>({t.count})</span></span><span className="money">{fmtPct(t.fpy, 1)}</span></div><Meter value={t.fpy} max={100} tone={t.fpy >= 95 ? 'good' : t.fpy >= 85 ? 'warn' : 'danger'} /></div>
+              <div key={t.type}><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 3 }}><span>{t.type} <span style={{ color: 'var(--ink-3)' }}>({t.count})</span></span><span className="money">{fmtPct(t.fpy, 1)}</span></div><Meter value={t.fpy} max={100} tone={t.fpy >= 95 ? 'good' : t.fpy >= 85 ? 'warn' : 'danger'} /></div>
             ))}
           </div>
         </SectionCard>
         <SectionCard title="Top failing checks" padding={0}>
           <table className="data-table dense"><thead><tr><th>Check</th><th className="right">Failures</th></tr></thead><tbody>
             {stats.topFailures.map(([name, n]) => <tr key={name}><td>{name}</td><td className="right money">{n}</td></tr>)}
-            {stats.topFailures.length === 0 && <tr><td colSpan={2} style={{ padding: 16, color: '#12784E' }}>✓ No failed checks recorded</td></tr>}
+            {stats.topFailures.length === 0 && <tr><td colSpan={2} style={{ padding: 16, color: 'var(--good)' }}>✓ No failed checks recorded</td></tr>}
           </tbody></table>
         </SectionCard>
       </div>
       <SectionCard title="Recently completed" padding={0}>
         <table className="data-table dense"><thead><tr><th>Inspection</th><th>Type</th><th>Item</th><th>Outcome</th><th>Disposition</th><th className="right">Accepted / rejected</th><th>Inspector</th></tr></thead><tbody>
           {recent.map((q) => <tr key={q.id} className="clickable" onClick={() => nav.go(`production/quality/${q.id}`)}><td className="identifier link">{q.number}</td><td>{q.type}</td><td>{q.itemName}</td><td><Pill tone={q.outcome === 'Pass' ? 'good' : q.outcome === 'Fail' ? 'critical' : 'warning'}>{q.outcome}</Pill></td><td>{q.disposition ? <Badge status={dispositionBadge(q.disposition)}>{q.disposition}</Badge> : '—'}</td><td className="right money">{q.acceptedQty} / {q.rejectedQty}</td><td>{q.inspectorName ?? '—'}</td></tr>)}
-          {recent.length === 0 && <tr><td colSpan={7} style={{ padding: 16, color: '#5F6368' }}>No completed inspections yet.</td></tr>}
+          {recent.length === 0 && <tr><td colSpan={7} style={{ padding: 16, color: 'var(--ink-3)' }}>No completed inspections yet.</td></tr>}
         </tbody></table>
       </SectionCard>
     </div>
@@ -267,7 +267,7 @@ function InspectionDetail({ id }: { id: string }) {
   return (
     <div className="page">
       <PageHeader title={q.number} subtitle={`${q.type} · ${q.itemName} · ${q.refType} ${q.refNumber} · ${fmtDate(q.date)}`} back={{ label: 'Quality', path: 'production/quality' }}
-        actions={<><Badge status={q.status} />{q.outcome && <Pill tone={q.outcome === 'Pass' ? 'good' : q.outcome === 'Fail' ? 'critical' : 'warning'}>{q.outcome}</Pill>}<Button onClick={() => nav.go(refPath(q) ?? 'production/quality')}>Open {q.refType}</Button>{!done && <Button onClick={save}>Save results</Button>}{!done && <Button variant="primary" onClick={complete}>Complete inspection</Button>}</>} />
+        actions={<><Badge status={q.status} />{q.outcome && <Pill tone={q.outcome === 'Pass' ? 'good' : q.outcome === 'Fail' ? 'critical' : 'warning'}>{q.outcome}</Pill>}<Button onClick={() => nav.go(refPath(q) ?? 'production/quality')}>Open {q.refType}</Button>{!done && <Button onClick={save}>Save results</Button>}{!done && <Button variant="primary" tone="good" onClick={complete}>Complete inspection</Button>}</>} />
       {err && <div className="banner danger">{err}</div>}
       {receipt?.status === 'Hold' && <div className="banner warning">Receipt {receipt.number} is on hold — completing this inspection with Accept releases {acc} {receipt.uom} into stock.</div>}
       {q.status === 'Completed' && <div className="banner success">Completed {fmtDateTime(q.completedAt)} by {q.completedBy} · disposition {q.disposition}</div>}
@@ -277,12 +277,12 @@ function InspectionDetail({ id }: { id: string }) {
             <table className="data-table dense"><thead><tr><th>Check</th><th>Specification</th><th style={{ width: 160 }}>Measured value</th><th style={{ width: 180 }}>Result</th><th>Note</th></tr></thead><tbody>
               {rows.map((r, i) => (
                 <tr key={r.checkId}>
-                  <td>{r.check}</td><td style={{ fontSize: 12, color: '#5F6368' }}>{r.spec}</td>
+                  <td>{r.check}</td><td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{r.spec}</td>
                   <td>{done ? <span className="money">{r.value ?? '—'}</span> : <TextField value={r.value ?? ''} onChange={(v) => setResult(i, { value: v })} size="grid" />}</td>
                   <td>{done ? <Badge status={r.pass === true ? 'Passed' : r.pass === false ? 'Rejected' : 'Draft'}>{r.pass === true ? 'Pass' : r.pass === false ? 'Fail' : 'Not recorded'}</Badge> : <Segmented value={r.pass === true ? 'pass' : r.pass === false ? 'fail' : 'none'} onChange={(v) => setResult(i, { pass: v === 'pass' ? true : v === 'fail' ? false : null })} options={[{ value: 'pass', label: 'Pass' }, { value: 'fail', label: 'Fail' }, { value: 'none', label: '—' }]} />}</td>
                   <td>{done ? r.note ?? '—' : <TextField value={r.note ?? ''} onChange={(v) => setResult(i, { note: v })} size="grid" />}</td>
                 </tr>))}
-              {rows.length === 0 && <tr><td colSpan={5} style={{ padding: 16, color: '#5F6368' }}>No checks on this plan — record the disposition directly.</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={5} style={{ padding: 16, color: 'var(--ink-3)' }}>No checks on this plan — record the disposition directly.</td></tr>}
             </tbody></table>
           </SectionCard>
           {!done && (

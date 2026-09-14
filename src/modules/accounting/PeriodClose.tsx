@@ -77,7 +77,7 @@ export function PeriodClosePage() {
       <PageHeader title="Period close" subtitle={<ScopeLine extra={period ? `${period.label} · ${period.status}` : 'Choose a period'} />} actions={<><Button variant="secondary" onClick={() => nav.go('admin/periods')}>Financial periods</Button><Button variant="secondary" onClick={() => nav.go('accounting/trial-balance')}>Trial balance</Button></>} />
       <div className="card" style={{ padding: 14, display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <SelectField label="Period" value={code} onChange={(v) => { setCode(v); setAck(false); }} options={periods.map((p) => ({ value: p.code, label: `${p.label} · ${p.status}` }))} size="sm" style={{ width: 240 }} />
-        {period && <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingBottom: 6 }}><Badge status={period.status} /><span style={{ fontSize: 12, color: '#5F6368' }}>{fmtDate(period.start)} → {fmtDate(period.end)}{period.lockedAt ? ` · ${period.status === 'Locked' ? 'locked' : 'closed'} ${fmtDateTime(period.lockedAt)} by ${period.lockedBy}` : ''}</span></div>}
+        {period && <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingBottom: 6 }}><Badge status={period.status} /><span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{fmtDate(period.start)} → {fmtDate(period.end)}{period.lockedAt ? ` · ${period.status === 'Locked' ? 'locked' : 'closed'} ${fmtDateTime(period.lockedAt)} by ${period.lockedBy}` : ''}</span></div>}
       </div>
       {period && (
         <>
@@ -90,10 +90,10 @@ export function PeriodClosePage() {
           <Checklist title={`Close checklist · ${period.label}`} rows={checks.rows} />
           {period.status !== 'Locked' && (checks as any).warnings > 0 && !blocked && <CheckboxField checked={ack} onChange={setAck} label="I acknowledge the warnings above and accept closing the period with them outstanding" help="Recorded in the audit trail with your name" />}
           <div className="card" style={{ padding: 16, display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center' }}>
-            <span style={{ fontSize: 12, color: '#5F6368', marginRight: 'auto' }}>{blocked ? `${checks.blockers} blocker(s) — resolve them via the rows above` : needsAck ? 'Acknowledge warnings to enable closing' : 'Ready to close'}</span>
+            <span style={{ fontSize: 12, color: 'var(--ink-3)', marginRight: 'auto' }}>{blocked ? `${checks.blockers} blocker(s) — resolve them via the rows above` : needsAck ? 'Acknowledge warnings to enable closing' : 'Ready to close'}</span>
             {(period.status === 'Locked' || period.status === 'Soft Closed') && <Button variant="secondary" onClick={() => setAction('reopen')} disabled={!canClose}>Request reopen</Button>}
             {(period.status === 'Open' || period.status === 'Reopened') && <Button variant="secondary" onClick={() => setAction('soft')} disabled={!canClose || blocked || needsAck} reason={!canClose ? 'Requires period close permission' : blocked ? 'Blockers outstanding' : needsAck ? 'Acknowledge warnings first' : undefined}>Soft-close period</Button>}
-            {period.status !== 'Locked' && <Button variant="danger" onClick={() => setAction('lock')} disabled={!canLock || blocked || needsAck} reason={!canLock ? 'Requires period lock permission' : blocked ? 'Blockers outstanding' : needsAck ? 'Acknowledge warnings first' : undefined}>Lock period</Button>}
+            {period.status !== 'Locked' && <Button variant="tinted" tone="danger" onClick={() => setAction('lock')} disabled={!canLock || blocked || needsAck} reason={!canLock ? 'Requires period lock permission' : blocked ? 'Blockers outstanding' : needsAck ? 'Acknowledge warnings first' : undefined}>Lock period</Button>}
           </div>
           {period.history.length > 0 && (
             <div className="card" style={{ padding: 16 }}>

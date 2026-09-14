@@ -56,9 +56,9 @@ export function TextField({ value, onChange, label, required, error, help, place
     <Field label={label} required={required} error={error} help={help} style={style}>
       {prefix || suffix ? (
         <div style={{ position: 'relative' }}>
-          {prefix && <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#5F6368', fontSize: 13, display: 'flex' }}>{prefix}</span>}
+          {prefix && <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)', fontSize: 13, display: 'flex' }}>{prefix}</span>}
           {input}
-          {suffix && <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: '#5F6368', fontSize: 13, display: 'flex' }}>{suffix}</span>}
+          {suffix && <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)', fontSize: 13, display: 'flex' }}>{suffix}</span>}
         </div>
       ) : input}
     </Field>
@@ -88,7 +88,7 @@ export function NumberField({ value, onChange, label, required, error, help, pla
   return (
     <Field label={label} required={required} error={error} help={help} style={style}>
       <div style={{ position: 'relative' }}>
-        {prefix && <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#5F6368', fontSize: 13 }}>{prefix}</span>}
+        {prefix && <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)', fontSize: 13 }}>{prefix}</span>}
         <input
           className={`field-input ${sizeCls(size)} ${align === 'right' ? 'num' : ''} ${error ? 'error' : ''}`}
           type="text"
@@ -119,7 +119,7 @@ export function NumberField({ value, onChange, label, required, error, help, pla
           }}
           onKeyDown={onKeyDown}
         />
-        {suffix && <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: '#5F6368', fontSize: 13 }}>{suffix}</span>}
+        {suffix && <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)', fontSize: 13 }}>{suffix}</span>}
       </div>
     </Field>
   );
@@ -164,7 +164,7 @@ export function DateField({ value, onChange, label, required, error, help, disab
 
 export function CheckboxField({ checked, onChange, label, help, disabled, style }: { checked: boolean; onChange: (v: boolean) => void; label: ReactNode; help?: ReactNode; disabled?: boolean; style?: CSSProperties }) {
   return (
-    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: disabled ? 'not-allowed' : 'pointer', fontSize: 13, color: '#0A0A0A', ...style }}>
+    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: disabled ? 'not-allowed' : 'pointer', fontSize: 13, color: 'var(--ink)', ...style }}>
       <input type="checkbox" className="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} disabled={disabled} style={{ marginTop: 2 }} />
       <span>
         {label}
@@ -180,7 +180,7 @@ export function Toggle({ on, onChange, label, disabled, help }: { on: boolean; o
       <button type="button" className={`toggle ${on ? 'on' : ''}`} onClick={() => !disabled && onChange(!on)} disabled={disabled} aria-pressed={on} />
       {label && (
         <div>
-          <div style={{ fontSize: 13, color: '#0A0A0A' }}>{label}</div>
+          <div style={{ fontSize: 13, color: 'var(--ink)' }}>{label}</div>
           {help && <div className="field-help" style={{ marginTop: 0 }}>{help}</div>}
         </div>
       )}
@@ -196,12 +196,12 @@ export function RadioCards<T extends string>({ value, onChange, options, columns
           <button key={o.value} type="button" className={`radio-card ${value === o.value ? 'selected' : ''}`} onClick={() => !o.disabled && onChange(o.value)} disabled={o.disabled}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               {o.icon && <span style={{ fontSize: 18 }}>{o.icon}</span>}
-              <span style={{ width: 16, height: 16, borderRadius: '50%', border: `1.5px solid ${value === o.value ? '#325CFF' : '#DADCE0'}`, background: value === o.value ? '#325CFF' : '#FFF', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginLeft: 'auto' }}>
+              <span style={{ width: 16, height: 16, borderRadius: '50%', border: `1.5px solid ${value === o.value ? 'var(--accent)' : 'var(--line-strong)'}`, background: value === o.value ? 'var(--accent)' : '#FFF', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginLeft: 'auto' }}>
                 {value === o.value && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />}
               </span>
             </div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#0A0A0A' }}>{o.label}</div>
-            {o.description && <div style={{ fontSize: 12, color: '#5F6368' }}>{o.description}</div>}
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{o.label}</div>
+            {o.description && <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{o.description}</div>}
           </button>
         ))}
       </div>
@@ -254,7 +254,7 @@ export function IdentifierField({ kind, value, onChange, label, required, help, 
   const err = touched && value ? validator(value) : null;
   const maxLen = kind === 'GSTIN' ? 15 : kind === 'PAN' ? 10 : kind === 'IFSC' ? 11 : kind === 'PIN' ? 6 : kind === 'TRN' ? 15 : undefined;
   return (
-    <TextField label={label ?? kind} required={required} value={value} onChange={(v) => onChange(v)} error={err} help={help} style={style} disabled={disabled} size={size} maxLength={maxLen} uppercase={kind !== 'EMAIL'} onBlur={() => setTouched(true)} inputStyle={{ fontFeatureSettings: '"tnum" 1', letterSpacing: kind === 'EMAIL' ? undefined : '0.04em' }} placeholder={kind === 'GSTIN' ? '27AAAPL1234C1Z5' : kind === 'PAN' ? 'AAAPL1234C' : kind === 'IFSC' ? 'HDFC0001234' : kind === 'PIN' ? '400053' : undefined} />
+    <TextField label={label ?? kind} required={required} value={value} onChange={(v) => onChange(v)} error={err} help={help} style={style} disabled={disabled} size={size} maxLength={maxLen} uppercase={kind !== 'EMAIL'} onBlur={() => setTouched(true)} inputStyle={{ fontVariantNumeric: 'tabular-nums', letterSpacing: kind === 'EMAIL' ? undefined : '0.04em' }} placeholder={kind === 'GSTIN' ? '27AAAPL1234C1Z5' : kind === 'PAN' ? 'AAAPL1234C' : kind === 'IFSC' ? 'HDFC0001234' : kind === 'PIN' ? '400053' : undefined} />
   );
 }
 
@@ -263,7 +263,7 @@ export function MaskedValue({ value, canReveal = true, onReveal, last = 4 }: { v
   const [shown, setShown] = useState(false);
   const masked = '•••• ' + value.slice(-last);
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFeatureSettings: '"tnum" 1' }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontVariantNumeric: 'tabular-nums' }}>
       {shown ? value : masked}
       {canReveal && (
         <button type="button" className="btn-link" style={{ fontSize: 11 }} onClick={() => { setShown(!shown); if (!shown) onReveal?.(); }}>
@@ -319,10 +319,10 @@ export function EntityPicker({ value, onChange, options, label, required, error,
   return (
     <Field label={label} required={required} error={error} help={help} style={style}>
       <div ref={ref} style={{ position: 'relative' }}>
-        <div className={`field-input ${sizeCls(size)} ${error ? 'error' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', cursor: disabled ? 'not-allowed' : 'text', background: disabled ? '#F9FBFC' : '#FFF' }} onClick={() => !disabled && setOpen(true)}>
-          <SearchIcon size={14} color="#B0B5BF" />
+        <div className={`field-input ${sizeCls(size)} ${error ? 'error' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', cursor: disabled ? 'not-allowed' : 'text', background: disabled ? 'var(--surface-2)' : '#FFF' }} onClick={() => !disabled && setOpen(true)}>
+          <SearchIcon size={14} color="var(--ink-5)" />
           {selected && !open ? (
-            <span style={{ flex: 1, fontSize: size === 'grid' || size === 'sm' ? 13 : 14, color: '#0A0A0A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{renderSelected ? renderSelected(selected) : selected.primary}</span>
+            <span style={{ flex: 1, fontSize: size === 'grid' || size === 'sm' ? 13 : 14, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{renderSelected ? renderSelected(selected) : selected.primary}</span>
           ) : (
             <input
               autoFocus={autoFocus}
@@ -341,7 +341,7 @@ export function EntityPicker({ value, onChange, options, label, required, error,
             />
           )}
           {selected && allowClear && !disabled && (
-            <button type="button" onMouseDown={(e) => { e.preventDefault(); onChange(undefined); setQ(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#B0B5BF', display: 'flex', padding: 0 }}>
+            <button type="button" onMouseDown={(e) => { e.preventDefault(); onChange(undefined); setQ(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-5)', display: 'flex', padding: 0 }}>
               <XIcon size={14} />
             </button>
           )}
@@ -349,11 +349,11 @@ export function EntityPicker({ value, onChange, options, label, required, error,
         {open && !disabled && (
           <div className="menu" style={{ left: 0, right: 0, top: '100%', marginTop: 4, maxHeight: 320, overflow: 'auto', padding: 4 }}>
             {recentOpts.length > 0 && <div className="section-label" style={{ padding: '6px 10px 2px' }}>Recent</div>}
-            {all.length === 0 && <div style={{ padding: '10px 12px', fontSize: 13, color: '#5F6368' }}>No matches{q ? ` for "${q}"` : ''}</div>}
+            {all.length === 0 && <div style={{ padding: '10px 12px', fontSize: 13, color: 'var(--ink-3)' }}>No matches{q ? ` for "${q}"` : ''}</div>}
             {all.map((o, i) => (
               <div key={o.id}>
                 {i === recentOpts.length && recentOpts.length > 0 && <div className="section-label" style={{ padding: '6px 10px 2px' }}>Results</div>}
-                <button type="button" className="menu-item" style={{ height: 'auto', padding: '6px 10px', background: hi === i ? '#F3F5F7' : undefined, opacity: o.disabled ? 0.5 : 1 }} onMouseEnter={() => setHi(i)} onMouseDown={(e) => { e.preventDefault(); pick(o); }}>
+                <button type="button" className="menu-item" style={{ height: 'auto', padding: '6px 10px', background: hi === i ? 'var(--surface-3)' : undefined, opacity: o.disabled ? 0.5 : 1 }} onMouseEnter={() => setHi(i)} onMouseDown={(e) => { e.preventDefault(); pick(o); }}>
                   <TwoLine primary={o.primary} secondary={o.secondary} />
                 </button>
               </div>
@@ -361,7 +361,7 @@ export function EntityPicker({ value, onChange, options, label, required, error,
             {onCreate && (
               <>
                 <div className="menu-sep" />
-                <button type="button" className="menu-item" style={{ color: '#325CFF' }} onMouseDown={(e) => { e.preventDefault(); onCreate(q); setOpen(false); }}>
+                <button type="button" className="menu-item" style={{ color: 'var(--accent)' }} onMouseDown={(e) => { e.preventDefault(); onCreate(q); setOpen(false); }}>
                   + {createLabel ?? `Create "${q || 'new'}"`}
                 </button>
               </>

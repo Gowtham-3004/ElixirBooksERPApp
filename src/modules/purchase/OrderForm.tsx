@@ -42,7 +42,7 @@ function OrderFormInner({ existing }: { existing?: PurchaseOrder }) {
   };
   const lineExtra = [
     { key: 'expected', label: 'Expected', width: 130, render: (l: DocLine) => readOnly ? <span style={{ fontSize: 12 }}>{(l as PoLine).expectedDate ?? po.expectedDate ?? '—'}</span> : <input type="date" className="field-input grid" value={(l as PoLine).expectedDate ?? po.expectedDate ?? ''} onChange={(e) => set({ lines: po.lines.map((x) => (x.id === l.id ? { ...x, expectedDate: e.target.value } : x)) })} /> },
-    ...(amend ? [{ key: 'done', label: 'Received', width: 90, render: (l: DocLine) => <span className="money" style={{ fontSize: 12, color: '#5F6368' }}>{(l.acceptedQty ?? 0) + (l.rejectedQty ?? 0)}</span> }] : []),
+    ...(amend ? [{ key: 'done', label: 'Received', width: 90, render: (l: DocLine) => <span className="money" style={{ fontSize: 12, color: 'var(--ink-3)' }}>{(l.acceptedQty ?? 0) + (l.rejectedQty ?? 0)}</span> }] : []),
   ];
   const charges = po.charges ?? [];
   const setCharges = (c: PurchaseOrder['charges']) => set({ charges: c });
@@ -50,7 +50,7 @@ function OrderFormInner({ existing }: { existing?: PurchaseOrder }) {
     <div className="page">
       <div className="page-header">
         <div>
-          <button type="button" className="btn-link" style={{ color: '#5F6368' }} onClick={() => nav.back('purchase/orders')}>← Purchase orders</button>
+          <button type="button" className="btn-link" style={{ color: 'var(--ink-3)' }} onClick={() => nav.back('purchase/orders')}>← Purchase orders</button>
           <h1 className="page-title">{amend ? `Amend ${existing!.number}` : existing ? `Edit ${existing.number}` : 'New purchase order'}</h1>
           <div className="page-subtitle">{amend ? `Rev ${(existing!.revision ?? 0) + 1} · only unfulfilled quantity may change · re-approval if total increases` : `${s.company?.tradeName} · ${s.branch?.name} · number allocated on save (${po.number})`}</div>
         </div>
@@ -73,7 +73,7 @@ function OrderFormInner({ existing }: { existing?: PurchaseOrder }) {
         <SelectField label="Default warehouse" value={po.warehouseId ?? s.company?.defaults.warehouseId} onChange={(v) => set({ warehouseId: v, lines: po.lines.map((l) => ({ ...l, warehouseId: l.warehouseId ?? v })) })} options={whs.map((w) => ({ value: w.id, label: w.primary }))} disabled={amend} />
         <EntityPicker label="Department" value={po.dimensions?.Department} onChange={(v) => set({ dimensions: { ...po.dimensions, Department: v ?? '' } })} options={depts} disabled={amend} />
         <EntityPicker label="Project" value={po.dimensions?.Project} onChange={(v) => set({ dimensions: { ...po.dimensions, Project: v ?? '' } })} options={projects} disabled={amend} />
-        {po.partySnapshot?.billingAddress && <div style={{ gridColumn: 'span 2', fontSize: 12, color: '#5F6368' }}><div className="field-label">Supplier address</div>{po.partySnapshot.billingAddress.line1}, {po.partySnapshot.billingAddress.city}, {po.partySnapshot.billingAddress.state} {po.partySnapshot.billingAddress.pin}</div>}
+        {po.partySnapshot?.billingAddress && <div style={{ gridColumn: 'span 2', fontSize: 12, color: 'var(--ink-3)' }}><div className="field-label">Supplier address</div>{po.partySnapshot.billingAddress.line1}, {po.partySnapshot.billingAddress.city}, {po.partySnapshot.billingAddress.state} {po.partySnapshot.billingAddress.pin}</div>}
       </div>
       <LineItemGrid lines={po.lines} onChange={(lines) => set({ lines: lines as PoLine[] })} readOnly={readOnly} direction="purchase" partyId={po.partyId} currency={po.currency} showWarehouse showDiscount showTax totals={po.totals} extraColumns={lineExtra} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
@@ -99,8 +99,8 @@ function OrderFormInner({ existing }: { existing?: PurchaseOrder }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="card" style={{ padding: 16 }}><div className="section-title">Totals</div><TotalsLadder totals={po.totals} currency={po.currency} baseCurrency={s.currency} rate={po.rate} showPaid={false} /></div>
           <div className="card" style={{ padding: 16 }}><div className="section-title">Tax breakup <Badge status="Draft">input tax</Badge></div><TaxBreakup totals={po.totals} currency={po.currency} /></div>
-          {existing && existing.amendments.length > 0 && <div className="card" style={{ padding: 16 }}><div className="section-title">Amendment history</div>{existing.amendments.map((a) => <div key={a.revision} style={{ fontSize: 12, marginBottom: 6 }}><strong>Rev {a.revision}</strong> · {a.by} · {a.summary}<div style={{ color: '#5F6368' }}>{a.reason}</div></div>)}</div>}
-          <div style={{ fontSize: 12, color: '#5F6368' }}>Approval: {A.purchaseSettings().matchingMode} matching · PO workflow {db.findBy<any>(C.workflowRules, (w) => w.docType === 'Purchase Order' && w.status === 'Active')?.name ?? 'none'} · total {fmtMoney(po.totals.baseTotal)}</div>
+          {existing && existing.amendments.length > 0 && <div className="card" style={{ padding: 16 }}><div className="section-title">Amendment history</div>{existing.amendments.map((a) => <div key={a.revision} style={{ fontSize: 12, marginBottom: 6 }}><strong>Rev {a.revision}</strong> · {a.by} · {a.summary}<div style={{ color: 'var(--ink-3)' }}>{a.reason}</div></div>)}</div>}
+          <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Approval: {A.purchaseSettings().matchingMode} matching · PO workflow {db.findBy<any>(C.workflowRules, (w) => w.docType === 'Purchase Order' && w.status === 'Active')?.name ?? 'none'} · total {fmtMoney(po.totals.baseTotal)}</div>
         </div>
       </div>
     </div>

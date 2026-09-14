@@ -53,12 +53,12 @@ export function TaxOverview() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Segmented value={scope} onChange={setScope} options={[{ value: 'period', label: 'This period' }, { value: 'balance', label: 'Ledger balance' }]} /><Button variant="primary" onClick={() => nav.go('taxation/gstr3b')}>Prepare GSTR-3B</Button></div>
       </div>
       <div className="grid-4">
-        <KpiTile label="Output CGST" value={fmtMoney(outputVal('cgst'), s.currency)} sub="2300" onClick={() => nav.go('accounting/ledger?account=acc_2300')} meta={<ScopeLine extra={bal ? 'closing balance' : fmtPeriod(period)} />} />
-        <KpiTile label="Output SGST" value={fmtMoney(outputVal('sgst'), s.currency)} sub="2301" onClick={() => nav.go('accounting/ledger?account=acc_2301')} meta={<ScopeLine extra={bal ? 'closing balance' : fmtPeriod(period)} />} />
-        <KpiTile label="Output IGST" value={fmtMoney(outputVal('igst'), s.currency)} sub="2302" onClick={() => nav.go('accounting/ledger?account=acc_2302')} meta={<ScopeLine extra={bal ? 'closing balance' : fmtPeriod(period)} />} />
-        <KpiTile label="Input tax credit (1400–1402)" value={fmtMoney(inputVal('cgst') + inputVal('sgst') + inputVal('igst'), s.currency)} sub={`CGST ${fmtMoney(inputVal('cgst'), s.currency)} · SGST ${fmtMoney(inputVal('sgst'), s.currency)} · IGST ${fmtMoney(inputVal('igst'), s.currency)}`} onClick={() => nav.go('taxation/itc')} meta={<ScopeLine extra={bal ? 'closing balance' : fmtPeriod(period)} />} />
-        <KpiTile label="Net GST payable (after set-off)" value={fmtMoney(data.so.payable.total, s.currency)} delta={data.so.payable.total > 0 ? 'Cash payment required' : 'Covered by ITC'} deltaTone={data.so.payable.total > 0 ? 'bad' : 'good'} sub={`carried ITC ${fmtMoney(data.so.carried.cgst + data.so.carried.sgst + data.so.carried.igst, s.currency)}`} onClick={() => nav.go('taxation/gstr3b')} meta={<ScopeLine extra={`from registers · ${fmtPeriod(period)}`} />} />
-        <KpiTile label="TDS payable" value={fmtMoney(data.tds, s.currency)} sub="ledger 2310 · deposit by 7th" onClick={() => nav.go('taxation/tds')} meta={<ScopeLine extra="closing balance" />} />
+        <KpiTile label="Output CGST" amount={outputVal('cgst')} currency={s.currency} sub="2300" onClick={() => nav.go('accounting/ledger?account=acc_2300')} meta={<ScopeLine extra={bal ? 'closing balance' : fmtPeriod(period)} />} />
+        <KpiTile label="Output SGST" amount={outputVal('sgst')} currency={s.currency} sub="2301" onClick={() => nav.go('accounting/ledger?account=acc_2301')} meta={<ScopeLine extra={bal ? 'closing balance' : fmtPeriod(period)} />} />
+        <KpiTile label="Output IGST" amount={outputVal('igst')} currency={s.currency} sub="2302" onClick={() => nav.go('accounting/ledger?account=acc_2302')} meta={<ScopeLine extra={bal ? 'closing balance' : fmtPeriod(period)} />} />
+        <KpiTile label="Input tax credit (1400–1402)" amount={inputVal('cgst') + inputVal('sgst') + inputVal('igst')} currency={s.currency} sub={`CGST ${fmtMoney(inputVal('cgst'), s.currency)} · SGST ${fmtMoney(inputVal('sgst'), s.currency)} · IGST ${fmtMoney(inputVal('igst'), s.currency)}`} onClick={() => nav.go('taxation/itc')} meta={<ScopeLine extra={bal ? 'closing balance' : fmtPeriod(period)} />} />
+        <KpiTile label="Net GST payable (after set-off)" amount={data.so.payable.total} currency={s.currency} delta={data.so.payable.total > 0 ? 'Cash payment required' : 'Covered by ITC'} deltaTone={data.so.payable.total > 0 ? 'bad' : 'good'} sub={`carried ITC ${fmtMoney(data.so.carried.cgst + data.so.carried.sgst + data.so.carried.igst, s.currency)}`} onClick={() => nav.go('taxation/gstr3b')} meta={<ScopeLine extra={`from registers · ${fmtPeriod(period)}`} />} />
+        <KpiTile label="TDS payable" amount={data.tds} currency={s.currency} sub="ledger 2310 · deposit by 7th" onClick={() => nav.go('taxation/tds')} meta={<ScopeLine extra="closing balance" />} />
         <KpiTile label="e-Invoices this period" value={data.einvCount} delta={data.pending ? `${data.pending} pending` : 'All submitted'} deltaTone={data.pending ? 'bad' : 'good'} sub={`${data.rejected} rejected`} onClick={() => nav.go('taxation/einvoices')} meta={<ScopeLine extra={fmtPeriod(period)} />} />
         <KpiTile label="Exceptions" value={data.rejected + data.hsnMissing + data.panMissing} delta={data.rejected + data.hsnMissing + data.panMissing ? 'Needs attention' : 'Clean'} deltaTone={data.rejected + data.hsnMissing + data.panMissing ? 'bad' : 'good'} sub={`${data.rejected} rejected IRN · ${data.hsnMissing} HSN missing · ${data.panMissing} PAN missing`} meta={<ScopeLine extra={fmtPeriod(period)} />} />
       </div>
@@ -72,13 +72,13 @@ export function TaxOverview() {
               { label: 'Documents with HSN/SAC missing', n: data.hsnMissing, link: 'taxation/b2b', tone: 'Returned' },
               { label: 'TDS deductees without PAN (20% rate applies)', n: data.panMissing, link: 'taxation/tds', tone: 'Returned' },
             ].map((e) => (
-              <div key={e.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #F5F5F5', cursor: 'pointer' }} onClick={() => nav.go(e.link)}>
+              <div key={e.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--hairline)', cursor: 'pointer' }} onClick={() => nav.go(e.link)}>
                 <span>{e.label}</span>
                 <Badge status={e.n ? e.tone : 'Posted'}>{e.n ? `${e.n} open` : 'Clear'}</Badge>
               </div>
             ))}
           </div>
-          <div style={{ fontSize: 12, color: '#6E6E71', marginTop: 10 }}>Provider: {settings.provider} · e-invoice threshold {fmtMoney(settings.eInvoiceThreshold, s.currency)} · e-way bill threshold {fmtMoney(settings.eWayBillThreshold, s.currency)} · <span className="link" onClick={() => nav.go('taxation/settings')}>settings</span></div>
+          <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 10 }}>Provider: {settings.provider} · e-invoice threshold {fmtMoney(settings.eInvoiceThreshold, s.currency)} · e-way bill threshold {fmtMoney(settings.eWayBillThreshold, s.currency)} · <span className="link" onClick={() => nav.go('taxation/settings')}>settings</span></div>
         </Card>
       </div>
     </div>

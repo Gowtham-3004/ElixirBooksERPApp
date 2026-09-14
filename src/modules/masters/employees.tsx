@@ -40,7 +40,7 @@ export function EmployeeRegister() {
           { key: 'manager', label: 'Manager', render: (r) => rows.find((m) => m.id === r.managerId)?.name ?? '—' },
           { key: 'dateOfJoining', label: 'Joined', sortable: true, render: (r) => fmtDate(r.dateOfJoining) },
           { key: 'pan', label: 'PAN', render: (r) => (r.pan ? <span className="identifier">{r.pan}</span> : '—') },
-          { key: 'statutory', label: 'PF / ESI', render: (r) => <span style={{ fontSize: 12, color: '#5F6368' }}>{[r.pf ? 'PF' : null, r.esi ? 'ESI' : null].filter(Boolean).join(' · ') || '—'}</span> },
+          { key: 'statutory', label: 'PF / ESI', render: (r) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{[r.pf ? 'PF' : null, r.esi ? 'ESI' : null].filter(Boolean).join(' · ') || '—'}</span> },
           { key: 'status', label: 'Status', render: (r) => <Badge status={r.status} /> },
         ]}
         rowClass={(r) => (!active(r) ? 'muted' : undefined)}
@@ -123,7 +123,7 @@ export function EmployeeForm({ employee, onClose, onSaved }: { employee?: Employ
           </div>
         </section>
         <section>
-          <div className="section-title">Bank detail <span style={{ fontWeight: 400, fontSize: 12, color: '#5F6368' }}>· stored masked; reveal is audited</span></div>
+          <div className="section-title">Bank detail <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--ink-3)' }}>· stored masked; reveal is audited</span></div>
           <div style={grid}>
             <TextField label="Bank" value={f.v.bank.bankName} onChange={(v) => f.set('bank', { ...f.v.bank, bankName: v })} />
             <TextField label="Account number" value={f.v.bank.accountNumber} onChange={(v) => f.set('bank', { ...f.v.bank, accountNumber: v.replace(/\D/g, '') })} error={f.errors.bank} />

@@ -21,8 +21,8 @@ if (await emailInput.count()) {
   await page.waitForTimeout(900);
   const mfa = page.locator('input[placeholder="123456"]');
   if (await mfa.count()) { await mfa.fill('123456'); await page.getByText('Verify and sign in').click(); await page.waitForTimeout(300); }
-  const choose = page.getByText('Choose a company');
-  if (await choose.count()) { await page.getByText('Acme Private Limited').first().click(); await page.waitForTimeout(300); }
+  const choose = page.locator('.company-picker');
+  if (await choose.count()) { await page.locator('.company-card:not(.create)').first().click(); await page.waitForTimeout(300); }
 }
 
 /** Read the numbers straight out of the running app's own modules — same code the pages render. */

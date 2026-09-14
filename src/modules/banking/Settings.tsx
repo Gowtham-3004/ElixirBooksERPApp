@@ -19,7 +19,7 @@ export function BankingSettingsPage() {
         <MoneyField label="Amount tolerance" value={v.reconToleranceAmt} onChange={(x) => setV({ ...v, reconToleranceAmt: x })} disabled={!canEdit} help="Rounding difference allowed for a suggestion (exact match still required to Match)" />
         <NumberField label="Auto-suggest threshold (%)" value={v.reconAutoSuggestThreshold} onChange={(x) => setV({ ...v, reconAutoSuggestThreshold: x })} decimals={0} min={40} max={99} disabled={!canEdit} help="Suggestions at or above this confidence show as green (High / Medium); below as amber" />
       </div>
-      <div className="card" style={{ padding: 16, fontSize: 12, color: '#5F6368' }}>Scoring: amount equal (60) + same day (15) / within tolerance (10) − days beyond tolerance · description / party word hits (+8 each, max 25) · reference digits (+10). Suggestions never post anything; a user must Match, Unmatch or Create adjustment, and every action is audited.</div>
+      <div className="card" style={{ padding: 16, fontSize: 12, color: 'var(--ink-3)' }}>Scoring: amount equal (60) + same day (15) / within tolerance (10) − days beyond tolerance · description / party word hits (+8 each, max 25) · reference digits (+10). Suggestions never post anything; a user must Match, Unmatch or Create adjustment, and every action is audited.</div>
     </div>
   );
 }

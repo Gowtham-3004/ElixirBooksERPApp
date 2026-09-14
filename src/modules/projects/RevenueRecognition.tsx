@@ -47,7 +47,7 @@ export default function RevenueRecognition({ contractId, period: periodParam }: 
     { key: 'billed', label: 'Billed', align: 'right', render: (r) => <Money value={r.posted?.billed ?? r.pos?.billed ?? 0} currency={s.currency} />, total: () => <span className="money" style={{ fontWeight: 600 }}>{fmtMoney(periodBilled, s.currency)}</span> },
     { key: 'recognized', label: 'Recognised', align: 'right', render: (r) => <Money value={r.posted?.recognized ?? r.pos?.recognized ?? 0} currency={s.currency} />, total: () => <span className="money" style={{ fontWeight: 600 }}>{fmtMoney(periodRecognised, s.currency)}</span> },
     { key: 'basis', label: 'Basis', render: (r) => <Muted>{r.pos?.basis ?? '—'}</Muted> },
-    { key: 'adjustment', label: 'Cumulative position', align: 'right', render: (r) => { const p = r.posted ?? r.pos; if (!p) return <Muted>—</Muted>; return p.adjustmentType === 'Accrual' ? <span className="money" style={{ color: '#8A4B0F' }}>Accrue {fmtMoney(p.adjustment, s.currency)}</span> : p.adjustmentType === 'Deferral' ? <span className="money" style={{ color: '#3E5BA5' }}>Defer {fmtMoney(p.adjustment, s.currency)}</span> : <Muted>Balanced</Muted>; } },
+    { key: 'adjustment', label: 'Cumulative position', align: 'right', render: (r) => { const p = r.posted ?? r.pos; if (!p) return <Muted>—</Muted>; return p.adjustmentType === 'Accrual' ? <span className="money" style={{ color: 'var(--warn)' }}>Accrue {fmtMoney(p.adjustment, s.currency)}</span> : p.adjustmentType === 'Deferral' ? <span className="money" style={{ color: 'var(--info)' }}>Defer {fmtMoney(p.adjustment, s.currency)}</span> : <Muted>Balanced</Muted>; } },
     { key: 'status', label: 'Status', render: (r) => r.posted ? <div><Badge status="Posted" />{r.posted.journalNumber && <div><span className="identifier link" onClick={() => nav.go(`accounting/journals/${r.posted!.journalId}`)}>{r.posted.journalNumber}</span></div>}</div> : r.blocked ? <Pill tone="warning">{r.blocked}</Pill> : <Badge status="Pending">Not run</Badge> },
   ];
 
@@ -91,10 +91,10 @@ export default function RevenueRecognition({ contractId, period: periodParam }: 
     <div className="page">
       <PageHeader title="Revenue recognition" subtitle={<ScopeLine extra={`billed vs recognised · accrual 1160 / deferral 2400`} />} actions={<Button variant="secondary" onClick={() => nav.go('accounting/journals')}>Journals</Button>} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12 }}>
-        <KpiTile label={`Recognised ${fmtPeriod(period)}`} value={fmtMoney(periodRecognised, s.currency)} sub={`${rows.filter((r) => r.posted).length} of ${rows.length} contracts run`} />
-        <KpiTile label={`Billed ${fmtPeriod(period)}`} value={fmtMoney(periodBilled, s.currency)} sub="posted contract invoices, excl. tax" onClick={() => nav.go('sales/invoices')} />
-        <KpiTile label="Unbilled (accrued)" value={fmtMoney(unbilledBal, s.currency)} sub="GL 1160 balance" />
-        <KpiTile label="Deferred revenue" value={fmtMoney(deferredBal, s.currency)} sub="GL 2400 balance" />
+        <KpiTile label={`Recognised ${fmtPeriod(period)}`} amount={periodRecognised} currency={s.currency} sub={`${rows.filter((r) => r.posted).length} of ${rows.length} contracts run`} />
+        <KpiTile label={`Billed ${fmtPeriod(period)}`} amount={periodBilled} currency={s.currency} sub="posted contract invoices, excl. tax" onClick={() => nav.go('sales/invoices')} />
+        <KpiTile label="Unbilled (accrued)" amount={unbilledBal} currency={s.currency} sub="GL 1160 balance" />
+        <KpiTile label="Deferred revenue" amount={deferredBal} currency={s.currency} sub="GL 2400 balance" />
       </div>
       <Card>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 14, alignItems: 'end' }}>
@@ -131,15 +131,15 @@ export default function RevenueRecognition({ contractId, period: periodParam }: 
               {waterfall.map((w) => (
                 <div key={w.period} style={{ minWidth: 64, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                   <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 110 }}>
-                    <div title={`Billed ${fmtMoney(w.bill, s.currency)}`} style={{ width: 18, height: `${Math.max(2, (w.bill / maxBar) * 110)}px`, background: '#325CFF', borderRadius: '3px 3px 0 0' }} />
-                    <div title={`Recognised ${fmtMoney(w.rec, s.currency)}`} style={{ width: 18, height: `${Math.max(2, (w.rec / maxBar) * 110)}px`, background: '#12784E', borderRadius: '3px 3px 0 0' }} />
+                    <div title={`Billed ${fmtMoney(w.bill, s.currency)}`} style={{ width: 18, height: `${Math.max(2, (w.bill / maxBar) * 110)}px`, background: 'var(--accent)', borderRadius: '2px 2px 0 0' }} />
+                    <div title={`Recognised ${fmtMoney(w.rec, s.currency)}`} style={{ width: 18, height: `${Math.max(2, (w.rec / maxBar) * 110)}px`, background: 'var(--good)', borderRadius: '3px 3px 0 0' }} />
                   </div>
-                  <div style={{ fontSize: 11, color: w.period === period ? '#0A0A0A' : '#6E6E71', fontWeight: w.period === period ? 600 : 400 }}>{fmtPeriod(w.period).replace(' 20', ' ')}</div>
+                  <div style={{ fontSize: 11, color: w.period === period ? 'var(--ink)' : 'var(--ink-4)', fontWeight: w.period === period ? 600 : 400 }}>{fmtPeriod(w.period).replace(' 20', ' ')}</div>
                   {!w.posted && <Muted>proj.</Muted>}
                 </div>
               ))}
             </div>
-            <div style={{ display: 'flex', gap: 16, fontSize: 12, color: '#5F6368' }}><span><span style={{ display: 'inline-block', width: 10, height: 10, background: '#325CFF', borderRadius: 2, marginRight: 4 }} />Billed</span><span><span style={{ display: 'inline-block', width: 10, height: 10, background: '#12784E', borderRadius: 2, marginRight: 4 }} />Recognised</span><span>Recognised &gt; billed → accrual (Dr 1160 · Cr 4010); billed &gt; recognised → deferral (Dr 4010 · Cr 2400).</span></div>
+            <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--ink-3)' }}><span><span style={{ display: 'inline-block', width: 10, height: 10, background: 'var(--accent)', borderRadius: 2, marginRight: 4 }} />Billed</span><span><span style={{ display: 'inline-block', width: 10, height: 10, background: 'var(--good)', borderRadius: 2, marginRight: 4 }} />Recognised</span><span>Recognised &gt; billed → accrual (Dr 1160 · Cr 4010); billed &gt; recognised → deferral (Dr 4010 · Cr 2400).</span></div>
           </Card>
         </>
       ) : (

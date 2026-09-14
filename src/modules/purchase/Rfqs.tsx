@@ -50,7 +50,7 @@ function RfqForm({ existing }: { existing?: Rfq }) {
   return (
     <div className="page">
       <div className="page-header">
-        <div><button type="button" className="btn-link" style={{ color: '#5F6368' }} onClick={() => nav.back('purchase/rfqs')}>← RFQs</button><h1 className="page-title">{existing ? `Edit ${existing.number}` : 'New request for quotation'}</h1></div>
+        <div><button type="button" className="btn-link" style={{ color: 'var(--ink-3)' }} onClick={() => nav.back('purchase/rfqs')}>← RFQs</button><h1 className="page-title">{existing ? `Edit ${existing.number}` : 'New request for quotation'}</h1></div>
         <div style={{ display: 'flex', gap: 8 }}><Button onClick={() => save(false)}>Save draft</Button><Button variant="primary" onClick={() => save(true)}>Send RFQ</Button></div>
       </div>
       {err && <Banner tone="danger" onDismiss={() => setErr(null)}>{err}</Banner>}
@@ -61,7 +61,7 @@ function RfqForm({ existing }: { existing?: Rfq }) {
         <div style={{ gridColumn: 'span 3' }}>
           <label className="field-label">Suppliers to invite <span className="req">*</span></label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 6 }}>
-            {suppliers.filter((o) => !o.disabled).map((o) => <label key={o.id} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, padding: '6px 8px', border: `1px solid ${doc.supplierIds.includes(o.id) ? '#325CFF' : '#EAEAEA'}`, borderRadius: 8, background: doc.supplierIds.includes(o.id) ? '#F2F7FF' : '#fff' }}><input type="checkbox" className="checkbox" checked={doc.supplierIds.includes(o.id)} onChange={() => update({ supplierIds: doc.supplierIds.includes(o.id) ? doc.supplierIds.filter((x) => x !== o.id) : [...doc.supplierIds, o.id] })} /><TwoLine primary={o.primary} secondary={o.secondary} /></label>)}
+            {suppliers.filter((o) => !o.disabled).map((o) => <label key={o.id} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, padding: '6px 8px', border: `1px solid ${doc.supplierIds.includes(o.id) ? 'var(--accent)' : 'var(--line)'}`, borderRadius: 8, background: doc.supplierIds.includes(o.id) ? 'var(--accent-tint)' : '#fff' }}><input type="checkbox" className="checkbox" checked={doc.supplierIds.includes(o.id)} onChange={() => update({ supplierIds: doc.supplierIds.includes(o.id) ? doc.supplierIds.filter((x) => x !== o.id) : [...doc.supplierIds, o.id] })} /><TwoLine primary={o.primary} secondary={o.secondary} /></label>)}
           </div>
         </div>
         <TextArea label="Notes to suppliers" value={doc.notes} onChange={(v) => update({ notes: v })} style={{ gridColumn: 'span 3' }} rows={2} />
@@ -77,10 +77,10 @@ function RfqForm({ existing }: { existing?: Rfq }) {
                 <td><NumberField size="grid" value={l.rate} onChange={(v) => updLine(l.id, { rate: v })} decimals={2} min={0} /></td>
                 <td><button type="button" className="btn-icon" onClick={() => update({ lines: doc.lines.filter((x) => x.id !== l.id) })}>✕</button></td></tr>
             ))}
-            {doc.lines.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', color: '#5F6368', height: 64 }}>No lines yet</td></tr>}
+            {doc.lines.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ink-3)', height: 64 }}>No lines yet</td></tr>}
           </tbody>
         </table>
-        <div style={{ padding: '10px 16px', borderTop: '1px solid #EAEAEA', background: '#F9FBFC' }}><button type="button" className="btn-link" onClick={() => update({ lines: [...doc.lines, engine.newLine({ uom: 'Nos' })] })}>+ Add line</button></div>
+        <div style={{ padding: '10px 16px', borderTop: '1px solid var(--line)', background: 'var(--surface-2)' }}><button type="button" className="btn-link" onClick={() => update({ lines: [...doc.lines, engine.newLine({ uom: 'Nos' })] })}>+ Add line</button></div>
       </div>
     </div>
   );
@@ -136,9 +136,9 @@ function RfqDetail({ id }: { id: string }) {
             <div className="card" style={{ overflow: 'auto' }}>
               <table className="data-table dense">
                 <thead><tr><th>Item</th><th className="right">Qty</th>{quotes.map((q) => <th key={q.id} className="right" style={{ minWidth: 150 }}><TwoLine primary={q.supplierName} secondary={`${q.quoteRef ?? '—'} · ${q.leadTimeDays} d`} /></th>)}</tr></thead>
-                <tbody>{rfq.lines.map((l) => <tr key={l.id}><td><ItemLink id={l.itemId} name={l.itemName} /></td><td className="right money">{fmtQty(l.qty, l.uom)}</td>{quotes.map((q) => { const ql = q.lines.find((x) => x.lineId === l.id); const isBest = ql && ql.rate === best[l.id]; return <td key={q.id} className="right" style={{ background: isBest ? '#E0F9EC' : undefined }}><span className="money" style={{ fontWeight: isBest ? 600 : 400, color: isBest ? '#12784E' : undefined }}>{ql ? fmtMoney(ql.rate) : '—'}</span>{isBest && <div style={{ fontSize: 10, color: '#12784E' }}>best price</div>}</td>; })}</tr>)}
-                  <tr style={{ background: '#F9FBFC', fontWeight: 600 }}><td colSpan={2}>Quote total</td>{quotes.map((q) => <td key={q.id} className="right money" style={{ color: q.total === lowestTotal ? '#12784E' : undefined }}>{fmtMoney(q.total)}</td>)}</tr>
-                  <tr><td colSpan={2}>Lead time · validity · terms</td>{quotes.map((q) => <td key={q.id} className="right" style={{ fontSize: 12, color: '#5F6368' }}>{q.leadTimeDays} d · {fmtDate(q.validUntil)} · {q.paymentTerms ?? '—'}</td>)}</tr>
+                <tbody>{rfq.lines.map((l) => <tr key={l.id}><td><ItemLink id={l.itemId} name={l.itemName} /></td><td className="right money">{fmtQty(l.qty, l.uom)}</td>{quotes.map((q) => { const ql = q.lines.find((x) => x.lineId === l.id); const isBest = ql && ql.rate === best[l.id]; return <td key={q.id} className="right" style={{ background: isBest ? 'var(--good-bg)' : undefined }}><span className="money" style={{ fontWeight: isBest ? 600 : 400, color: isBest ? 'var(--good)' : undefined }}>{ql ? fmtMoney(ql.rate) : '—'}</span>{isBest && <div style={{ fontSize: 10, color: 'var(--good)' }}>best price</div>}</td>; })}</tr>)}
+                  <tr style={{ background: 'var(--surface-2)', fontWeight: 600 }}><td colSpan={2}>Quote total</td>{quotes.map((q) => <td key={q.id} className="right money" style={{ color: q.total === lowestTotal ? 'var(--good)' : undefined }}>{fmtMoney(q.total)}</td>)}</tr>
+                  <tr><td colSpan={2}>Lead time · validity · terms</td>{quotes.map((q) => <td key={q.id} className="right" style={{ fontSize: 12, color: 'var(--ink-3)' }}>{q.leadTimeDays} d · {fmtDate(q.validUntil)} · {q.paymentTerms ?? '—'}</td>)}</tr>
                   <tr><td colSpan={2}>Status</td>{quotes.map((q) => <td key={q.id} className="right"><Badge status={q.status === 'Received' ? 'Quoted' : q.status} /></td>)}</tr>
                   {rfq.status !== 'Awarded' && <tr><td colSpan={2} />{quotes.map((q) => <td key={q.id} className="right"><Button size="sm" variant={q.total === lowestTotal ? 'primary' : 'secondary'} onClick={() => award(q)}>Award</Button> <Button size="sm" variant="ghost" onClick={() => setQuoteFor(q.supplierId)}>Edit</Button></td>)}</tr>}
                 </tbody>
@@ -148,7 +148,7 @@ function RfqDetail({ id }: { id: string }) {
           { id: 'activity', label: 'Activity', content: <ActivityTab objectId={rfq.id} correlationId={rfq.correlationId} /> },
         ]}
         footer={<>
-          <div style={{ flex: 1, fontSize: 12, color: '#5F6368' }}>{rfq.notes}</div>
+          <div style={{ flex: 1, fontSize: 12, color: 'var(--ink-3)' }}>{rfq.notes}</div>
           {rfq.status === 'Draft' && <Button onClick={() => nav.go(`purchase/rfqs/${id}?edit=1`)}>Edit</Button>}
           {rfq.status === 'Draft' && <Button variant="primary" onClick={() => { try { A.sendRfq(id); toast.success('RFQ sent to suppliers'); } catch (e: any) { toast.error(e.message); } }}>Send RFQ</Button>}
           {(rfq.status === 'Sent' || rfq.status === 'Quoted') && <Button variant="primary" onClick={() => setQuoteFor(null)}>Record quotation</Button>}

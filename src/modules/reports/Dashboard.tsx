@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { C, nav, useSession, useCollection, IDS, engine } from '../../store';
 import type { Journal, OpenItem, Branch } from '../../store';
-import { Button, Pill, Segmented, Card } from '../../components/ui';
+import { Button, KpiTile, Pill, Segmented, Card, BarChart } from '../../components/ui';
 import { RefreshIcon, DownloadIcon, TrendingUpIcon, TrendingDownIcon } from '../../components/Icons';
 import { fmtMoneyCompact, fmtMoney, fmtPct, fmtPeriod, toCSV, downloadText } from '../../lib/format';
 import { profitAndLoss, balanceSheet, ageing, ledgerBalances, presetRange, monthRange, shiftRange, periodsBetween, type Range } from './compute';
@@ -25,27 +25,20 @@ function Widget({ title, sub, children, meta, onDrill, stale, onRefresh, span }:
   return (
     <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12, gridColumn: span ? `span ${span}` : undefined, cursor: onDrill ? 'pointer' : undefined }} onClick={onDrill}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div><div style={{ fontSize: 15, fontWeight: 600, color: '#0A0A0A' }}>{title}</div>{sub && <div style={{ fontSize: 12, color: '#6E6E71' }}>{sub}</div>}</div>
+        <div><div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>{title}</div>{sub && <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>{sub}</div>}</div>
         {stale && <span onClick={(e) => { e.stopPropagation(); onRefresh?.(); }}><Pill tone="warning">Stale · refresh</Pill></span>}
       </div>
       <div style={{ flex: 1 }}>{children}</div>
-      <div style={{ fontSize: 11, color: '#6E6E71', borderTop: '1px solid #F3F5F5', paddingTop: 8 }}>{meta}</div>
+      <div style={{ fontSize: 11, color: 'var(--ink-4)', borderTop: '1px solid var(--surface-3)', paddingTop: 8 }}>{meta}</div>
     </div>
   );
 }
 
-function Tile({ label, value, delta, favorable, sub, meta, onClick, stale }: { label: string; value: string; delta?: string; favorable?: boolean; sub?: string; meta: string; onClick?: () => void; stale?: boolean }) {
-  return (
-    <div className="kpi-tile" style={{ cursor: onClick ? 'pointer' : undefined, display: 'flex', flexDirection: 'column', gap: 4 }} onClick={onClick}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span className="section-label">{label}</span>{stale && <Pill tone="warning">Stale</Pill>}</div>
-      <div style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.3, fontFeatureSettings: '"tnum" 1', color: '#0A0A0A' }}>{value}</div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
-        {delta ? <span style={{ color: favorable ? '#12784E' : '#C0393F', display: 'flex', alignItems: 'center', gap: 3 }}>{favorable ? <TrendingUpIcon size={11} /> : <TrendingDownIcon size={11} />}{delta}</span> : <span />}
-        {sub && <span style={{ color: '#6E6E71', fontFeatureSettings: 'normal' }}>{sub}</span>}
-      </div>
-      <div style={{ fontSize: 11, color: '#6E6E71', marginTop: 6, borderTop: '1px solid #F3F5F5', paddingTop: 8, fontFeatureSettings: 'normal' }}>{meta}</div>
-    </div>
-  );
+// CFO tiles are KpiTiles whose delta carries a trend arrow; `favorable` picks the tone.
+function Tile({ label, value, delta, favorable, sub, meta, onClick, stale, trend }: { label: string; value: string; delta?: string; favorable?: boolean; sub?: string; meta: string; onClick?: () => void; stale?: boolean; trend?: number[] }) {
+  const arrow = delta ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>{favorable ? <TrendingUpIcon size={11} /> : <TrendingDownIcon size={11} />}{delta}</span> : undefined;
+  void meta; // the scope line lives in the page subtitle; tiles stay tile-specific
+  return <KpiTile label={label} value={value} delta={arrow} deltaTone={favorable ? 'good' : 'bad'} sub={sub} onClick={onClick} stale={stale} trend={trend} />;
 }
 
 export function CfoDashboard() {
@@ -79,7 +72,8 @@ export function CfoDashboard() {
     const gst = ledgerTax(period, 'output');
     const itc = ledgerTax(period, 'input');
     const tds = engine.accountBalance(IDS.accTDSPayable, { to: range.to }).net;
-    const trendPeriods = periodsBetween(shiftRange(monthRange(period), -5)).concat(period).slice(-6);
+    // the six months ending at `period` (shiftRange moves both ends, so build the span explicitly)
+    const trendPeriods = periodsBetween({ from: shiftRange(monthRange(period), -5).from, to: monthRange(period).to }).slice(-6);
     const trend = trendPeriods.map((p) => ({ period: p, revenue: profitAndLoss(monthRange(p)).revenue }));
     const byBranch = branches.map((b) => { const p = profitAndLoss(range, { branchId: b.id }); return { branch: b, revenue: p.revenue, gm: p.revenue ? (p.grossProfit / p.revenue) * 100 : 0, net: p.netProfit }; }).sort((a, b) => b.revenue - a.revenue);
     return { pl, plPrior, bs, cash, currentAssets, currentLiab, ar, ap, dso, dpo, bva, gst, itc, tds, trend, byBranch, overdueAr: ar.rows.filter((r) => r.overdueDays > 0).length };
@@ -94,7 +88,6 @@ export function CfoDashboard() {
     { metric: 'Cash & bank', value: data.cash }, { metric: 'AR outstanding', value: data.ar.totals.total }, { metric: 'AP outstanding', value: data.ap.totals.total }, { metric: 'Working capital', value: data.currentAssets - data.currentLiab },
     { metric: 'Budget variance (net)', value: data.bva.totals.net.variance }, { metric: 'GST payable (net, period)', value: data.gst.tax - data.itc.tax }, { metric: 'TDS payable', value: data.tds }, { metric: 'DSO', value: data.dso }, { metric: 'DPO', value: data.dpo },
   ]));
-  const maxT = Math.max(1, ...data.trend.map((t) => t.revenue));
   return (
     <div className="page">
       <div className="page-header">
@@ -104,12 +97,12 @@ export function CfoDashboard() {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <Segmented value={preset} onChange={(v) => setPreset(v as any)} options={['MTD', 'QTD', 'YTD']} />
-          <Button variant="secondary" icon={<RefreshIcon size={14} />} onClick={fresh.refresh}>Refresh</Button>
+          <Button variant="tinted" icon={<RefreshIcon size={14} />} onClick={fresh.refresh}>Refresh</Button>
           <Button variant="secondary" icon={<DownloadIcon size={14} />} onClick={exportAll}>Export</Button>
         </div>
       </div>
       <div className="grid-4">
-        <Tile label="Revenue" value={fmtMoneyCompact(data.pl.revenue, s.currency)} delta={`${pct(data.pl.revenue, data.plPrior.revenue) >= 0 ? '↑' : '↓'} ${fmtPct(Math.abs(pct(data.pl.revenue, data.plPrior.revenue)))}`} favorable={data.pl.revenue >= data.plPrior.revenue} sub="vs prior" meta={meta} stale={fresh.stale} onClick={() => nav.go(`reports/pl?preset=${preset}`)} />
+        <Tile label="Revenue" trend={data.trend.map((t) => t.revenue)} value={fmtMoneyCompact(data.pl.revenue, s.currency)} delta={`${pct(data.pl.revenue, data.plPrior.revenue) >= 0 ? '↑' : '↓'} ${fmtPct(Math.abs(pct(data.pl.revenue, data.plPrior.revenue)))}`} favorable={data.pl.revenue >= data.plPrior.revenue} sub="vs prior" meta={meta} stale={fresh.stale} onClick={() => nav.go(`reports/pl?preset=${preset}`)} />
         <Tile label="Gross margin" value={fmtPct(gm)} delta={`${gm - gmPrior >= 0 ? '↑' : '↓'} ${Math.abs(gm - gmPrior).toFixed(1)} pp`} favorable={gm >= gmPrior} sub={`on ${fmtMoneyCompact(data.pl.revenue, s.currency)}`} meta={meta} stale={fresh.stale} onClick={() => nav.go('reports/margin')} />
         <Tile label="Operating expense" value={fmtMoneyCompact(data.pl.opex, s.currency)} delta={`${pct(data.pl.opex, data.plPrior.opex) >= 0 ? '↑' : '↓'} ${fmtPct(Math.abs(pct(data.pl.opex, data.plPrior.opex)))}`} favorable={data.pl.opex <= data.plPrior.opex} sub="vs prior" meta={meta} stale={fresh.stale} onClick={() => nav.go(`reports/pl?preset=${preset}`)} />
         <Tile label="Net profit" value={fmtMoneyCompact(data.pl.netProfit, s.currency)} delta={`${fmtPct(nm)} net margin`} favorable={data.pl.netProfit >= 0} sub="before tax" meta={meta} stale={fresh.stale} onClick={() => nav.go(`reports/pl?preset=${preset}`)} />
@@ -124,28 +117,20 @@ export function CfoDashboard() {
       </div>
       <div className="grid-2">
         <Widget title="Revenue trend" sub="Monthly revenue from posted journals · 6-month view" meta={meta} stale={fresh.stale} onRefresh={fresh.refresh} onDrill={() => nav.go('reports/sales-analysis?by=period&preset=YTD')}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 140 }}>
-            {data.trend.map((t, i) => (
-              <div key={t.period} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, height: '100%', justifyContent: 'flex-end' }}>
-                <span style={{ fontSize: 10, color: '#5F6368', fontFeatureSettings: '"tnum" 1' }}>{t.revenue ? fmtMoneyCompact(t.revenue, s.currency).replace(/\.\d+/, '') : ''}</span>
-                <div style={{ width: '100%', background: i === data.trend.length - 1 ? '#325CFF' : '#ECF1FD', borderRadius: '4px 4px 0 0', height: `${Math.max(2, (t.revenue / maxT) * 100)}px` }} title={fmtMoney(t.revenue, s.currency)} />
-                <span style={{ fontSize: 11, color: '#5F6368' }}>{fmtPeriod(t.period).slice(0, 3)}</span>
-              </div>
-            ))}
-          </div>
+          <BarChart categories={data.trend.map((t) => fmtPeriod(t.period).slice(0, 3))} series={[{ label: 'Revenue', values: data.trend.map((t) => t.revenue), emphasizeLast: true }]} height={170} legend={false} format={(v) => fmtMoneyCompact(v, s.currency).replace(/\.00\b/, '')} onSelect={() => nav.go('reports/sales-analysis')} />
         </Widget>
         <Widget title="Branch performance" sub={`Revenue & gross margin by branch · ${preset}`} meta={meta} stale={fresh.stale} onRefresh={fresh.refresh} onDrill={() => nav.go('reports/profitability?by=branch')}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {data.byBranch.length === 0 && <div style={{ fontSize: 13, color: '#6E6E71' }}>No data for {fmtPeriod(period)}</div>}
+            {data.byBranch.length === 0 && <div style={{ fontSize: 13, color: 'var(--ink-4)' }}>No data for {fmtPeriod(period)}</div>}
             {data.byBranch.map((b, i) => {
               const max = Math.max(1, ...data.byBranch.map((x) => x.revenue));
               return (
                 <div key={b.branch.id}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <div><span style={{ fontSize: 14, fontWeight: 500 }}>{b.branch.name}</span><span style={{ fontSize: 12, color: '#6E6E71', marginLeft: 8 }}>GM {fmtPct(b.gm)} · net {fmtMoneyCompact(b.net, s.currency)}</span></div>
-                    <span style={{ fontSize: 13, fontWeight: 600, fontFeatureSettings: '"tnum" 1' }}>{fmtMoneyCompact(b.revenue, s.currency)}</span>
+                    <div><span style={{ fontSize: 14, fontWeight: 500 }}>{b.branch.name}</span><span style={{ fontSize: 12, color: 'var(--ink-4)', marginLeft: 8 }}>GM {fmtPct(b.gm)} · net {fmtMoneyCompact(b.net, s.currency)}</span></div>
+                    <span style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fmtMoneyCompact(b.revenue, s.currency)}</span>
                   </div>
-                  <div style={{ height: 6, background: '#F3F5F5', borderRadius: 9999 }}><div style={{ height: '100%', width: `${(b.revenue / max) * 100}%`, background: ['#325CFF', '#22C55E', '#F97316', '#A855F7'][i % 4], borderRadius: 9999 }} /></div>
+                  <div style={{ height: 6, background: 'var(--surface-3)', borderRadius: 9999 }}><div style={{ height: '100%', width: `${(b.revenue / max) * 100}%`, background: 'var(--accent)', borderRadius: 9999 }} /></div>
                 </div>
               );
             })}
@@ -153,7 +138,7 @@ export function CfoDashboard() {
         </Widget>
       </div>
       <Card padding={0} style={{ overflow: 'hidden' }}>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid #EAEAEA', display: 'flex', justifyContent: 'space-between' }}><h3 style={{ fontSize: 15, fontWeight: 600 }}>Quick reports</h3><span style={{ fontSize: 12, color: '#6E6E71' }}>{meta}</span></div>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between' }}><h3 style={{ fontSize: 15, fontWeight: 600 }}>Quick reports</h3><span style={{ fontSize: 12, color: 'var(--ink-4)' }}>{meta}</span></div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
           {[
             { cat: 'Financial statements', items: [['Trial balance', 'reports/trial-balance'], ['Profit & loss', 'reports/pl'], ['Balance sheet', 'reports/balance-sheet'], ['Cash flow statement', 'reports/cash-flow']] },
@@ -161,9 +146,9 @@ export function CfoDashboard() {
             { cat: 'Tax & compliance', items: [['GST summary', 'reports/gst-summary'], ['GSTR-1', 'taxation/gstr1'], ['TDS register', 'reports/tds'], ['e-Invoices', 'taxation/einvoices']] },
             { cat: 'Operations', items: [['Stock valuation', 'reports/stock-valuation'], ['Gross margin', 'reports/margin'], ['Budget variance', 'reports/budget-variance'], ['FX exposure', 'reports/fx-exposure']] },
           ].map((group, gi) => (
-            <div key={group.cat} style={{ padding: '16px 20px', borderRight: gi < 3 ? '1px solid #EAEAEA' : 'none' }}>
+            <div key={group.cat} style={{ padding: '16px 20px', borderRight: gi < 3 ? '1px solid var(--line)' : 'none' }}>
               <div className="section-label" style={{ marginBottom: 10 }}>{group.cat}</div>
-              {group.items.map(([label, path]) => <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #F5F5F5', cursor: 'pointer' }} onClick={() => nav.go(path)}><span style={{ fontSize: 13, color: '#325CFF' }}>{label}</span><span style={{ color: '#B0B5BF' }}>›</span></div>)}
+              {group.items.map(([label, path]) => <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--hairline)', cursor: 'pointer' }} onClick={() => nav.go(path)}><span style={{ fontSize: 13, color: 'var(--accent)' }}>{label}</span><span style={{ color: 'var(--ink-5)' }}>›</span></div>)}
             </div>
           ))}
         </div>

@@ -43,9 +43,9 @@ function NewRun({ period: periodParam }: { period?: string }) {
     { key: 'contract', label: 'Contract', render: (p) => <div><ContractLink id={p.contract.id} /><div className="cell-secondary">{p.contract.title} · {p.contract.partyName}</div></div> },
     { key: 'method', label: 'Method', render: (p) => <MethodPill method={p.method} /> },
     { key: 'sources', label: 'What will be billed', render: (p) => p.skipReason ? <Muted>{p.skipReason}</Muted> : <div style={{ fontSize: 12 }}>{summarise(p)}</div> },
-    { key: 'taxable', label: 'Taxable', align: 'right', render: (p) => p.skipReason ? <span style={{ color: '#B0B5BF' }}>—</span> : <Money value={p.taxable} currency={p.currency} code={p.currency !== s.currency} /> },
-    { key: 'total', label: 'Invoice total', align: 'right', render: (p) => p.skipReason ? <span style={{ color: '#B0B5BF' }}>—</span> : <Money value={p.total} currency={p.currency} code={p.currency !== s.currency} />, total: () => <span className="money" style={{ fontWeight: 600 }}>{fmtMoney(totalValue, s.currency)}</span> },
-    { key: 'retainer', label: 'Retainer', align: 'right', render: (p) => p.retainerAvailable > 0 && applyRetainer && !p.skipReason ? <span className="money" style={{ color: '#12784E' }}>−{fmtMoney(Math.min(p.retainerAvailable, p.total), p.currency)}</span> : <span style={{ color: '#B0B5BF' }}>—</span> },
+    { key: 'taxable', label: 'Taxable', align: 'right', render: (p) => p.skipReason ? <span style={{ color: 'var(--ink-5)' }}>—</span> : <Money value={p.taxable} currency={p.currency} code={p.currency !== s.currency} /> },
+    { key: 'total', label: 'Invoice total', align: 'right', render: (p) => p.skipReason ? <span style={{ color: 'var(--ink-5)' }}>—</span> : <Money value={p.total} currency={p.currency} code={p.currency !== s.currency} />, total: () => <span className="money" style={{ fontWeight: 600 }}>{fmtMoney(totalValue, s.currency)}</span> },
+    { key: 'retainer', label: 'Retainer', align: 'right', render: (p) => p.retainerAvailable > 0 && applyRetainer && !p.skipReason ? <span className="money" style={{ color: 'var(--good)' }}>−{fmtMoney(Math.min(p.retainerAvailable, p.total), p.currency)}</span> : <span style={{ color: 'var(--ink-5)' }}>—</span> },
     { key: 'warnings', label: '', render: (p) => p.warnings.length ? <Pill tone="warning" title={p.warnings.join(' · ')}>{p.warnings.length} warning</Pill> : null },
   ];
 
@@ -76,7 +76,7 @@ function NewRun({ period: periodParam }: { period?: string }) {
           </Card>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12 }}>
             <KpiTile label="Contracts selected" value={`${chosen.length} / ${previews.length}`} sub={`${billable.length} will bill`} />
-            <KpiTile label="Invoice value" value={fmtMoney(totalValue, s.currency)} sub="incl. tax, base equivalent" />
+            <KpiTile label="Invoice value" amount={totalValue} currency={s.currency} sub="incl. tax, base equivalent" />
             <KpiTile label="Sources" value={billable.reduce((a, p) => a + p.sources.length, 0)} sub="timesheet rows, milestones, usage, expenses" />
             <KpiTile label="Skipped" value={chosen.length - billable.length} sub="nothing to bill or blocked" />
           </div>
@@ -175,7 +175,7 @@ function RunDetail({ id }: { id: string }) {
     { key: 'method', label: 'Method', render: (r) => <MethodPill method={r.method} /> },
     { key: 'sources', label: 'Sources', render: (r) => r.skipped ? <Muted>Skipped · {r.skipped}</Muted> : `${r.sources} source(s)` },
     { key: 'invoice', label: 'Invoice', render: (r) => r.invoiceId ? <InvoiceLink id={r.invoiceId} number={r.invoiceNumber} /> : <Muted>—</Muted> },
-    { key: 'retainer', label: 'Retainer applied', align: 'right', render: (r) => r.retainerApplied ? <span className="money" style={{ color: '#12784E' }}>−{fmtMoney(r.retainerApplied, r.currency)}</span> : <Muted>—</Muted> },
+    { key: 'retainer', label: 'Retainer applied', align: 'right', render: (r) => r.retainerApplied ? <span className="money" style={{ color: 'var(--good)' }}>−{fmtMoney(r.retainerApplied, r.currency)}</span> : <Muted>—</Muted> },
     { key: 'amount', label: 'Amount', align: 'right', render: (r) => r.skipped ? <Muted>—</Muted> : <Money value={r.amount} currency={r.currency} code={r.currency !== s.currency} /> },
   ];
   return (

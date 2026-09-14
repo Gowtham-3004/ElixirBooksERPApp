@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { XIcon, MoreVertIcon } from '../Icons';
-import { Button, Spinner, type ButtonVariant } from './primitives';
+import { XIcon, MoreVertIcon, ArrowsSwapIcon, PackageIcon, FlagIcon, PieChartIcon, CheckIcon, AlertTriangleIcon, MailIcon, HashIcon, InfoCircleIcon, ChevronDownIcon, CircleDotIcon } from '../Icons';
+import { Button, Spinner, type ButtonVariant, type ButtonTone } from './primitives';
 import { ReasonField } from './fields';
+import { StorysetAnimated } from './storyset';
 import { nav } from '../../store';
 
 // ── Drawer ─────────────────────────────────────────────────────────────────
@@ -22,8 +23,8 @@ export function Drawer({ open, onClose, title, subtitle, width = 720, children, 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
             <button type="button" className="btn-icon" onClick={onClose} aria-label="Close"><XIcon size={16} /></button>
             <div style={{ minWidth: 0 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 600, color: '#0A0A0A', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</h2>
-              {subtitle && <div style={{ fontSize: 12, color: '#5F6368', marginTop: 2 }}>{subtitle}</div>}
+              <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</h2>
+              {subtitle && <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>{subtitle}</div>}
             </div>
           </div>
           {headerRight && <div style={{ flexShrink: 0 }}>{headerRight}</div>}
@@ -50,8 +51,8 @@ export function Modal({ open, onClose, title, description, children, footer, wid
       <div className="scrim" onClick={onClose} style={{ zIndex: 101 }} />
       <div className="modal" style={{ width }} role="dialog" aria-modal>
         <div className="modal-header">
-          <h2 style={{ fontSize: 17, fontWeight: 600, color: '#0A0A0A', margin: 0 }}>{title}</h2>
-          {description && <p style={{ fontSize: 13, color: '#5F6368', marginTop: 6 }}>{description}</p>}
+          <h2 style={{ fontSize: 17, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>{title}</h2>
+          {description && <p style={{ fontSize: 13, color: 'var(--ink-3)', marginTop: 6 }}>{description}</p>}
         </div>
         {children && <div className="modal-body">{children}</div>}
         {footer && <div className="modal-footer">{footer}</div>}
@@ -69,7 +70,7 @@ export interface Consequence {
   tone?: 'info' | 'warning' | 'danger' | 'success';
 }
 
-export function ConfirmDialog({ open, onClose, onConfirm, title, statement, consequences = [], reasonRequired, confirmLabel, cancelLabel = 'Keep as is', danger, children, disabled }: { open: boolean; onClose: () => void; onConfirm: (reason: string) => void | Promise<void>; title: ReactNode; statement?: ReactNode; consequences?: Consequence[]; reasonRequired?: boolean; confirmLabel: string; cancelLabel?: string; danger?: boolean; children?: ReactNode; disabled?: boolean }) {
+export function ConfirmDialog({ open, onClose, onConfirm, title, statement, consequences = [], reasonRequired, confirmLabel, cancelLabel = 'Keep as is', danger, tone, children, disabled }: { open: boolean; onClose: () => void; onConfirm: (reason: string) => void | Promise<void>; title: ReactNode; statement?: ReactNode; consequences?: Consequence[]; reasonRequired?: boolean; confirmLabel: string; cancelLabel?: string; danger?: boolean; tone?: ButtonTone; children?: ReactNode; disabled?: boolean }) {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -86,9 +87,9 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, statement, cons
       setBusy(false);
     }
   };
-  const toneBg: Record<string, string> = { info: '#EBF7FF', warning: '#FEF4EC', danger: '#FFE8EA', success: '#E0F9EC' };
-  const toneFg: Record<string, string> = { info: '#3E5BA5', warning: '#8A4B0F', danger: '#C0393F', success: '#12784E' };
-  const engineIcon: Record<string, string> = { Journal: '⇄', Stock: '▣', Tax: '⚑', 'Open items': '◔', Workflow: '✓', Statutory: '⚠', Notification: '✉', Numbering: '#' };
+  const toneBg: Record<string, string> = { info: 'var(--info-bg)', warning: 'var(--warn-bg)', danger: 'var(--danger-bg)', success: 'var(--good-bg)' };
+  const toneFg: Record<string, string> = { info: 'var(--info)', warning: 'var(--warn)', danger: 'var(--danger)', success: 'var(--good)' };
+  const engineIcon: Record<string, ReactNode> = { Journal: <ArrowsSwapIcon size={13} />, Stock: <PackageIcon size={13} />, Tax: <FlagIcon size={13} />, 'Open items': <PieChartIcon size={13} />, Workflow: <CheckIcon size={13} />, Statutory: <AlertTriangleIcon size={13} />, Notification: <MailIcon size={13} />, Numbering: <HashIcon size={13} /> };
   return (
     <Modal open={open} onClose={onClose} title={title} description={statement}>
       {consequences.length > 0 && (
@@ -97,8 +98,8 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, statement, cons
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {consequences.map((c, i) => (
               <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 13 }}>
-                <span style={{ width: 24, height: 24, borderRadius: 6, background: toneBg[c.tone ?? 'info'], color: toneFg[c.tone ?? 'info'], display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 12 }}>{c.icon ?? engineIcon[c.engine] ?? '•'}</span>
-                <span style={{ color: '#0A0A0A' }}><strong style={{ fontWeight: 600 }}>{c.engine}</strong> · {c.text}</span>
+                <span style={{ width: 24, height: 24, borderRadius: 6, background: toneBg[c.tone ?? 'info'], color: toneFg[c.tone ?? 'info'], display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 12 }}>{c.icon ?? engineIcon[c.engine] ?? <CircleDotIcon size={13} />}</span>
+                <span style={{ color: 'var(--ink)' }}><strong style={{ fontWeight: 600 }}>{c.engine}</strong> · {c.text}</span>
               </div>
             ))}
           </div>
@@ -109,7 +110,7 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, statement, cons
       {err && !(reasonRequired && reason.trim().length < 10) && <div className="banner danger" style={{ marginTop: 12 }}>{err}</div>}
       <div className="modal-footer" style={{ padding: '16px 0 0' }}>
         <Button variant="secondary" onClick={onClose} disabled={busy}>{cancelLabel}</Button>
-        <Button variant={danger ? 'danger' : 'primary'} onClick={submit} loading={busy} disabled={disabled}>{confirmLabel}</Button>
+        <Button variant={danger ? 'danger' : 'primary'} tone={danger ? undefined : tone} onClick={submit} loading={busy} disabled={disabled}>{confirmLabel}</Button>
       </div>
     </Modal>
   );
@@ -139,7 +140,7 @@ export function Popover({ trigger, children, width = 320, align = 'left' }: { tr
 }
 
 export function InfoIcon() {
-  return <span style={{ color: '#5F6368', fontSize: 11, marginLeft: 3, cursor: 'help' }}>ⓘ</span>;
+  return <span style={{ color: 'var(--ink-3)', marginLeft: 3, cursor: 'help', display: 'inline-flex', verticalAlign: 'middle' }}><InfoCircleIcon size={12} /></span>;
 }
 
 export function Explain({ title, rows, note, link }: { title: string; rows: { k: string; v: ReactNode }[]; note?: ReactNode; link?: { label: string; path: string } }) {
@@ -154,7 +155,7 @@ export function Explain({ title, rows, note, link }: { title: string; rows: { k:
           </div>
         ))}
       </div>
-      {note && <div style={{ fontSize: 11, color: '#6E6E71', marginTop: 8 }}>{note}</div>}
+      {note && <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 8 }}>{note}</div>}
       {link && <button type="button" className="btn-link" style={{ marginTop: 8, fontSize: 12 }} onClick={() => nav.go(link.path)}>{link.label} →</button>}
     </Popover>
   );
@@ -195,7 +196,7 @@ export function ActionMenu({ actions, trigger, align = 'right' }: { actions: Men
               <button type="button" className={`menu-item ${a.danger ? 'danger' : ''}`} disabled={a.disabled} title={a.reason} onClick={() => { setOpen(false); a.onClick(); }}>
                 {a.icon}
                 {a.label}
-                {a.disabled && a.reason && <span style={{ marginLeft: 'auto', fontSize: 11, color: '#B0B5BF' }}>{a.reason}</span>}
+                {a.disabled && a.reason && <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--ink-5)' }}>{a.reason}</span>}
               </button>
             </div>
           ))}
@@ -209,7 +210,7 @@ export function SplitButton({ label, variant = 'secondary', onClick, actions, ic
   return (
     <span style={{ display: 'inline-flex' }}>
       <Button variant={variant} onClick={onClick} icon={icon} style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}>{label}</Button>
-      <ActionMenu actions={actions} trigger={<Button variant={variant} style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, padding: '0 8px', borderLeft: variant === 'secondary' ? 'none' : undefined }}>▾</Button>} />
+      <ActionMenu actions={actions} trigger={<Button variant={variant} style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, padding: '0 8px', borderLeft: variant === 'secondary' ? 'none' : undefined }} aria-label="More actions"><ChevronDownIcon size={12} /></Button>} />
     </span>
   );
 }
@@ -265,9 +266,18 @@ export function useAction() {
   };
 }
 
-export function LoadingOverlay({ label = 'Working…', style }: { label?: string; style?: CSSProperties }) {
+/** Inline spinner + label; `art` turns it into a centred block with the Storyset "loading" scene for long-running work. */
+export function LoadingOverlay({ label = 'Working…', style, art }: { label?: string; style?: CSSProperties; art?: boolean }) {
+  if (art) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: 24, fontSize: 13, color: 'var(--ink-3)', ...style }} role="status" aria-live="polite">
+        <StorysetAnimated name="loading" width={140} bg={false} />
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Spinner /> {label}</span>
+      </div>
+    );
+  }
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#5F6368', ...style }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink-3)', ...style }}>
       <Spinner /> {label}
     </div>
   );

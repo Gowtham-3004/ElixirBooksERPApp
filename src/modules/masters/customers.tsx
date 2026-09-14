@@ -47,9 +47,9 @@ export function CustomerRegister() {
         bulkActions={(ids, sel) => bulkStatusActions(C.customers, 'Customer', ids, sel, canEdit)}
         columns={[
           { key: 'name', label: 'Customer', sortable: true, render: (r) => <TwoLine primary={r.displayName || r.name} secondary={r.gstin ?? r.code} mono />, value: (r) => r.name },
-          { key: 'type', label: 'Type', render: (r) => <span style={{ fontSize: 12, color: '#5F6368' }}>{r.gstin ? 'B2B' : 'B2C'} · {r.taxTreatment}</span>, value: (r) => r.taxTreatment },
+          { key: 'type', label: 'Type', render: (r) => <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{r.gstin ? 'B2B' : 'B2C'} · {r.taxTreatment}</span>, value: (r) => r.taxTreatment },
           { key: 'state', label: 'State', render: (r) => partyState(r), value: (r) => partyState(r) },
-          { key: 'paymentTerms', label: 'Terms', render: (r) => <span style={{ color: '#5F6368' }}>{r.paymentTerms}</span> },
+          { key: 'paymentTerms', label: 'Terms', render: (r) => <span style={{ color: 'var(--ink-3)' }}>{r.paymentTerms}</span> },
           { key: 'creditLimit', label: 'Credit limit', align: 'right', sortable: true, render: (r) => <Money value={r.creditLimit} currency={s.currency} />, value: (r) => r.creditLimit },
           { key: 'outstanding', label: 'Outstanding', align: 'right', sortable: true, render: (r) => { const o = outstanding(r.id); return <Money value={o} currency={s.currency} tone={o > 0 ? 'negative' : 'none'} />; }, value: (r) => outstanding(r.id), total: (rs) => <Money value={rs.reduce((a, r) => a + outstanding(r.id), 0)} currency={s.currency} /> },
           { key: 'status', label: 'Status', render: (r) => <Badge status={r.status} />, value: (r) => r.status },
@@ -160,7 +160,7 @@ export function CustomerForm({ customer, onClose, onSaved }: { customer?: Custom
             </div>
           </section>
           <section>
-            <div className="section-title">Addresses <span style={{ fontWeight: 400, color: '#5F6368', fontSize: 12 }}>· one default per purpose; the default billing address drives place of supply</span></div>
+            <div className="section-title">Addresses <span style={{ fontWeight: 400, color: 'var(--ink-3)', fontSize: 12 }}>· one default per purpose; the default billing address drives place of supply</span></div>
             <AddressesEditor value={f.v.addresses} onChange={(v) => f.set('addresses', v)} error={f.errors.addresses} />
           </section>
           <section>

@@ -122,7 +122,7 @@ function TaxRateForm({ taxRate, onClose }: { taxRate?: TaxRate; onClose: () => v
                     <td><Button size="sm" variant="ghost" onClick={() => f.set('components', f.v.components.filter((_: any, j: number) => j !== i))}>✕</Button></td>
                   </tr>
                 ))}
-                {!f.v.components.length && <tr><td colSpan={5} style={{ color: '#5F6368', textAlign: 'center' }}>No components — nothing is charged</td></tr>}
+                {!f.v.components.length && <tr><td colSpan={5} style={{ color: 'var(--ink-3)', textAlign: 'center' }}>No components — nothing is charged</td></tr>}
               </tbody>
             </table>
             {f.errors.components && <div className="field-error">{f.errors.components}</div>}
@@ -174,12 +174,12 @@ export function TaxCalculator({ initialRateId, onClose }: { initialRateId?: stri
           <table className="data-table dense">
             <thead><tr><th>Component</th><th className="right">Rate</th><th className="right">Amount</th><th>{direction === 'sale' ? 'Output account' : 'Input account'}</th></tr></thead>
             <tbody>
-              {Object.entries(res.components).map(([k, v]) => { const accId = (direction === 'sale' ? tr?.outputAccountIds : tr?.inputAccountIds)?.[k]; const acc = accId ? db.find<any>(C.accounts, accId) : undefined; return <tr key={k}><td>{k}</td><td className="right">{k === 'CESS' ? tr?.cessRate : k === 'IGST' || k === 'VAT' || k === 'TAX' ? res.rate : res.rate / 2}%</td><td className="right"><Money value={v} /></td><td>{acc ? `${acc.code} · ${acc.name}` : <span style={{ color: '#C0393F' }}>Not mapped</span>}</td></tr>; })}
-              {!Object.keys(res.components).length && <tr><td colSpan={4} style={{ color: '#5F6368' }}>No tax components apply</td></tr>}
+              {Object.entries(res.components).map(([k, v]) => { const accId = (direction === 'sale' ? tr?.outputAccountIds : tr?.inputAccountIds)?.[k]; const acc = accId ? db.find<any>(C.accounts, accId) : undefined; return <tr key={k}><td>{k}</td><td className="right">{k === 'CESS' ? tr?.cessRate : k === 'IGST' || k === 'VAT' || k === 'TAX' ? res.rate : res.rate / 2}%</td><td className="right"><Money value={v} /></td><td>{acc ? `${acc.code} · ${acc.name}` : <span style={{ color: 'var(--danger)' }}>Not mapped</span>}</td></tr>; })}
+              {!Object.keys(res.components).length && <tr><td colSpan={4} style={{ color: 'var(--ink-3)' }}>No tax components apply</td></tr>}
             </tbody>
           </table>
           <div className="section-label" style={{ marginTop: 14, marginBottom: 6 }}>How this was calculated</div>
-          <ul style={{ fontSize: 13, paddingLeft: 18, color: '#3C4043' }}>
+          <ul style={{ fontSize: 13, paddingLeft: 18, color: 'var(--ink-2)' }}>
             <li>Seller {INDIA_STATES.find((x) => x.code === seller)?.name ?? seller} → place of supply {INDIA_STATES.find((x) => x.code === buyer)?.name ?? buyer}; party treatment {treatment}</li>
             <li>Gross {fmtMoney(qty * rate)}{disc ? ` less ${disc}% discount` : ''} → taxable {fmtMoney(res.taxable)}</li>
             {res.explanation.map((x, i) => <li key={i}>{x}</li>)}

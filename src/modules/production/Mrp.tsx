@@ -47,7 +47,7 @@ export function MrpPage({ id }: { id?: string }) {
             <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center' }}>
               <Button variant="primary" onClick={run}>Run MRP</Button>
               {preview && <Button onClick={save}>Save run & review suggestions</Button>}
-              <span style={{ fontSize: 12, color: '#5F6368' }}>Net requirement = sales demand + dependent demand (open orders + suggested production exploded through the BOM) + safety stock − (on hand − reserved + open POs + planned receipts).</span>
+              <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Net requirement = sales demand + dependent demand (open orders + suggested production exploded through the BOM) + safety stock − (on hand − reserved + open POs + planned receipts).</span>
             </div>
           </SectionCard>
           {preview ? <ResultTables details={preview.details} suggestions={preview.suggestions} currency={s.currency} /> : <EmptyState title="Run MRP to compute net requirements" description="Suggestions are never converted automatically — you accept, reject and convert them after reviewing." icon="📐" />}
@@ -86,7 +86,7 @@ function RunDetail({ run }: { run: MrpRun }) {
     <div className="page">
       <div className="page-header">
         <div>
-          <button type="button" className="btn-link" style={{ color: '#5F6368', marginBottom: 6 }} onClick={() => nav.go('production/mrp')}>← MRP runs</button>
+          <button type="button" className="btn-link" style={{ color: 'var(--ink-3)', marginBottom: 6 }} onClick={() => nav.go('production/mrp')}>← MRP runs</button>
           <h1 className="page-title">{run.number} <Badge status={run.status === 'Completed' ? 'Ready' : run.status === 'Converted' ? 'Converted' : 'Partial'}>{run.status}</Badge></h1>
           <div className="page-subtitle">Run {fmtDateTime(run.createdAt)} by {run.runBy} · horizon {run.params.horizonDays} d · {run.params.lotSizing} · {run.params.includeSafetyStock ? 'safety stock included' : 'no safety stock'}</div>
         </div>
@@ -98,7 +98,7 @@ function RunDetail({ run }: { run: MrpRun }) {
       <div className="grid-4">
         <KpiTile label="Items planned" value={run.summary.itemsPlanned} sub={`${run.summary.shortfalls} with shortfall`} />
         <KpiTile label="Suggestions" value={run.suggestions.length} sub={`${run.summary.production} production · ${run.summary.purchase} purchase · ${run.summary.transfer} transfer`} />
-        <KpiTile label="Estimated value" value={fmtMoney(run.summary.value, s.currency)} sub="At standard / purchase price" />
+        <KpiTile label="Estimated value" amount={run.summary.value} currency={s.currency} sub="At standard / purchase price" />
         <KpiTile label="Review progress" value={`${counts.converted + counts.rejected} / ${run.suggestions.length}`} sub={`${counts.suggested} pending · ${counts.accepted} accepted · ${counts.converted} converted`} />
       </div>
       <Tabs variant="filter" tabs={[{ id: 'suggestions', label: 'Suggestions', count: run.suggestions.length }, { id: 'requirements', label: 'Net requirements', count: run.details.length }]} value={view} onChange={setView} />
@@ -122,11 +122,11 @@ function SuggestionTable({ run }: { run: MrpRun }) {
     { key: 'reason', label: 'Reason & pegging', render: (x) => <Explain title={`${x.itemName} · ${x.qty} ${x.uom}`} rows={[{ k: 'Reason', v: x.reason }, ...x.demandRefs.map((d) => ({ k: d.type, v: `${d.number} · ${d.qty} · ${fmtDate(d.date)}` }))]} note={x.demandRefs.length ? `${x.demandRefs.length} demand reference(s)` : 'Safety-stock / replenishment driven'} /> },
     { key: 'estValue', label: 'Est. value', align: 'right', render: (x) => <span className="money">{fmtMoney(x.estValue, s.currency)}</span>, total: (r) => <span className="money">{fmtMoney(r.reduce((a, x) => a + x.estValue, 0), s.currency)}</span> },
     { key: 'status', label: 'Status', render: (x) => <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><Badge status={x.status === 'Suggested' ? 'Pending' : x.status === 'Accepted' ? 'Approved' : x.status} />{x.convertedDocNumber && <DocLink path={x.convertedDocType === 'Purchase Order' ? `purchase/orders/${x.convertedDocId}` : x.convertedDocType === 'Production Order' ? `production/orders/${x.convertedDocId}` : undefined} number={x.convertedDocNumber} />}</span> },
-    { key: 'act', label: '', render: (x) => x.status === 'Converted' ? null : <span style={{ display: 'inline-flex', gap: 4 }}>{x.status !== 'Accepted' && <Button size="sm" variant="tinted" onClick={() => act([x.id], 'Accepted')}>Accept</Button>}{x.status !== 'Rejected' && <Button size="sm" variant="ghost" onClick={() => act([x.id], 'Rejected')}>Reject</Button>}{x.status !== 'Suggested' && <Button size="sm" variant="ghost" onClick={() => act([x.id], 'Suggested')}>Undo</Button>}</span> },
+    { key: 'act', label: '', render: (x) => x.status === 'Converted' ? null : <span style={{ display: 'inline-flex', gap: 4 }}>{x.status !== 'Accepted' && <Button size="sm" variant="tinted" onClick={() => act([x.id], 'Accepted')}>Accept</Button>}{x.status !== 'Rejected' && <Button size="sm" variant="tinted" tone="danger" onClick={() => act([x.id], 'Rejected')}>Reject</Button>}{x.status !== 'Suggested' && <Button size="sm" variant="ghost" onClick={() => act([x.id], 'Suggested')}>Undo</Button>}</span> },
   ];
   return (
     <div>
-      {selected.size > 0 && <div className="bulk-bar" style={{ marginBottom: 8 }}><strong>{selected.size} selected</strong><Button size="sm" onClick={() => act(Array.from(selected), 'Accepted')}>Accept</Button><Button size="sm" onClick={() => act(Array.from(selected), 'Rejected')}>Reject</Button><Button size="sm" variant="ghost" onClick={() => setSelected(new Set())} style={{ marginLeft: 'auto' }}>Clear</Button></div>}
+      {selected.size > 0 && <div className="bulk-bar" style={{ marginBottom: 8 }}><strong>{selected.size} selected</strong><Button size="sm" variant="tinted" tone="danger" onClick={() => act(Array.from(selected), 'Accepted')}>Accept</Button><Button size="sm" onClick={() => act(Array.from(selected), 'Rejected')}>Reject</Button><Button size="sm" variant="ghost" onClick={() => setSelected(new Set())} style={{ marginLeft: 'auto' }}>Clear</Button></div>}
       <DataTable rows={rows} columns={columns} selectable selected={selected} onSelect={setSelected} emptyTitle="No shortfalls" emptyDescription="Supply covers every demand inside the horizon." />
     </div>
   );

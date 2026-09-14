@@ -32,7 +32,7 @@ async function login(email) {
   await wait(700);
   const mfa = page.locator('input[placeholder="123456"]');
   if (await mfa.count()) { await mfa.fill('123456'); await page.getByText('Verify and sign in').click(); await wait(400); }
-  if (await page.getByText('Choose a company').count()) { await page.getByText('Acme Private Limited').first().click(); await wait(400); }
+  if (await page.locator('.company-picker').count()) { await page.locator('.company-card:not(.create)').first().click(); await wait(400); }
 }
 const go = async (path) => { await page.goto(`${base}/#/${path}`, { waitUntil: 'networkidle' }); await wait(400); };
 const fieldByLabel = (label) => page.locator('label.field-label', { hasText: label }).first().locator('xpath=following-sibling::*[1]//input | following-sibling::input | following-sibling::*[1]//textarea | following-sibling::textarea').first();

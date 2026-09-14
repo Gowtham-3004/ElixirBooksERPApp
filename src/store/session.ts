@@ -116,11 +116,33 @@ export const session = {
     set({ ...scope, loginBanner: `Now working in ${company?.tradeName ?? company?.legalName}${branch ? ' · ' + branch.name : ''}` });
     setTimeout(() => set({ loginBanner: undefined }), 4000);
   },
+  /** Open the full-screen company picker from inside the app; the current scope is kept so "Back" works. */
+  openCompanyPicker() {
+    if (state.auth === 'app') set({ auth: 'choose-company' });
+  },
+  /** Only valid when a company is already active — a fresh login can't skip the pick. */
+  closeCompanyPicker() {
+    if (state.auth === 'choose-company' && state.companyId) set({ auth: 'app' });
+  },
+  /** The picker's "Enter workspace": first pick after login, or an in-app switch. */
+  enterCompany(companyId: string) {
+    if (!state.companyId) { session.chooseCompany(companyId); return; }
+    if (companyId !== state.companyId) session.switchCompany(companyId);
+    set({ auth: 'app' });
+  },
   setBranch(branchId: string) {
     set({ branchId });
   },
   setPeriod(periodCode: string) {
-    set({ periodCode });
+    // picking a period in another fiscal year moves the FY with it
+    const p = db.where<Period>(C.periods, (x) => x.companyId === state.companyId && x.code === periodCode)[0];
+    set({ periodCode, fy: p?.fy ?? state.fy });
+  },
+  /** Switch fiscal year; the working period moves to that year's current/open month (or its first month). */
+  setFy(fy: string) {
+    const inYear = db.where<Period>(C.periods, (p) => p.companyId === state.companyId && p.fy === fy).sort((a, b) => a.code.localeCompare(b.code));
+    const target = inYear.find((p) => p.code === periodCodeOf(today())) ?? inYear.find((p) => p.status === 'Open' || p.status === 'Reopened') ?? inYear[0];
+    set({ fy, periodCode: target?.code ?? state.periodCode });
   },
   logout() {
     const user = db.find<User>(C.users, state.userId);
@@ -228,7 +250,7 @@ export function computeScope(): Scope {
   const entitled = (moduleId: string) => {
     if (isPlatformAdmin) return true;
     if (!plan) return true;
-    if (tenant && (tenant.subscriptionState === 'Suspended' || tenant.subscriptionState === 'Expired')) return ['home', 'admin', 'platform'].includes(moduleId);
+    if (tenant && (tenant.subscriptionState === 'Suspended' || tenant.subscriptionState === 'Expired')) return ['home', 'admin', 'platform', 'setup'].includes(moduleId);
     return plan.modules.includes('*') || plan.modules.includes(moduleId);
   };
   return {

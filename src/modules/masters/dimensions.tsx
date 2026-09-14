@@ -31,7 +31,7 @@ export function DimensionRegister() {
         tabs={[{ id: 'all', label: 'All', filter: () => true }, ...TYPES.map((t) => ({ id: t, label: TYPE_LABEL[t], filter: (r: Dimension) => r.type === t })), ...statusTabs<Dimension>().filter((t) => t.id === 'inactive')]}
         primaryAction={{ label: 'New dimension', onClick: () => setEditing('new'), disabled: !canEdit, reason: canEdit ? undefined : 'Requires dimension permission' }}
         actions={<Button variant="secondary" onClick={() => setRules(true)}>Duplicate rules</Button>}
-        headerExtra={<div className="card" style={{ padding: '10px 14px', display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 12 }}><span className="section-label" style={{ marginBottom: 0 }}>Account rules</span>{ruleSummary.map((r) => <span key={r.t}><strong>{TYPE_LABEL[r.t]}</strong>: required on {r.required} account{r.required === 1 ? '' : 's'}{r.prohibited ? `, prohibited on ${r.prohibited}` : ''}</span>)}<span style={{ color: '#5F6368' }}>Edit rules per account under Chart of accounts.</span></div>}
+        headerExtra={<div className="card" style={{ padding: '10px 14px', display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 12 }}><span className="section-label" style={{ marginBottom: 0 }}>Account rules</span>{ruleSummary.map((r) => <span key={r.t}><strong>{TYPE_LABEL[r.t]}</strong>: required on {r.required} account{r.required === 1 ? '' : 's'}{r.prohibited ? `, prohibited on ${r.prohibited}` : ''}</span>)}<span style={{ color: 'var(--ink-3)' }}>Edit rules per account under Chart of accounts.</span></div>}
         onRowClick={(r) => setEditing(r)}
         rowActions={(r) => masterRowActions({ collection: C.dimensions, objectType: 'Dimension', row: r, canEdit, onEdit: () => setEditing(r) })}
         bulkActions={(ids, sel) => bulkStatusActions(C.dimensions, 'Dimension', ids, sel, canEdit)}
@@ -96,7 +96,7 @@ function DimensionForm({ dimension, onClose }: { dimension?: Dimension; onClose:
           <div>
             <label className="field-label">Colour</label>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {PALETTE.map((c) => <button key={c} type="button" onClick={() => f.set('color', c)} style={{ width: 28, height: 28, borderRadius: '50%', background: c, border: f.v.color === c ? '3px solid #0A0A0A' : '3px solid transparent', cursor: 'pointer' }} title={c} />)}
+              {PALETTE.map((c) => <button key={c} type="button" onClick={() => f.set('color', c)} style={{ width: 28, height: 28, borderRadius: '50%', background: c, border: f.v.color === c ? '3px solid var(--ink)' : '3px solid transparent', cursor: 'pointer' }} title={c} />)}
               <span style={{ alignSelf: 'center', marginLeft: 8 }}><DimChip label={`${f.v.code || 'CODE'} · ${f.v.name || 'Name'}`} color={f.v.color} /></span>
             </div>
           </div>
@@ -104,7 +104,7 @@ function DimensionForm({ dimension, onClose }: { dimension?: Dimension; onClose:
             <div className="section-label" style={{ marginBottom: 6 }}>Account rules for {TYPE_LABEL[f.v.type]}</div>
             {required.length ? <div><strong>Required</strong> on: {required.map((a) => a.code).join(', ')}</div> : <div>No account requires this dimension.</div>}
             {prohibited.length ? <div style={{ marginTop: 4 }}><strong>Prohibited</strong> on: {prohibited.map((a) => a.code).join(', ')}</div> : null}
-            <div style={{ color: '#5F6368', marginTop: 6 }}>Rules are set per account under Chart of accounts › Dimension rules (FR-ACC-004).</div>
+            <div style={{ color: 'var(--ink-3)', marginTop: 6 }}>Rules are set per account under Chart of accounts › Dimension rules (FR-ACC-004).</div>
           </div>
         </div>
       )}

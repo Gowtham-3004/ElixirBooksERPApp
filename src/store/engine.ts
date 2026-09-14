@@ -208,9 +208,13 @@ export function computeDocument(
   opts: { charges?: { name: string; amount: number; taxRateId?: string }[]; tdsSectionId?: string; tdsBase?: 'taxable' | 'total'; roundTotal?: boolean; paid?: number; credited?: number; writtenOff?: number; rate?: number; taxInclusive?: boolean } = {},
 ): { lines: DocLine[]; totals: DocTotals } {
   const outLines = lines.map((l) => {
-    const t = computeLineTax({ qty: l.qty, rate: l.rate, discountPct: l.discountPct, discountAmt: l.discountAmt || undefined, taxRateId: l.taxRateId, taxInclusive: opts.taxInclusive }, tc);
+    // A percentage is the source of truth: `discountAmt` is derived from it and stored, and lines are
+    // copied between documents at partial quantities (order → delivery → invoice, PO → GRN → bill), so
+    // a stored amount must never survive a quantity change. Only a line with no % keeps an absolute amount.
+    const byPct = (l.discountPct || 0) > 0;
     const gross = round(l.qty * l.rate);
-    const discountAmt = round(l.discountAmt || (gross * (l.discountPct || 0)) / 100);
+    const t = computeLineTax({ qty: l.qty, rate: l.rate, discountPct: l.discountPct, discountAmt: byPct ? undefined : l.discountAmt || undefined, taxRateId: l.taxRateId, taxInclusive: opts.taxInclusive }, tc);
+    const discountAmt = round(byPct ? (gross * (l.discountPct || 0)) / 100 : l.discountAmt || 0);
     const item = db.find<Item>(C.items, l.itemId);
     return {
       ...l,
@@ -452,6 +456,7 @@ export function postJournal(input: PostJournalInput): Journal {
     const cr = round(l.cr ?? 0);
     return { id: uid('jl'), accountId: acc.id, accountCode: acc.code, accountName: acc.name, dr, cr, drBase: round(dr * rate), crBase: round(cr * rate), currency, partyType: l.partyType, partyId: l.partyId, partyName: l.partyName, dimensions: dims, narration: l.narration, taxComponent: l.taxComponent };
   }).filter((l) => l.dr !== 0 || l.cr !== 0);
+  if (!lines.length) throw new ValidationError('Journal has no non-zero lines — nothing to post', 'EMPTY');
   const totalDr = round(lines.reduce((s, l) => s + l.drBase, 0));
   const totalCr = round(lines.reduce((s, l) => s + l.crBase, 0));
   if (Math.abs(totalDr - totalCr) > 0.011) throw new ValidationError(`Journal is not balanced: Dr ${totalDr.toFixed(2)} ≠ Cr ${totalCr.toFixed(2)}`, 'UNBALANCED');
@@ -740,6 +745,21 @@ export function moveStock(input: MoveStockInput): StockMovement {
 
 export function reverseStockMovements(sourceId: string, opts: { date: string; reason: string; sourceType: string; sourceNumber: string }): StockMovement[] {
   const moves = db.where<StockMovement>(C.stockMovements, (m) => m.sourceId === sourceId && !m.reversalOfId);
+  // Reversing a receipt takes stock back out, so it is subject to the same negative-stock policy as
+  // any other issue; check every line before writing so a blocked reversal leaves nothing behind.
+  const byKey = new Map<string, number>();
+  moves.filter((m) => m.baseQty > 0).forEach((m) => { const k = `${m.itemId}|${m.warehouseId}`; byKey.set(k, round((byKey.get(k) ?? 0) + m.baseQty, 3)); });
+  const allowNegative = companyOf(moves[0]?.companyId)?.defaults.allowNegativeStock ?? false;
+  byKey.forEach((qty, k) => {
+    if (allowNegative) return;
+    const [itemId, warehouseId] = k.split('|');
+    const pos = stockPosition(itemId, warehouseId);
+    if (pos.onHand - qty < -0.0005) {
+      const item = db.find<Item>(C.items, itemId);
+      const wh = db.find<any>(C.warehouses, warehouseId);
+      throw new ValidationError(`Cannot reverse ${opts.sourceNumber}: only ${pos.onHand} ${item?.baseUom ?? ''} of ${item?.name ?? itemId} left in ${wh?.name ?? warehouseId} — ${qty} would be taken back (stock already consumed)`, 'NEGATIVE_STOCK');
+    }
+  });
   return moves.map((m) =>
     db.insert<StockMovement>(C.stockMovements, { ...m, id: undefined, qty: -m.qty, baseQty: -m.baseQty, date: opts.date, type: m.type, sourceType: opts.sourceType, sourceNumber: opts.sourceNumber, reversalOfId: m.id, balanceAfter: round(stockPosition(m.itemId, m.warehouseId).onHand - m.baseQty, 3), createdAt: undefined, updatedAt: undefined, version: undefined } as any),
   );
@@ -760,11 +780,13 @@ export function releaseReservation(id: string, reason = 'Released') {
   audit({ action: 'stock.released', objectType: 'Reservation', objectId: id, objectNumber: r.sourceNumber, detail: reason });
 }
 
+/** Record fulfilment against a line's reservation. A negative qty (invoice / delivery reversal) reopens a Fulfilled reservation. */
 export function fulfilReservation(sourceId: string, lineId: string, qty: number) {
-  const r = db.findBy<Reservation>(C.reservations, (x) => x.sourceId === sourceId && x.lineId === lineId && (x.status === 'Reserved' || x.status === 'Partially Fulfilled'));
+  const live = (x: Reservation) => x.status === 'Reserved' || x.status === 'Partially Fulfilled' || (qty < 0 && x.status === 'Fulfilled');
+  const r = db.findBy<Reservation>(C.reservations, (x) => x.sourceId === sourceId && x.lineId === lineId && live(x));
   if (!r) return;
-  const fulfilled = round(r.fulfilledQty + qty, 3);
-  db.update<Reservation>(C.reservations, r.id, { fulfilledQty: fulfilled, status: fulfilled >= r.qty - 0.0005 ? 'Fulfilled' : 'Partially Fulfilled' });
+  const fulfilled = round(Math.max(0, r.fulfilledQty + qty), 3);
+  db.update<Reservation>(C.reservations, r.id, { fulfilledQty: fulfilled, status: fulfilled >= r.qty - 0.0005 ? 'Fulfilled' : fulfilled > 0 ? 'Partially Fulfilled' : 'Reserved' });
 }
 
 // ── Workflow & approvals (FR-WFL-001..008) ─────────────────────────────────

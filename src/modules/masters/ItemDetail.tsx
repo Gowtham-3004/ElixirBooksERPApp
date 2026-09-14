@@ -38,7 +38,7 @@ export default function ItemDetail({ id }: { id: string }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
         <KpiTile label="On hand" value={item.isStock ? fmtQty(total.onHand, item.baseUom) : 'Service'} sub={item.isStock ? `${fmtQty(total.reserved)} reserved · ${fmtQty(total.available)} available` : 'No stock movements'} />
         <KpiTile label="Stock value" value={item.isStock ? <Money value={total.value} currency={s.currency} /> : '—'} sub={item.isStock ? `Avg rate ${fmtQty(total.avgRate)} / ${item.baseUom} (${s.company?.defaults.valuationMethod})` : undefined} />
-        <KpiTile label="Sales price" value={<Money value={item.salesPrice} currency={s.currency} />} sub={`${myPrices.length} price list entr${myPrices.length === 1 ? 'y' : 'ies'}`} onClick={() => setTab('prices')} />
+        <KpiTile label="Sales price" amount={item.salesPrice} currency={s.currency} sub={`${myPrices.length} price list entr${myPrices.length === 1 ? 'y' : 'ies'}`} onClick={() => setTab('prices')} />
         <KpiTile label="Reorder" value={item.isStock ? fmtQty(item.reorderLevel, item.baseUom) : '—'} sub={item.isStock ? (total.onHand < item.reorderLevel && item.reorderLevel > 0 ? `Below level — order ${fmtQty(item.reorderQty, item.baseUom)}` : `Safety ${fmtQty(item.safetyStock)} · lead ${item.leadTimeDays} d`) : undefined} deltaTone={item.isStock && item.reorderLevel > 0 && total.onHand < item.reorderLevel ? 'bad' : 'neutral'} />
       </div>
       <div className="card" style={{ padding: 18 }}>
@@ -48,7 +48,7 @@ export default function ItemDetail({ id }: { id: string }) {
       <Tabs value={tab} onChange={setTab} tabs={[{ id: 'stock', label: 'Stock by warehouse' }, { id: 'prices', label: 'Price list entries' }, { id: 'moves', label: 'Recent movements' }, { id: 'history', label: 'Change history' }]} />
       {tab === 'stock' && (item.isStock ? (
         <DataTable rows={stock} rowKey={(r) => r.w.id} dense emptyTitle="No stock yet" columns={[
-          { key: 'w', label: 'Warehouse', render: (r) => <span>{r.w.name} <span style={{ color: '#5F6368', fontSize: 12 }}>{r.w.code}{r.w.type !== 'Standard' ? ` · ${r.w.type}` : ''}</span></span> },
+          { key: 'w', label: 'Warehouse', render: (r) => <span>{r.w.name} <span style={{ color: 'var(--ink-3)', fontSize: 12 }}>{r.w.code}{r.w.type !== 'Standard' ? ` · ${r.w.type}` : ''}</span></span> },
           { key: 'onHand', label: 'On hand', align: 'right', render: (r) => fmtQty(r.pos.onHand, item.baseUom), total: (rows) => fmtQty(rows.reduce((a, r) => a + r.pos.onHand, 0), item.baseUom) },
           { key: 'reserved', label: 'Reserved', align: 'right', render: (r) => fmtQty(r.pos.reserved) },
           { key: 'available', label: 'Available', align: 'right', render: (r) => <strong>{fmtQty(r.pos.available)}</strong> },
@@ -73,7 +73,7 @@ export default function ItemDetail({ id }: { id: string }) {
           { key: 'sourceNumber', label: 'Source', render: (m) => <span className="identifier">{m.sourceNumber}</span> },
           { key: 'warehouseName', label: 'Warehouse' },
           { key: 'batch', label: 'Batch / serial', render: (m) => m.batch ?? (m.serials?.length ? `${m.serials.length} serials` : '—') },
-          { key: 'baseQty', label: 'Qty', align: 'right', render: (m) => <span className="money" style={{ color: m.baseQty < 0 ? '#C0393F' : '#12784E' }}>{m.baseQty > 0 ? '+' : ''}{fmtQty(m.baseQty, item.baseUom)}</span> },
+          { key: 'baseQty', label: 'Qty', align: 'right', render: (m) => <span className="money" style={{ color: m.baseQty < 0 ? 'var(--danger)' : 'var(--good)' }}>{m.baseQty > 0 ? '+' : ''}{fmtQty(m.baseQty, item.baseUom)}</span> },
           { key: 'rate', label: 'Rate', align: 'right', render: (m) => <Money value={m.rate} currency={s.currency} /> },
           { key: 'balanceAfter', label: 'Balance', align: 'right', render: (m) => (m.balanceAfter !== undefined ? fmtQty(m.balanceAfter) : '—') },
         ]} />

@@ -6,7 +6,8 @@ import type { User, Role, Tenant, Company, AuditEvent } from '../../store';
 import Login from './Login';
 import Register from './Register';
 import Onboarding from './Onboarding';
-import { Button, TwoLine, Badge } from '../../components/ui/primitives';
+import ChooseCompany from './ChooseCompany';
+import { Button, Badge } from '../../components/ui/primitives';
 import { TextField, Toggle } from '../../components/ui/fields';
 import { Frame, PasswordMeter, passwordStrength, deviceTrust } from './Frame';
 import { fmtDateTime } from '../../lib/format';
@@ -51,9 +52,9 @@ function MfaChallenge() {
     session.completeMfa();
   };
   return (
-    <Frame title="Two-factor verification" subtitle={`Enter the 6-digit code from your authenticator app for ${user?.email ?? ''}.`}>
+    <Frame art="no-access" title="Two-factor verification" subtitle={`Enter the 6-digit code from your authenticator app for ${user?.email ?? ''}.`}>
       <TextField label="Verification code" value={code} onChange={(v) => { setCode(v.replace(/\D/g, '').slice(0, 6)); setErr(null); }} placeholder="123456" autoFocus error={err} inputStyle={{ fontSize: 22, letterSpacing: '0.3em', textAlign: 'center' }} onKeyDown={(e) => { if (e.key === 'Enter') verify(); }} />
-      <p style={{ fontSize: 12, color: '#6E6E71', marginTop: 8 }}>Demo: any 6 digits are accepted; 000000 simulates a wrong code.</p>
+      <p style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 8 }}>Demo: any 6 digits are accepted; 000000 simulates a wrong code.</p>
       <div style={{ marginTop: 16 }}>
         <Toggle on={remember} onChange={setRemember} label="Remember this device for 30 days" help="You will not be asked for a code on this browser until the trust expires or you sign out other sessions." />
       </div>
@@ -68,7 +69,7 @@ function ForgotPassword() {
   const [sent, setSent] = useState(false);
   const known = db.get<User>(C.users).find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
   return (
-    <Frame title="Reset your password" subtitle="We'll email a reset link that expires in 30 minutes. For security the response is the same whether or not the address is registered.">
+    <Frame art="secure-login" title="Reset your password" subtitle="We'll email a reset link that expires in 30 minutes. For security the response is the same whether or not the address is registered.">
       {sent ? (
         <div>
           <div className="banner success" style={{ marginBottom: 16 }}>If an account exists for {email}, a reset link has been sent.</div>
@@ -96,7 +97,7 @@ function SetPassword({ invite }: { invite: boolean }) {
   const [pw2, setPw2] = useState('');
   const ok = passwordStrength(pw).score >= 3 && pw === pw2;
   return (
-    <Frame title={invite ? 'Accept your invitation' : 'Choose a new password'} subtitle={target ? `Resetting the password for ${target.email}. Passwords need 8+ characters, an uppercase letter and a number.` : 'Passwords need 8+ characters, an uppercase letter and a number.'}>
+    <Frame art="secure-login" title={invite ? 'Accept your invitation' : 'Choose a new password'} subtitle={target ? `Resetting the password for ${target.email}. Passwords need 8+ characters, an uppercase letter and a number.` : 'Passwords need 8+ characters, an uppercase letter and a number.'}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
           <TextField label="New password" type="password" value={pw} onChange={setPw} autoFocus />
@@ -128,14 +129,14 @@ function AcceptInvitation() {
   const ok = !!invited && !expired && name.trim().length > 1 && passwordStrength(pw).score >= 3 && pw === pw2;
   if (!invited) {
     return (
-      <Frame title="Invitation not found" subtitle="This invitation link is invalid or has already been used.">
+      <Frame art="not-found" title="Invitation not found" subtitle="This invitation link is invalid or has already been used.">
         <Button variant="primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => session.setAuth('login', { inviteToken: undefined })}>Go to sign in</Button>
       </Frame>
     );
   }
   return (
-    <Frame title="Accept your invitation" subtitle={<>{inviter} invited you to join <strong>{tenant?.name ?? 'the workspace'}</strong>.</>}>
-      <div className="card" style={{ padding: 12, marginBottom: 16, background: '#F9FBFC' }}>
+    <Frame art="add-friends" title="Accept your invitation" subtitle={<>{inviter} invited you to join <strong>{tenant?.name ?? 'the workspace'}</strong>.</>}>
+      <div className="card" style={{ padding: 12, marginBottom: 16, background: 'var(--surface-2)' }}>
         <div className="kv" style={{ gridTemplateColumns: '110px 1fr', fontSize: 12 }}>
           <span className="k">Email</span><span className="v">{invited.email}</span>
           <span className="k">Role{roles.length > 1 ? 's' : ''}</span><span className="v">{roles.join(', ') || '—'}</span>
@@ -164,23 +165,3 @@ function AcceptInvitation() {
   );
 }
 
-function ChooseCompany() {
-  const s = useSession();
-  const [q, setQ] = useState('');
-  const list = s.companies.filter((c) => `${c.legalName} ${c.tradeName} ${c.country}`.toLowerCase().includes(q.toLowerCase()));
-  return (
-    <Frame title="Choose a company" subtitle={`${s.user?.name}, you have access to ${s.companies.length} companies. Permissions, defaults, currency and periods follow the company you pick.`}>
-      <TextField value={q} onChange={setQ} placeholder="Search companies…" autoFocus />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 12 }}>
-        {list.map((c) => (
-          <button key={c.id} type="button" className="menu-item" style={{ height: 'auto', padding: '10px 12px', border: '1px solid #EAEAEA' }} onClick={() => session.chooseCompany(c.id)}>
-            <div style={{ width: 28, height: 28, borderRadius: 7, background: c.brandColor ?? '#325CFF', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, marginRight: 8 }}>{c.logoText ?? c.legalName[0]}</div>
-            <TwoLine primary={c.legalName} secondary={`${c.country} · ${c.baseCurrency} · ${c.nature}`} />
-          </button>
-        ))}
-        {list.length === 0 && <div style={{ fontSize: 13, color: '#5F6368', padding: 8 }}>No company matches "{q}".</div>}
-      </div>
-      <Button variant="link" style={{ marginTop: 16 }} onClick={() => session.logout()}>Sign out</Button>
-    </Frame>
-  );
-}

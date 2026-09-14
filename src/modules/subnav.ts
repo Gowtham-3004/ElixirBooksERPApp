@@ -10,6 +10,9 @@ import type { ProductionOrder, ProductionReceipt, QualityInspection } from './pr
 import type { Timesheet } from './projects/types';
 
 export interface SubNavItem { id: string; label: string; group?: string; badge?: number; hidden?: boolean }
+// Module settings pages are hidden from the sidebar flyouts and the palette's Pages group — they are
+// reached from All Settings (modules/setup/sections.ts) so setup lives in one place.
+const SETTINGS = { id: 'settings', label: 'Settings', hidden: true } as const;
 
 export const CRM_NAV: SubNavItem[] = [
   { id: 'leads', label: 'Leads & pipeline' },
@@ -28,8 +31,8 @@ export const SALES_NAV: SubNavItem[] = [
   { id: 'ageing', label: 'AR ageing', group: 'Receivables' },
   { id: 'collections', label: 'Collections', group: 'Receivables' },
   { id: 'statements', label: 'Customer statements', group: 'Receivables' },
-  { id: 'price-lists', label: 'Price lists', group: 'Setup' },
-  { id: 'settings', label: 'Settings', group: 'Setup' },
+  { id: 'price-lists', label: 'Price lists', group: 'Pricing' },
+  SETTINGS,
 ];
 
 export const PURCHASE_NAV: SubNavItem[] = [
@@ -43,14 +46,14 @@ export const PURCHASE_NAV: SubNavItem[] = [
   { id: 'payments', label: 'Payments', group: 'Payables' },
   { id: 'batches', label: 'Payment batches', group: 'Payables' },
   { id: 'ageing', label: 'AP ageing', group: 'Payables' },
-  { id: 'settings', label: 'Settings', group: 'Setup' },
+  SETTINGS,
 ];
 
 export const INVENTORY_NAV: SubNavItem[] = [
   { id: 'stock', label: 'Stock on hand', group: 'Position' }, { id: 'ledger', label: 'Stock ledger', group: 'Position' }, { id: 'batches', label: 'Batches & serials', group: 'Position' }, { id: 'reservations', label: 'Reservations', group: 'Position' },
   { id: 'adjustments', label: 'Adjustments', group: 'Movements' }, { id: 'transfers', label: 'Transfers', group: 'Movements' }, { id: 'counts', label: 'Stock counts', group: 'Movements' },
   { id: 'replenishment', label: 'Replenishment', group: 'Planning' }, { id: 'landed-cost', label: 'Landed cost', group: 'Planning' }, { id: 'valuation', label: 'Valuation', group: 'Planning' },
-  { id: 'settings', label: 'Settings', group: 'Setup' },
+  SETTINGS,
 ];
 
 export const POS_NAV: SubNavItem[] = [
@@ -58,7 +61,7 @@ export const POS_NAV: SubNavItem[] = [
   { id: 'shifts', label: 'Shifts' },
   { id: 'bills', label: 'Bills' },
   { id: 'returns', label: 'Returns' },
-  { id: 'admin', label: 'POS admin' },
+  { id: 'admin', label: 'POS admin', hidden: true },
 ];
 
 export const PROJECTS_NAV: SubNavItem[] = [
@@ -74,7 +77,7 @@ export const PROJECTS_NAV: SubNavItem[] = [
   { id: 'retainers', label: 'Retainers & advances', group: 'Finance' },
   { id: 'revenue', label: 'Revenue recognition', group: 'Finance' },
   { id: 'profitability', label: 'Profitability', group: 'Finance' },
-  { id: 'settings', label: 'Settings', group: 'Finance' },
+  SETTINGS,
 ];
 
 export const PRODUCTION_NAV: SubNavItem[] = [
@@ -90,7 +93,7 @@ export const PRODUCTION_NAV: SubNavItem[] = [
   { id: 'work-centres', label: 'Work centres', group: 'Engineering' },
   { id: 'wip', label: 'WIP & costing', group: 'Costing' },
   { id: 'genealogy', label: 'Genealogy', group: 'Costing' },
-  { id: 'settings', label: 'Settings', group: 'Setup' },
+  SETTINGS,
 ];
 
 export const ACCOUNTING_NAV: SubNavItem[] = [
@@ -102,8 +105,8 @@ export const ACCOUNTING_NAV: SubNavItem[] = [
   { id: 'customer-ledger', label: 'Customer ledger', group: 'Sub-ledgers' },
   { id: 'supplier-ledger', label: 'Supplier ledger', group: 'Sub-ledgers' },
   { id: 'intercompany', label: 'Intercompany', group: 'Sub-ledgers' },
-  { id: 'opening-balances', label: 'Opening balances', group: 'Setup' },
-  { id: 'settings', label: 'Settings', group: 'Setup' },
+  { id: 'opening-balances', label: 'Opening balances', hidden: true },
+  SETTINGS,
   { id: 'fx', label: 'Currencies & FX', group: 'FX' },
   { id: 'revaluation', label: 'Revaluation', group: 'FX' },
   { id: 'period-close', label: 'Period close', group: 'Close' },
@@ -113,7 +116,7 @@ export const BANKING_NAV: SubNavItem[] = [
   { id: 'accounts', label: 'Bank & cash accounts', group: 'Accounts' }, { id: 'vouchers', label: 'Vouchers', group: 'Accounts' },
   { id: 'statements', label: 'Statements', group: 'Reconciliation' }, { id: 'reconciliation', label: 'Reconciliation', group: 'Reconciliation' },
   { id: 'batches', label: 'Payment batches', group: 'Payments' },
-  { id: 'settings', label: 'Settings', group: 'Setup' },
+  SETTINGS,
 ];
 
 export const TAXATION_NAV: SubNavItem[] = [
@@ -128,7 +131,7 @@ export const TAXATION_NAV: SubNavItem[] = [
   { id: 'gstr3b', label: 'GSTR-3B', group: 'Returns' },
   { id: 'tds', label: 'TDS / TCS', group: 'Returns' },
   { id: 'filings', label: 'Filing history', group: 'Returns' },
-  { id: 'settings', label: 'Settings', group: 'Setup' },
+  SETTINGS,
 ];
 
 export const PAYROLL_NAV: SubNavItem[] = [
@@ -139,7 +142,7 @@ export const PAYROLL_NAV: SubNavItem[] = [
   { id: 'payslips', label: 'Payslips' },
   { id: 'loans', label: 'Loans & advances' },
   { id: 'statutory', label: 'Statutory' },
-  { id: 'settings', label: 'Settings' },
+  SETTINGS,
 ];
 
 export const FIXED_ASSETS_NAV: SubNavItem[] = [
@@ -158,7 +161,7 @@ export const BUDGETS_NAV: SubNavItem[] = [
   { id: 'variance', label: 'Budget vs actuals' },
   { id: 'control', label: 'Budget control' },
   { id: 'expenses', label: 'Expense claims' },
-  { id: 'settings', label: 'Expense settings' },
+  { ...SETTINGS, label: 'Expense settings' },
 ];
 
 export const CONSOLIDATION_NAV: SubNavItem[] = [
@@ -234,6 +237,8 @@ export const ADMIN_PERMS: Record<string, string> = {
   jobs: 'admin.jobs.view', notifications: 'admin.company.view', data: 'admin.data.view',
 };
 
+export const SETUP_NAV: SubNavItem[] = [{ id: 'preferences', label: 'User preferences' }];
+
 export const PLATFORM_NAV: SubNavItem[] = [
   { id: 'usage', label: 'Usage dashboard' }, { id: 'plans', label: 'Plans' }, { id: 'tenants', label: 'Tenants' }, { id: 'audit', label: 'Platform audit' },
 ];
@@ -306,11 +311,11 @@ export function useSubNavs(): Record<string, SubNavItem[]> {
   return useMemo(() => ({
     crm: CRM_NAV, sales: SALES_NAV, purchase, inventory: INVENTORY_NAV, pos: POS_NAV, projects, production,
     accounting, banking: BANKING_NAV, taxation: TAXATION_NAV, payroll: PAYROLL_NAV, 'fixed-assets': FIXED_ASSETS_NAV, budgets: BUDGETS_NAV,
-    reports: reportsNav(s), masters: MASTERS_NAV, admin: adminNav(s), platform: PLATFORM_NAV,
+    reports: reportsNav(s), masters: MASTERS_NAV, admin: adminNav(s), platform: PLATFORM_NAV, setup: SETUP_NAV,
   }), [s, accounting, purchase, production, projects]);
 }
 
-/** Per-module settings pages, surfaced together by the sidebar's Settings hub. */
+/** Per-module settings pages, surfaced together by the Setup hub (modules/setup/sections.ts). */
 export const MODULE_SETTINGS: { module: string; id: string; label: string }[] = [
   { module: 'sales', id: 'sales/settings', label: 'Sales settings' },
   { module: 'purchase', id: 'purchase/settings', label: 'Purchase settings' },
@@ -325,24 +330,6 @@ export const MODULE_SETTINGS: { module: string; id: string; label: string }[] = 
   { module: 'budgets', id: 'budgets/settings', label: 'Expense settings' },
 ];
 
-/**
- * The sidebar's Settings hub — distinct from Company administration (the org: company,
- * branches, periods, users, roles…). Ids are full paths. Lists the signed-in user's own
- * pages, every visible module's settings page, and a link across to administration.
- */
-export function settingsNav(s: Scope, visibleModules: string[]): SubNavItem[] {
-  const has = (m: string) => visibleModules.includes(m);
-  const admin = adminNav(s);
-  const notifications = admin.some((i) => i.id === 'notifications' && !i.hidden);
-  const templates = has('admin') && admin.some((i) => i.id === 'templates' && !i.hidden);
-  return [
-    ...(s.user ? [{ id: `admin/users/${s.user.id}`, label: 'Profile & security', group: 'You' }] : []),
-    ...(notifications ? [{ id: 'admin/notifications', label: 'Notification settings', group: 'You' }] : []),
-    ...MODULE_SETTINGS.filter((p) => has(p.module)).map((p) => ({ id: p.id, label: p.label, group: 'Modules' })),
-    ...(templates ? [{ id: 'admin/templates', label: 'Invoice & document templates', group: 'Documents' }] : []),
-    ...(has('admin') ? [{ id: 'admin', label: 'Company administration →', group: 'Organisation' }] : []),
-  ];
-}
 
 /** Sub-nav items may nest ("consolidation/runs"); the deepest match wins. */
 export function activeSubNav(route: Route, moduleId: string, items: SubNavItem[]): string | undefined {

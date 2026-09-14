@@ -54,7 +54,7 @@ export function JournalRegister() {
           { key: 'branch', label: 'Branch', render: (j) => branches.find((b) => b.id === j.branchId)?.name ?? '—' },
           { key: 'totalDr', label: 'Debit', align: 'right', sortable: true, render: (j) => <Money value={j.totalDr} currency={s.currency} />, total: (rs) => <Money value={rs.reduce((x, j) => x + j.totalDr, 0)} currency={s.currency} /> },
           { key: 'totalCr', label: 'Credit', align: 'right', render: (j) => <Money value={j.totalCr} currency={s.currency} />, total: (rs) => <Money value={rs.reduce((x, j) => x + j.totalCr, 0)} currency={s.currency} /> },
-          { key: 'currency', label: 'Ccy', render: (j) => (j.currency !== s.currency ? <span className="currency-tag" title={`@ ${j.rate}`}>{j.currency}</span> : <span style={{ color: '#B0B5BF' }}>{j.currency}</span>) },
+          { key: 'currency', label: 'Ccy', render: (j) => (j.currency !== s.currency ? <span className="currency-tag" title={`@ ${j.rate}`}>{j.currency}</span> : <span style={{ color: 'var(--ink-5)' }}>{j.currency}</span>) },
           { key: 'status', label: 'Status', render: (j) => <Badge status={j.status} /> },
         ]}
         rowClass={(j) => (j.status === 'Reversed' || j.status === 'Rejected' ? 'muted' : undefined)}
