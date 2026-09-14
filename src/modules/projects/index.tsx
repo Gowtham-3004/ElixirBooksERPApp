@@ -3,7 +3,8 @@
 // expenses · milestones · billing · retainers · revenue · profitability · settings
 import type { ModuleProps } from '../registry';
 import { ModuleShell } from '../../components/ui';
-import { nav, useCollection, C, useSession } from '../../store';
+import { useProjectsNav } from '../subnav';
+import { nav } from '../../store';
 import Overview from './Overview';
 import Catalog from './Catalog';
 import ContractRegister from './contracts/Register';
@@ -22,29 +23,11 @@ import Retainers from './Retainers';
 import Revenue from './RevenueRecognition';
 import Profitability from './Profitability';
 import Settings from './Settings';
-import type { Timesheet } from './types';
 
 export default function Module({ route }: ModuleProps) {
   const { id, params } = route;
   const edit = params.edit === '1';
-  const s = useSession();
-  const timesheets = useCollection<Timesheet>(C.timesheets);
-  const awaiting = timesheets.filter((t) => t.status === 'Submitted' && (!t.companyId || t.companyId === s.state.companyId)).length;
-  const items = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'catalog', label: 'Service catalog', group: 'Setup & masters' },
-    { id: 'contracts', label: 'Customers & contracts', group: 'Setup & masters' },
-    { id: 'projects', label: 'Projects', group: 'Setup & masters' },
-    { id: 'resources', label: 'Resources & rate cards', group: 'Setup & masters' },
-    { id: 'timesheets', label: 'Timesheets', group: 'Delivery', badge: awaiting },
-    { id: 'expenses', label: 'Expenses (billable)', group: 'Delivery' },
-    { id: 'milestones', label: 'Milestones & usage', group: 'Delivery' },
-    { id: 'billing', label: 'Billing', group: 'Finance' },
-    { id: 'retainers', label: 'Retainers & advances', group: 'Finance' },
-    { id: 'revenue', label: 'Revenue recognition', group: 'Finance' },
-    { id: 'profitability', label: 'Profitability', group: 'Finance' },
-    { id: 'settings', label: 'Settings', group: 'Finance' },
-  ];
+  const items = useProjectsNav();
   return (
     <ModuleShell module="projects" title="Projects & Contracts" items={items} defaultSub="overview">
       {(sub) => {

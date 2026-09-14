@@ -4,6 +4,7 @@ import { C, nav, useCollection, useSession } from '../../store';
 import type { Tenant, Plan, AuditEvent } from '../../store';
 import { fmtMoney } from '../../lib/format';
 import { ModuleShell, PageHeader, KpiTile, Card, Badge, Timeline, EmptyState, Button, Identifier } from '../../components/ui';
+import { PLATFORM_NAV } from '../subnav';
 import Plans from './Plans';
 import Tenants from './Tenants';
 
@@ -60,7 +61,7 @@ export default function Module({ route }: ModuleProps) {
   const s = useSession();
   if (!s.isPlatformAdmin) return <div className="page"><EmptyState icon="🔒" title="Platform administration is restricted" description="Only platform users can open this area (FR-PLT-001)." action={<Button variant="primary" onClick={() => nav.go('home')}>Go home</Button>} /></div>;
   return (
-    <ModuleShell module="platform" title="Platform administration" items={[{ id: 'usage', label: 'Usage dashboard' }, { id: 'plans', label: 'Plans' }, { id: 'tenants', label: 'Tenants' }, { id: 'audit', label: 'Platform audit' }]} defaultSub="usage">
+    <ModuleShell module="platform" title="Platform administration" items={PLATFORM_NAV} defaultSub="usage">
       {(sub) => {
         if (sub === 'plans') return <Plans />;
         if (sub === 'tenants') return <Tenants initialId={route.id || undefined} />;

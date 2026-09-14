@@ -1,22 +1,16 @@
 // POS module entry: full-bleed terminal at `pos` / `pos/terminal`; back-office sub-routes inside the shell.
 import type { ModuleProps } from '../registry';
 import { ModuleShell } from '../../components/ui';
+import { POS_NAV } from '../subnav';
 import Terminal from './Terminal';
 import { ShiftsRegister, ShiftDetail, BillsRegister, BillDetail, ReturnsRegister, ReturnDetail, ReturnForm, PosAdmin } from './BackOffice';
 
-const ITEMS = [
-  { id: 'terminal', label: 'Terminal' },
-  { id: 'shifts', label: 'Shifts' },
-  { id: 'bills', label: 'Bills' },
-  { id: 'returns', label: 'Returns' },
-  { id: 'admin', label: 'POS admin' },
-];
 
 export default function Module({ route }: ModuleProps) {
   const { sub, id, params } = route;
   if (!sub || sub === 'terminal') return <Terminal />;
   return (
-    <ModuleShell module="pos" title="POS" items={ITEMS} defaultSub="shifts">
+    <ModuleShell module="pos" title="POS" items={POS_NAV} defaultSub="shifts">
       {(s) => {
         switch (s) {
           case 'shifts': return id ? <ShiftDetail key={id} id={id} /> : <ShiftsRegister />;

@@ -9,46 +9,13 @@ import { StockLedger, OnHandReport, ValuationReport, MovementReport, StockAgeing
 import { TradeAnalysis, MarginReport, ProfitabilityReport, BudgetVarianceReport } from './Analysis';
 import { GstSummaryReport, TdsReport, FxExposureReport, FxGainLossReport, RateAuditReport } from './TaxFx';
 import { SavedReports } from './Saved';
-import Consolidation, { CONSOLIDATION_ITEMS } from './consolidation';
+import Consolidation from './consolidation';
+import { reportsNav } from '../subnav';
 
-const ITEMS = [
-  { id: 'dashboard', label: 'CFO dashboard', group: 'Dashboard' },
-  { id: 'pl', label: 'Profit & Loss', group: 'Financial statements' },
-  { id: 'balance-sheet', label: 'Balance sheet', group: 'Financial statements' },
-  { id: 'cash-flow', label: 'Cash flow', group: 'Financial statements' },
-  { id: 'trial-balance', label: 'Trial balance', group: 'Financial statements' },
-  { id: 'journal-register', label: 'Journal register', group: 'Financial statements' },
-  { id: 'ar-ageing', label: 'AR ageing', group: 'Receivables' },
-  { id: 'customer-outstanding', label: 'Customer outstanding', group: 'Receivables' },
-  { id: 'collections', label: 'Collections', group: 'Receivables' },
-  { id: 'ap-ageing', label: 'AP ageing', group: 'Payables' },
-  { id: 'supplier-outstanding', label: 'Supplier outstanding', group: 'Payables' },
-  { id: 'due-schedule', label: 'Due schedule', group: 'Payables' },
-  { id: 'stock-ledger', label: 'Stock ledger', group: 'Inventory' },
-  { id: 'stock-onhand', label: 'On hand / available', group: 'Inventory' },
-  { id: 'stock-valuation', label: 'Valuation', group: 'Inventory' },
-  { id: 'stock-movement', label: 'Movement analysis', group: 'Inventory' },
-  { id: 'stock-ageing', label: 'Stock ageing', group: 'Inventory' },
-  { id: 'reorder', label: 'Reorder', group: 'Inventory' },
-  { id: 'count-variance', label: 'Count variance', group: 'Inventory' },
-  { id: 'sales-analysis', label: 'Sales analysis', group: 'Sales & purchase' },
-  { id: 'purchase-analysis', label: 'Purchase analysis', group: 'Sales & purchase' },
-  { id: 'margin', label: 'Gross margin', group: 'Sales & purchase' },
-  { id: 'gst-summary', label: 'GST summary', group: 'Tax' },
-  { id: 'tds', label: 'TDS register', group: 'Tax' },
-  { id: 'fx-exposure', label: 'Currency-wise AR/AP', group: 'FX' },
-  { id: 'fx-gainloss', label: 'Gain / loss & revaluation', group: 'FX' },
-  { id: 'fx-rates', label: 'Rate audit', group: 'FX' },
-  { id: 'budget-variance', label: 'Budget variance', group: 'Planning' },
-  { id: 'profitability', label: 'Branch / project profitability', group: 'Planning' },
-  ...CONSOLIDATION_ITEMS,
-  { id: 'saved', label: 'Saved reports', group: 'Saved' },
-];
 
 export default function Module({ route }: ModuleProps) {
   const s = useSession();
-  const inventoryOk = s.profiles.includes('Trading') || s.profiles.includes('Manufacturing');
-  const items = ITEMS.filter((i) => inventoryOk || i.group !== 'Inventory');
+  const items = reportsNav(s);
   return (
     <ModuleShell module="reports" title="Reports & CFO dashboard" items={items} defaultSub="dashboard">
       {(sub) => {

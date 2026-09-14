@@ -2,8 +2,7 @@
 // opening balances, FX & revaluation, period close, settings.
 import type { ModuleProps } from '../registry';
 import { ModuleShell } from '../../components/ui';
-import { useCollection, useSession, C } from '../../store';
-import type { Journal } from '../../store';
+import { useAccountingNav } from '../subnav';
 import { JournalRegister } from './JournalRegister';
 import { JournalPage } from './JournalPage';
 import { JournalForm } from './JournalForm';
@@ -17,23 +16,7 @@ import { SettingsPage } from './Settings';
 import { IntercompanyPage } from './intercompany';
 
 export default function Module({ route }: ModuleProps) {
-  const s = useSession();
-  const drafts = useCollection<Journal>(C.journals).filter((j) => j.companyId === s.state.companyId && (j.status === 'Draft' || j.status === 'Submitted' || j.status === 'Approved')).length;
-  const items = [
-    { id: 'journals', label: 'Journals', group: 'Journals', badge: drafts },
-    { id: 'recurring', label: 'Recurring journals', group: 'Journals' },
-    { id: 'day-book', label: 'Day book', group: 'Books' },
-    { id: 'ledger', label: 'Account ledger', group: 'Books' },
-    { id: 'trial-balance', label: 'Trial balance', group: 'Books' },
-    { id: 'customer-ledger', label: 'Customer ledger', group: 'Sub-ledgers' },
-    { id: 'supplier-ledger', label: 'Supplier ledger', group: 'Sub-ledgers' },
-    { id: 'intercompany', label: 'Intercompany', group: 'Sub-ledgers' },
-    { id: 'opening-balances', label: 'Opening balances', group: 'Setup' },
-    { id: 'settings', label: 'Settings', group: 'Setup' },
-    { id: 'fx', label: 'Currencies & FX', group: 'FX' },
-    { id: 'revaluation', label: 'Revaluation', group: 'FX' },
-    { id: 'period-close', label: 'Period close', group: 'Close' },
-  ];
+  const items = useAccountingNav();
   return (
     <ModuleShell module="accounting" title="Accounting" items={items} defaultSub="journals">
       {(sub) => {

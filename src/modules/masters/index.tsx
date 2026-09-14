@@ -1,6 +1,7 @@
 // Masters & imports module entry — grouped sub-nav (Party / Inventory / Finance / Operations / Reference).
 import type { ModuleProps } from '../registry';
 import { ModuleShell } from '../../components/ui';
+import { MASTERS_NAV } from '../subnav';
 import { CustomerRegister } from './customers';
 import CustomerDetail from './CustomerDetail';
 import { SupplierRegister } from './suppliers';
@@ -17,31 +18,10 @@ import { ExchangeRateRegister } from './exchangeRates';
 import { CurrencyRegister, HsnRegister, PaymentTermsRegister, ReasonCodeRegister, ReferencePage, SalespersonRegister, TdsRegister, UomRegister } from './simpleMasters';
 import { ImportsPage } from './imports';
 
-const ITEMS = [
-  { id: 'customers', label: 'Customers', group: 'Party' },
-  { id: 'suppliers', label: 'Suppliers', group: 'Party' },
-  { id: 'employees', label: 'Employees', group: 'Party' },
-  { id: 'items', label: 'Items & services', group: 'Inventory' },
-  { id: 'warehouses', label: 'Warehouses & bins', group: 'Inventory' },
-  { id: 'price-lists', label: 'Price lists', group: 'Inventory' },
-  { id: 'hsn', label: 'HSN / SAC codes', group: 'Inventory' },
-  { id: 'uoms', label: 'Units of measure', group: 'Inventory' },
-  { id: 'accounts', label: 'Chart of accounts', group: 'Finance' },
-  { id: 'dimensions', label: 'Dimensions', group: 'Finance' },
-  { id: 'tax-rates', label: 'Tax rates', group: 'Finance' },
-  { id: 'tds', label: 'TDS / TCS sections', group: 'Finance' },
-  { id: 'payment-terms', label: 'Payment terms', group: 'Finance' },
-  { id: 'currencies', label: 'Currencies', group: 'Finance' },
-  { id: 'exchange-rates', label: 'Exchange rates', group: 'Finance' },
-  { id: 'salespersons', label: 'Salespersons', group: 'Operations' },
-  { id: 'reason-codes', label: 'Reason codes', group: 'Operations' },
-  { id: 'reference', label: 'Countries & states', group: 'Reference' },
-  { id: 'imports', label: 'Imports', group: 'Reference' },
-];
 
 export default function Module({ route }: ModuleProps) {
   return (
-    <ModuleShell module="masters" title="Masters & Imports" items={ITEMS} defaultSub="customers">
+    <ModuleShell module="masters" title="Masters & Imports" items={MASTERS_NAV} defaultSub="customers">
       {(sub) => {
         const id = route.id;
         switch (sub) {

@@ -93,11 +93,8 @@ input[type=number].field-input { -moz-appearance: textfield; }
 .page-subtitle { font-size: 13px; color: #5F6368; margin-top: 4px; font-feature-settings: normal; }
 .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .bulk-bar { display: flex; align-items: center; gap: 12px; background: #F2F5FF; border: 1px solid #DCE5FF; border-radius: 8px; padding: 8px 12px; font-size: 13px; }
-.module-shell { display: flex; height: 100%; }
-.sub-nav { width: 208px; flex-shrink: 0; border-right: 1px solid #EFEFEF; background: #FFF; padding: 12px 8px; overflow-y: auto; }
-.sub-nav .group-label { padding: 10px 12px 4px; }
-.sub-nav .nav-item { height: 34px; font-size: 13px; }
-.module-content { flex: 1; min-width: 0; overflow: auto; }
+.module-shell { display: flex; flex-direction: column; height: 100%; }
+.module-content { flex: 1; min-height: 0; min-width: 0; overflow: auto; }
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; }
 .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 16px; }
@@ -151,6 +148,14 @@ html { -webkit-text-size-adjust: 100%; }
 .shell-context { display: none; }
 .sidebar { width: 250px; flex-shrink: 0; background: #FFF; border-right: 1px solid #EFEFEF; display: flex; flex-direction: column; height: 100%; overflow: visible; transition: width .15s ease; position: relative; }
 .sidebar.collapsed { width: 64px; }
+/* module sub-pages: a flyout beside the sidebar item (hover peeks, click pins) — as tall as its list, scrolling only past the viewport */
+.sidebar .nav-item[aria-expanded="true"] { background: #F3F5F7; color: #0A0A0A; }
+.sidebar-flyout { position: fixed; width: 240px; max-height: calc(100vh - 16px); overflow-y: auto; z-index: 70; }
+.sidebar-flyout .group-label, .sidebar-sub .group-label { padding: 10px 12px 4px; }
+.sidebar-flyout .menu-item.active, .sidebar-sub .menu-item.active { background: #F2F4F8; font-weight: 500; }
+/* phones: the drawer expands the list inline under the item instead */
+.sidebar-sub { padding: 2px 0 6px 22px; }
+.sidebar-sub .menu-item { height: 32px; }
 .sidebar-scrim { display: none; }
 .shell-header .hamburger { display: none; }
 .crumbs { display: flex; align-items: center; gap: 4px; flex: 1 1 0; min-width: 0; overflow: hidden; }
@@ -184,7 +189,6 @@ div:has(> table.data-table) { overflow-x: auto !important; -webkit-overflow-scro
 
 /* ── Small laptop / iPad landscape ──────────────────────────────────────── */
 @media (max-width: 1279px) {
-  .sub-nav { width: 176px; }
   .doc-rail { width: 300px; padding: 16px; }
 }
 
@@ -204,16 +208,6 @@ div:has(> table.data-table) { overflow-x: auto !important; -webkit-overflow-scro
   /* sticky form footers wrap instead of overflowing */
   #root [style*="position: sticky"][style*="bottom: 0px"] { flex-wrap: wrap; height: auto !important; row-gap: 8px; }
   .form-footer-status { flex-basis: 100%; }
-  /* module sub-nav → horizontal chip strip */
-  .module-shell { flex-direction: column; }
-  .sub-nav { width: auto; display: flex; align-items: center; gap: 4px; padding: 8px 12px; border-right: none; border-bottom: 1px solid #EFEFEF; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; flex-shrink: 0; }
-  .sub-nav::-webkit-scrollbar { display: none; }
-  .sub-nav > div { display: contents; }
-  .sub-nav > .section-label, .sub-nav .group-label { display: none; }
-  .sub-nav .nav-item { width: auto !important; flex-shrink: 0; height: 32px; padding: 0 12px; border-radius: 9999px; border: 1px solid #EAEAEA !important; background: #FFF !important; }
-  .sub-nav .nav-item.active { border-color: #325CFF !important; background: #EBF0FF !important; color: #325CFF; }
-  .sub-nav .nav-item > span:first-child { flex: none !important; }
-  .module-content { flex: 1; min-height: 0; }
   .doc-rail { width: 300px; padding: 16px; }
   .print-sheet { width: 100%; padding: 24px; }
   .kpi-tile { padding: 16px 18px; }
@@ -368,6 +362,6 @@ div:has(> table.data-table) { overflow-x: auto !important; -webkit-overflow-scro
 }
 
 @media print {
-  aside, header, .doc-footer, .sub-nav, .tab-bar, .toolbar, .no-print, .shell-context, .sidebar-scrim, .doc-rail-toggle { display: none !important; }
+  aside, header, .doc-footer, .tab-bar, .toolbar, .no-print, .shell-context, .sidebar-scrim, .doc-rail-toggle { display: none !important; }
   .print-sheet { border: none; width: auto; padding: 0; }
 }

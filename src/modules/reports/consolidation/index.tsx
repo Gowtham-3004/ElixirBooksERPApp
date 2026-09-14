@@ -12,15 +12,6 @@ import { IntercompanyPanel } from './Intercompany';
 import { DrillDown } from './DrillDown';
 import type { ConsolidationRun, Group, IntercompanyDoc } from './types';
 
-export const CONSOLIDATION_ITEMS = [
-  { id: 'consolidation', label: 'Group overview', group: 'Group' },
-  { id: 'consolidation/group', label: 'Group structure', group: 'Group' },
-  { id: 'consolidation/runs', label: 'Consolidation runs', group: 'Group' },
-  { id: 'consolidation/statements', label: 'Translated statements', group: 'Group' },
-  { id: 'consolidation/eliminations', label: 'Eliminations', group: 'Group' },
-  { id: 'consolidation/intercompany', label: 'Intercompany matching', group: 'Group' },
-  { id: 'consolidation/drilldown', label: 'Drill-down', group: 'Group' },
-];
 
 /** Renders a consolidation page from the route; `reports/consolidation/<page>/<id>`. */
 export default function Consolidation({ route }: { route: Route }) {

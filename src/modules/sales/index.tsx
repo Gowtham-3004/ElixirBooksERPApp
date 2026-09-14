@@ -1,6 +1,7 @@
 // Sales & receivables module entry (FR-SAL-*, FR-AR-*, FR-CMP-*).
 import type { ModuleProps } from '../registry';
 import { ModuleShell } from '../../components/ui';
+import { SALES_NAV } from '../subnav';
 import { nav } from '../../store';
 import InvoiceRegister from './invoices/Register';
 import InvoiceForm from './invoices/Form';
@@ -15,25 +16,12 @@ import CustomerStatement from './ar/Statement';
 import Collections from './ar/Collections';
 import { SalesSettingsPage, PriceListsPage } from './Settings';
 
-const ITEMS = [
-  { id: 'quotations', label: 'Quotations' },
-  { id: 'orders', label: 'Sales orders' },
-  { id: 'deliveries', label: 'Deliveries' },
-  { id: 'invoices', label: 'Invoices' },
-  { id: 'credit-notes', label: 'Returns & credit notes' },
-  { id: 'receipts', label: 'Receipts' },
-  { id: 'ageing', label: 'AR ageing', group: 'Receivables' },
-  { id: 'collections', label: 'Collections', group: 'Receivables' },
-  { id: 'statements', label: 'Customer statements', group: 'Receivables' },
-  { id: 'price-lists', label: 'Price lists', group: 'Setup' },
-  { id: 'settings', label: 'Settings', group: 'Setup' },
-];
 
 export default function Module({ route }: ModuleProps) {
   const { id, params } = route;
   const edit = params.edit === '1';
   return (
-    <ModuleShell module="sales" title="Sales" items={ITEMS} defaultSub="invoices">
+    <ModuleShell module="sales" title="Sales" items={SALES_NAV} defaultSub="invoices">
       {(sub) => {
         switch (sub) {
           case 'invoices':

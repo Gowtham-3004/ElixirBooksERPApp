@@ -1,6 +1,7 @@
 // Payroll module (FR-PAY-001..005).
 import type { ModuleProps } from '../registry';
 import { ModuleShell } from '../../components/ui';
+import { PAYROLL_NAV } from '../subnav';
 import { EmployeesPage } from './Employees';
 import { StructuresPage } from './Structures';
 import { InputsPage } from './Inputs';
@@ -9,20 +10,10 @@ import { PayslipsPage } from './Payslips';
 import { LoansPage } from './Loans';
 import { StatutoryPage, PayrollSettingsPage } from './Statutory';
 
-const ITEMS = [
-  { id: 'employees', label: 'Employees' },
-  { id: 'structures', label: 'Salary structures' },
-  { id: 'inputs', label: 'Inputs' },
-  { id: 'runs', label: 'Payroll runs' },
-  { id: 'payslips', label: 'Payslips' },
-  { id: 'loans', label: 'Loans & advances' },
-  { id: 'statutory', label: 'Statutory' },
-  { id: 'settings', label: 'Settings' },
-];
 
 export default function Module({ route }: ModuleProps) {
   return (
-    <ModuleShell module="payroll" title="Payroll" items={ITEMS} defaultSub="runs">
+    <ModuleShell module="payroll" title="Payroll" items={PAYROLL_NAV} defaultSub="runs">
       {(sub) => {
         switch (sub) {
           case 'employees': return <EmployeesPage />;

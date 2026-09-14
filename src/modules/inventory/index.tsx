@@ -1,6 +1,7 @@
 // Inventory module entry — routes: inventory/<sub>[/<id>]
 import type { ModuleProps } from '../registry';
 import { ModuleShell, NoPermission } from '../../components/ui';
+import { INVENTORY_NAV } from '../subnav';
 import { useSession } from '../../store';
 import { StockOnHand, StockLedger, BatchesSerials, ReservationsPage } from './StockViews';
 import { Adjustments } from './Adjustments';
@@ -14,14 +15,8 @@ import { InventorySettingsPage } from './Settings';
 export default function Module({ route }: ModuleProps) {
   const s = useSession();
   if (!s.permissions.some((p) => p.startsWith('inventory.') || p === '*' || p === '*.*.view') && !s.isTenantOwner) return <NoPermission what="Inventory" />;
-  const items = [
-    { id: 'stock', label: 'Stock on hand', group: 'Position' }, { id: 'ledger', label: 'Stock ledger', group: 'Position' }, { id: 'batches', label: 'Batches & serials', group: 'Position' }, { id: 'reservations', label: 'Reservations', group: 'Position' },
-    { id: 'adjustments', label: 'Adjustments', group: 'Movements' }, { id: 'transfers', label: 'Transfers', group: 'Movements' }, { id: 'counts', label: 'Stock counts', group: 'Movements' },
-    { id: 'replenishment', label: 'Replenishment', group: 'Planning' }, { id: 'landed-cost', label: 'Landed cost', group: 'Planning' }, { id: 'valuation', label: 'Valuation', group: 'Planning' },
-    { id: 'settings', label: 'Settings', group: 'Setup' },
-  ];
   return (
-    <ModuleShell module="inventory" title="Inventory" items={items} defaultSub="stock">
+    <ModuleShell module="inventory" title="Inventory" items={INVENTORY_NAV} defaultSub="stock">
       {(sub) => {
         switch (sub) {
           case 'stock': return <StockOnHand itemId={route.id} />;

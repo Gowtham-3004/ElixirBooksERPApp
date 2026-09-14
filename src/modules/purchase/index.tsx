@@ -1,8 +1,8 @@
 // Purchase module entry — routes: purchase/<sub>[/<id>[/edit]]
 import type { ModuleProps } from '../registry';
 import { ModuleShell, NoPermission } from '../../components/ui';
-import { C, useCollection, useSession } from '../../store';
-import type { MatchException } from './types';
+import { usePurchaseNav } from '../subnav';
+import { useSession } from '../../store';
 import { Requisitions } from './Requisitions';
 import { Rfqs } from './Rfqs';
 import { OrderRegister } from './Orders';
@@ -21,22 +21,8 @@ import { PurchaseSettingsPage } from './Settings';
 
 export default function Module({ route }: ModuleProps) {
   const s = useSession();
-  const exceptions = useCollection<MatchException>(C.matchExceptions);
-  const openEx = exceptions.filter((x) => x.status === 'Open' || x.status === 'Assigned').length;
+  const items = usePurchaseNav();
   if (!s.can('purchase.view') && !s.permissions.some((p) => p.startsWith('purchase.') || p === '*' || p === '*.*.view')) return <NoPermission what="Purchase" />;
-  const items = [
-    { id: 'requisitions', label: 'Requisitions', group: 'Sourcing' },
-    { id: 'rfqs', label: 'RFQs & quotes', group: 'Sourcing' },
-    { id: 'orders', label: 'Purchase orders', group: 'Ordering' },
-    { id: 'grn', label: 'Goods receipts', group: 'Ordering' },
-    { id: 'vendor-invoices', label: 'Vendor invoices', group: 'Payables' },
-    { id: 'exceptions', label: 'Matching exceptions', group: 'Payables', badge: openEx },
-    { id: 'debit-notes', label: 'Debit notes & returns', group: 'Payables' },
-    { id: 'payments', label: 'Payments', group: 'Payables' },
-    { id: 'batches', label: 'Payment batches', group: 'Payables' },
-    { id: 'ageing', label: 'AP ageing', group: 'Payables' },
-    { id: 'settings', label: 'Settings', group: 'Setup' },
-  ];
   const id = route.id;
   const edit = route.rest[0] === 'edit';
   return (

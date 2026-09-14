@@ -6,44 +6,20 @@ import { Button, Badge, Meter, Banner, SummaryBlock } from './primitives';
 import { Drawer } from './overlays';
 import { CheckboxField, SelectField } from './fields';
 import { toCSV, downloadText } from '../../lib/format';
+import type { SubNavItem } from '../../modules/subnav';
 
-// ── Module shell with left sub-nav (design §6.2 / register anatomy) ────────
+// ── Module shell (design §6.2 / register anatomy) ──────────────────────────
+// Sub-navigation lives in the sidebar flyout (see AppShell / modules/subnav);
+// the shell only resolves which sub-page to render.
 
-export interface SubNavItem { id: string; label: string; group?: string; badge?: number; hidden?: boolean }
+export type { SubNavItem } from '../../modules/subnav';
 
-export function ModuleShell({ module, title, items, children, defaultSub }: { module: string; title: string; items: SubNavItem[]; children: (sub: string) => ReactNode; defaultSub?: string }) {
+export function ModuleShell({ items, children, defaultSub }: { module: string; title: string; items: SubNavItem[]; children: (sub: string) => ReactNode; defaultSub?: string }) {
   const route = useRoute();
   const visible = items.filter((i) => !i.hidden);
   const sub = route.sub || defaultSub || visible[0]?.id || '';
-  const groups = Array.from(new Set(visible.map((i) => i.group ?? '')));
-  // Sub-nav items may nest ("consolidation/runs"); highlight the deepest match.
-  const path = route.path.startsWith(`${module}/`) ? route.path.slice(module.length + 1) : route.path;
-  const matches = (id: string) => path === id || path.startsWith(`${id}/`);
-  const isActive = (id: string) => (id.includes('/') ? matches(id) : sub === id && !visible.some((x) => x.id !== id && x.id.startsWith(`${id}/`) && matches(x.id)));
-  const navRef = useRef<HTMLElement>(null);
-  // on phones the sub-nav is a horizontal chip strip — scroll the active chip into view
-  useEffect(() => {
-    const el = navRef.current;
-    if (!el || el.scrollWidth <= el.clientWidth) return;
-    const active = el.querySelector<HTMLElement>('.nav-item.active');
-    if (active) el.scrollTo({ left: active.offsetLeft - (el.clientWidth - active.offsetWidth) / 2, behavior: 'smooth' });
-  }, [route.path]);
   return (
     <div className="module-shell">
-      <nav className="sub-nav" ref={navRef}>
-        <div className="section-label" style={{ padding: '4px 12px 8px', fontSize: 12, color: '#0A0A0A', textTransform: 'none', letterSpacing: 0, fontWeight: 600 }}>{title}</div>
-        {groups.map((g) => (
-          <div key={g}>
-            {g && <div className="section-label group-label">{g}</div>}
-            {visible.filter((i) => (i.group ?? '') === g).map((i) => (
-              <button key={i.id} type="button" className={`nav-item ${isActive(i.id) ? 'active' : ''}`} style={{ width: '100%', border: 'none', textAlign: 'left', background: isActive(i.id) ? undefined : 'transparent' }} onClick={() => nav.go(`${module}/${i.id}`)}>
-                <span style={{ flex: 1 }}>{i.label}</span>
-                {i.badge !== undefined && i.badge > 0 && <span style={{ background: '#325CFF', color: '#fff', fontSize: 11, fontWeight: 600, borderRadius: 9999, padding: '0 6px', minWidth: 18, textAlign: 'center', lineHeight: '18px' }}>{i.badge}</span>}
-              </button>
-            ))}
-          </div>
-        ))}
-      </nav>
       <div className="module-content">{children(sub)}</div>
     </div>
   );

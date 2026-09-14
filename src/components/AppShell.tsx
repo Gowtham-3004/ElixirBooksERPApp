@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { db, C, nav, session, useCollection, useSession, useRoute, engine } from '../store';
 import type { Notification, Period } from '../store';
 import { MODULES, GROUP_ORDER, moduleById } from '../modules/registry';
+import { activeSubNav, useSubNavs, type SubNavItem } from '../modules/subnav';
 import { BellIcon, SearchIcon, ChevronDownIcon, HelpCircleIcon, CogIcon, LockIcon, XIcon, ArrowLeftIcon, MenuIcon } from './Icons';
 import { useIsMobile, useIsTablet } from '../lib/useMedia';
 import { Avatar, Badge, Button, Banner, Kbd, TwoLine } from './ui/primitives';
@@ -29,6 +30,10 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
   // below the laptop breakpoint the company/branch/period controls move to a strip under the header
   const compact = useIsTablet();
   const [navOpen, setNavOpen] = useState(false);
+  // module sub-pages open as a flyout beside the sidebar item — hover peeks, click pins (phones expand inline)
+  const subNavs = useSubNavs();
+  const [flyout, setFlyout] = useState<{ id: string; pinned: boolean; anchor: DOMRect } | null>(null);
+  const flyoutTimer = useRef<number | undefined>(undefined);
   // on phones the sidebar is an off-canvas drawer and always shows labels
   const collapsed = isMobile ? false : railPinned === null ? narrow : !railPinned;
   const notifications = useCollection<Notification>(C.notifications);
@@ -56,7 +61,16 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
     window.addEventListener('resize', r);
     return () => { document.removeEventListener('keydown', h); window.removeEventListener('resize', r); };
   }, []);
-  useEffect(() => { setNavOpen(false); }, [route.path, isMobile]);
+  useEffect(() => { setNavOpen(false); setFlyout(null); }, [route.path, isMobile]);
+  useEffect(() => () => window.clearTimeout(flyoutTimer.current), []);
+  useEffect(() => {
+    if (!flyout?.pinned) return;
+    const onDown = (e: MouseEvent) => { if (!(e.target as Element | null)?.closest(`[data-flyout="${flyout.id}"]`)) setFlyout(null); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFlyout(null); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [flyout]);
   useEffect(() => {
     if (!isMobile || !navOpen) return;
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') setNavOpen(false); };
@@ -156,20 +170,49 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
             </div>
           )}
         </div>
-        <nav style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px 8px' }}>
+        <nav style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px 8px' }} onScroll={() => setFlyout((f) => (f && !isMobile ? null : f))}>
           {GROUP_ORDER.map((g) => {
             const items = visibleModules.filter((m) => m.group === g);
             if (!items.length) return null;
             return (
               <div key={g} style={{ marginBottom: 4 }}>
                 {collapsed ? <div style={{ height: 1, background: '#F3F3F5', margin: '6px 8px' }} /> : <div className="section-label" style={{ padding: '8px 12px 4px', display: 'block' }}>{g}</div>}
-                {items.map((m) => (
-                  <button key={m.id} type="button" className={`nav-item ${route.module === m.id ? 'active' : ''}`} title={collapsed ? m.label : undefined} aria-label={m.label} style={{ width: '100%', border: 'none', textAlign: 'left', background: route.module === m.id ? undefined : 'transparent', justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined, position: 'relative' }} onClick={() => nav.go(m.id)}>
-                    <m.icon size={16} />
-                    {!collapsed && <span style={{ flex: 1 }}>{m.label}</span>}
-                    {m.id === 'approvals' && pendingApprovals > 0 && <span style={{ background: '#325CFF', color: '#FFFFFF', fontSize: 11, fontWeight: 600, borderRadius: 9999, padding: '0 6px', minWidth: 18, textAlign: 'center', lineHeight: '18px', fontFeatureSettings: 'normal', ...(collapsed ? { position: 'absolute' as const, top: 2, right: 4, fontSize: 9, minWidth: 14, lineHeight: '14px', padding: '0 4px' } : {}) }}>{pendingApprovals}</span>}
-                  </button>
-                ))}
+                {items.map((m) => {
+                  const subItems = (subNavs[m.id] ?? []).filter((i) => !i.hidden);
+                  const hasSub = subItems.length > 0;
+                  const open = flyout?.id === m.id;
+                  const anchorOf = (e: { currentTarget: HTMLElement }) => e.currentTarget.getBoundingClientRect();
+                  // hover only for a real mouse — touch fires enter/leave around the tap and would fight the click toggle
+                  const peek = (e: PointerEvent<HTMLDivElement>) => {
+                    if (!hasSub || isMobile || e.pointerType !== 'mouse') return;
+                    window.clearTimeout(flyoutTimer.current);
+                    const anchor = anchorOf(e);
+                    setFlyout((f) => (f?.id === m.id ? f : { id: m.id, pinned: false, anchor }));
+                  };
+                  const unpeek = (e: PointerEvent<HTMLDivElement>) => {
+                    if (!hasSub || isMobile || e.pointerType !== 'mouse') return;
+                    window.clearTimeout(flyoutTimer.current);
+                    flyoutTimer.current = window.setTimeout(() => setFlyout((f) => (f?.id === m.id && !f.pinned ? null : f)), 150);
+                  };
+                  const toggle = (e: { currentTarget: HTMLElement }) => {
+                    if (!hasSub) { nav.go(m.id); return; }
+                    const anchor = anchorOf(e);
+                    setFlyout((f) => (f?.id === m.id && f.pinned ? null : { id: m.id, pinned: true, anchor }));
+                  };
+                  return (
+                    <div key={m.id} data-flyout={m.id} onPointerEnter={peek} onPointerLeave={unpeek}>
+                      <button type="button" className={`nav-item ${route.module === m.id ? 'active' : ''}`} title={collapsed && !hasSub ? m.label : undefined} aria-label={m.label} aria-haspopup={hasSub ? 'menu' : undefined} aria-expanded={hasSub ? open : undefined} style={{ width: '100%', border: 'none', textAlign: 'left', background: route.module === m.id ? undefined : 'transparent', justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined, position: 'relative' }} onClick={toggle}>
+                        <m.icon size={16} />
+                        {!collapsed && <span style={{ flex: 1 }}>{m.label}</span>}
+                        {m.id === 'approvals' && pendingApprovals > 0 && <span style={{ background: '#325CFF', color: '#FFFFFF', fontSize: 11, fontWeight: 600, borderRadius: 9999, padding: '0 6px', minWidth: 18, textAlign: 'center', lineHeight: '18px', fontFeatureSettings: 'normal', ...(collapsed ? { position: 'absolute' as const, top: 2, right: 4, fontSize: 9, minWidth: 14, lineHeight: '14px', padding: '0 4px' } : {}) }}>{pendingApprovals}</span>}
+                        {!collapsed && hasSub && <span style={{ display: 'inline-flex', color: '#B0B5BF', transform: isMobile ? (open ? 'rotate(180deg)' : undefined) : 'rotate(-90deg)' }}><ChevronDownIcon size={12} /></span>}
+                      </button>
+                      {open && flyout && (isMobile
+                        ? <SubNavList items={subItems} activeId={activeSubNav(route, m.id, subItems)} onPick={(id) => nav.go(`${m.id}/${id}`)} inline />
+                        : <ModuleFlyout label={m.label} anchor={flyout.anchor} items={subItems} activeId={activeSubNav(route, m.id, subItems)} onPick={(id) => { setFlyout(null); nav.go(`${m.id}/${id}`); }} />)}
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
@@ -318,6 +361,43 @@ function Dropdown({ children, onClose, width = 260, align = 'right', top, sheet 
   }, [onClose]);
   if (sheet) return <div ref={ref} className="menu mobile-sheet" style={{ zIndex: 60 }}>{children}</div>;
   return <div ref={ref} className="menu" style={{ [align === 'left' ? 'left' : 'right']: align === 'left' ? 8 : 0, top: top ?? '100%', marginTop: 4, width, zIndex: 60 }}>{children}</div>;
+}
+
+// ── Module sub-nav flyout ─────────────────────────────────────────────────
+
+function SubNavList({ items, activeId, onPick, inline }: { items: SubNavItem[]; activeId?: string; onPick: (id: string) => void; inline?: boolean }) {
+  const groups = Array.from(new Set(items.map((i) => i.group ?? '')));
+  return (
+    <div className={inline ? 'sidebar-sub' : undefined}>
+      {groups.map((g) => (
+        <div key={g}>
+          {g && <div className="section-label group-label">{g}</div>}
+          {items.filter((i) => (i.group ?? '') === g).map((i) => (
+            <button key={i.id} type="button" role="menuitem" className={`menu-item ${i.id === activeId ? 'active' : ''}`} onClick={() => onPick(i.id)}>
+              <span style={{ flex: 1 }}>{i.label}</span>
+              {i.badge !== undefined && i.badge > 0 && <span style={{ background: '#325CFF', color: '#fff', fontSize: 11, fontWeight: 600, borderRadius: 9999, padding: '0 6px', minWidth: 18, textAlign: 'center', lineHeight: '18px' }}>{i.badge}</span>}
+            </button>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Floats beside the sidebar item; as tall as its list, shifted up only when it would run off the bottom. */
+function ModuleFlyout({ label, anchor, items, activeId, onPick }: { label: string; anchor: DOMRect; items: SubNavItem[]; activeId?: string; onPick: (id: string) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [top, setTop] = useState(anchor.top);
+  useLayoutEffect(() => {
+    const h = ref.current?.offsetHeight ?? 0;
+    setTop(Math.max(8, Math.min(anchor.top, window.innerHeight - h - 8)));
+  }, [anchor, items.length]);
+  return (
+    <div ref={ref} className="menu sidebar-flyout" role="menu" style={{ top, left: anchor.right + 6 }}>
+      <div className="section-label" style={{ padding: '6px 10px 4px', color: '#0A0A0A', textTransform: 'none', letterSpacing: 0, fontSize: 12, fontWeight: 600 }}>{label}</div>
+      <SubNavList items={items} activeId={activeId} onPick={onPick} />
+    </div>
+  );
 }
 
 // ── Global search (⌘K) ────────────────────────────────────────────────────
