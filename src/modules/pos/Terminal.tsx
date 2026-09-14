@@ -4,7 +4,7 @@ import { db, C, engine, nav, useCollection, useSession } from '../../store';
 import type { Customer, DocLine, Item } from '../../store';
 import { Button, Segmented, NumberField, TextField, SelectField, EntityPicker, useCustomerOptions, useToast, Modal, PrintSheet, Badge, Banner, Drawer, MoneyField } from '../../components/ui';
 import { fmtMoney, fmtQty, fmtDateTime, uid, today } from '../../lib/format';
-import { SearchIcon, XIcon, CheckCircleIcon } from '../../components/Icons';
+import { SearchIcon, XIcon, CheckCircleIcon, MonitorIcon } from '../../components/Icons';
 import type { PosBill, PosHeldCart, PosShift, PosTerminal, Tender, TenderType } from './types';
 import { openShift, openShiftFor, catalogue, cartLine, computeCart, completeSale, validateCheckout, holdCart, resumeCart, settings } from './actions';
 import { ShiftCloseDialog } from './BackOffice';
@@ -38,7 +38,7 @@ function OpenShiftScreen() {
   return (
     <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-2)', padding: 16, overflow: 'auto' }}>
       <div style={{ width: 420, maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
-        <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>🖥️</div>
+        <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--ink)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><MonitorIcon size={28} /></div>
         <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>POS terminal</h2>
         <p style={{ fontSize: 14, color: 'var(--ink-3)', textAlign: 'center', margin: 0 }}>Terminal is closed. Open a cashier shift to start billing (FR-POS-001).</p>
         <div className="card" style={{ padding: 24, width: '100%', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -184,7 +184,7 @@ function Register({ shift }: { shift: PosShift }) {
           <div><div className="section-label">Payable</div><div className="money" style={{ fontSize: 32, fontWeight: 700, lineHeight: 1.1 }} data-testid="pos-payable">{fmtMoney(totals.total)}</div></div>
           <Segmented size="lg" value={tender} onChange={(v) => { setTender(v); setTendered(0); }} options={[{ value: 'Cash', label: 'Cash' }, { value: 'Card', label: 'Card' }, { value: 'UPI', label: 'UPI' }, { value: 'Mixed', label: 'Mixed' }, ...(!isWalkin && cfg.posAllowCredit ? [{ value: 'Credit' as const, label: 'Credit' }] : [])]} style={{ width: '100%', display: 'grid', gridTemplateColumns: `repeat(${!isWalkin && cfg.posAllowCredit ? 5 : 4}, 1fr)` }} />
           {tender === 'Cash' && <><MoneyField label="Tendered" value={tendered || totals.total} onChange={setTendered} /><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{[totals.total, Math.ceil(totals.total / 100) * 100, Math.ceil(totals.total / 500) * 500, Math.ceil(totals.total / 2000) * 2000].filter((v, i, a) => a.indexOf(v) === i).map((v) => <button key={v} type="button" className="chip" onClick={() => setTendered(v)} style={{ height: 36 }}>{fmtMoney(v)}</button>)}</div><Row k="Change" v={<span style={{ fontSize: 18, fontWeight: 700 }}>{fmtMoney(change)}</span>} /></>}
-          {tender === 'Card' && <><div style={{ background: 'linear-gradient(135deg,#1E293B,#334155)', color: '#fff', borderRadius: 12, padding: 14, fontSize: 12 }}><div style={{ opacity: .7 }}>CARD PAYMENT</div><div style={{ fontSize: 18, letterSpacing: 2, marginTop: 6 }}>•••• •••• •••• {cardLast4 || '____'}</div><div style={{ marginTop: 6 }}>{fmtMoney(totals.total)}</div></div><TextField label="Last 4 digits" value={cardLast4} onChange={(v) => setCardLast4(v.replace(/\D/g, '').slice(0, 4))} placeholder="1234" /><TextField label="Approval / RRN" value={ref} onChange={setRef} placeholder="Optional" /></>}
+          {tender === 'Card' && <><div style={{ background: 'linear-gradient(135deg, var(--ink-2), var(--ink))', color: '#fff', borderRadius: 12, padding: 14, fontSize: 12 }}><div style={{ opacity: .7 }}>CARD PAYMENT</div><div style={{ fontSize: 18, letterSpacing: 2, marginTop: 6 }}>•••• •••• •••• {cardLast4 || '____'}</div><div style={{ marginTop: 6 }}>{fmtMoney(totals.total)}</div></div><TextField label="Last 4 digits" value={cardLast4} onChange={(v) => setCardLast4(v.replace(/\D/g, '').slice(0, 4))} placeholder="1234" /><TextField label="Approval / RRN" value={ref} onChange={setRef} placeholder="Optional" /></>}
           {tender === 'UPI' && <TextField label="UPI transaction reference" required value={ref} onChange={setRef} placeholder="UPI/…" />}
           {tender === 'Credit' && <Banner tone="info">Bills to {cust?.name}'s ledger · terms {cust?.paymentTerms}{cust ? ` · exposure ${fmtMoney(engine.partyOutstanding('Customer', cust.id).outstanding)} / limit ${fmtMoney(cust.creditLimit)}` : ''}</Banner>}
           {tender === 'Mixed' && (

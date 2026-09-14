@@ -36,7 +36,7 @@ function RoleCards() {
           const n = users.filter((u) => u.roleIds.includes(r.id)).length;
           return (
             <div key={r.id} className="card" style={{ padding: '16px 20px', cursor: 'pointer', display: 'flex', gap: 14, alignItems: 'flex-start' }} onClick={() => nav.go(`admin/roles/${r.id}`)} onMouseOver={(e) => (e.currentTarget.style.borderColor = r.color ?? 'var(--accent)')} onMouseOut={(e) => (e.currentTarget.style.borderColor = 'var(--line)')}>
-              <div style={{ width: 36, height: 36, borderRadius: 9, background: (r.color ?? 'var(--accent)') + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><span style={{ fontSize: 16 }}>👤</span></div>
+              <div style={{ width: 36, height: 36, borderRadius: 9, background: r.color ? r.color + '20' : 'var(--accent-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><span style={{ fontSize: 16 }}>👤</span></div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, gap: 8 }}>
                   <span style={{ fontSize: 14, fontWeight: 600 }}>{r.name} {r.isSystem && <Badge status="Locked">System</Badge>}</span>

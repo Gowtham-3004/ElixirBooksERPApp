@@ -66,7 +66,7 @@ export function BalanceSheetPage() {
       </div>
       {bs.difference !== 0 && <Banner tone="warning" action={<Button variant="link" onClick={() => nav.go('accounting/opening-balances')}>Review opening balances</Button>}>Balance sheet is out of balance by {fmtMoney(bs.difference, s.currency)} at this cut-off — usually opening balances loaded without a balancing equity entry (FR-RPT-009 exception).</Banner>}
       <div className="grid-2" style={{ alignItems: 'start' }}>
-        <div><div className="section-title" style={{ color: 'var(--accent)' }}>Assets</div>{cols(bs.assets)}<div style={{ padding: '8px 12px', fontWeight: 700, display: 'flex', justifyContent: 'space-between' }}><span>Total assets</span><span className="money">{fmtMoney(bs.totalAssets, s.currency)}</span></div></div>
+        <div><div className="section-title">Assets</div>{cols(bs.assets)}<div style={{ padding: '8px 12px', fontWeight: 700, display: 'flex', justifyContent: 'space-between' }}><span>Total assets</span><span className="money">{fmtMoney(bs.totalAssets, s.currency)}</span></div></div>
         <div><div className="section-title" style={{ color: 'var(--good)' }}>Equity & liabilities</div>{cols(bs.liabilities)}<div style={{ padding: '8px 12px', fontWeight: 700, display: 'flex', justifyContent: 'space-between' }}><span>Total equity & liabilities</span><span className="money">{fmtMoney(bs.totalLE, s.currency)}</span></div></div>
       </div>
     </ReportFrame>

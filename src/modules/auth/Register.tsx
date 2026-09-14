@@ -1,7 +1,7 @@
 // Registration (2 steps) → creates Tenant (Trial), Company, Branch, Periods, Owner user, number series,
 // then signs the owner in and opens the onboarding wizard (FR-PLT-003, FR-ORG-001, FR-BIZ-001).
 import { useState } from 'react';
-import { EyeIcon, ChevronDownIcon } from '../../components/Icons';
+import { EyeIcon, ChevronDownIcon, ShoppingCartIcon, BriefcaseIcon, FactoryIcon, ZapIcon } from '../../components/Icons';
 import { db, C, session } from '../../store';
 import type { User } from '../../store';
 import { validateEmail, fiscalYearOf, periodCodeOf, today } from '../../lib/format';
@@ -14,10 +14,10 @@ interface Props {
 }
 
 const NATURES = [
-  { id: 'Trading', label: 'Trading', icon: '🏬', desc: 'Buy, stock, and sell goods', color: '#F97316' },
-  { id: 'Services', label: 'Services', icon: '💼', desc: 'Time, projects, subscriptions', color: '#38BDF8' },
-  { id: 'Manufacturing', label: 'Manufacturing', icon: '🏭', desc: 'Produce finished goods', color: '#22C55E' },
-  { id: 'Hybrid', label: 'Hybrid', icon: '⚡', desc: 'Combination of profiles', color: '#A855F7' },
+  { id: 'Trading', label: 'Trading', icon: ShoppingCartIcon, desc: 'Buy, stock, and sell goods', color: '#F97316' },
+  { id: 'Services', label: 'Services', icon: BriefcaseIcon, desc: 'Time, projects, subscriptions', color: '#38BDF8' },
+  { id: 'Manufacturing', label: 'Manufacturing', icon: FactoryIcon, desc: 'Produce finished goods', color: '#22C55E' },
+  { id: 'Hybrid', label: 'Hybrid', icon: ZapIcon, desc: 'Combination of profiles', color: '#A855F7' },
 ] as const;
 
 export default function Register({ onCreated, onSignIn }: Props) {
@@ -65,7 +65,7 @@ export default function Register({ onCreated, onSignIn }: Props) {
     <Backdrop>
       <div className="auth-split" style={{ width: '100%', maxWidth: 980, background: '#FFFFFF', borderRadius: 16, boxShadow: '0 8px 48px rgba(0,0,0,0.10)', display: 'flex', overflow: 'hidden', minHeight: 580 }}>
         {/* Left — brand + steps */}
-        <div className="auth-aside" style={{ width: 300, flexShrink: 0, background: 'linear-gradient(160deg, #1A3BCC 0%, var(--accent) 60%, #4F74FF 100%)', padding: '40px 32px', display: 'flex', flexDirection: 'column' }}>
+        <div className="auth-aside" style={{ width: 300, flexShrink: 0, background: 'linear-gradient(160deg, #1A1D24 0%, #0F1115 100%)', padding: '40px 32px', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 40 }}>
             <BrandMark light />
             <span style={{ fontSize: 18, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em' }}>Elixir Books</span>
@@ -169,7 +169,7 @@ export default function Register({ onCreated, onSignIn }: Props) {
                     {NATURES.map((n) => (
                       <button key={n.id} type="button" onClick={() => setNature(n.id)} style={{ padding: '14px 16px', border: `1.5px solid ${nature === n.id ? n.color : 'var(--line)'}`, borderRadius: 10, background: nature === n.id ? `${n.color}12` : '#FFFFFF', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s', display: 'flex', flexDirection: 'column', gap: 6, fontFamily: 'inherit' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: 20 }}>{n.icon}</span>
+                          <span style={{ display: 'inline-flex', color: n.color }}><n.icon size={20} /></span>
                           {nature === n.id && <div style={{ width: 16, height: 16, borderRadius: '50%', background: n.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ color: '#fff', fontSize: 10 }}>✓</span></div>}
                         </div>
                         <div>

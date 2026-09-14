@@ -267,7 +267,7 @@ export function Tabs<T extends string>({ tabs, value, onChange, counts, variant 
   );
 }
 
-export function Avatar({ name, size = 28, color = 'var(--accent)' }: { name: string; size?: number; color?: string }) {
+export function Avatar({ name, size = 28, color = 'var(--ink)' }: { name: string; size?: number; color?: string }) {
   const ini = name.split(' ').filter(Boolean).map((n) => n[0]).join('').slice(0, 2).toUpperCase();
   return <div style={{ width: size, height: size, borderRadius: '50%', background: color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.4, fontWeight: 600, flexShrink: 0, fontVariantNumeric: 'normal' }}>{ini}</div>;
 }

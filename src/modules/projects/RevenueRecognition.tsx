@@ -131,7 +131,7 @@ export default function RevenueRecognition({ contractId, period: periodParam }: 
               {waterfall.map((w) => (
                 <div key={w.period} style={{ minWidth: 64, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                   <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 110 }}>
-                    <div title={`Billed ${fmtMoney(w.bill, s.currency)}`} style={{ width: 18, height: `${Math.max(2, (w.bill / maxBar) * 110)}px`, background: 'var(--accent)', borderRadius: '3px 3px 0 0' }} />
+                    <div title={`Billed ${fmtMoney(w.bill, s.currency)}`} style={{ width: 18, height: `${Math.max(2, (w.bill / maxBar) * 110)}px`, background: 'var(--ink)', borderRadius: '2px 2px 0 0' }} />
                     <div title={`Recognised ${fmtMoney(w.rec, s.currency)}`} style={{ width: 18, height: `${Math.max(2, (w.rec / maxBar) * 110)}px`, background: 'var(--good)', borderRadius: '3px 3px 0 0' }} />
                   </div>
                   <div style={{ fontSize: 11, color: w.period === period ? 'var(--ink)' : 'var(--ink-4)', fontWeight: w.period === period ? 600 : 400 }}>{fmtPeriod(w.period).replace(' 20', ' ')}</div>
@@ -139,7 +139,7 @@ export default function RevenueRecognition({ contractId, period: periodParam }: 
                 </div>
               ))}
             </div>
-            <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--ink-3)' }}><span><span style={{ display: 'inline-block', width: 10, height: 10, background: 'var(--accent)', borderRadius: 2, marginRight: 4 }} />Billed</span><span><span style={{ display: 'inline-block', width: 10, height: 10, background: 'var(--good)', borderRadius: 2, marginRight: 4 }} />Recognised</span><span>Recognised &gt; billed → accrual (Dr 1160 · Cr 4010); billed &gt; recognised → deferral (Dr 4010 · Cr 2400).</span></div>
+            <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--ink-3)' }}><span><span style={{ display: 'inline-block', width: 10, height: 10, background: 'var(--ink)', borderRadius: 2, marginRight: 4 }} />Billed</span><span><span style={{ display: 'inline-block', width: 10, height: 10, background: 'var(--good)', borderRadius: 2, marginRight: 4 }} />Recognised</span><span>Recognised &gt; billed → accrual (Dr 1160 · Cr 4010); billed &gt; recognised → deferral (Dr 4010 · Cr 2400).</span></div>
           </Card>
         </>
       ) : (

@@ -1,6 +1,7 @@
 // Step bodies for the onboarding wizard. Each receives the wizard state + setter and the company.
 import { useMemo, useState } from 'react';
-import { CheckIcon } from '../../components/Icons';
+import { CheckIcon, ShoppingCartIcon, BriefcaseIcon, FactoryIcon, ZapIcon, UploadIcon, StarIcon, EditIcon, SkipForwardIcon, BuildingIcon, MapPinIcon, WalletIcon, CalendarIcon, UsersIcon, PartyIcon } from '../../components/Icons';
+import type { ComponentType } from 'react';
 import { db, C, useCollection, useSession } from '../../store';
 import type { Company, OperatingProfileTemplate, Registration, Role, Plan, Tenant } from '../../store';
 import { INDIA_STATES, stateNameOf, fmtDate, uid, validateGSTIN } from '../../lib/format';
@@ -12,10 +13,10 @@ import { BUSINESS_TYPES, CURRENCIES, LOCALES, TIME_ZONES, buildFyPeriods, readin
 interface StepProps { s: WizardState; set: (p: Partial<WizardState>) => void; company: Company; template?: OperatingProfileTemplate; hasPostedJournal: boolean }
 
 const NATURES = [
-  { id: 'Trading', label: 'Trading', icon: '🏬', desc: 'Buy, stock, and sell physical goods', color: '#F97316' },
-  { id: 'Services', label: 'Services', icon: '💼', desc: 'Time, projects, subscriptions & retainers', color: '#38BDF8' },
-  { id: 'Manufacturing', label: 'Manufacturing', icon: '🏭', desc: 'Produce and sell finished goods', color: '#22C55E' },
-  { id: 'Hybrid', label: 'Hybrid', icon: '⚡', desc: 'Combination of the profiles above', color: '#A855F7' },
+  { id: 'Trading', label: 'Trading', icon: ShoppingCartIcon, desc: 'Buy, stock, and sell physical goods', color: '#F97316' },
+  { id: 'Services', label: 'Services', icon: BriefcaseIcon, desc: 'Time, projects, subscriptions & retainers', color: '#38BDF8' },
+  { id: 'Manufacturing', label: 'Manufacturing', icon: FactoryIcon, desc: 'Produce and sell finished goods', color: '#22C55E' },
+  { id: 'Hybrid', label: 'Hybrid', icon: ZapIcon, desc: 'Combination of the profiles above', color: '#A855F7' },
 ] as const;
 
 function H({ title, sub }: { title: string; sub: string }) {
@@ -46,7 +47,7 @@ export function StepNature({ s, set, template }: StepProps) {
         {NATURES.map((n) => (
           <button key={n.id} type="button" onClick={() => set({ nature: n.id, characteristics: [], overrides: {} })} style={{ padding: '16px', border: `1.5px solid ${s.nature === n.id ? n.color : 'var(--line)'}`, borderRadius: 12, background: s.nature === n.id ? `${n.color}10` : 'var(--surface-2)', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s', display: 'flex', flexDirection: 'column', gap: 8, fontFamily: 'inherit' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 26 }}>{n.icon}</span>
+              <span style={{ display: 'inline-flex', color: n.color }}><n.icon size={26} /></span>
               {s.nature === n.id && <div style={{ width: 20, height: 20, borderRadius: '50%', background: n.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CheckIcon size={11} color="#FFFFFF" /></div>}
             </div>
             <div>
@@ -280,8 +281,8 @@ export function StepUsers({ s, set, company }: StepProps) {
 // ── 7. Masters ─────────────────────────────────────────────────────────────
 export function StepMasters({ s, set, template }: StepProps) {
   const opts = [
-    { id: 'import', icon: '📥', label: 'Import from CSV / Tally', desc: 'Customers, suppliers, items and chart of accounts through the import wizard (dry-run, row errors, duplicate blocking)' },
-    { id: 'start', icon: '✨', label: 'Start with the recommended masters', desc: `${template?.coaTemplate ?? 'Standard COA'}, ${template?.dimensions.join(', ') ?? 'Branch'} dimensions, common UOMs, tax rates and payment terms` },
+    { id: 'import', icon: UploadIcon, label: 'Import from CSV / Tally', desc: 'Customers, suppliers, items and chart of accounts through the import wizard (dry-run, row errors, duplicate blocking)' },
+    { id: 'start', icon: StarIcon, label: 'Start with the recommended masters', desc: `${template?.coaTemplate ?? 'Standard COA'}, ${template?.dimensions.join(', ') ?? 'Branch'} dimensions, common UOMs, tax rates and payment terms` },
   ] as const;
   return (
     <div>
@@ -302,9 +303,9 @@ export function StepMasters({ s, set, template }: StepProps) {
 export function StepOpening({ s, set, company }: StepProps) {
   const blocked = company.onboarding.opening === 'Blocked';
   const opts = [
-    { id: 'import', icon: '📥', label: 'Import trial balance', desc: 'Upload a trial balance CSV or Tally XML to populate balances as of the opening-balance date' },
-    { id: 'manual', icon: '✏️', label: 'Enter manually', desc: 'Type opening balances account by account under Accounting › Opening balances' },
-    { id: 'skip', icon: '⏭️', label: 'Start fresh', desc: 'No opening balances — for new businesses or trial runs' },
+    { id: 'import', icon: UploadIcon, label: 'Import trial balance', desc: 'Upload a trial balance CSV or Tally XML to populate balances as of the opening-balance date' },
+    { id: 'manual', icon: EditIcon, label: 'Enter manually', desc: 'Type opening balances account by account under Accounting › Opening balances' },
+    { id: 'skip', icon: SkipForwardIcon, label: 'Start fresh', desc: 'No opening balances — for new businesses or trial runs' },
   ] as const;
   return (
     <div>
@@ -317,10 +318,10 @@ export function StepOpening({ s, set, company }: StepProps) {
   );
 }
 
-function Choice({ selected, onClick, icon, label, desc }: { selected: boolean; onClick: () => void; icon: string; label: string; desc: string }) {
+function Choice({ selected, onClick, icon: Icon, label, desc }: { selected: boolean; onClick: () => void; icon: ComponentType<{ size?: number }>; label: string; desc: string }) {
   return (
     <button type="button" onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 18px', border: `1.5px solid ${selected ? 'var(--accent)' : 'var(--line)'}`, borderRadius: 10, background: selected ? 'var(--accent-tint)' : 'var(--surface-2)', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s', fontFamily: 'inherit' }}>
-      <span style={{ fontSize: 24, lineHeight: 1 }}>{icon}</span>
+      <span style={{ display: 'inline-flex', color: selected ? 'var(--accent)' : 'var(--ink-3)' }}><Icon size={22} /></span>
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 3 }}>{label}</div>
         <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{desc}</div>
@@ -338,22 +339,22 @@ export function StepReady({ s, company }: StepProps) {
   const done = rows.filter((r) => r.status === 'Done').length;
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const items = [
-    { label: 'Business nature', val: `${s.nature || live.nature} · ${live.profiles.join(' + ')}`, icon: '🏬' },
-    { label: 'Company', val: `${s.legalName || live.legalName}${s.pan ? ` · PAN ${s.pan}` : ''}`, icon: '🏢' },
-    { label: 'Registered address', val: s.address.city ? `${s.address.city}, ${s.address.state}${s.address.pin ? ' ' + s.address.pin : ''}` : '—', icon: '📍' },
-    { label: 'Currency & locale', val: `${s.baseCurrency}${s.reportingCurrency ? ` (reports in ${s.reportingCurrency})` : ''} · ${s.timeZone} · ${s.locale}`, icon: '💰' },
-    { label: 'Fiscal year', val: `Starts ${MONTHS[s.fyStart - 1]} · books from ${fmtDate(s.booksFrom)} · opening ${fmtDate(s.openingBalanceDate)}`, icon: '📅' },
-    { label: 'Team', val: `${db.count(C.users, (u) => u.companyIds?.includes(company.id))} user(s) · ${db.count(C.users, (u) => u.companyIds?.includes(company.id) && u.status === 'Invited')} invited`, icon: '👥' },
+    { label: 'Business nature', val: `${s.nature || live.nature} · ${live.profiles.join(' + ')}`, icon: ShoppingCartIcon },
+    { label: 'Company', val: `${s.legalName || live.legalName}${s.pan ? ` · PAN ${s.pan}` : ''}`, icon: BuildingIcon },
+    { label: 'Registered address', val: s.address.city ? `${s.address.city}, ${s.address.state}${s.address.pin ? ' ' + s.address.pin : ''}` : '—', icon: MapPinIcon },
+    { label: 'Currency & locale', val: `${s.baseCurrency}${s.reportingCurrency ? ` (reports in ${s.reportingCurrency})` : ''} · ${s.timeZone} · ${s.locale}`, icon: WalletIcon },
+    { label: 'Fiscal year', val: `Starts ${MONTHS[s.fyStart - 1]} · books from ${fmtDate(s.booksFrom)} · opening ${fmtDate(s.openingBalanceDate)}`, icon: CalendarIcon },
+    { label: 'Team', val: `${db.count(C.users, (u) => u.companyIds?.includes(company.id))} user(s) · ${db.count(C.users, (u) => u.companyIds?.includes(company.id) && u.status === 'Invited')} invited`, icon: UsersIcon },
   ];
   return (
     <div>
-      <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--good-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, fontSize: 28 }}>🎉</div>
+      <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--good-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, color: 'var(--good)' }}><PartyIcon size={28} /></div>
       <H title={done === rows.length ? "You're all set!" : 'Almost there'} sub={`${done} of ${rows.length} setup items complete. Pending items stay on your Home checklist until they are done; blocked items name what clears them.`} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {items.map((it) => (
             <div key={it.label} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 8 }}>
-              <span style={{ fontSize: 18 }}>{it.icon}</span>
+              <span style={{ display: 'inline-flex', color: 'var(--ink-3)' }}><it.icon size={18} /></span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="section-label" style={{ marginBottom: 2 }}>{it.label}</div>
                 <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>{it.val}</div>

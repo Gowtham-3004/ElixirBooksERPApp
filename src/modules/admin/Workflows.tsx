@@ -201,7 +201,7 @@ export default function Workflows() {
                 <div className="section-label" style={{ margin: '10px 0 6px' }}>Steps that would run</div>
                 {resolved.steps.map((st) => {
                   const skip = st.approverLabel.includes('above') && /₹\s?(\d+)L/.test(st.approverLabel) && test.amount < Number(RegExp.$1) * 100000;
-                  return <div key={st.order} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0', borderBottom: '1px solid #E4EAF5' }}><span>{st.order}. {st.name} · {st.approverLabel}{st.commentRequired ? ' · comment' : ''}</span><span style={{ color: 'var(--ink-3)' }}>{skip ? 'skipped (threshold)' : `SLA ${st.slaHours}h`}</span></div>;
+                  return <div key={st.order} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0', borderBottom: '1px solid var(--line-strong)' }}><span>{st.order}. {st.name} · {st.approverLabel}{st.commentRequired ? ' · comment' : ''}</span><span style={{ color: 'var(--ink-3)' }}>{skip ? 'skipped (threshold)' : `SLA ${st.slaHours}h`}</span></div>;
                 })}
                 {resolved.escalation && <div style={{ fontSize: 12, color: 'var(--warn)', marginTop: 8 }}>Escalates to {roles.find((r) => r.id === resolved.escalation!.toRole)?.name} after {resolved.escalation.afterHours}h.</div>}
               </div>

@@ -144,7 +144,7 @@ export default function Login({ onLogin, onCreateAccount }: LoginProps) {
         </div>
 
         {/* Right – preview */}
-        <div className="auth-aside" style={{ flex: 1, background: 'linear-gradient(160deg, var(--accent-tint) 0%, var(--accent-tint) 100%)', padding: 32, display: 'flex', flexDirection: 'column', gap: 16, overflow: 'hidden' }}>
+        <div className="auth-aside" style={{ flex: 1, background: 'var(--surface-2)', borderLeft: '1px solid var(--hairline)', padding: 32, display: 'flex', flexDirection: 'column', gap: 16, overflow: 'hidden' }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--accent)', marginBottom: 4 }}>Elixir Books {preview.plan?.name ?? 'Growth'} · {preview.co?.legalName ?? 'Acme Private Limited'}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
             {KPI.map((kpi) => (
