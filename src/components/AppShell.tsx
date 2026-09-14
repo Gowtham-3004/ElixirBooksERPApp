@@ -285,7 +285,7 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
             <span style={{ position: 'relative' }}>
               <button type="button" className="btn-ghost" style={{ padding: '0 8px', position: 'relative' }} onClick={() => setNotifOpen(!notifOpen)}>
                 <BellIcon size={16} />
-                {unread > 0 && <span style={{ position: 'absolute', top: 2, right: 2, minWidth: 16, height: 16, padding: '0 4px', background: 'var(--accent)', color: '#fff', borderRadius: 9999, fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid var(--surface-2)' }}>{unread}</span>}
+                {unread > 0 && <span style={{ position: 'absolute', top: 2, right: 2, minWidth: 16, height: 16, padding: '0 4px', background: 'var(--accent)', color: '#fff', borderRadius: 9999, fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid var(--surface)' }}>{unread}</span>}
               </button>
               {notifOpen && (
                 <Dropdown onClose={() => setNotifOpen(false)} width={380} sheet={compact}>
