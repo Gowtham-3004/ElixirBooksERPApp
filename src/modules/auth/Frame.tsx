@@ -2,6 +2,7 @@
 import type { ReactNode } from 'react';
 import { Logomark } from '../../components/Brand';
 import { Storyset, type StorysetName } from '../../components/ui/storyset';
+import ThemeToggle from '../../components/ThemeToggle';
 
 export const AUTH_BG = 'radial-gradient(1200px 600px at 20% -10%, var(--surface) 0%, var(--bg) 60%), radial-gradient(900px 560px at 108% 108%, var(--accent-tint) 0%, transparent 62%)';
 
@@ -9,13 +10,13 @@ export function BrandMark({ size = 36, light }: { size?: number; light?: boolean
   return <Logomark size={size} light={light} />;
 }
 
-/** Full-viewport canvas behind every auth card: token gradients, a faint Storyset scene, and the licence credit. */
+/** Full-viewport canvas behind every auth card: token gradients, a faint Storyset scene and the theme switch in the corner. */
 export function Backdrop({ children, scene = 'investing' }: { children: ReactNode; scene?: StorysetName }) {
   return (
     <div className="auth-backdrop" style={{ minHeight: '100vh', background: AUTH_BG, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontVariantNumeric: 'normal' }}>
       <Storyset name={scene} className="auth-backdrop-art" bg={false} />
+      <ThemeToggle variant="secondary" className="auth-theme-toggle" />
       {children}
-      <div className="auth-attrib">Illustrations by <a href="https://storyset.com" target="_blank" rel="noreferrer">Storyset</a></div>
     </div>
   );
 }

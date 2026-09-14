@@ -1,5 +1,6 @@
 // Appearance preference. The resolved theme is stamped on <html data-theme="light|dark"> so every token
-// in index.css (and the auth screens outside the shell) follows it; 'system' tracks prefers-color-scheme.
+// in index.css (and the auth screens outside the shell) follows it. Light is the default; 'dark' and 'system'
+// (which tracks prefers-color-scheme) are opt-in from the header / auth toggle or Setup › Preferences.
 import { useSyncExternalStore } from 'react';
 
 export type ThemePref = 'light' | 'dark' | 'system';
@@ -12,7 +13,7 @@ let resolved: 'light' | 'dark' = 'light';
 const subscribers = new Set<() => void>();
 
 export function readTheme(): ThemePref {
-  try { const v = localStorage.getItem(KEY); return v === 'dark' || v === 'light' ? v : 'system'; } catch { return 'system'; }
+  try { const v = localStorage.getItem(KEY); return v === 'dark' || v === 'light' || v === 'system' ? v : 'light'; } catch { return 'light'; }
 }
 
 export function resolveTheme(pref: ThemePref): 'light' | 'dark' {

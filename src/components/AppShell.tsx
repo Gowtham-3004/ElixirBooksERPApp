@@ -7,6 +7,7 @@ import { SETUP_MODULES, rememberSetupReturn, useSetupSections } from '../modules
 import { lixi, useLixi } from '../store/lixi';
 import LixiPanel from './lixi/LixiPanel';
 import LixiMark from './lixi/LixiMark';
+import ThemeToggle from './ThemeToggle';
 import { BellIcon, SearchIcon, ChevronDownIcon, HelpCircleIcon, CogIcon, LockIcon, XIcon, ArrowLeftIcon, MenuIcon, UsersIcon, PackageIcon, UserIcon, BookOpenIcon, CreditCardIcon, FileTextIcon, PlusIcon, ArrowRightIcon, ArrowsSwapIcon, LogOutIcon } from './Icons';
 import type { ComponentType } from 'react';
 import { useIsMobile, useIsTablet } from '../lib/useMedia';
@@ -329,6 +330,7 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
                 <HelpCircleIcon size={16} />
               </button>
             )}
+            <ThemeToggle />
             <span style={{ position: 'relative' }}>
               <button type="button" className="btn-ghost" style={{ padding: '0 8px', position: 'relative' }} onClick={() => setNotifOpen(!notifOpen)}>
                 <BellIcon size={16} />

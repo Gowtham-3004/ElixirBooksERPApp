@@ -106,3 +106,5 @@ export const LogOutIcon = icon('M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4|M16 17l5-5-
 export const TrashIcon = icon('M3 6h18|M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2|M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6|M10 11v6|M14 11v6');
 export const SlidersIcon = icon('M4 21v-7|M4 10V3|M12 21v-9|M12 8V3|M20 21v-5|M20 12V3|M1 14h6|M9 8h6|M17 16h6');
 export const SparklesIcon = icon('M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z|M5 19l.7 1.8L7.5 21.5l-1.8.7L5 24l-.7-1.8L2.5 21.5l1.8-.7L5 19z|M19 2l.6 1.4L21 4l-1.4.6L19 6l-.6-1.4L17 4l1.4-.6L19 2z');
+export const SunIcon = icon('M12 17a5 5 0 100-10 5 5 0 000 10z|M12 1v2|M12 21v2|M4.22 4.22l1.42 1.42|M18.36 18.36l1.42 1.42|M1 12h2|M21 12h2|M4.22 19.78l1.42-1.42|M18.36 5.64l1.42-1.42');
+export const MoonIcon = icon('M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z');

@@ -138,11 +138,12 @@ input[type=number].field-input { -moz-appearance: textfield; }
 .auth-backdrop-art { position: absolute !important; right: -48px; bottom: -48px; width: 520px; height: 520px; opacity: .08; filter: grayscale(.35); pointer-events: none; z-index: 0 !important; }
 :root[data-theme="dark"] .auth-backdrop-art { opacity: .1; }
 :root[data-decor="off"] .auth-backdrop-art { display: none; }
-.auth-attrib { position: fixed; right: 16px; bottom: 12px; font-size: 11px; color: var(--ink-5); z-index: 1; }
-.auth-attrib a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.auth-backdrop > .auth-theme-toggle { position: absolute; top: 16px; right: 16px; z-index: 2; }
+.theme-toggle > svg { transition: transform var(--dur) var(--ease); }
+.theme-toggle:hover > svg { transform: rotate(-15deg); }
 @media (max-width: 1023px), print { .shell-watermark, .auth-backdrop-art { display: none !important; } }
 @media (max-width: 767px) { .illustrated-card { grid-template-columns: 1fr; } .illustrated-card .storyset, .illustrated-card .storyset-gif { display: none; } }
-@media (max-width: 899px) { .auth-backdrop { flex-wrap: wrap; align-content: center; } .auth-attrib { position: static; flex-basis: 100%; text-align: center; padding: 12px 0 0; } }
+@media (max-width: 899px) { .auth-backdrop { flex-wrap: wrap; align-content: center; } }
 @media (max-height: 719px) { .auth-rail-art { display: none !important; } }
 .checklist-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--hairline); font-size: 13px; }
 .checklist-row:last-child { border-bottom: none; }
