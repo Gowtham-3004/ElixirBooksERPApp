@@ -125,6 +125,26 @@ input[type=number].field-input { -moz-appearance: textfield; }
 .dim-chip { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; border-radius: 9999px; background: var(--surface-3); font-size: 11px; color: var(--ink-2); }
 .dim-chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--dot, var(--accent)); }
 .currency-tag { display: inline-flex; padding: 0 6px; border-radius: 4px; background: var(--surface-3); font-size: 11px; font-weight: 500; color: var(--ink-2); letter-spacing: .02em; }
+/* command palette */
+.palette { position: fixed; top: 12vh; left: 50%; transform: translateX(-50%); width: 640px; max-width: calc(100vw - 32px); max-height: 72vh; background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-lg); z-index: 102; display: flex; flex-direction: column; overflow: hidden; animation: popIn var(--dur) var(--ease); }
+@keyframes paletteIn { from { transform: translateX(-50%) translateY(-6px); opacity: 0 } to { transform: translateX(-50%); opacity: 1 } }
+.palette { animation: paletteIn var(--dur) var(--ease); }
+.palette-input { display: flex; align-items: center; gap: 12px; padding: 0 16px; height: 54px; border-bottom: 1px solid var(--hairline); color: var(--ink-3); flex-shrink: 0; }
+.palette-input input { flex: 1; border: none; outline: none; background: none; font: inherit; font-size: 16px; color: var(--ink); min-width: 0; }
+.palette-input input::placeholder { color: var(--ink-5); }
+.palette-body { flex: 1; overflow: auto; padding: 6px; }
+.palette-group { font-size: 11px; font-weight: 500; color: var(--ink-4); padding: 10px 10px 4px; }
+.palette-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 10px; border: none; background: transparent; border-radius: 8px; text-align: left; cursor: pointer; font-family: inherit; color: var(--ink); }
+.palette-row.hi { background: var(--surface-3); }
+.palette-icon { width: 28px; height: 28px; border-radius: 7px; background: var(--surface-3); color: var(--ink-3); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.palette-row.hi .palette-icon { background: var(--surface); box-shadow: inset 0 0 0 1px var(--hairline); color: var(--ink); }
+.palette-primary { display: block; font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.palette-secondary { display: block; font-size: 12px; color: var(--ink-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.palette-mark { background: var(--accent-soft); color: var(--accent); border-radius: 3px; padding: 0 1px; }
+.palette-empty { padding: 28px 16px; font-size: 13px; color: var(--ink-3); text-align: center; }
+.palette-footer { display: flex; gap: 16px; align-items: center; padding: 8px 16px; border-top: 1px solid var(--hairline); font-size: 11px; color: var(--ink-4); background: var(--surface-2); flex-shrink: 0; }
+.palette-footer span { display: inline-flex; align-items: center; gap: 4px; }
+@media (max-width: 767px) { .palette { top: 8px; max-height: calc(100vh - 16px); } .palette-footer { display: none; } }
 .chart-tip { position: absolute; top: 28px; width: 160px; background: var(--surface); border: 1px solid var(--hairline); border-radius: 8px; box-shadow: var(--shadow-md); padding: 8px 10px; font-size: 12px; pointer-events: none; z-index: 2; }
 .kpi-tile .sparkline { flex-shrink: 0; }
 .kbd { display: inline-flex; padding: 0 5px; height: 18px; align-items: center; border-radius: 4px; background: var(--surface-3); font-size: 11px; color: var(--ink-3); border: 1px solid var(--line); }

@@ -3,7 +3,7 @@ import { db, C, nav, session, useCollection, useSession, useRoute, engine } from
 import type { Notification, Period } from '../store';
 import { MODULES, GROUP_ORDER, moduleById } from '../modules/registry';
 import { activeSubNav, settingsNav, useSubNavs, type SubNavItem } from '../modules/subnav';
-import { BellIcon, SearchIcon, ChevronDownIcon, HelpCircleIcon, CogIcon, LockIcon, XIcon, ArrowLeftIcon, MenuIcon } from './Icons';
+import { BellIcon, SearchIcon, ChevronDownIcon, HelpCircleIcon, CogIcon, LockIcon, XIcon, ArrowLeftIcon, MenuIcon, UsersIcon, PackageIcon, UserIcon, BookOpenIcon, CreditCardIcon, FileTextIcon, PlusIcon, ArrowRightIcon } from './Icons';
 import type { ComponentType } from 'react';
 import { useIsMobile, useIsTablet } from '../lib/useMedia';
 import { Avatar, Badge, Button, Banner, Kbd, TwoLine } from './ui/primitives';
@@ -457,46 +457,123 @@ const DOC_SOURCES: { col: string; label: string; path: (r: any) => string; secon
   { col: C.productionOrders, label: 'Production order', path: (r) => `production/orders/${r.id}`, secondary: (r) => r.itemName ?? '' },
 ];
 
+// ── Command palette (Ctrl/⌘ K) ───────────────────────────────────────────────
+// Recent destinations when empty; pages (modules and their sub-pages), quick actions, documents, parties,
+// items and accounts as you type. Results are grouped, keyboard-driven, and the match is highlighted.
+
+type PaletteRow = { key: string; group: string; primary: string; secondary?: string; path: string; icon: ComponentType<{ size?: number }>; hint?: string };
+const RECENT_KEY = 'eb-recent-nav';
+const readRecent = (): PaletteRow[] => { try { return JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]'); } catch { return []; } };
+const pushRecent = (row: PaletteRow) => {
+  try {
+    const next = [{ ...row, icon: undefined, group: 'Recent' }, ...readRecent().filter((r) => r.path !== row.path)].slice(0, 8);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+  } catch { /* ignore */ }
+};
+const GROUP_ORDER_PALETTE = ['Recent', 'Pages', 'Actions', 'Documents', 'Parties', 'Items', 'People', 'Other'];
+const groupOf = (label: string) => (label === 'Customer' || label === 'Supplier' ? 'Parties' : label === 'Item' ? 'Items' : label === 'Employee' ? 'People' : label === 'Asset' || label === 'Project' ? 'Other' : 'Documents');
+const iconOf = (label: string): ComponentType<{ size?: number }> => (label === 'Page' ? ArrowRightIcon : label === 'Action' ? PlusIcon : label === 'Customer' || label === 'Supplier' ? UsersIcon : label === 'Item' ? PackageIcon : label === 'Employee' ? UserIcon : label === 'Journal' ? BookOpenIcon : label === 'Receipt' || label === 'Payment' ? CreditCardIcon : FileTextIcon);
+
+function Highlight({ text, term }: { text: string; term: string }) {
+  if (!term) return <>{text}</>;
+  const i = text.toLowerCase().indexOf(term.toLowerCase());
+  if (i < 0) return <>{text}</>;
+  return <>{text.slice(0, i)}<mark className="palette-mark">{text.slice(i, i + term.length)}</mark>{text.slice(i + term.length)}</>;
+}
+
 function GlobalSearch({ onClose }: { onClose: () => void }) {
   const [q, setQ] = useState('');
+  const [hi, setHi] = useState(0);
   const s = useSession();
-  const results = useMemo(() => {
+  const subNavs = useSubNavs();
+  const listRef = useRef<HTMLDivElement>(null);
+  const isWin = typeof navigator !== 'undefined' && /Win/.test(navigator.platform);
+
+  const rows = useMemo<PaletteRow[]>(() => {
     const term = q.trim().toLowerCase();
-    if (!term) return [] as { label: string; primary: string; secondary: string; path: string }[];
-    const out: { label: string; primary: string; secondary: string; path: string }[] = [];
-    MODULES.forEach((m) => { if (m.label.toLowerCase().includes(term) && s.entitled(m.id)) out.push({ label: 'Menu', primary: m.label, secondary: m.description, path: m.id }); });
+    if (!term) {
+      return readRecent().map((r) => ({ ...r, group: 'Recent', icon: iconOf(r.hint ?? '') }));
+    }
+    const out: PaletteRow[] = [];
+    const visible = MODULES.filter((m) => (m.platformOnly ? s.isPlatformAdmin : s.entitled(m.id)) && (!m.permission || s.canModule(m.permission)));
+    visible.forEach((m) => {
+      if (m.label.toLowerCase().includes(term) || m.id.includes(term)) out.push({ key: `p:${m.id}`, group: 'Pages', primary: m.label, secondary: m.description, path: m.id, icon: m.icon, hint: 'Page' });
+      (subNavs[m.id] ?? []).filter((i) => !i.hidden).forEach((i) => {
+        if (i.label.toLowerCase().includes(term)) out.push({ key: `p:${m.id}/${i.id}`, group: 'Pages', primary: i.label, secondary: m.label, path: `${m.id}/${i.id}`, icon: m.icon, hint: 'Page' });
+      });
+    });
+    const actions: { label: string; path: string; perm: string }[] = [
+      { label: 'New sales invoice', path: 'sales/invoices/new', perm: 'sales.invoice.create' },
+      { label: 'New quotation', path: 'sales/quotations/new', perm: 'sales.quotation.create' },
+      { label: 'New purchase order', path: 'purchase/orders/new', perm: 'purchase.order.create' },
+      { label: 'New journal', path: 'accounting/journals/new', perm: 'accounting.journal.create' },
+      { label: 'New customer', path: 'masters/customers/new', perm: 'masters.customer.create' },
+      { label: 'Record receipt', path: 'sales/receipts', perm: 'sales.receipt.create' },
+    ];
+    actions.forEach((a) => { if (a.label.toLowerCase().includes(term) && s.can(a.perm)) out.push({ key: `a:${a.path}`, group: 'Actions', primary: a.label, path: a.path, icon: PlusIcon, hint: 'Action' }); });
     DOC_SOURCES.forEach((src) => {
       db.get<any>(src.col).forEach((r) => {
         if (r.companyId && r.companyId !== s.state.companyId) return;
         const hay = `${r.number ?? ''} ${r.name ?? ''} ${r.code ?? ''} ${r.partyName ?? ''} ${r.gstin ?? ''} ${r.reference ?? ''}`.toLowerCase();
-        if (hay.includes(term)) out.push({ label: src.label, primary: r.number ?? r.name ?? r.code, secondary: src.secondary(r), path: src.path(r) });
+        if (hay.includes(term)) out.push({ key: `${src.col}:${r.id}`, group: groupOf(src.label), primary: r.number ?? r.name ?? r.code, secondary: [src.label, src.secondary(r)].filter(Boolean).join(' · '), path: src.path(r), icon: iconOf(src.label), hint: src.label });
       });
     });
-    return out.slice(0, 25);
-  }, [q, s]);
-  const [hi, setHi] = useState(0);
+    out.sort((a, b) => GROUP_ORDER_PALETTE.indexOf(a.group) - GROUP_ORDER_PALETTE.indexOf(b.group));
+    return out.slice(0, 40);
+  }, [q, s, subNavs]);
+
+  const go = (row: PaletteRow) => { pushRecent(row); nav.go(row.path); onClose(); };
+  useEffect(() => { setHi(0); }, [q]);
+  useEffect(() => { listRef.current?.querySelector<HTMLElement>('[data-hi="true"]')?.scrollIntoView({ block: 'nearest' }); }, [hi]);
+
+  let lastGroup = '';
   return (
-    <Modal open onClose={onClose} title="Search" width={640}>
-      <div className="search-input" style={{ height: 44 }}>
-        <SearchIcon size={16} />
-        <input autoFocus value={q} onChange={(e) => { setQ(e.target.value); setHi(0); }} placeholder="Documents, parties, items, menu…" style={{ fontSize: 15 }}
-          onKeyDown={(e) => {
-            if (e.key === 'ArrowDown') setHi((h) => Math.min(results.length - 1, h + 1));
-            if (e.key === 'ArrowUp') setHi((h) => Math.max(0, h - 1));
-            if (e.key === 'Enter' && results[hi]) { nav.go(results[hi].path); onClose(); }
-          }} />
-        <button type="button" className="btn-icon" onClick={onClose}><XIcon size={14} /></button>
+    <>
+      <div className="scrim" onClick={onClose} style={{ zIndex: 101 }} />
+      <div className="palette" role="dialog" aria-modal aria-label="Search">
+        <div className="palette-input">
+          <SearchIcon size={16} />
+          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search or jump to…" spellCheck={false}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowDown') { e.preventDefault(); setHi((h) => Math.min(rows.length - 1, h + 1)); }
+              if (e.key === 'ArrowUp') { e.preventDefault(); setHi((h) => Math.max(0, h - 1)); }
+              if (e.key === 'Enter' && rows[hi]) go(rows[hi]);
+              if (e.key === 'Escape') onClose();
+            }} />
+          <Kbd>esc</Kbd>
+        </div>
+        <div className="palette-body" ref={listRef}>
+          {rows.length === 0 && (
+            <div className="palette-empty">
+              {q ? <>No matches for <strong>{q}</strong> in {s.company?.tradeName ?? 'this company'}.</> : <>Type to search documents, parties, items and pages. Recent destinations will show up here.</>}
+            </div>
+          )}
+          {rows.map((r, i) => {
+            const Icon = r.icon;
+            const header = r.group !== lastGroup ? r.group : null;
+            lastGroup = r.group;
+            return (
+              <div key={r.key}>
+                {header && <div className="palette-group">{header}</div>}
+                <button type="button" className={`palette-row ${hi === i ? 'hi' : ''}`} data-hi={hi === i} onMouseEnter={() => setHi(i)} onClick={() => go(r)}>
+                  <span className="palette-icon"><Icon size={15} /></span>
+                  <span style={{ minWidth: 0, flex: 1 }}>
+                    <span className="palette-primary"><Highlight text={r.primary} term={q.trim()} /></span>
+                    {r.secondary && <span className="palette-secondary">{r.secondary}</span>}
+                  </span>
+                  {hi === i && <Kbd>↵</Kbd>}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        <div className="palette-footer">
+          <span><Kbd>↑</Kbd> <Kbd>↓</Kbd> navigate</span>
+          <span><Kbd>↵</Kbd> open</span>
+          <span><Kbd>esc</Kbd> close</span>
+          <span style={{ marginLeft: 'auto' }}><Kbd>{isWin ? 'Ctrl' : '⌘'}</Kbd> <Kbd>K</Kbd> anywhere</span>
+        </div>
       </div>
-      <div style={{ marginTop: 8, maxHeight: 400, overflow: 'auto' }}>
-        {!q && <div style={{ fontSize: 12, color: 'var(--ink-3)', padding: 12 }}>Searches documents, parties, items and menu items within {s.company?.tradeName}. Use ↑↓ and Enter.</div>}
-        {q && results.length === 0 && <div style={{ fontSize: 13, color: 'var(--ink-3)', padding: 12 }}>No results for "{q}"</div>}
-        {results.map((r, i) => (
-          <button key={i} type="button" className="menu-item" style={{ height: 'auto', padding: '8px 10px', background: hi === i ? 'var(--surface-3)' : undefined }} onMouseEnter={() => setHi(i)} onClick={() => { nav.go(r.path); onClose(); }}>
-            <span style={{ fontSize: 11, color: 'var(--ink-3)', width: 110, flexShrink: 0 }}>{r.label}</span>
-            <TwoLine primary={r.primary} secondary={r.secondary} />
-          </button>
-        ))}
-      </div>
-    </Modal>
+    </>
   );
 }
