@@ -10,6 +10,7 @@ import { Avatar, Badge, Button, Banner, Kbd, TwoLine } from './ui/primitives';
 import { Modal } from './ui/overlays';
 import { Segmented } from './ui/fields';
 import { readTheme, setTheme, type ThemePref } from '../lib/theme';
+import { Wordmark } from './Brand';
 import { fmtDateTime, fmtMoney, fmtPeriod } from '../lib/format';
 
 type Density = 'comfortable' | 'compact';
@@ -191,8 +192,12 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
       {isMobile && navOpen && <div className="sidebar-scrim" onClick={() => setNavOpen(false)} />}
       {/* Sidebar — fixed rail on desktop/tablet, off-canvas drawer on phones */}
       <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${navOpen ? 'open' : ''}`} aria-label="Sidebar" aria-hidden={isMobile && !navOpen ? true : undefined}>
-        <div style={{ padding: collapsed ? '14px 0 12px' : '14px 16px 12px', borderBottom: '1px solid var(--hairline)', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : undefined, gap: 10, cursor: 'pointer', position: 'relative' }} onClick={() => setSidebarCompanyOpen(!sidebarCompanyOpen)} title={collapsed ? `${s.tenant?.name ?? ''} · ${s.company?.legalName ?? ''} — switch company` : 'Switch company'}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: s.company?.brandColor ?? 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontWeight: 700 }}>
+        <div className="sidebar-brand" style={{ justifyContent: collapsed ? 'center' : undefined }}>
+          <Wordmark size={22} collapsed={collapsed} />
+          {isMobile && <button type="button" className="btn-icon" aria-label="Close navigation" style={{ marginLeft: 'auto' }} onClick={() => setNavOpen(false)}><XIcon size={16} /></button>}
+        </div>
+        <div style={{ padding: collapsed ? '6px 0 10px' : '4px 16px 10px', borderBottom: '1px solid var(--hairline)', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : undefined, gap: 10, cursor: 'pointer', position: 'relative' }} onClick={() => setSidebarCompanyOpen(!sidebarCompanyOpen)} title={collapsed ? `${s.tenant?.name ?? ''} · ${s.company?.legalName ?? ''} — switch company` : 'Switch company'}>
+          <div style={{ width: 28, height: 28, borderRadius: 7, background: `color-mix(in srgb, ${s.company?.brandColor ?? 'var(--accent)'} 14%, transparent)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: s.company?.brandColor ?? 'var(--accent)', fontWeight: 700, fontSize: 13 }}>
             {s.company?.logoText ?? 'E'}
           </div>
           {!collapsed && (
@@ -204,7 +209,6 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
               </div>
             </div>
           )}
-          {isMobile && <button type="button" className="btn-icon" aria-label="Close navigation" onClick={(e) => { e.stopPropagation(); setNavOpen(false); }}><XIcon size={16} /></button>}
           {sidebarCompanyOpen && (
             <div onClick={(e) => e.stopPropagation()}>
               <Dropdown onClose={() => setSidebarCompanyOpen(false)} width={260} align="left" top={collapsed ? 56 : undefined} sheet={isMobile}>

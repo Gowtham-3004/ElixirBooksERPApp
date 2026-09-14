@@ -7,3 +7,4 @@ export * from './document';
 export * from './printsheet';
 export * from './composites';
 export * from './charts';
+export * from './illustrations';

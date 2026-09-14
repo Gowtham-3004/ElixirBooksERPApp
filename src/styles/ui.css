@@ -172,6 +172,8 @@ html { -webkit-text-size-adjust: 100%; }
 .sidebar.collapsed { width: 64px; }
 /* the module list fades out at the bottom instead of cutting an item in half; the padding keeps the last
    item above the fade once scrolled to the end */
+.sidebar-brand { display: flex; align-items: center; padding: 14px 16px 8px; }
+.sidebar.collapsed .sidebar-brand { padding: 14px 0 6px; }
 .sidebar-nav { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 6px 8px 28px; mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent); -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent); }
 .sidebar-nav .section-label { padding: 6px 12px 2px; display: block; }
 /* branch · FY · period as one segmented control */
