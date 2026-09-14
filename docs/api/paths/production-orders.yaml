@@ -1,0 +1,1458 @@
+# Production — part 2 (tag: Production). actions.ts (orders + operations), issueActions.ts, receiptActions.ts, qualityActions.ts (inspections), subcontractActions.ts, core.ts (WIP, genealogy).
+
+# ── production orders ─────────────────────────────────────────────────────
+
+/production/orders:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Production]
+    summary: Production orders
+    description: "Tabs → Open (Released/In Progress/Partially Completed) · Planned · Awaiting approval · Completed · Closed · Cancelled · Late (`late=true`) · All. Query examples — `?itemId=item_frame` · `?priority=High` · `?sourceType=Sales Order`."
+    operationId: listProductionOrders
+    x-permission: production.order.view
+    x-frd: [FR-MFG-007]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/ItemId'
+      - { name: priority, in: query, schema: { type: string, enum: [Normal, High, Low] } }
+      - { name: late, in: query, schema: { type: boolean } }
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Orders
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/production.yaml#/ProductionOrder' } }
+            examples:
+              firstPage: { summary: Orders, value: { data: [{ $ref: '#/components/examples/ProductionOrderInProgress/value' }], meta: { nextCursor: null, limit: 25, total: 1, counts: { Open: 3, Planned: 2, 'Awaiting approval': 1, Completed: 1, Closed: 33, Cancelled: 1, Late: 1, All: 41 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Production]
+    summary: Create a production order (explodes the BOM, copies the routing, schedules)
+    operationId: createProductionOrder
+    x-permission: production.order.create
+    x-events: [DocumentCreated]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/production.yaml#/ProductionOrderCreate' }
+          examples:
+            mts: { summary: "Make-to-stock, defaults", value: { itemId: item_frame, qty: 50, plannedStart: '2026-09-15' } }
+            mto: { summary: Make-to-order from a sales order line, value: { itemId: item_frame, qty: 20, plannedStart: '2026-09-16', priority: High, sourceDemand: { type: Sales Order, id: so_00090, number: SO/2026-27/00090, lineId: ln_1, customerName: Arlene Traders }, serialPrefix: SN-FRM, dimensions: { Project: dim_prj_erp } } }
+            explicitBom: { summary: Specific BOM / routing and warehouses, value: { itemId: item_frame, bomId: bom_frame_1, routingId: rt_frame_sc, qty: 100, plannedStart: '2026-09-20', plannedEnd: '2026-09-30', warehouseId: wh_main, rmWarehouseId: wh_rm, status: Planned, notes: Old BOM for export spec } }
+    responses:
+      '201':
+        description: Order
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/ProductionOrder' }
+            examples:
+              draft: { $ref: '../components/examples/production.yaml#/ProductionOrderDraft' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Business rule
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              noBom: { summary: No active BOM, value: { code: NO_BOM, message: Steel Frame A1 has no active BOM as of 2026-09-15, field: bomId, correlationId: corr_9f1c2e7a } }
+              superseded: { summary: BOM superseded, value: { code: BOM_SUPERSEDED, message: 'BOM-FRAME-A1 v1 is superseded by v2 (effective 2026-10-01)', field: bomId, correlationId: corr_9f1c2e7a } }
+
+/production/orders/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Production]
+    summary: Get an order (components, operations, costs)
+    operationId: getProductionOrder
+    x-permission: production.order.view
+    responses:
+      '200':
+        description: Order
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/ProductionOrder' }
+            examples:
+              draft: { $ref: '../components/examples/production.yaml#/ProductionOrderDraft' }
+              inProgress: { $ref: '../components/examples/production.yaml#/ProductionOrderInProgress' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Production]
+    summary: Edit a Draft / Planned order (re-explodes when qty or BOM changes)
+    operationId: updateProductionOrder
+    x-permission: production.order.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/production.yaml#/ProductionOrderPatch' }
+          examples:
+            qty: { summary: Change quantity, value: { expectedVersion: 1, qty: 60 } }
+            dates: { summary: Reschedule, value: { expectedVersion: 1, plannedStart: '2026-09-18', priority: High } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/ProductionOrder' }
+            examples:
+              updated: { $ref: '../components/examples/production.yaml#/ProductionOrderDraft' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Production]
+    summary: Delete a Draft order (cancel otherwise)
+    operationId: deleteProductionOrder
+    x-permission: production.order.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/production/orders/{id}/availability:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Production]
+    summary: Component availability vs requirement
+    operationId: getProductionOrderAvailability
+    x-permission: production.order.view
+    responses:
+      '200':
+        description: Lines
+        content:
+          application/json:
+            schema: { type: object, required: [data, shortfalls], properties: { data: { type: array, items: { $ref: '../components/schemas/production.yaml#/AvailabilityLine' } }, shortfalls: { type: integer } } }
+            examples:
+              short: { summary: One shortfall, value: { data: [{ componentId: oc_1, itemName: Steel Rod 4mm, required: 612, available: 2682, shortfall: 0, uom: KG, warehouse: RM Store }, { componentId: oc_2, itemName: Welding electrode, required: 300, available: 120, shortfall: 180, uom: NOS, warehouse: RM Store }, { componentId: oc_3, itemName: Powder paint grey, required: 20, available: 45, shortfall: 0, uom: L, warehouse: RM Store }], shortfalls: 1 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/production/orders/{id}/plan:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Production]
+    summary: Draft → Planned
+    operationId: planProductionOrder
+    x-permission: production.order.edit
+    responses:
+      '200':
+        description: Planned
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/ProductionOrder' }
+            examples:
+              planned: { $ref: '../components/examples/production.yaml#/ProductionOrderDraft' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/production/orders/{id}/release:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Production]
+    summary: Release (checks component availability; routes through 'Production Order' workflow when a rule matches)
+    operationId: releaseProductionOrder
+    x-permission: production.order.submit
+    x-frd: [FR-MFG-008]
+    x-idempotent: true
+    x-workflow-doc-type: Production Order
+    x-events: [DocumentSubmitted, DocumentApproved]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/production.yaml#/ReleaseRequest' }
+          examples:
+            default: { summary: Normal, value: {} }
+            acknowledge: { summary: Release despite shortfall, value: { acknowledgeShortfall: true } }
+    responses:
+      '200':
+        description: Outcome
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/production.yaml#/ProductionOrder' }
+                    outcome: { type: string, enum: [released, routed-for-approval] }
+                    availability: { type: array, items: { $ref: '../components/schemas/production.yaml#/AvailabilityLine' } }
+            examples:
+              released: { summary: outcome = released, value: { document: { $ref: '#/components/examples/ProductionOrderInProgress/value' }, outcome: released, availability: [{ componentId: oc_1, itemName: Steel Rod 4mm, required: 612, available: 2682, shortfall: 0, uom: KG, warehouse: RM Store }], warnings: [] } }
+              routed: { summary: outcome = routed-for-approval (value over rule threshold), value: { document: { $ref: '#/components/examples/ProductionOrderDraft/value' }, outcome: routed-for-approval, approval: { id: apr_mo_41, companyId: co_acme, docType: Production Order, collection: productionOrders, docId: mo_0041, docNumber: PO-MFG/2026-27/00041, amount: 119000, currency: INR, branchId: br_ho, requesterId: usr_suresh, requesterName: Suresh Patel, steps: [{ order: 1, name: Plant head, approverType: Role, approverRef: role_plant, approverLabel: Plant Head, status: Pending, commentRequired: false }], currentStep: 0, status: Pending, submittedAt: '2026-09-13T09:30:00Z', history: [], createdAt: '2026-09-13T09:30:00Z', updatedAt: '2026-09-13T09:30:00Z', version: 1 }, warnings: [] } }
+              acknowledged: { summary: Released with acknowledged shortfall, value: { document: { $ref: '#/components/examples/ProductionOrderInProgress/value' }, outcome: released, availability: [{ componentId: oc_2, itemName: Welding electrode, required: 300, available: 120, shortfall: 180, uom: NOS, warehouse: RM Store }], warnings: ['Component shortfall acknowledged: Welding electrode short 180 NOS'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Shortfall
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              shortfall: { summary: Components short, value: { code: SHORTFALL, message: 'Component shortfall: Welding electrode 180 NOS', details: { lines: [{ componentId: oc_2, itemName: Welding electrode, required: 300, available: 120, shortfall: 180, uom: NOS, warehouse: RM Store }] }, correlationId: corr_9f1c2e7a } }
+
+/production/orders/{id}/start:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Production]
+    summary: Released → In Progress
+    operationId: startProductionOrder
+    x-permission: production.order.edit
+    responses:
+      '200':
+        description: In progress
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/ProductionOrder' }
+            examples:
+              inProgress: { $ref: '../components/examples/production.yaml#/ProductionOrderInProgress' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/production/orders/{id}/complete:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Production]
+    summary: Complete (short-close with a reason when output < qty)
+    operationId: completeProductionOrder
+    x-permission: production.order.edit
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { type: object, properties: { shortCloseReason: { type: string, example: Customer reduced the order to 48 } } }
+          examples:
+            full: { summary: All output received, value: {} }
+            short: { summary: Short close, value: { shortCloseReason: Customer reduced the order to 48 } }
+    responses:
+      '200':
+        description: Completed
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/ProductionOrder' }
+            examples:
+              completed: { summary: Completed, value: { id: mo_0041, companyId: co_acme, number: PO-MFG/2026-27/00041, docType: Production Order, date: '2026-09-13', branchId: br_ho, status: Completed, itemId: item_frame, itemCode: FRM-A1, itemName: Steel Frame A1, uom: NOS, tracking: Serial, bomId: bom_frame_2, bomCode: BOM-FRAME-A1, bomVersion: 2, routingId: rt_frame, routingCode: RT-FRAME, qty: 50, plannedStart: '2026-09-15', plannedEnd: '2026-09-19', actualStart: '2026-09-15', actualEnd: '2026-09-19', warehouseId: wh_main, wipWarehouseId: wh_wip, rmWarehouseId: wh_rm, scrapWarehouseId: wh_scrap, lotNumber: LOT-FRM-0041, serialPrefix: SN-FRM, components: [], operations: [], costs: { materialStd: 98000, materialActual: 99200, labourStd: 12000, labourActual: 12600, machineStd: 7500, machineActual: 7500, overheadStd: 4000, overheadActual: 4000, subcontractStd: 0, subcontractActual: 0, scrap: 4760, byProductCredit: 2500, outputValue: 114240, totalStd: 119000, totalActual: 123300, variance: 4300, variancePct: 3.6, wipBalance: 1800, closeVariance: 1800 }, costingMethod: Standard, stdUnitCost: 2380, receivedQty: 48, scrapQty: 2, byProductsReceived: [{ itemId: item_offcut, itemName: Steel offcut, qty: 25, value: 2500 }], journalIds: [jnl_mi_112, jnl_pr_88], priority: Normal, correlationId: corr_mo41, releasedAt: '2026-09-14T09:00:00Z', releasedBy: Suresh Patel, startedAt: '2026-09-15T08:00:00Z', completedAt: '2026-09-19T17:00:00Z', createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-19T17:00:00Z', version: 14 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Business rule
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              subcontract: { summary: Subcontract open, value: { code: SUBCONTRACT_OPEN, message: A subcontract order for this production order is still open, details: { subcontractOrder: SC/2026-27/00007 }, correlationId: corr_9f1c2e7a } }
+              reason: { summary: Short close without reason, value: { code: VALIDATION, message: 'Output 48 of 50 — a short-close reason is required', field: shortCloseReason, correlationId: corr_9f1c2e7a } }
+
+/production/orders/{id}/close:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Production]
+    summary: Close (posts the WIP variance journal; locks the order)
+    operationId: closeProductionOrder
+    x-permission: production.order.post
+    x-frd: [FR-MFG-011, FR-MFG-012]
+    x-idempotent: true
+    x-events: [DocumentPosted, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Closed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/production.yaml#/ProductionOrder' }
+            examples:
+              closed: { summary: Variance posted, value: { document: { id: mo_0041, companyId: co_acme, number: PO-MFG/2026-27/00041, docType: Production Order, date: '2026-09-13', branchId: br_ho, status: Closed, itemId: item_frame, itemCode: FRM-A1, itemName: Steel Frame A1, uom: NOS, tracking: Serial, bomId: bom_frame_2, bomCode: BOM-FRAME-A1, bomVersion: 2, qty: 50, plannedStart: '2026-09-15', plannedEnd: '2026-09-19', warehouseId: wh_main, wipWarehouseId: wh_wip, rmWarehouseId: wh_rm, scrapWarehouseId: wh_scrap, components: [], operations: [], costs: { materialStd: 98000, materialActual: 99200, labourStd: 12000, labourActual: 12600, machineStd: 7500, machineActual: 7500, overheadStd: 4000, overheadActual: 4000, subcontractStd: 0, subcontractActual: 0, scrap: 4760, byProductCredit: 2500, outputValue: 114240, totalStd: 119000, totalActual: 123300, variance: 4300, variancePct: 3.6, wipBalance: 0, closeVariance: 1800 }, costingMethod: Standard, stdUnitCost: 2380, receivedQty: 48, scrapQty: 2, byProductsReceived: [], journalIds: [jnl_mi_112, jnl_pr_88, jnl_mo_41c], closeJournalId: jnl_mo_41c, priority: Normal, correlationId: corr_mo41, closedAt: '2026-09-20T10:00:00Z', closedBy: Priya Sharma, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-20T10:00:00Z', version: 15 }, outcome: posted, journal: { id: jnl_mo_41c, companyId: co_acme, number: JV/2026-27/00415, date: '2026-09-20', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Production Order, sourceId: mo_0041, sourceNumber: PO-MFG/2026-27/00041, narration: Production variance PO-MFG/2026-27/00041, lines: [{ id: j1, accountId: acc_5850, accountCode: '5850', accountName: Production variance, dr: 1800, cr: 0, drBase: 1800, crBase: 0, dimensions: {} }, { id: j2, accountId: acc_1230, accountCode: '1230', accountName: Work in progress, dr: 0, cr: 1800, drBase: 0, crBase: 1800, dimensions: {} }], totalDr: 1800, totalCr: 1800, postedAt: '2026-09-20T10:00:00Z', postedBy: Priya Sharma, correlationId: corr_mo41, createdAt: '2026-09-20T10:00:00Z', updatedAt: '2026-09-20T10:00:00Z', version: 1 }, warnings: [] } }
+              noVariance: { summary: WIP already zero, value: { document: { $ref: '#/components/examples/ProductionOrderInProgress/value' }, outcome: posted, warnings: ['WIP balance is zero — no variance journal'] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/production/orders/{id}/reopen:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Production]
+    summary: Reopen a Completed order (Closed orders cannot be reopened)
+    operationId: reopenProductionOrder
+    x-permission: production.order.approve
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Two more frames to be produced from remaining RM } }
+    responses:
+      '200':
+        description: In progress again
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/ProductionOrder' }
+            examples:
+              reopened: { $ref: '../components/examples/production.yaml#/ProductionOrderInProgress' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/production/orders/{id}/cancel:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Production]
+    summary: Cancel (blocked once materials are issued or output received)
+    operationId: cancelProductionOrder
+    x-permission: production.order.edit
+    x-events: [DocumentCancelled]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason (10+ chars), value: { reason: Sales order SO/2026-27/00090 cancelled by customer } }
+    responses:
+      '200':
+        description: Cancelled
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/ProductionOrder' }
+            examples:
+              cancelled: { summary: Cancelled, value: { id: mo_0045, companyId: co_acme, number: PO-MFG/2026-27/00045, docType: Production Order, date: '2026-09-13', branchId: br_ho, status: Cancelled, itemId: item_frame, itemCode: FRM-A1, itemName: Steel Frame A1, uom: NOS, tracking: Serial, bomId: bom_frame_2, bomCode: BOM-FRAME-A1, bomVersion: 2, qty: 20, plannedStart: '2026-09-16', plannedEnd: '2026-09-18', warehouseId: wh_main, wipWarehouseId: wh_wip, rmWarehouseId: wh_rm, scrapWarehouseId: wh_scrap, components: [], operations: [], costs: { wipBalance: 0, closeVariance: 0 }, costingMethod: Standard, stdUnitCost: 2380, receivedQty: 0, scrapQty: 0, byProductsReceived: [], journalIds: [], priority: High, reasonForCancel: Sales order SO/2026-27/00090 cancelled by customer, correlationId: corr_mo45, cancelledAt: '2026-09-13T12:00:00Z', createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T12:00:00Z', version: 3 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: State conflict
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              issues: { summary: Materials issued, value: { code: HAS_ISSUES, message: 'Materials have been issued — return them first, or complete and close the order', correlationId: corr_9f1c2e7a } }
+              receipts: { summary: Output received, value: { code: HAS_RECEIPTS, message: Output has been received — the order cannot be cancelled, correlationId: corr_9f1c2e7a } }
+
+# ── operations ────────────────────────────────────────────────────────────
+
+/production/orders/{id}/operations/{opId}/start:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+    - { name: opId, in: path, required: true, schema: { type: string }, example: op_20 }
+  post:
+    tags: [Production]
+    summary: Start an operation (clock on)
+    operationId: startOperation
+    x-permission: production.order.edit
+    responses:
+      '200':
+        description: Operation
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/OrderOperation' }
+            examples:
+              started: { summary: In progress, value: { id: op_20, seq: 20, name: Welding, workCentreId: wc_weld, workCentreName: Welding bay, setupMin: 20, runMinPerUnit: 9, labourRate: 300, machineRate: 500, overheadRate: 120, yieldPct: 100, parallel: false, subcontract: false, status: In Progress, startedAt: '2026-09-16T08:05:00Z', actualSetupMin: 0, actualRunMin: 0, labourCost: 0, machineCost: 0, overheadCost: 0, subcontractCost: 0, completedQty: 0, scrapQty: 0 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/production/orders/{id}/operations/{opId}/record:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+    - { name: opId, in: path, required: true, schema: { type: string }, example: op_20 }
+  post:
+    tags: [Production]
+    summary: Record time / output on an operation (partial)
+    operationId: recordOperation
+    x-permission: production.order.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/production.yaml#/OperationRecordRequest' }
+          examples:
+            shiftEnd: { summary: End of shift, value: { addMinutes: 240, completedQty: 26 } }
+            scrap: { summary: Scrap with reason, value: { completedQty: 30, scrapQty: 1, scrapReason: Weld crack } }
+    responses:
+      '200':
+        description: Operation
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/OrderOperation' }
+            examples:
+              recorded: { summary: Recorded, value: { id: op_20, seq: 20, name: Welding, workCentreId: wc_weld, workCentreName: Welding bay, setupMin: 20, runMinPerUnit: 9, labourRate: 300, machineRate: 500, overheadRate: 120, yieldPct: 100, parallel: false, subcontract: false, status: In Progress, startedAt: '2026-09-16T08:05:00Z', actualSetupMin: 20, actualRunMin: 240, labourCost: 1300, machineCost: 2167, overheadCost: 520, subcontractCost: 0, completedQty: 26, scrapQty: 0 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Over quantity
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              overQty: { summary: Completed + scrap > order qty, value: { code: OVER_QTY, message: 'Completed + scrap (52) exceeds order quantity 50', field: completedQty, correlationId: corr_9f1c2e7a } }
+
+/production/orders/{id}/operations/{opId}/complete:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+    - { name: opId, in: path, required: true, schema: { type: string }, example: op_20 }
+  post:
+    tags: [Production]
+    summary: Complete an operation (posts conversion cost to WIP)
+    operationId: completeOperation
+    x-permission: production.order.edit
+    x-idempotent: true
+    x-events: [JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/production.yaml#/OperationRecordRequest' }
+          examples:
+            final: { summary: Final figures, value: { actualSetupMin: 20, actualRunMin: 460, completedQty: 49, scrapQty: 1, scrapReason: Weld crack } }
+    responses:
+      '200':
+        description: Done
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/production.yaml#/ProductionOrder' }
+                    operation: { $ref: '../components/schemas/production.yaml#/OrderOperation' }
+            examples:
+              done: { summary: Conversion posted, value: { document: { $ref: '#/components/examples/ProductionOrderInProgress/value' }, outcome: posted, operation: { id: op_20, seq: 20, name: Welding, workCentreId: wc_weld, workCentreName: Welding bay, setupMin: 20, runMinPerUnit: 9, labourRate: 300, machineRate: 500, overheadRate: 120, yieldPct: 100, parallel: false, subcontract: false, status: Done, startedAt: '2026-09-16T08:05:00Z', stoppedAt: '2026-09-16T16:30:00Z', actualSetupMin: 20, actualRunMin: 460, labourCost: 2400, machineCost: 4000, overheadCost: 960, subcontractCost: 0, completedQty: 49, scrapQty: 1, scrapReason: Weld crack, journalId: jnl_op_20, completedBy: Suresh Patel, completedAt: '2026-09-16T16:30:00Z' }, journal: { id: jnl_op_20, companyId: co_acme, number: JV/2026-27/00416, date: '2026-09-16', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Production Order, sourceId: mo_0041, sourceNumber: PO-MFG/2026-27/00041, narration: 'Conversion cost — Welding · PO-MFG/2026-27/00041', lines: [{ id: j1, accountId: acc_1230, accountCode: '1230', accountName: Work in progress, dr: 7360, cr: 0, drBase: 7360, crBase: 0, dimensions: {} }, { id: j2, accountId: acc_5810, accountCode: '5810', accountName: Labour absorbed, dr: 0, cr: 2400, drBase: 0, crBase: 2400, dimensions: {} }, { id: j3, accountId: acc_5815, accountCode: '5815', accountName: Machine absorbed, dr: 0, cr: 4000, drBase: 0, crBase: 4000, dimensions: {} }, { id: j4, accountId: acc_5820, accountCode: '5820', accountName: Overhead absorbed, dr: 0, cr: 960, drBase: 0, crBase: 960, dimensions: {} }], totalDr: 7360, totalCr: 7360, postedAt: '2026-09-16T16:30:00Z', postedBy: Suresh Patel, correlationId: corr_mo41, createdAt: '2026-09-16T16:30:00Z', updatedAt: '2026-09-16T16:30:00Z', version: 1 }, warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/production/orders/{id}/operations:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Production]
+    summary: Add a rework operation
+    operationId: addReworkOperation
+    x-permission: production.order.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/production.yaml#/ReworkOperationRequest' }
+          examples:
+            reweld: { summary: Re-weld, value: { name: Re-weld, workCentreId: wc_weld, reason: 3 frames failed QC — porous welds } }
+    responses:
+      '201':
+        description: Operation added
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/OrderOperation' }
+            examples:
+              rework: { summary: Rework op, value: { id: op_25, seq: 25, name: Re-weld, workCentreId: wc_weld, workCentreName: Welding bay, setupMin: 0, runMinPerUnit: 0, labourRate: 300, machineRate: 500, overheadRate: 120, yieldPct: 100, parallel: false, subcontract: false, status: Pending, actualSetupMin: 0, actualRunMin: 0, labourCost: 0, machineCost: 0, overheadCost: 0, subcontractCost: 0, completedQty: 0, scrapQty: 0, isRework: true } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── material issues ───────────────────────────────────────────────────────
+
+/production/material-issues:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Production]
+    summary: Material issues / returns / backflushes
+    operationId: listMaterialIssues
+    x-permission: production.order.view
+    x-frd: [FR-MFG-009]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: orderId, in: query, schema: { type: string } }
+      - { name: type, in: query, schema: { type: string, enum: [Issue, Return, Backflush] } }
+      - $ref: '../components/parameters.yaml#/Status'
+    responses:
+      '200':
+        description: Issues
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/production.yaml#/MaterialIssue' } }
+            examples:
+              firstPage: { summary: Issues, value: { data: [{ $ref: '#/components/examples/MaterialIssuePosted/value' }], meta: { nextCursor: null, limit: 25, total: 112 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Production]
+    summary: Issue components to WIP (or return to RM store) — posts stock + journal
+    description: Issue moves RM → WIP warehouse and posts Dr WIP / Cr Inventory. Over-issue beyond `overIssueTolerancePct` is rejected. Batch / serial picks are required for tracked items.
+    operationId: createMaterialIssue
+    x-permission: production.order.post
+    x-idempotent: true
+    x-events: [StockMoved, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/production.yaml#/MaterialIssueCreate' }
+          examples:
+            fullIssue: { summary: Issue all planned components, value: { orderId: mo_0041, lines: [{ componentId: oc_1, itemId: item_stl4, qty: 612, batch: B-2609-11 }, { componentId: oc_2, itemId: item_electrode, qty: 300 }, { componentId: oc_3, itemId: item_paint, qty: 20, batch: PNT-2608 }] } }
+            partial: { summary: Partial issue with substitute, value: { orderId: mo_0041, lines: [{ componentId: oc_3, itemId: item_paint_alt, qty: 20, batch: PNT-ALT-01 }] } }
+            return: { summary: Return unused to RM, value: { orderId: mo_0041, type: Return, lines: [{ componentId: oc_1, itemId: item_stl4, qty: 12, batch: B-2609-11 }], notes: Unused rods after short close } }
+    responses:
+      '201':
+        description: Posted
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/production.yaml#/MaterialIssue' }
+            examples:
+              issued: { summary: Issue posted, value: { document: { $ref: '#/components/examples/MaterialIssuePosted/value' }, outcome: posted, journal: { id: jnl_mi_112, companyId: co_acme, number: JV/2026-27/00417, date: '2026-09-15', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Material Issue, sourceId: mi_0112, sourceNumber: MI/2026-27/00112, narration: 'Material issue MI/2026-27/00112 → PO-MFG/2026-27/00041', lines: [{ id: j1, accountId: acc_1230, accountCode: '1230', accountName: Work in progress, dr: 100000, cr: 0, drBase: 100000, crBase: 0, dimensions: {} }, { id: j2, accountId: acc_1210, accountCode: '1210', accountName: Inventory — Raw Material, dr: 0, cr: 100000, drBase: 0, crBase: 100000, dimensions: {} }], totalDr: 100000, totalCr: 100000, postedAt: '2026-09-15T08:30:00Z', postedBy: Suresh Patel, correlationId: corr_mo41, createdAt: '2026-09-15T08:30:00Z', updatedAt: '2026-09-15T08:30:00Z', version: 1 }, stockMovements: [{ id: sm_120, companyId: co_acme, date: '2026-09-15', itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, warehouseId: wh_rm, qty: -612, uom: KG, baseQty: -612, batch: B-2609-11, rate: 49.8, value: -30477.6, type: Issue, sourceType: Material Issue, sourceId: mi_0112, sourceNumber: MI/2026-27/00112, journalId: jnl_mi_112, balanceAfter: 2070, createdAt: '2026-09-15T08:30:00Z', updatedAt: '2026-09-15T08:30:00Z', version: 1 }], warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Business rule
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              overIssue: { summary: Over tolerance, value: { code: OVER_CONSUMPTION, message: 'Steel Rod 4mm: 700 KG exceeds planned 612 + 5% tolerance', field: 'lines[0].qty', correlationId: corr_9f1c2e7a } }
+              batch: { summary: Batch missing, value: { code: BATCH_REQUIRED, message: Steel Rod 4mm is batch-tracked — pick a batch, field: 'lines[0].batch', correlationId: corr_9f1c2e7a } }
+              stock: { summary: Insufficient stock, value: { code: NEGATIVE_STOCK, message: Welding electrode — available 120 in RM Store, details: { itemId: item_electrode, available: 120, requested: 300 }, correlationId: corr_9f1c2e7a } }
+              notReleased: { summary: Order not released, value: { code: INVALID_STATE, message: Order must be Released or In Progress to issue materials, correlationId: corr_9f1c2e7a } }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/production/material-issues/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Production]
+    summary: Get an issue
+    operationId: getMaterialIssue
+    x-permission: production.order.view
+    responses:
+      '200':
+        description: Issue
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/MaterialIssue' }
+            examples:
+              posted: { $ref: '../components/examples/production.yaml#/MaterialIssuePosted' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/production/material-issues/{id}/reverse:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Production]
+    summary: Reverse an issue (blocked once the material is consumed by a receipt)
+    operationId: reverseMaterialIssue
+    x-permission: production.order.reverse
+    x-idempotent: true
+    x-events: [StockReversed, JournalReversed]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Issued against the wrong order } }
+    responses:
+      '200':
+        description: Reversed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/production.yaml#/MaterialIssue' }
+            examples:
+              reversed: { summary: Reversed, value: { document: { id: mi_0112, companyId: co_acme, number: MI/2026-27/00112, docType: Material Issue, date: '2026-09-15', branchId: br_ho, orderId: mo_0041, orderNumber: PO-MFG/2026-27/00041, type: Issue, lines: [], status: Reversed, totalValue: 100000, journalId: jnl_mi_112, journalNumber: JV/2026-27/00417, movementIds: [sm_120, sm_121, sm_122], idempotencyKey: 'mi:mo_0041:1', reversedById: mi_0113, reversalReason: Issued against the wrong order, postedAt: '2026-09-15T08:30:00Z', postedBy: Suresh Patel, correlationId: corr_mo41, createdAt: '2026-09-15T08:30:00Z', updatedAt: '2026-09-15T09:00:00Z', version: 2 }, outcome: reversed, warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: State conflict
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              consumed: { summary: Already consumed, value: { code: HAS_OUTPUT, message: Output has been received against this issue — reverse the receipt first, details: { receiptNumber: PR/2026-27/00088 }, correlationId: corr_9f1c2e7a } }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+# ── production receipts ───────────────────────────────────────────────────
+
+/production/receipts:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Production]
+    summary: Production receipts (finished goods, by-products, scrap)
+    description: Tabs → On hold (QC) · Posted · Rejected · Reversed · All.
+    operationId: listProductionReceipts
+    x-permission: production.order.view
+    x-frd: [FR-MFG-010]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: orderId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/Status'
+    responses:
+      '200':
+        description: Receipts
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/production.yaml#/ProductionReceipt' } }
+            examples:
+              firstPage: { summary: Receipts, value: { data: [{ $ref: '#/components/examples/ProductionReceiptPosted/value' }], meta: { nextCursor: null, limit: 25, total: 88, counts: { 'On hold': 1, Posted: 84, Rejected: 1, Reversed: 2, All: 88 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Production]
+    summary: Receive output (good + scrap + by-products; optional backflush; QC hold)
+    description: "When `qcRequired` (default from settings) the receipt lands in the WIP warehouse as `Hold` with an inspection; stock reaches the FG warehouse only after `resolve-hold`. Otherwise it posts immediately at standard (or actual) unit cost."
+    operationId: createProductionReceipt
+    x-permission: production.order.post
+    x-idempotent: true
+    x-events: [StockMoved, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/production.yaml#/ProductionReceiptCreate' }
+          examples:
+            goodAndScrap: { summary: "Good + scrap, serials", value: { orderId: mo_0041, qty: 48, scrapQty: 2, scrapReason: Weld crack, serials: [SN-FRM-0041-001, SN-FRM-0041-002], date: '2026-09-19' } }
+            byProducts: { summary: With by-products, value: { orderId: mo_0041, qty: 48, byProducts: [{ itemId: item_offcut, qty: 25 }], scrapQty: 2 } }
+            qcHold: { summary: QC hold explicitly, value: { orderId: mo_0041, qty: 48, qcRequired: true } }
+            backflush: { summary: Backflush components pro rata, value: { orderId: mo_0042, qty: 100, backflush: true, batch: LOT-CHAI-0042 } }
+    responses:
+      '201':
+        description: Receipt
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/production.yaml#/ProductionReceipt' }
+                    inspection: { $ref: '../components/schemas/production.yaml#/QualityInspection' }
+                    outcome: { type: string, enum: [posted, on-hold] }
+            examples:
+              posted: { summary: outcome = posted, value: { document: { $ref: '#/components/examples/ProductionReceiptPosted/value' }, outcome: posted, journal: { id: jnl_pr_88, companyId: co_acme, number: JV/2026-27/00418, date: '2026-09-19', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Production Receipt, sourceId: pr_0088, sourceNumber: PR/2026-27/00088, narration: 'Production receipt PR/2026-27/00088 · 48 Steel Frame A1 + scrap 2', lines: [{ id: j1, accountId: acc_1200, accountCode: '1200', accountName: Inventory — Finished Goods, dr: 114240, cr: 0, drBase: 114240, crBase: 0, dimensions: {} }, { id: j2, accountId: acc_5700, accountCode: '5700', accountName: Scrap & shortage, dr: 4760, cr: 0, drBase: 4760, crBase: 0, dimensions: {} }, { id: j3, accountId: acc_1230, accountCode: '1230', accountName: Work in progress, dr: 0, cr: 119000, drBase: 0, crBase: 119000, dimensions: {} }], totalDr: 119000, totalCr: 119000, postedAt: '2026-09-19T17:00:00Z', postedBy: Suresh Patel, correlationId: corr_mo41, createdAt: '2026-09-19T17:00:00Z', updatedAt: '2026-09-19T17:00:00Z', version: 1 }, stockMovements: [{ id: sm_130, companyId: co_acme, date: '2026-09-19', itemId: item_frame, itemCode: FRM-A1, itemName: Steel Frame A1, warehouseId: wh_main, qty: 48, uom: NOS, baseQty: 48, batch: LOT-FRM-0041, rate: 2380, value: 114240, type: Production Receipt, sourceType: Production Receipt, sourceId: pr_0088, sourceNumber: PR/2026-27/00088, journalId: jnl_pr_88, balanceAfter: 60, createdAt: '2026-09-19T17:00:00Z', updatedAt: '2026-09-19T17:00:00Z', version: 1 }], warnings: [] } }
+              onHold: { summary: outcome = on-hold (inspection created), value: { document: { id: pr_0088, companyId: co_acme, number: PR/2026-27/00088, docType: Production Receipt, date: '2026-09-19', branchId: br_ho, orderId: mo_0041, orderNumber: PO-MFG/2026-27/00041, itemId: item_frame, itemCode: FRM-A1, itemName: Steel Frame A1, qty: 48, uom: NOS, batch: LOT-FRM-0041, warehouseId: wh_main, byProducts: [], scrapQty: 2, scrapReason: Weld crack, scrapValue: 4760, qcRequired: true, inspectionId: qi_0027, inspectionNumber: QI/2026-27/00027, status: Hold, unitCost: 2380, costBasis: Standard, value: 114240, backflush: false, movementIds: [], correlationId: corr_mo41, idempotencyKey: 'pr:mo_0041:1', createdAt: '2026-09-19T17:00:00Z', updatedAt: '2026-09-19T17:00:00Z', version: 1 }, outcome: on-hold, inspection: { $ref: '#/components/examples/InspectionOpen/value' }, warnings: ['Stock stays in WIP until inspection QI/2026-27/00027 completes'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Business rule
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              overQty: { summary: Exceeds remaining, value: { code: OVER_QTY, message: 'Good + scrap (52) exceeds remaining 50 on PO-MFG/2026-27/00041', field: qty, correlationId: corr_9f1c2e7a } }
+              serials: { summary: Serials required, value: { code: SERIAL_REQUIRED, message: Steel Frame A1 is serial-tracked — provide 48 serials, field: serials, correlationId: corr_9f1c2e7a } }
+              empty: { summary: Nothing entered, value: { code: VALIDATION, message: Enter a good quantity and/or scrap quantity, field: qty, correlationId: corr_9f1c2e7a } }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/production/receipts/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Production]
+    summary: Get a receipt
+    operationId: getProductionReceipt
+    x-permission: production.order.view
+    responses:
+      '200':
+        description: Receipt
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/ProductionReceipt' }
+            examples:
+              posted: { $ref: '../components/examples/production.yaml#/ProductionReceiptPosted' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/production/receipts/{id}/resolve-hold:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Production]
+    summary: Resolve a QC hold (accepted → FG, rejected → scrap)
+    description: Normally driven by completing the linked inspection; this endpoint resolves directly when no plan applies.
+    operationId: resolveHeldReceipt
+    x-permission: production.qc.approve
+    x-idempotent: true
+    x-events: [StockMoved, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/production.yaml#/ResolveHoldRequest' }
+          examples:
+            allGood: { summary: Accept all, value: { acceptedQty: 48, rejectedQty: 0 } }
+            partial: { summary: One rejected, value: { acceptedQty: 47, rejectedQty: 1, reason: Porous weld on SN-FRM-0041-017 } }
+    responses:
+      '200':
+        description: Resolved
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/production.yaml#/ProductionReceipt' }
+            examples:
+              posted: { summary: Posted to FG, value: { document: { $ref: '#/components/examples/ProductionReceiptPosted/value' }, outcome: posted, warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Not on hold
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              notHold: { summary: Not on hold, value: { code: INVALID_STATE, message: Receipt PR/2026-27/00088 is Posted, correlationId: corr_9f1c2e7a } }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/production/receipts/{id}/reverse:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Production]
+    summary: Reverse a receipt (blocked once the output has moved downstream)
+    operationId: reverseProductionReceipt
+    x-permission: production.order.reverse
+    x-idempotent: true
+    x-events: [StockReversed, JournalReversed]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: "Counted wrong — 46 good, not 48" } }
+    responses:
+      '200':
+        description: Reversed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/production.yaml#/ProductionReceipt' }
+            examples:
+              reversed: { summary: Reversed, value: { document: { id: pr_0088, companyId: co_acme, number: PR/2026-27/00088, docType: Production Receipt, date: '2026-09-19', branchId: br_ho, orderId: mo_0041, orderNumber: PO-MFG/2026-27/00041, itemId: item_frame, itemCode: FRM-A1, itemName: Steel Frame A1, qty: 48, uom: NOS, batch: LOT-FRM-0041, warehouseId: wh_main, byProducts: [], scrapQty: 2, scrapValue: 4760, qcRequired: false, status: Reversed, unitCost: 2380, costBasis: Standard, value: 114240, backflush: false, journalId: jnl_pr_88, journalNumber: JV/2026-27/00418, movementIds: [sm_130, sm_131], reversedById: pr_0089, reversalReason: 'Counted wrong — 46 good, not 48', postedAt: '2026-09-19T17:00:00Z', postedBy: Suresh Patel, correlationId: corr_mo41, idempotencyKey: 'pr:mo_0041:1', createdAt: '2026-09-19T17:00:00Z', updatedAt: '2026-09-19T18:00:00Z', version: 2 }, outcome: reversed, warnings: ['Backflush issue MI/2026-27/00113 reversed as well'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: State conflict
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              downstream: { summary: Output already moved, value: { code: INVALID_STATE, message: '12 of 48 units were delivered on DC/2026-27/00031 — reverse those movements first', correlationId: corr_9f1c2e7a } }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+# ── quality inspections ───────────────────────────────────────────────────
+
+/production/inspections:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Production]
+    summary: Quality inspections
+    description: Tabs → Open · In progress · Completed · Cancelled · All. Query examples — `?type=Finished goods` · `?refType=GRN` · `?outcome=Fail`.
+    operationId: listInspections
+    x-permission: production.qc.view
+    x-frd: [FR-MFG-013]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: type, in: query, schema: { $ref: '../components/schemas/production.yaml#/InspectionType' } }
+      - { name: refType, in: query, schema: { type: string } }
+      - { name: outcome, in: query, schema: { type: string, enum: [Pass, Fail, Partial] } }
+      - $ref: '../components/parameters.yaml#/ItemId'
+    responses:
+      '200':
+        description: Inspections
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/production.yaml#/QualityInspection' } }
+                    stats: { type: object, properties: { open: { type: integer }, passRatePct: { type: number }, rejectedQty: { type: number } } }
+            examples:
+              firstPage: { summary: Inspections, value: { data: [{ $ref: '#/components/examples/InspectionOpen/value' }], stats: { open: 2, passRatePct: 96.4, rejectedQty: 9 }, meta: { nextCursor: null, limit: 25, total: 27, counts: { Open: 2, 'In progress': 1, Completed: 23, Cancelled: 1, All: 27 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Production]
+    summary: Create an inspection (against a GRN line, production receipt, operation or subcontract order)
+    operationId: createInspection
+    x-permission: production.qc.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/production.yaml#/InspectionCreate' }
+          examples:
+            incoming: { summary: Incoming on a GRN line, value: { type: Incoming, itemId: item_stl4, refType: GRN, refId: grn_00080, refLineId: ln_g40, lotQty: 2950, batch: B-2609-11 } }
+            inProcess: { summary: In-process at an operation, value: { type: In-process, itemId: item_frame, refType: Production Order, refId: mo_0041, operationId: op_20, lotQty: 49, sampleQty: 5 } }
+            fg: { summary: Finished goods on a held receipt, value: { type: Finished goods, itemId: item_frame, refType: Production Receipt, refId: pr_0088, lotQty: 48, serials: [SN-FRM-0041-001, SN-FRM-0041-017] } }
+    responses:
+      '201':
+        description: Inspection
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/QualityInspection' }
+            examples:
+              open: { $ref: '../components/examples/production.yaml#/InspectionOpen' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/production/inspections/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Production]
+    summary: Get an inspection
+    operationId: getInspection
+    x-permission: production.qc.view
+    responses:
+      '200':
+        description: Inspection
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/QualityInspection' }
+            examples:
+              open: { $ref: '../components/examples/production.yaml#/InspectionOpen' }
+              completed: { $ref: '../components/examples/production.yaml#/InspectionCompleted' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Production]
+    summary: Save check results (progress)
+    operationId: updateInspectionResults
+    x-permission: production.qc.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/production.yaml#/InspectionResultsPatch' }
+          examples:
+            results: { summary: Two checks, value: { inspectorName: Suresh Patel, results: [{ checkId: chk_1, pass: true }, { checkId: chk_2, value: '1201', pass: true }] } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/QualityInspection' }
+            examples:
+              inProgress: { summary: In progress, value: { id: qi_0027, companyId: co_acme, number: QI/2026-27/00027, docType: Quality Inspection, date: '2026-09-19', branchId: br_ho, type: Finished goods, planId: qp_fg_frame, planName: Frame finished-goods check, itemId: item_frame, itemCode: FRM-A1, itemName: Steel Frame A1, refType: Production Receipt, refId: pr_0088, refNumber: PR/2026-27/00088, lotQty: 48, sampleQty: 5, batch: LOT-FRM-0041, results: [{ checkId: chk_1, check: Weld integrity, spec: No visible cracks, pass: true }, { checkId: chk_2, check: Diagonal, spec: '1200 ± 2 mm', value: '1201', pass: true }], acceptedQty: 0, rejectedQty: 0, heldQty: 48, status: In Progress, inspectorName: Suresh Patel, correlationId: corr_qi27, createdAt: '2026-09-19T17:00:00Z', updatedAt: '2026-09-19T17:30:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/production/inspections/{id}/complete:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Production]
+    summary: Complete with a disposition (drives the held receipt / GRN line / rework op)
+    operationId: completeInspection
+    x-permission: production.qc.approve
+    x-idempotent: true
+    x-events: [StockMoved, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/production.yaml#/InspectionComplete' }
+          examples:
+            accept: { summary: Accept all, value: { acceptedQty: 48, rejectedQty: 0, disposition: Accept, inspectorName: Suresh Patel } }
+            partialScrap: { summary: One rejected → scrap, value: { acceptedQty: 47, rejectedQty: 1, disposition: Scrap, inspectorName: Suresh Patel, notes: SN-FRM-0041-017 porous weld } }
+            rework: { summary: Rework at a work centre, value: { acceptedQty: 45, rejectedQty: 3, disposition: Rework, reworkWorkCentreId: wc_weld, inspectorName: Suresh Patel } }
+            returnToSupplier: { summary: Incoming — return to supplier, value: { acceptedQty: 2800, rejectedQty: 150, disposition: Return, inspectorName: Anil Kumar, notes: Diameter out of spec on 150 KG } }
+    responses:
+      '200':
+        description: Completed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/production.yaml#/QualityInspection' }
+                    receipt: { $ref: '../components/schemas/production.yaml#/ProductionReceipt' }
+                    reworkOperation: { $ref: '../components/schemas/production.yaml#/OrderOperation' }
+            examples:
+              accepted: { summary: Pass — receipt posted to FG, value: { document: { $ref: '#/components/examples/InspectionCompleted/value' }, outcome: posted, receipt: { $ref: '#/components/examples/ProductionReceiptPosted/value' }, warnings: [] } }
+              rework: { summary: Partial — rework op added, value: { document: { id: qi_0027, companyId: co_acme, number: QI/2026-27/00027, docType: Quality Inspection, date: '2026-09-19', branchId: br_ho, type: Finished goods, itemId: item_frame, itemCode: FRM-A1, itemName: Steel Frame A1, refType: Production Receipt, refId: pr_0088, refNumber: PR/2026-27/00088, lotQty: 48, sampleQty: 5, results: [], acceptedQty: 45, rejectedQty: 3, heldQty: 0, disposition: Rework, outcome: Partial, status: Completed, inspectorName: Suresh Patel, completedAt: '2026-09-19T18:00:00Z', completedBy: Suresh Patel, correlationId: corr_qi27, createdAt: '2026-09-19T17:00:00Z', updatedAt: '2026-09-19T18:00:00Z', version: 3 }, outcome: posted, reworkOperation: { id: op_25, seq: 25, name: Rework — Welding, workCentreId: wc_weld, workCentreName: Welding bay, setupMin: 0, runMinPerUnit: 0, labourRate: 300, machineRate: 500, overheadRate: 120, yieldPct: 100, parallel: false, subcontract: false, status: Pending, actualSetupMin: 0, actualRunMin: 0, labourCost: 0, machineCost: 0, overheadCost: 0, subcontractCost: 0, completedQty: 0, scrapQty: 0, isRework: true }, warnings: ['3 units returned to WIP for rework'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Business rule
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              incomplete: { summary: Results missing, value: { code: INCOMPLETE, message: Record a result for every check before completing, details: { missing: [chk_2] }, correlationId: corr_9f1c2e7a } }
+              quantities: { summary: Quantities ≠ lot, value: { code: VALIDATION, message: 'Accepted + rejected + held (50) must equal lot quantity 48', field: acceptedQty, correlationId: corr_9f1c2e7a } }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/production/inspections/{id}/cancel:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Production]
+    summary: Cancel an open inspection
+    operationId: cancelInspection
+    x-permission: production.qc.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Raised against the wrong receipt } }
+    responses:
+      '200':
+        description: Cancelled
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/QualityInspection' }
+            examples:
+              cancelled: { summary: Cancelled, value: { id: qi_0028, companyId: co_acme, number: QI/2026-27/00028, docType: Quality Inspection, date: '2026-09-19', branchId: br_ho, type: Finished goods, itemId: item_frame, itemCode: FRM-A1, itemName: Steel Frame A1, refType: Production Receipt, refId: pr_0089, refNumber: PR/2026-27/00089, lotQty: 10, sampleQty: 1, results: [], acceptedQty: 0, rejectedQty: 0, heldQty: 10, status: Cancelled, notes: 'Cancelled: Raised against the wrong receipt', correlationId: corr_qi28, createdAt: '2026-09-19T17:00:00Z', updatedAt: '2026-09-19T17:10:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Completed
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              completed: { summary: Already completed, value: { code: INVALID_STATE, message: Completed inspections cannot be cancelled, correlationId: corr_9f1c2e7a } }
+
+# ── subcontracting ────────────────────────────────────────────────────────
+
+/production/subcontract-orders:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Production]
+    summary: Subcontract orders
+    description: Tabs → Draft · Sent · Partially received · Received · Closed · Cancelled · All.
+    operationId: listSubcontractOrders
+    x-permission: production.order.view
+    x-frd: [FR-MFG-014]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/SupplierId'
+      - { name: orderId, in: query, schema: { type: string } }
+    responses:
+      '200':
+        description: Orders
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/production.yaml#/SubcontractOrder' } }
+            examples:
+              firstPage: { summary: Orders, value: { data: [{ $ref: '#/components/examples/SubcontractSent/value' }], meta: { nextCursor: null, limit: 25, total: 7, counts: { Draft: 0, Sent: 1, 'Partially received': 0, Received: 1, Closed: 5, Cancelled: 0, All: 7 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Production]
+    summary: Create a subcontract order (Draft)
+    operationId: createSubcontractOrder
+    x-permission: production.order.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/production.yaml#/SubcontractCreate' }
+          examples:
+            forOperation: { summary: Coating step of a production order, value: { supplierId: sup_powdercoat, orderId: mo_0041, operationId: op_30, operationName: Powder coating, serviceItemId: item_svc_coat, rate: 180, qty: 50, expectedDate: '2026-09-22', items: [{ itemId: item_frame_raw, qty: 50, batch: LOT-FRM-0041 }, { itemId: item_paint, qty: 20, batch: PNT-2608 }] } }
+            standalone: { summary: Standalone job work, value: { supplierId: sup_machining, operationName: CNC machining, serviceItemId: item_svc_cnc, rate: 95, qty: 200, expectedDate: '2026-09-25', items: [{ itemId: item_blank, qty: 200 }] } }
+    responses:
+      '201':
+        description: Draft
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/SubcontractOrder' }
+            examples:
+              draft: { summary: Draft, value: { id: sc_0007, companyId: co_acme, number: SC/2026-27/00007, docType: Subcontract Order, date: '2026-09-15', branchId: br_ho, supplierId: sup_powdercoat, supplierName: Precision Powder Coaters, orderId: mo_0041, orderNumber: PO-MFG/2026-27/00041, operationId: op_30, operationName: Powder coating, serviceItemId: item_svc_coat, serviceItemName: Powder coating service, rate: 180, qty: 50, expectedDate: '2026-09-22', sendWarehouseId: wh_wip, subWarehouseId: wh_subcon, itemsSent: [{ id: si_1, itemId: item_frame_raw, itemCode: FRM-A1-RAW, itemName: Steel Frame A1 (unpainted), qty: 50, uom: NOS, batch: LOT-FRM-0041, rate: 2100, warehouseId: wh_wip }, { id: si_2, itemId: item_paint, itemCode: PNT-GRY, itemName: Powder paint grey, qty: 20, uom: L, batch: PNT-2608, rate: 2838.08, warehouseId: wh_wip }], received: [], receivedQty: 0, charges: 0, consumptionVariance: [], status: Draft, journalIds: [], correlationId: corr_sc7, createdAt: '2026-09-15T10:00:00Z', updatedAt: '2026-09-15T10:00:00Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/production/subcontract-orders/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Production]
+    summary: Get a subcontract order
+    operationId: getSubcontractOrder
+    x-permission: production.order.view
+    responses:
+      '200':
+        description: Order
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/SubcontractOrder' }
+            examples:
+              sent: { $ref: '../components/examples/production.yaml#/SubcontractSent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/production/subcontract-orders/{id}/send:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Production]
+    summary: Send materials (WIP → subcontractor warehouse; stock stays ours)
+    operationId: sendSubcontractMaterials
+    x-permission: production.order.post
+    x-idempotent: true
+    x-events: [StockMoved]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { type: object, properties: { date: { type: string, format: date } } }
+          examples:
+            today: { summary: Today, value: {} }
+    responses:
+      '200':
+        description: Sent
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/production.yaml#/SubcontractOrder' }
+            examples:
+              sent: { summary: Sent, value: { document: { $ref: '#/components/examples/SubcontractSent/value' }, outcome: dispatched, stockMovements: [{ id: sm_140, companyId: co_acme, date: '2026-09-15', itemId: item_frame_raw, itemCode: FRM-A1-RAW, itemName: Steel Frame A1 (unpainted), warehouseId: wh_wip, qty: -50, uom: NOS, baseQty: -50, batch: LOT-FRM-0041, rate: 2100, value: -105000, type: Transfer Out, sourceType: Subcontract Order, sourceId: sc_0007, sourceNumber: SC/2026-27/00007, balanceAfter: 0, createdAt: '2026-09-15T11:00:00Z', updatedAt: '2026-09-15T11:00:00Z', version: 1 }, { id: sm_141, companyId: co_acme, date: '2026-09-15', itemId: item_frame_raw, itemCode: FRM-A1-RAW, itemName: Steel Frame A1 (unpainted), warehouseId: wh_subcon, qty: 50, uom: NOS, baseQty: 50, batch: LOT-FRM-0041, rate: 2100, value: 105000, type: Transfer In, sourceType: Subcontract Order, sourceId: sc_0007, sourceNumber: SC/2026-27/00007, balanceAfter: 50, createdAt: '2026-09-15T11:00:00Z', updatedAt: '2026-09-15T11:00:00Z', version: 1 }], warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Already sent
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              sent: { summary: Already sent, value: { code: INVALID_STATE, message: Materials already sent — receive/return them instead, correlationId: corr_9f1c2e7a } }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/production/subcontract-orders/{id}/service-po:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Production]
+    summary: Create the service purchase order for the job-work charge
+    operationId: createSubcontractServicePo
+    x-permission: purchase.order.create
+    x-idempotent: true
+    x-events: [DocumentCreated]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '201':
+        description: Draft PO
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/PurchaseOrder' }
+            examples:
+              po: { summary: Service PO, value: { id: po_00128, companyId: co_acme, number: DRAFT-PO-128, docType: Purchase Order, date: '2026-09-15', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: Supplier, partyId: sup_powdercoat, partyName: Precision Powder Coaters, expectedDate: '2026-09-22', lines: [{ id: l1, itemId: item_svc_coat, itemCode: SVC-COAT, itemName: Powder coating service, qty: 50, uom: NOS, rate: 180, discountPct: 0, discountAmt: 0, taxable: 9000, taxRate: 18, taxAmt: 1620, taxComponents: { CGST: 810, SGST: 810 }, amount: 10620, sourceRef: SC/2026-27/00007 }], totals: { subtotal: 9000, discount: 0, taxable: 9000, tax: 1620, components: { CGST: 810, SGST: 810 }, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 10620, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 10620 }, amendments: [], sourceType: Subcontract Order, sourceId: sc_0007, sourceNumber: SC/2026-27/00007, createdAt: '2026-09-15T11:05:00Z', updatedAt: '2026-09-15T11:05:00Z', version: 1 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Already created
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              exists: { summary: PO exists, value: { code: DUPLICATE, message: Service PO already created (PO/2026-27/00128), details: { poId: po_00128 }, correlationId: corr_9f1c2e7a } }
+
+/production/subcontract-orders/{id}/receive:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Production]
+    summary: Receive processed goods (consumed / returned materials, charge accrual)
+    operationId: receiveSubcontract
+    x-permission: production.order.post
+    x-idempotent: true
+    x-events: [StockMoved, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/production.yaml#/SubReceiveRequest' }
+          examples:
+            full: { summary: "All 50 back, materials consumed", value: { qty: 50, consumed: [{ itemId: item_frame_raw, qty: 50 }, { itemId: item_paint, qty: 19 }], returned: [{ itemId: item_paint, qty: 1 }], date: '2026-09-22' } }
+            partial: { summary: "Partial receipt, no charge yet", value: { qty: 30, consumed: [{ itemId: item_frame_raw, qty: 30 }, { itemId: item_paint, qty: 12 }], returned: [], postCharges: false } }
+    responses:
+      '200':
+        description: Received
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/production.yaml#/SubcontractOrder' }
+            examples:
+              received: { summary: Fully received, value: { document: { id: sc_0007, companyId: co_acme, number: SC/2026-27/00007, docType: Subcontract Order, date: '2026-09-15', branchId: br_ho, supplierId: sup_powdercoat, supplierName: Precision Powder Coaters, orderId: mo_0041, orderNumber: PO-MFG/2026-27/00041, operationId: op_30, operationName: Powder coating, serviceItemId: item_svc_coat, serviceItemName: Powder coating service, rate: 180, qty: 50, expectedDate: '2026-09-22', sendWarehouseId: wh_wip, subWarehouseId: wh_subcon, itemsSent: [], received: [{ id: sr_1, date: '2026-09-22', qty: 50, consumed: [{ itemId: item_frame_raw, qty: 50 }, { itemId: item_paint, qty: 19 }], returned: [{ itemId: item_paint, qty: 1 }], charge: 9000, journalId: jnl_sc_7, movementIds: [sm_150, sm_151, sm_152], by: Suresh Patel }], receivedQty: 50, charges: 9000, consumptionVariance: [{ itemId: item_paint, itemName: Powder paint grey, sent: 20, consumed: 19, returned: 1, variance: 0, value: 0 }], poId: po_00128, poNumber: PO/2026-27/00128, status: Received, journalIds: [jnl_sc_7], correlationId: corr_sc7, sentAt: '2026-09-15T11:00:00Z', createdAt: '2026-09-15T10:00:00Z', updatedAt: '2026-09-22T15:00:00Z', version: 4 }, outcome: posted, journal: { id: jnl_sc_7, companyId: co_acme, number: JV/2026-27/00419, date: '2026-09-22', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Subcontract Order, sourceId: sc_0007, sourceNumber: SC/2026-27/00007, narration: Subcontract charge SC/2026-27/00007 — Powder coating 50 NOS, lines: [{ id: j1, accountId: acc_1230, accountCode: '1230', accountName: Work in progress, dr: 9000, cr: 0, drBase: 9000, crBase: 0, dimensions: {} }, { id: j2, accountId: acc_2110, accountCode: '2110', accountName: GRNI — goods received not invoiced, dr: 0, cr: 9000, drBase: 0, crBase: 9000, dimensions: {} }], totalDr: 9000, totalCr: 9000, postedAt: '2026-09-22T15:00:00Z', postedBy: Suresh Patel, correlationId: corr_sc7, createdAt: '2026-09-22T15:00:00Z', updatedAt: '2026-09-22T15:00:00Z', version: 1 }, warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Business rule
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              overConsumption: { summary: Consumed + returned > sent, value: { code: OVER_CONSUMPTION, message: 'Powder paint grey: consumed 19 + returned 3 exceeds 20 sent', field: consumed, correlationId: corr_9f1c2e7a } }
+              overQty: { summary: Receive > qty, value: { code: OVER_QTY, message: 'Received 60 exceeds order quantity 50', field: qty, correlationId: corr_9f1c2e7a } }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/production/subcontract-orders/{id}/close:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Production]
+    summary: Close (all processed goods received)
+    operationId: closeSubcontractOrder
+    x-permission: production.order.edit
+    responses:
+      '200':
+        description: Closed
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/SubcontractOrder' }
+            examples:
+              closed: { summary: Closed, value: { id: sc_0007, companyId: co_acme, number: SC/2026-27/00007, docType: Subcontract Order, date: '2026-09-15', branchId: br_ho, supplierId: sup_powdercoat, supplierName: Precision Powder Coaters, orderId: mo_0041, orderNumber: PO-MFG/2026-27/00041, operationName: Powder coating, serviceItemId: item_svc_coat, serviceItemName: Powder coating service, rate: 180, qty: 50, expectedDate: '2026-09-22', sendWarehouseId: wh_wip, subWarehouseId: wh_subcon, itemsSent: [], received: [], receivedQty: 50, charges: 9000, consumptionVariance: [], status: Closed, journalIds: [jnl_sc_7], correlationId: corr_sc7, closedAt: '2026-09-22T16:00:00Z', createdAt: '2026-09-15T10:00:00Z', updatedAt: '2026-09-22T16:00:00Z', version: 5 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Not fully received
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              pending: { summary: Goods outstanding, value: { code: INVALID_STATE, message: Receive all processed goods before closing, details: { receivedQty: 30, qty: 50 }, correlationId: corr_9f1c2e7a } }
+
+/production/subcontract-orders/{id}/cancel:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Production]
+    summary: Cancel a Draft order (Sent orders — return materials first)
+    operationId: cancelSubcontractOrder
+    x-permission: production.order.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Coating done in-house after all } }
+    responses:
+      '200':
+        description: Cancelled
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/SubcontractOrder' }
+            examples:
+              cancelled: { summary: Cancelled, value: { id: sc_0008, companyId: co_acme, number: SC/2026-27/00008, docType: Subcontract Order, date: '2026-09-16', branchId: br_ho, supplierId: sup_powdercoat, supplierName: Precision Powder Coaters, operationName: Powder coating, serviceItemId: item_svc_coat, serviceItemName: Powder coating service, rate: 180, qty: 20, expectedDate: '2026-09-23', sendWarehouseId: wh_wip, subWarehouseId: wh_subcon, itemsSent: [], received: [], receivedQty: 0, charges: 0, consumptionVariance: [], status: Cancelled, journalIds: [], cancelReason: Coating done in-house after all, correlationId: corr_sc8, createdAt: '2026-09-16T10:00:00Z', updatedAt: '2026-09-16T11:00:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── WIP & genealogy ───────────────────────────────────────────────────────
+
+/production/wip:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Production]
+    summary: WIP ledger by order for a period, reconciled to the WIP control account
+    operationId: getWipReport
+    x-permission: production.order.view
+    x-frd: [FR-MFG-011]
+    parameters:
+      - { name: period, in: query, required: true, schema: { type: string }, example: '2026-09' }
+      - { name: orderId, in: query, schema: { type: string } }
+    responses:
+      '200':
+        description: WIP
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/WipReport' }
+            examples:
+              september: { summary: September, value: { period: '2026-09', orders: [{ orderId: mo_0041, orderNumber: PO-MFG/2026-27/00041, itemName: Steel Frame A1, status: Closed, opening: 0, materialIn: 100000, conversion: 20800, subcontract: 0, output: -114240, scrap: -4760, variance: -1800, closing: 0 }, { orderId: mo_0042, orderNumber: PO-MFG/2026-27/00042, itemName: Masala Chai 250g, status: In Progress, opening: 0, materialIn: 42000, conversion: 3600, subcontract: 0, output: 0, scrap: 0, variance: 0, closing: 45600 }], totals: { opening: 0, materialIn: 142000, conversion: 24400, subcontract: 0, output: -114240, scrap: -4760, variance: -1800, closing: 45600 }, glBalance: 45600, difference: 0, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-30T00:00:00Z' } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/production/wip/entries:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Production]
+    summary: WIP ledger entries
+    operationId: listWipEntries
+    x-permission: production.order.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: orderId, in: query, schema: { type: string } }
+      - { name: type, in: query, schema: { type: string, enum: [Material In, Material Return, Conversion, Subcontract, Output, By-product, Scrap, Variance, Reversal] } }
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Entries
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/production.yaml#/WipEntry' } }
+            examples:
+              entries: { summary: Entries for one order, value: { data: [{ id: wip_1, companyId: co_acme, orderId: mo_0041, orderNumber: PO-MFG/2026-27/00041, date: '2026-09-15', type: Material In, amount: 100000, journalId: jnl_mi_112, journalNumber: JV/2026-27/00417, sourceType: Material Issue, sourceId: mi_0112, sourceNumber: MI/2026-27/00112, createdAt: '2026-09-15T08:30:00Z', updatedAt: '2026-09-15T08:30:00Z', version: 1 }, { id: wip_2, companyId: co_acme, orderId: mo_0041, orderNumber: PO-MFG/2026-27/00041, date: '2026-09-16', type: Conversion, amount: 7360, journalId: jnl_op_20, journalNumber: JV/2026-27/00416, sourceType: Production Order, sourceId: mo_0041, sourceNumber: PO-MFG/2026-27/00041, description: Welding, createdAt: '2026-09-16T16:30:00Z', updatedAt: '2026-09-16T16:30:00Z', version: 1 }, { id: wip_3, companyId: co_acme, orderId: mo_0041, orderNumber: PO-MFG/2026-27/00041, date: '2026-09-19', type: Output, amount: -114240, journalId: jnl_pr_88, journalNumber: JV/2026-27/00418, sourceType: Production Receipt, sourceId: pr_0088, sourceNumber: PR/2026-27/00088, createdAt: '2026-09-19T17:00:00Z', updatedAt: '2026-09-19T17:00:00Z', version: 1 }], meta: { nextCursor: null, limit: 25, total: 3 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/production/genealogy:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Production]
+    summary: Batch / serial genealogy (upstream components or downstream movements)
+    operationId: getGenealogy
+    x-permission: production.order.view
+    x-frd: [FR-MFG-015]
+    parameters:
+      - { name: itemId, in: query, required: true, schema: { type: string }, example: item_frame }
+      - { name: batch, in: query, schema: { type: string }, example: LOT-FRM-0041 }
+      - { name: serial, in: query, schema: { type: string }, example: SN-FRM-0041-017 }
+      - { name: direction, in: query, schema: { type: string, enum: [upstream, downstream], default: upstream } }
+    responses:
+      '200':
+        description: Tree
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/Genealogy' }
+            examples:
+              upstream: { summary: Where did this serial come from, value: { direction: upstream, root: { itemId: item_frame, itemName: Steel Frame A1, serial: SN-FRM-0041-017, qty: 1, movementType: Production Receipt, date: '2026-09-19', sourceType: Production Receipt, sourceId: pr_0088, sourceNumber: PR/2026-27/00088, warehouseName: Main Warehouse, children: [{ itemId: item_stl4, itemName: Steel Rod 4mm, batch: B-2609-11, qty: 12.24, movementType: Issue, date: '2026-09-15', sourceType: Material Issue, sourceId: mi_0112, sourceNumber: MI/2026-27/00112, children: [{ itemId: item_stl4, itemName: Steel Rod 4mm, batch: B-2609-11, qty: 2950, movementType: GRN, date: '2026-09-12', sourceType: GRN, sourceId: grn_00077, sourceNumber: GRN/2026-27/00077, partyName: Bharat Steel Ltd, children: [] }] }, { itemId: item_paint, itemName: Powder paint grey, batch: PNT-2608, qty: 0.4, movementType: Issue, date: '2026-09-15', sourceType: Material Issue, sourceId: mi_0112, sourceNumber: MI/2026-27/00112, children: [] }] } } }
+              downstream: { summary: Where did this batch go, value: { direction: downstream, root: { itemId: item_stl4, itemName: Steel Rod 4mm, batch: B-2609-11, qty: 2950, movementType: GRN, date: '2026-09-12', sourceType: GRN, sourceId: grn_00077, sourceNumber: GRN/2026-27/00077, partyName: Bharat Steel Ltd, children: [{ itemId: item_stl4, itemName: Steel Rod 4mm, batch: B-2609-11, qty: 612, movementType: Issue, date: '2026-09-15', sourceType: Material Issue, sourceId: mi_0112, sourceNumber: MI/2026-27/00112, children: [{ itemId: item_frame, itemName: Steel Frame A1, batch: LOT-FRM-0041, qty: 48, movementType: Production Receipt, date: '2026-09-19', sourceType: Production Receipt, sourceId: pr_0088, sourceNumber: PR/2026-27/00088, children: [{ itemId: item_frame, itemName: Steel Frame A1, batch: LOT-FRM-0041, qty: 12, movementType: Delivery, date: '2026-09-20', sourceType: Delivery, sourceId: dc_00031, sourceNumber: DC/2026-27/00031, partyName: Arlene Traders, children: [] }] }] }, { itemId: item_stl4, itemName: Steel Rod 4mm, batch: B-2609-11, qty: 500, movementType: Transfer Out, date: '2026-09-12', sourceType: Stock Transfer, sourceId: trf_0009, sourceNumber: TRF/2026-27/00009, children: [] }] } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }

@@ -1,0 +1,1232 @@
+# Accounting (tag: Accounting). engine.postJournal / postDraftJournal / reverseJournal / submitForApproval; src/modules/accounting/*.
+
+# ── journals ──────────────────────────────────────────────────────────────
+
+/accounting/journals:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Accounting]
+    summary: Journal register
+    description: "Tabs → All · Draft · Awaiting approval (`status=Submitted`) · Approved · Posted · Reversed. Query examples — `?type=Manual` · `?sourceType=Sales Invoice` · `?accountId=acc_1100` · `?period=2026-09` · `?q=JV/2026-27/00311` · `?amountMin=100000`."
+    operationId: listJournals
+    x-permission: accounting.journal.view
+    x-frd: [FR-ACC-001, FR-ACC-003]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: type, in: query, schema: { type: string, enum: [Auto, Manual, Recurring, Opening, Reversal, Revaluation, Closing, Consolidation] } }
+      - { name: sourceType, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/AccountId'
+      - $ref: '../components/parameters.yaml#/PeriodCode'
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+      - $ref: '../components/parameters.yaml#/AmountMin'
+      - $ref: '../components/parameters.yaml#/AmountMax'
+    responses:
+      '200':
+        description: Journals
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/document.yaml#/Journal' } }
+            examples:
+              firstPage: { summary: Manual + auto, value: { data: [{ $ref: '#/components/examples/JournalPosted/value' }, { $ref: '#/components/examples/JournalDraft/value' }], meta: { nextCursor: 'eyJkIjoiMjAyNi0wOS0xMiIsImlkIjoiam5sXzMxMCJ9', limit: 25, total: 412, counts: { All: 412, Draft: 3, 'Awaiting approval': 1, Approved: 0, Posted: 404, Reversed: 4 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Accounting]
+    summary: Create a manual journal (Draft)
+    description: "Validation mirrors `validateDraft`: ≥2 lines, balanced, active posting accounts, party on AR/AP/Employee control accounts, required/prohibited dimensions, currency behaviour. Issues come back as `422 VALIDATION` with `details.issues[]`."
+    operationId: createJournal
+    x-permission: accounting.journal.create
+    x-frd: [FR-ACC-001, FR-ACC-002]
+    x-events: [DocumentCreated]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/accounting.yaml#/JournalCreate' }
+          examples:
+            simple: { summary: Two-line expense accrual, value: { date: '2026-09-13', narration: Office rent for September 2026, reference: RENT-SEP-26, lines: [{ accountId: acc_5100, dr: 25000, narration: Sept office rent }, { accountId: acc_2100, cr: 25000, partyType: Supplier, partyId: sup_landlord }] } }
+            multiWithParty: { summary: Multi-line with party on a control account, value: { date: '2026-09-13', narration: Write-off small AR balances, lines: [{ accountId: acc_5800, dr: 1250 }, { accountId: acc_1100, cr: 750, partyType: Customer, partyId: cust_arlene }, { accountId: acc_1100, cr: 500, partyType: Customer, partyId: cust_walkin }] } }
+            withDimensions: { summary: Dimensions on each line, value: { date: '2026-09-13', branchId: br_andheri, narration: Marketing spend re-class, lines: [{ accountId: acc_5400, dr: 40000, dimensions: { Department: dim_mkt, CostCentre: cc_digital } }, { accountId: acc_5410, cr: 40000, dimensions: { Department: dim_mkt } }] } }
+            foreignCurrency: { summary: USD journal with rate, value: { date: '2026-09-13', currency: USD, rate: 84, narration: Consultancy fee accrual (USD), lines: [{ accountId: acc_5200, dr: 1000 }, { accountId: acc_2100, cr: 1000, partyType: Supplier, partyId: sup_ustech }] } }
+            fromTemplate: { summary: From template (override amount), value: { date: '2026-09-30', templateId: jt_rent, narration: Office rent for September 2026, lines: [{ accountId: acc_5100, dr: 26000 }, { accountId: acc_2100, cr: 26000, partyType: Supplier, partyId: sup_landlord }] } }
+    responses:
+      '201':
+        description: Draft journal
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/document.yaml#/Journal' }
+            examples:
+              draft: { $ref: '../components/examples/accounting.yaml#/JournalDraft' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Draft validation
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              unbalanced: { summary: Not balanced, value: { code: UNBALANCED, message: 'Journal is not balanced: Dr 25000.00 ≠ Cr 24000.00 (difference 1000.00)', field: balance, details: { issues: [{ field: balance, message: 'Journal is not balanced: Dr 25000.00 ≠ Cr 24000.00 (difference 1000.00)' }] }, correlationId: corr_9f1c2e7a } }
+              controlAccount: { summary: Party missing on control account, value: { code: CONTROL_ACCOUNT, message: 'Line 2: control account 2100 needs a supplier (FR-ACC-002)', field: 'lines[1].partyId', details: { issues: [{ lineIndex: 1, field: partyId, message: 'Line 2: control account 2100 needs a supplier (FR-ACC-002)' }] }, correlationId: corr_9f1c2e7a } }
+              dimensionRequired: { summary: Required dimension missing, value: { code: DIMENSION_REQUIRED, message: 'Line 1: 5400 requires dimension "Department"', field: 'lines[0].dimensions.Department', correlationId: corr_9f1c2e7a } }
+              postingNotAllowed: { summary: Header account, value: { code: POSTING_NOT_ALLOWED, message: 'Line 1: 5000 · Expenses is a header account — posting not allowed', field: 'lines[0].accountId', correlationId: corr_9f1c2e7a } }
+              baseOnly: { summary: Base-currency-only account on a USD journal, value: { code: INVALID_ACCOUNT, message: 'Line 2: 2100 accepts base currency only', field: 'lines[1].accountId', correlationId: corr_9f1c2e7a } }
+              duplicateWarn: { summary: Duplicate rule (Block mode), value: { code: DUPLICATE, message: "A journal with the same date, amount and narration exists (JV/2026-27/00340)", details: { existingId: jnl_340, rule: Journal }, correlationId: corr_9f1c2e7a } }
+
+/accounting/journals/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Accounting]
+    summary: Get a journal
+    operationId: getJournal
+    x-permission: accounting.journal.view
+    responses:
+      '200':
+        description: Journal
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/document.yaml#/Journal' }
+            examples:
+              draft: { $ref: '../components/examples/accounting.yaml#/JournalDraft' }
+              posted: { $ref: '../components/examples/accounting.yaml#/JournalPosted' }
+              reversed: { $ref: '../components/examples/accounting.yaml#/JournalReversed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Accounting]
+    summary: Edit a Draft / Rejected / Returned journal
+    operationId: updateJournal
+    x-permission: accounting.journal.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/accounting.yaml#/JournalPatch' }
+          examples:
+            fieldsOnly: { summary: Narration and date, value: { expectedVersion: 1, date: '2026-09-14', narration: Office rent for September 2026 (revised) } }
+            replaceLines: { summary: Replace lines, value: { expectedVersion: 1, lines: [{ accountId: acc_5100, dr: 26000 }, { accountId: acc_2100, cr: 26000, partyType: Supplier, partyId: sup_landlord }] } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/document.yaml#/Journal' }
+            examples:
+              updated: { $ref: '../components/examples/accounting.yaml#/JournalDraft' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Accounting]
+    summary: Delete a Draft journal (audited with reason)
+    operationId: deleteJournal
+    x-permission: accounting.journal.delete
+    parameters:
+      - { name: reason, in: query, required: true, schema: { type: string, minLength: 3 }, example: Duplicate of JV/2026-27/00340 }
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/accounting/journals/{id}/submit:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Accounting]
+    summary: Submit (route to 'Journal' workflow, or post directly when no rule applies)
+    operationId: submitJournal
+    x-permission: accounting.journal.submit
+    x-idempotent: true
+    x-workflow-doc-type: Journal
+    x-events: [DocumentSubmitted, DocumentPosted, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Outcome
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/document.yaml#/Journal' }
+                    outcome: { $ref: '../components/schemas/accounting.yaml#/JournalSubmitOutcome' }
+            examples:
+              routed: { summary: outcome = routed-for-approval, value: { document: { id: jnl_411, companyId: co_acme, number: JV/2026-27/00411, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Submitted, type: Manual, sourceType: Manual Journal, sourceNumber: RENT-SEP-26, narration: Office rent for September 2026, lines: [], totalDr: 25000, totalCr: 25000, approvalId: apr_jnl_411, correlationId: corr_jnl411, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:20:00Z', version: 2 }, outcome: routed-for-approval, approval: { id: apr_jnl_411, companyId: co_acme, docType: Journal, collection: journals, docId: jnl_411, docNumber: JV/2026-27/00411, amount: 25000, currency: INR, branchId: br_ho, requesterId: usr_priya, requesterName: Priya Sharma, steps: [{ order: 1, name: Finance manager, approverType: Role, approverRef: role_finmgr, approverLabel: Finance Manager, status: Pending, commentRequired: false }], currentStep: 0, status: Pending, submittedAt: '2026-09-13T09:20:00Z', history: [], createdAt: '2026-09-13T09:20:00Z', updatedAt: '2026-09-13T09:20:00Z', version: 1 }, warnings: [] } }
+              postedDirectly: { summary: "outcome = posted (no rule, period open)", value: { document: { $ref: '#/components/examples/JournalPosted/value' }, outcome: posted, warnings: [] } }
+              approvedOnly: { summary: "outcome = approved (no rule, period closed)", value: { document: { id: jnl_411, companyId: co_acme, number: JV/2026-27/00411, date: '2026-08-31', period: '2026-08', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Approved, type: Manual, sourceType: Manual Journal, narration: August accrual, lines: [], totalDr: 25000, totalCr: 25000, correlationId: corr_jnl411, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:20:00Z', version: 2 }, outcome: approved, warnings: ['Saved as approved — period 2026-08 is Soft Closed; post once reopened or with accounting.period.postclosed'] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/accounting/journals/{id}/post:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Accounting]
+    summary: Post an Approved (or Draft, when no workflow applies) journal
+    description: "`postDraftJournal` — allocates the number, stamps period/FY, re-validates against the engine rules and locks the record. Posting into a Soft Closed period needs `accounting.period.postclosed` (`skipPeriodCheck`)."
+    operationId: postJournal
+    x-permission: accounting.journal.post
+    x-frd: [FR-ACC-003, FR-ACC-005]
+    x-idempotent: true
+    x-events: [DocumentPosted, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { type: object, properties: { skipPeriodCheck: { type: boolean, default: false, description: Post into a Soft Closed period (needs accounting.period.postclosed). } } }
+          examples:
+            default: { summary: Normal, value: {} }
+            softClosed: { summary: Into a soft-closed period, value: { skipPeriodCheck: true } }
+    responses:
+      '200':
+        description: Posted
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/document.yaml#/Journal' }
+            examples:
+              posted: { summary: Posted, value: { document: { $ref: '#/components/examples/JournalPosted/value' }, outcome: posted, journal: { $ref: '#/components/examples/JournalPosted/value' }, warnings: [] } }
+              withPartyWarning: { summary: Party lines on control accounts, value: { document: { $ref: '#/components/examples/JournalPosted/value' }, outcome: posted, warnings: ['Party balances on 2100 changed; no open item is created by a manual journal'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/accounting/journals/{id}/reverse:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Accounting]
+    summary: Reverse a posted journal (creates a mirror journal of type Reversal)
+    operationId: reverseJournal
+    x-permission: accounting.journal.reverse
+    x-frd: [FR-ACC-004]
+    x-idempotent: true
+    x-events: [DocumentReversed, JournalReversed]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            sameDate: { $ref: '../components/examples/common.yaml#/ReasonReverse' }
+            datedInOpenPeriod: { $ref: '../components/examples/common.yaml#/ReasonReverseDated' }
+    responses:
+      '200':
+        description: Reversed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/document.yaml#/Journal' }
+                    journal: { $ref: '../components/schemas/document.yaml#/Journal' }
+            examples:
+              reversed: { summary: Original → Reversed; reversal journal returned in `journal`, value: { document: { $ref: '#/components/examples/JournalReversed/value' }, outcome: reversed, journal: { id: jnl_412, companyId: co_acme, number: JV/2026-27/00412, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Reversal, sourceType: Manual Journal, sourceNumber: RENT-SEP-26, narration: 'Reversal of JV/2026-27/00411: Posted twice', lines: [{ id: jl_1, accountId: acc_5100, accountCode: '5100', accountName: Rent, dr: 0, cr: 25000, drBase: 0, crBase: 25000, dimensions: { Branch: br_ho } }, { id: jl_2, accountId: acc_2100, accountCode: '2100', accountName: Accounts Payable, dr: 25000, cr: 0, drBase: 25000, crBase: 0, partyType: Supplier, partyId: sup_landlord, partyName: Skyline Estates, dimensions: { Branch: br_ho } }], totalDr: 25000, totalCr: 25000, reversalOfId: jnl_411, postedAt: '2026-09-13T15:00:00Z', postedBy: Priya Sharma, correlationId: corr_jnl412, createdAt: '2026-09-13T15:00:00Z', updatedAt: '2026-09-13T15:00:00Z', version: 1 }, warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/accounting/journals/{id}/duplicate:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Accounting]
+    summary: Copy a journal as a new Draft
+    operationId: duplicateJournal
+    x-permission: accounting.journal.create
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { type: object, properties: { date: { type: string, format: date }, narration: { type: string } } }
+          examples:
+            nextMonth: { summary: "Same lines, next month", value: { date: '2026-10-31', narration: Office rent for October 2026 } }
+    responses:
+      '201':
+        description: New draft
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/document.yaml#/Journal' }
+            examples:
+              draft: { $ref: '../components/examples/accounting.yaml#/JournalDraft' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/accounting/journal-templates:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Accounting]
+    summary: Journal templates (pre-filled line sets)
+    operationId: listJournalTemplates
+    x-permission: accounting.journal.view
+    responses:
+      '200':
+        description: Templates
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/accounting.yaml#/JournalTemplate' } } } }
+            examples:
+              list: { summary: Templates, value: { data: [{ id: jt_rent, name: Monthly office rent, description: Rent expense vs landlord payable, narration: 'Office rent for {period}', lines: [{ accountId: acc_5100, dr: 25000 }, { accountId: acc_2100, cr: 25000, partyType: Supplier, partyId: sup_landlord }] }, { id: jt_prepaid, name: Prepaid insurance release, narration: 'Insurance for {period}', lines: [{ accountId: acc_5500, dr: 4000 }, { accountId: acc_1400, cr: 4000 }] }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+# ── recurring journals ────────────────────────────────────────────────────
+
+/accounting/recurring-journals:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Accounting]
+    summary: List recurring journal definitions
+    description: "Tabs → Active · Due now (`due=true`) · Paused / ended · All."
+    operationId: listRecurringJournals
+    x-permission: accounting.journal.view
+    x-frd: [FR-ACC-017]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: due, in: query, schema: { type: boolean }, description: Only definitions with `nextRun` ≤ today. }
+    responses:
+      '200':
+        description: Definitions
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/accounting.yaml#/RecurringJournal' } }
+            examples:
+              firstPage: { summary: Definitions, value: { data: [{ $ref: '#/components/examples/RecurringRent/value' }], meta: { nextCursor: null, limit: 25, total: 1, counts: { Active: 3, 'Due now': 1, 'Paused / ended': 1, All: 4 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Accounting]
+    summary: Create a recurring journal
+    operationId: createRecurringJournal
+    x-permission: accounting.journal.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/accounting.yaml#/RecurringJournalInput'
+              - { required: [code, name, frequency, startDate, mode, narration, lines] }
+          examples:
+            monthlyDraft: { summary: "Monthly, creates drafts", value: { code: RJ-004, name: Office rent accrual, frequency: Monthly, startDate: '2026-10-01', nextRun: '2026-10-31', mode: Draft, narration: 'Office rent accrual {period}', lines: [{ accountId: acc_5100, dr: 25000, cr: 0 }, { accountId: acc_2100, dr: 0, cr: 25000, partyType: Supplier, partyId: sup_landlord }] } }
+            quarterlyPost: { summary: "Quarterly, posts directly, ends next FY", value: { code: RJ-005, name: Quarterly insurance release, frequency: Quarterly, startDate: '2026-10-01', endDate: '2027-09-30', mode: Post, narration: 'Insurance amortisation {period}', lines: [{ accountId: acc_5500, dr: 12000, cr: 0 }, { accountId: acc_1400, dr: 0, cr: 12000 }] } }
+    responses:
+      '201':
+        description: Created
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/accounting.yaml#/RecurringJournal' }
+            examples:
+              created: { $ref: '../components/examples/accounting.yaml#/RecurringRent' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/accounting/recurring-journals/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Accounting]
+    summary: Get a recurring definition
+    operationId: getRecurringJournal
+    x-permission: accounting.journal.view
+    responses:
+      '200':
+        description: Definition
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/accounting.yaml#/RecurringJournal' }
+            examples:
+              active: { $ref: '../components/examples/accounting.yaml#/RecurringRent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Accounting]
+    summary: Update a recurring definition
+    operationId: updateRecurringJournal
+    x-permission: accounting.journal.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/accounting.yaml#/RecurringJournalPatch' }
+          examples:
+            amount: { summary: New rent, value: { expectedVersion: 3, lines: [{ accountId: acc_5100, dr: 27500, cr: 0 }, { accountId: acc_2100, dr: 0, cr: 27500, partyType: Supplier, partyId: sup_landlord }] } }
+            end: { summary: Set end date, value: { expectedVersion: 3, endDate: '2027-03-31' } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/accounting.yaml#/RecurringJournal' }
+            examples:
+              updated: { $ref: '../components/examples/accounting.yaml#/RecurringRent' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Accounting]
+    summary: Delete a definition (generated journals are kept)
+    operationId: deleteRecurringJournal
+    x-permission: accounting.journal.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/accounting/recurring-journals/{id}/generate-now:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Accounting]
+    summary: Generate the next occurrence now
+    description: "`mode = Post` posts when the period is open, otherwise falls back to Draft (warning). Idempotent per definition + date (`recurring:{id}:{date}`)."
+    operationId: generateRecurringJournal
+    x-permission: accounting.journal.create
+    x-idempotent: true
+    x-events: [DocumentCreated, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/accounting.yaml#/GenerateNowRequest' }
+          examples:
+            default: { summary: For nextRun, value: {} }
+            date: { summary: Specific date, value: { date: '2026-09-30' } }
+    responses:
+      '201':
+        description: Journal generated
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/accounting.yaml#/RecurringJournal' }
+                    journal: { $ref: '../components/schemas/document.yaml#/Journal' }
+                    outcome: { type: string, enum: [draft-created, posted] }
+            examples:
+              draft: { summary: outcome = draft-created, value: { document: { $ref: '#/components/examples/RecurringRent/value' }, outcome: draft-created, journal: { $ref: '#/components/examples/JournalDraft/value' }, warnings: [] } }
+              posted: { summary: outcome = posted, value: { document: { $ref: '#/components/examples/RecurringRent/value' }, outcome: posted, journal: { $ref: '#/components/examples/JournalPosted/value' }, warnings: [] } }
+              fallback: { summary: Post mode but period closed → draft, value: { document: { $ref: '#/components/examples/RecurringRent/value' }, outcome: draft-created, journal: { $ref: '#/components/examples/JournalDraft/value' }, warnings: ['Period 2026-08 is Locked — created as Draft'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/accounting/recurring-journals/{id}/pause:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Accounting]
+    summary: Pause
+    operationId: pauseRecurringJournal
+    x-permission: accounting.journal.edit
+    responses:
+      '200':
+        description: Paused
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/accounting.yaml#/RecurringJournal' }
+            examples:
+              paused: { summary: Paused, value: { id: rj_004, companyId: co_acme, code: RJ-004, name: Office rent accrual, frequency: Monthly, startDate: '2026-04-01', nextRun: '2026-09-30', mode: Draft, narration: 'Office rent accrual {period}', lines: [], status: Paused, runCount: 5, generatedIds: [], createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 8 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/accounting/recurring-journals/{id}/resume:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Accounting]
+    summary: Resume
+    operationId: resumeRecurringJournal
+    x-permission: accounting.journal.edit
+    responses:
+      '200':
+        description: Active
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/accounting.yaml#/RecurringJournal' }
+            examples:
+              active: { $ref: '../components/examples/accounting.yaml#/RecurringRent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/accounting/recurring-journals/{id}/history:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Accounting]
+    summary: Journals generated by this definition
+    operationId: listRecurringJournalHistory
+    x-permission: accounting.journal.view
+    responses:
+      '200':
+        description: Generated journals
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/document.yaml#/Journal' } } } }
+            examples:
+              history: { summary: Five runs, value: { data: [{ $ref: '#/components/examples/JournalPosted/value' }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── books ─────────────────────────────────────────────────────────────────
+
+/accounting/day-book:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Accounting]
+    summary: Day book (posted + reversed journals in date order)
+    operationId: getDayBook
+    x-permission: accounting.journal.view
+    x-frd: [FR-ACC-006]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+      - $ref: '../components/parameters.yaml#/BranchFilter'
+      - { name: sourceType, in: query, schema: { type: string } }
+    responses:
+      '200':
+        description: Rows
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/accounting.yaml#/DayBookRow' } }
+                    totals: { type: object, properties: { dr: { type: number }, cr: { type: number }, count: { type: integer } } }
+            examples:
+              day: { summary: One day, value: { data: [{ journalId: jnl_01j8k5, number: JV/2026-27/00311, date: '2026-09-13', type: Auto, sourceType: Sales Invoice, sourceId: inv_01j8k3, sourceNumber: INV/2026-27/00042, sourceLink: sales/invoices/inv_01j8k3, narration: Sales invoice INV/2026-27/00042 — Arlene Traders, partyName: Arlene Traders, totalDr: 118000, totalCr: 118000, status: Posted, postedBy: Priya Sharma }, { journalId: jnl_411, number: JV/2026-27/00411, date: '2026-09-13', type: Manual, sourceType: Manual Journal, sourceNumber: RENT-SEP-26, narration: Office rent for September 2026, totalDr: 25000, totalCr: 25000, status: Posted, postedBy: Priya Sharma }], totals: { dr: 143000, cr: 143000, count: 2 }, meta: { nextCursor: null, limit: 25, total: 2 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/accounting/ledger/{accountId}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - { name: accountId, in: path, required: true, schema: { type: string }, example: acc_1100 }
+  get:
+    tags: [Accounting]
+    summary: Account ledger with running balance (lib.accountLedger)
+    description: "Same shape as `GET /accounts/{id}/ledger`; here `partyId` slices a control account by party. Query examples — `?dateFrom=2026-09-01&dateTo=2026-09-30` · `?partyId=cust_arlene` · `?branchId=br_andheri`."
+    operationId: getAccountLedgerEntries
+    x-permission: accounting.journal.view
+    x-frd: [FR-ACC-007]
+    parameters:
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+      - $ref: '../components/parameters.yaml#/BranchFilter'
+      - $ref: '../components/parameters.yaml#/PartyId'
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+    responses:
+      '200':
+        description: Ledger
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/LedgerResponse' }
+            examples:
+              rows: { summary: AR ledger for a party, value: { accountId: acc_1100, accountCode: '1100', accountName: Accounts Receivable, from: '2026-09-01', to: '2026-09-30', opening: 0, closing: 118000, totalDebit: 118000, totalCredit: 0, rows: [{ date: '2026-09-13', journalId: jnl_01j8k5, journalNumber: JV/2026-27/00311, sourceType: Sales Invoice, sourceId: inv_01j8k3, sourceNumber: INV/2026-27/00042, narration: Sales invoice INV/2026-27/00042 — Arlene Traders, partyName: Arlene Traders, dimensions: { Branch: br_ho }, debit: 118000, credit: 0, balance: 118000 }], scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { summary: No movements, value: { accountId: acc_1100, accountCode: '1100', accountName: Accounts Receivable, from: '2026-09-01', to: '2026-09-30', opening: 0, closing: 0, totalDebit: 0, totalCredit: 0, rows: [], scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/accounting/trial-balance:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Accounting]
+    summary: Trial balance
+    description: Query examples — `?dateFrom=2026-04-01&dateTo=2026-09-30` · `?fy=2026-27` · `?branchId=br_andheri` · `?includeZero=true`.
+    operationId: getTrialBalance
+    x-permission: accounting.journal.view
+    x-frd: [FR-ACC-008]
+    parameters:
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+      - $ref: '../components/parameters.yaml#/FiscalYear'
+      - $ref: '../components/parameters.yaml#/BranchFilter'
+      - { name: includeZero, in: query, schema: { type: boolean, default: false } }
+    responses:
+      '200':
+        description: Trial balance
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/accounting.yaml#/TrialBalance' }
+            examples:
+              balanced: { summary: Balanced, value: { from: '2026-04-01', to: '2026-09-30', rows: [{ accountId: acc_1100, code: '1100', name: Accounts Receivable, groupId: ag_ca, groupName: Current Assets, type: Asset, normalBalance: Dr, opening: 1240000, dr: 5120000, cr: 4380000, net: 1980000, drCol: 1980000, crCol: 0 }, { accountId: acc_2100, code: '2100', name: Accounts Payable, groupId: ag_cl, groupName: Current Liabilities, type: Liability, normalBalance: Cr, opening: 860000, dr: 2910000, cr: 3200000, net: 1150000, drCol: 0, crCol: 1150000 }], totalDr: 18430000, totalCr: 18430000, balanced: true, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              branchSlice: { summary: One branch (no opening balances), value: { from: '2026-09-01', to: '2026-09-30', branchId: br_andheri, rows: [{ accountId: acc_4010, code: '4010', name: Retail sales, groupId: ag_inc, groupName: Income, type: Income, normalBalance: Cr, opening: 0, dr: 1200, cr: 1825000, net: 1823800, drCol: 0, crCol: 1823800 }], totalDr: 1823800, totalCr: 1823800, balanced: true, scope: { companyId: co_acme, branchId: br_andheri, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/accounting/sub-ledgers/{partyType}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - { name: partyType, in: path, required: true, schema: { type: string, enum: [customers, suppliers, employees] } }
+  get:
+    tags: [Accounting]
+    summary: Sub-ledger (party balances vs control account)
+    operationId: getSubLedger
+    x-permission: accounting.journal.view
+    x-frd: [FR-ACC-009]
+    parameters:
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+      - $ref: '../components/parameters.yaml#/Q'
+      - { name: nonZero, in: query, schema: { type: boolean, default: true } }
+    responses:
+      '200':
+        description: Sub-ledger
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/accounting.yaml#/SubLedger' }
+            examples:
+              customers: { summary: Customers tie to 1100, value: { partyType: Customer, from: '2026-04-01', to: '2026-09-30', rows: [{ partyId: cust_arlene, partyName: Arlene Traders, controlAccountId: acc_1100, currency: INR, opening: 240000, dr: 1180000, cr: 980000, closing: 440000, openItems: 3, overdue: 118000, oldestDueDate: '2026-08-12' }, { partyId: cust_ustech, partyName: US Tech Inc, controlAccountId: acc_1100, currency: USD, opening: 0, dr: 840000, cr: 0, closing: 840000, openItems: 1, overdue: 0 }], total: 1980000, controlBalance: 1980000, difference: 0, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              difference: { summary: Manual journal broke the tie-out, value: { partyType: Supplier, from: '2026-04-01', to: '2026-09-30', rows: [], total: 1149000, controlBalance: 1150000, difference: 1000, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/accounting/control-tieout:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Accounting]
+    summary: Control-account tie-out (GL vs sub-ledgers / stock / bank)
+    operationId: getControlTieout
+    x-permission: accounting.journal.view
+    x-frd: [FR-ACC-010]
+    parameters:
+      - $ref: '../components/parameters.yaml#/AsOf'
+    responses:
+      '200':
+        description: Tie-out
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/accounting.yaml#/ControlTieout' }
+            examples:
+              allTied: { summary: Everything ties, value: { asOf: '2026-09-13', rows: [{ controlType: AR, accountId: acc_1100, accountCode: '1100', accountName: Accounts Receivable, glBalance: 1980000, subLedgerBalance: 1980000, difference: 0, status: Tied }, { controlType: AP, accountId: acc_2100, accountCode: '2100', accountName: Accounts Payable, glBalance: 1150000, subLedgerBalance: 1150000, difference: 0, status: Tied }, { controlType: Inventory, accountId: acc_1210, accountCode: '1210', accountName: Inventory — Raw Material, glBalance: 1264000, subLedgerBalance: 1264000, difference: 0, status: Tied }], allTied: true, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              difference: { summary: Inventory GL differs from stock ledger, value: { asOf: '2026-09-13', rows: [{ controlType: Inventory, accountId: acc_1210, accountCode: '1210', accountName: Inventory — Raw Material, glBalance: 1263751, subLedgerBalance: 1264000, difference: -249, status: Difference, detail: Manual journal JV/2026-27/00390 posted to 1210 } ], allTied: false, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+# ── opening balances ──────────────────────────────────────────────────────
+
+/accounting/opening-balances:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Accounting]
+    summary: Opening balances worksheet
+    operationId: getOpeningBalances
+    x-permission: accounting.opening.view
+    x-frd: [FR-ACC-011]
+    responses:
+      '200':
+        description: Worksheet
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/accounting.yaml#/OpeningBalances' }
+            examples:
+              posted: { summary: "Posted once, one staged change", value: { date: '2026-04-01', rows: [{ accountId: acc_1300, code: '1300', name: Cash in hand, type: Asset, normalBalance: Dr, current: 50000 }, { accountId: acc_1310, code: '1310', name: HDFC Bank — CA 0042, type: Asset, normalBalance: Dr, current: 1250000, isControl: true, controlType: Bank }, { accountId: acc_1100, code: '1100', name: Accounts Receivable, type: Asset, normalBalance: Dr, current: 240000, entered: 258000, isControl: true, controlType: AR }, { accountId: acc_3100, code: '3100', name: Retained earnings, type: Equity, normalBalance: Cr, current: 1540000 }], parties: [{ id: obp_1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, docNumber: INV/2025-26/00981, date: '2026-03-12', dueDate: '2026-04-11', amount: 240000, posted: true }, { id: obp_2, partyType: Customer, partyId: cust_metro, partyName: Metro Retail, docNumber: INV/2025-26/00990, date: '2026-03-28', dueDate: '2026-04-27', amount: 18000, posted: false }], postedRuns: [{ journalId: jnl_ob_1, journalNumber: JV/2026-27/00001, postedAt: '2026-04-02T10:00:00Z', narration: Opening balances entry as at 1 Apr 2026 — Migration from Tally }], totalDr: 1558000, totalCr: 1540000, difference: 18000, equityAccountId: acc_3900, periodOpen: true } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  put:
+    tags: [Accounting]
+    summary: Stage opening balances (not posted)
+    operationId: stageOpeningBalances
+    x-permission: accounting.opening.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/accounting.yaml#/OpeningBalancesPut' }
+          examples:
+            accounts: { summary: Account balances, value: { rows: [{ accountId: acc_1300, amount: 50000 }, { accountId: acc_1310, amount: 1250000 }, { accountId: acc_3100, amount: 1300000 }] } }
+            withParties: { summary: With AR/AP open items, value: { rows: [{ accountId: acc_1100, amount: 258000 }], parties: [{ partyType: Customer, partyId: cust_arlene, docNumber: INV/2025-26/00981, date: '2026-03-12', dueDate: '2026-04-11', amount: 240000 }, { partyType: Customer, partyId: cust_metro, docNumber: INV/2025-26/00990, date: '2026-03-28', dueDate: '2026-04-27', amount: 18000 }] } }
+    responses:
+      '200':
+        description: Worksheet (staged values in `entered`)
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/accounting.yaml#/OpeningBalances' }
+            examples:
+              staged: { summary: Staged, value: { date: '2026-04-01', rows: [{ accountId: acc_1100, code: '1100', name: Accounts Receivable, type: Asset, normalBalance: Dr, current: 240000, entered: 258000, isControl: true, controlType: AR }], parties: [], postedRuns: [], totalDr: 258000, totalCr: 0, difference: 258000, equityAccountId: acc_3900, periodOpen: true } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '422':
+        description: Business rule
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              partyMismatch: { summary: Party items ≠ control balance, value: { code: UNBALANCED, message: Customer open items total 240000 but 1100 entered 258000, field: parties, correlationId: corr_9f1c2e7a } }
+
+/accounting/opening-balances/post:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Accounting]
+    summary: Post staged opening balances (delta journal of type Opening + AR/AP open items)
+    description: Difference between Dr and Cr goes to the opening-balance equity account. Re-posting creates an adjustment journal for the deltas only.
+    operationId: postOpeningBalances
+    x-permission: accounting.opening.post
+    x-idempotent: true
+    x-events: [JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/accounting.yaml#/OpeningBalancesPost' }
+          examples:
+            migration: { summary: Reason, value: { reason: Migration from Tally as at 1 Apr 2026 } }
+    responses:
+      '200':
+        description: Posted
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/accounting.yaml#/OpeningBalances' }
+            examples:
+              posted: { summary: Journal + open items, value: { document: { date: '2026-04-01', rows: [], parties: [], postedRuns: [{ journalId: jnl_ob_2, journalNumber: JV/2026-27/00398, postedAt: '2026-09-13T09:12:04Z', narration: Opening balances adjustment as at 1 Apr 2026 — Missed Metro Retail invoice }], totalDr: 1558000, totalCr: 1558000, difference: 0, equityAccountId: acc_3900, periodOpen: true }, outcome: posted, journal: { id: jnl_ob_2, companyId: co_acme, number: JV/2026-27/00398, date: '2026-04-01', period: '2026-04', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Opening, sourceType: Opening Balance, sourceNumber: OB 2026-04-01, narration: Opening balances adjustment as at 1 Apr 2026 — Missed Metro Retail invoice, lines: [{ id: jl_1, accountId: acc_1100, accountCode: '1100', accountName: Accounts Receivable, dr: 18000, cr: 0, drBase: 18000, crBase: 0, narration: Opening balance adjustment — was ₹2,40,000, dimensions: {} }, { id: jl_2, accountId: acc_3900, accountCode: '3900', accountName: Opening balance equity, dr: 0, cr: 18000, drBase: 0, crBase: 18000, dimensions: {} }], totalDr: 18000, totalCr: 18000, postedAt: '2026-09-13T09:12:04Z', postedBy: Priya Sharma, correlationId: corr_ob2, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }, openItems: [{ id: oi_ob_2, companyId: co_acme, partyType: Customer, partyId: cust_metro, partyName: Metro Retail, docType: Opening Balance, docId: jnl_ob_2, docNumber: INV/2025-26/00990, date: '2026-04-01', dueDate: '2026-04-27', currency: INR, rate: 1, amount: 18000, baseAmount: 18000, settled: 0, balance: 18000, baseBalance: 18000, status: Open, settlements: [], createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }], warnings: [] } }
+              nothingToPost: { summary: No deltas, value: { document: { date: '2026-04-01', rows: [], parties: [], postedRuns: [], totalDr: 1558000, totalCr: 1558000, difference: 0, equityAccountId: acc_3900, periodOpen: true }, outcome: posted, warnings: ['No changes since the last posting — nothing posted'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+# ── FX ────────────────────────────────────────────────────────────────────
+
+/accounting/fx/exposure:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Accounting]
+    summary: Foreign-currency exposure (open items + fixed-currency bank accounts)
+    operationId: getFxExposure
+    x-permission: accounting.fx.view
+    x-frd: [FR-FX-005, FR-FX-006]
+    parameters:
+      - $ref: '../components/parameters.yaml#/AsOf'
+      - { name: rates, in: query, schema: { type: string }, description: 'Override closing rates, e.g. `USD:84,AED:22.9`.', example: 'USD:84' }
+    responses:
+      '200':
+        description: Exposure
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/accounting.yaml#/FxExposure' }
+            examples:
+              usd: { summary: One USD receivable + USD bank, value: { asOf: '2026-09-13', base: INR, items: [{ id: oi_44, kind: AR, ref: INV/2026-27/00044, partyName: US Tech Inc, accountId: acc_1100, partyType: Customer, partyId: cust_ustech, currency: USD, amount: 10000, bookRate: 83.2, bookBase: 832000, closingBase: 840000, difference: 8000 }, { id: acc_1320, kind: Bank, ref: '1320 · HDFC EEFC USD', accountId: acc_1320, currency: USD, amount: 2500, bookRate: 83, bookBase: 207500, closingBase: 210000, difference: 2500 }], currencies: [USD], latest: { USD: { rate: 84, type: Spot, source: RBI reference, at: '2026-09-13T08:00:00Z' } }, totals: { exposure: 1039500, bookBase: 1039500, closingBase: 1050000, unrealised: 10500, realisedGainFy: 8000, realisedLossFy: 0 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              none: { summary: No foreign items, value: { asOf: '2026-09-13', base: INR, items: [], currencies: [], latest: {}, totals: { exposure: 0, bookBase: 0, closingBase: 0, unrealised: 0, realisedGainFy: 0, realisedLossFy: 0 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/accounting/fx/realised:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Accounting]
+    summary: Realised FX gain / loss (settlements at a different rate)
+    operationId: listRealisedFx
+    x-permission: accounting.fx.view
+    x-frd: [FR-FX-009]
+    parameters:
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+    responses:
+      '200':
+        description: Rows
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/accounting.yaml#/RealisedFxRow' } }
+                    totals: { type: object, properties: { gain: { type: number }, loss: { type: number } } }
+            examples:
+              rows: { summary: FRD 9A acceptance example, value: { data: [{ date: '2026-09-10', settlementDocType: Receipt, settlementDocId: rcp_00215, settlementDocNumber: RCP/2026-27/00215, openItemNumber: INV/2026-27/00044, partyName: US Tech Inc, currency: USD, amount: 10000, invoiceRate: 83.2, settlementRate: 84, gainLoss: 8000, journalId: jnl_fx_1, journalNumber: JV/2026-27/00380 }], totals: { gain: 8000, loss: 0 }, meta: { nextCursor: null, limit: 25, total: 1 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/accounting/revaluation-runs:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Accounting]
+    summary: List revaluation runs
+    operationId: listRevaluationRuns
+    x-permission: accounting.fx.view
+    x-frd: [FR-FX-010, FR-FX-011]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: currency, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/PeriodCode'
+    responses:
+      '200':
+        description: Runs
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/accounting.yaml#/RevaluationRun' } }
+            examples:
+              firstPage: { summary: Runs, value: { data: [{ $ref: '#/components/examples/RevaluationRunPosted/value' }], meta: { nextCursor: null, limit: 25, total: 1 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Accounting]
+    summary: Run a period-end revaluation (preview with dryRun, else post)
+    description: "Posts unrealised gain/loss to the unrealised FX accounts against the AR/AP/bank accounts. `dryRun=true` returns the run shape without a number/journal. Idempotent per currency + period + scope."
+    operationId: createRevaluationRun
+    x-permission: accounting.fx.post
+    x-idempotent: true
+    x-events: [JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/accounting.yaml#/RevaluationRunCreate' }
+          examples:
+            preview: { summary: Dry run, value: { asOf: '2026-09-30', currency: USD, scope: [AR, AP, Bank], dryRun: true } }
+            post: { summary: Post with approved month-end rate, value: { asOf: '2026-09-30', currency: USD, rateId: xr_usd_sep_me, scope: [AR, AP], autoReverse: true, reason: September close } }
+            manualRate: { summary: Manual closing rate (audited), value: { asOf: '2026-09-30', currency: AED, closingRate: 22.9, scope: [Bank], autoReverse: false, reason: No approved AED rate for 30 Sep } }
+    responses:
+      '200':
+        description: Preview (dryRun)
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/accounting.yaml#/RevaluationRun' }
+            examples:
+              preview: { summary: Preview, value: { id: preview, companyId: co_acme, number: RV/2026-27/00004, asOf: '2026-09-30', period: '2026-09', currency: USD, closingRate: 84, rateId: xr_usd_sep_me, scope: [AR, AP, Bank], items: [{ id: oi_44, kind: AR, ref: INV/2026-27/00044, partyName: US Tech Inc, accountId: acc_1100, partyType: Customer, partyId: cust_ustech, currency: USD, amount: 10000, bookRate: 83.2, bookBase: 832000, closingBase: 840000, difference: 8000 }], gain: 8000, loss: 0, net: 8000, autoReverse: true, status: Posted, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 0 } }
+      '201':
+        description: Run posted
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/accounting.yaml#/RevaluationRun' }
+            examples:
+              posted: { summary: Posted, value: { document: { $ref: '#/components/examples/RevaluationRunPosted/value' }, outcome: posted, journal: { id: jnl_rv_3, companyId: co_acme, number: JV/2026-27/00399, date: '2026-09-30', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Revaluation, sourceType: Revaluation, sourceId: rv_0003, sourceNumber: RV/2026-27/00003, narration: Period-end revaluation of USD AR/AP at closing rate 84 (2026-09) — September close, lines: [{ id: jl_1, accountId: acc_1100, accountCode: '1100', accountName: Accounts Receivable, dr: 8000, cr: 0, drBase: 8000, crBase: 0, partyType: Customer, partyId: cust_ustech, partyName: US Tech Inc, dimensions: {} }, { id: jl_2, accountId: acc_4920, accountCode: '4920', accountName: Unrealised FX gain, dr: 0, cr: 8000, drBase: 0, crBase: 8000, dimensions: {} }], totalDr: 8000, totalCr: 8000, postedAt: '2026-09-30T18:00:00Z', postedBy: Priya Sharma, correlationId: corr_rv3, createdAt: '2026-09-30T18:00:00Z', updatedAt: '2026-09-30T18:00:00Z', version: 1 }, warnings: ['Auto-reversal scheduled for 2026-10-01'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Business rule
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              rateMissing: { summary: No approved rate, value: { code: RATE_MISSING, message: No approved USD→INR rate as of 2026-09-30 — pick a rate or enter a closing rate, field: rateId, correlationId: corr_9f1c2e7a } }
+              accountsUnmapped: { summary: FX accounts not configured, value: { code: INVALID_ACCOUNT, message: Unrealised FX gain/loss accounts are not set in Accounting settings, field: unrealisedFxGainAccountId, correlationId: corr_9f1c2e7a } }
+              nothing: { summary: Nothing to revalue, value: { code: EMPTY, message: No USD exposure as of 2026-09-30, correlationId: corr_9f1c2e7a } }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/accounting/revaluation-runs/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Accounting]
+    summary: Get a revaluation run
+    operationId: getRevaluationRun
+    x-permission: accounting.fx.view
+    responses:
+      '200':
+        description: Run
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/accounting.yaml#/RevaluationRun' }
+            examples:
+              posted: { $ref: '../components/examples/accounting.yaml#/RevaluationRunPosted' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/accounting/revaluation-runs/{id}/reverse:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Accounting]
+    summary: Reverse a revaluation run (manually, or the scheduled auto-reversal)
+    operationId: reverseRevaluationRun
+    x-permission: accounting.fx.post
+    x-idempotent: true
+    x-events: [JournalReversed]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            nextDay: { summary: Auto-reversal on first day of next period, value: { reason: Period-open reversal, date: '2026-10-01' } }
+            manual: { summary: Wrong rate, value: { reason: Wrong closing rate used } }
+    responses:
+      '200':
+        description: Reversed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/accounting.yaml#/RevaluationRun' }
+            examples:
+              reversed: { summary: Reversed, value: { document: { id: rv_0003, companyId: co_acme, number: RV/2026-27/00003, asOf: '2026-09-30', period: '2026-09', currency: USD, closingRate: 84, rateId: xr_usd_sep_me, scope: [AR, AP], items: [], gain: 8000, loss: 0, net: 8000, journalId: jnl_rv_3, journalNumber: JV/2026-27/00399, reversalJournalId: jnl_rv_3r, autoReverse: true, status: Reversed, reason: September close, createdAt: '2026-09-30T18:00:00Z', updatedAt: '2026-10-01T00:05:00Z', version: 2 }, outcome: reversed, warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+# ── intercompany ──────────────────────────────────────────────────────────
+
+/accounting/intercompany:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Accounting]
+    summary: Intercompany documents involving this company (+ due-to/due-from balances)
+    description: "Tabs → Unmatched · Difference · Matched · All. Group-wide view and eliminations live under `/reports/consolidation/*`."
+    operationId: listIntercompanyDocs
+    x-permission: accounting.intercompany.view
+    x-frd: [FR-ORG-011, FR-ORG-012]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: matchStatus, in: query, schema: { type: string, enum: [Unmatched, Matched, Difference] } }
+      - { name: counterpartyId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Documents + balances
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/accounting.yaml#/IntercompanyDoc' } }
+                    dues: { type: array, items: { $ref: '../components/schemas/accounting.yaml#/IntercompanyDueRow' } }
+            examples:
+              firstPage: { summary: One unmatched doc, value: { data: [{ $ref: '#/components/examples/IntercompanyInvoice/value' }], dues: [{ companyId: co_gulf, companyName: Acme Gulf FZE, receivable: 416000, payable: 0, net: 416000, currency: INR, openDocuments: 1 }], meta: { nextCursor: null, limit: 25, total: 1, counts: { Unmatched: 1, Difference: 0, Matched: 6, All: 7 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Accounting]
+    summary: Create an intercompany transaction (this company → counterparty)
+    description: Posts the due-from journal here and, when `postBothSides`, the mirror due-to journal in the counterparty at its own base rate. A transaction never spans two legal companies in one journal.
+    operationId: createIntercompanyDoc
+    x-permission: accounting.intercompany.create
+    x-idempotent: true
+    x-events: [JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/accounting.yaml#/IntercompanyDocInput'
+              - { required: [type, toCompanyId, date, currency, amount, counterpartyRef] }
+          examples:
+            invoiceBothSides: { summary: "Service invoice, both sides posted", value: { type: Invoice, toCompanyId: co_gulf, date: '2026-09-13', currency: USD, amount: 5000, counterpartyRef: IC-INV-0017, narration: Shared-services fee Q2, dueFromAccount: acc_1180, dueToAccount: acc_2180, postBothSides: true } }
+            paymentOneSide: { summary: Settlement recorded here only, value: { type: Payment, toCompanyId: co_gulf, date: '2026-09-13', currency: USD, amount: 5000, counterpartyRef: IC-PAY-0009, postBothSides: false } }
+    responses:
+      '201':
+        description: Created
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/accounting.yaml#/IntercompanyDoc' }
+            examples:
+              bothSides: { summary: Matched immediately, value: { document: { $ref: '#/components/examples/IntercompanyInvoice/value' }, outcome: posted, journals: [{ id: jnl_ic_17a, companyId: co_acme, number: JV/2026-27/00400, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: USD, rate: 83.2, status: Posted, type: Auto, sourceType: Intercompany, sourceId: ic_0017, sourceNumber: IC/2026-27/00017, narration: IC invoice IC-INV-0017 to Acme Gulf FZE, lines: [{ id: jl_1, accountId: acc_1180, accountCode: '1180', accountName: Due from group companies, dr: 5000, cr: 0, drBase: 416000, crBase: 0, dimensions: {} }, { id: jl_2, accountId: acc_4300, accountCode: '4300', accountName: Shared-services income, dr: 0, cr: 5000, drBase: 0, crBase: 416000, dimensions: {} }], totalDr: 416000, totalCr: 416000, postedAt: '2026-09-13T09:12:04Z', postedBy: Priya Sharma, correlationId: corr_ic17, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }], warnings: [] } }
+              oneSide: { summary: Unmatched until counterparty records it, value: { document: { id: ic_0018, companyId: co_acme, type: Payment, number: IC/2026-27/00018, fromCompanyId: co_acme, toCompanyId: co_gulf, date: '2026-09-13', currency: USD, amount: 5000, baseCurrencyFrom: INR, baseCurrencyTo: AED, rateFrom: 84, rateTo: 3.67, baseAmountFrom: 420000, baseAmountTo: 18350, counterpartyRef: IC-PAY-0009, matchStatus: Unmatched, dueFromAccount: acc_1180, dueToAccount: acc_2180, sourceJournalIds: { from: jnl_ic_18a }, sourceJournalNumbers: { from: JV/2026-27/00401 }, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }, outcome: posted, warnings: ['Counterparty Acme Gulf FZE has not recorded IC-PAY-0009 — appears as Unmatched in eliminations'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/accounting/intercompany/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Accounting]
+    summary: Get an intercompany document
+    operationId: getIntercompanyDoc
+    x-permission: accounting.intercompany.view
+    responses:
+      '200':
+        description: Document
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/accounting.yaml#/IntercompanyDoc' }
+            examples:
+              matched: { $ref: '../components/examples/accounting.yaml#/IntercompanyInvoice' }
+              difference: { summary: FX difference explained, value: { id: ic_0015, companyId: co_acme, type: Invoice, number: IC/2026-27/00015, fromCompanyId: co_acme, toCompanyId: co_gulf, date: '2026-08-20', currency: USD, amount: 2000, baseCurrencyFrom: INR, baseCurrencyTo: AED, rateFrom: 83.5, rateTo: 3.67, baseAmountFrom: 167000, baseAmountTo: 7340, counterpartyRef: IC-INV-0015, matchStatus: Difference, dueFromAccount: acc_1180, dueToAccount: acc_2180, sourceJournalIds: { from: jnl_ic_15a, to: jnl_ic_15b }, difference: { expectedTo: 7340, actualTo: 7360, diffTo: 20, toCurrency: AED, explanation: ['Counterparty booked at 3.68 (their rate of 2026-08-22)'] }, createdAt: '2026-08-20T09:00:00Z', updatedAt: '2026-08-22T09:00:00Z', version: 2 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/accounting/intercompany/{id}/match:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Accounting]
+    summary: Match with the counterparty's document
+    operationId: matchIntercompanyDoc
+    x-permission: accounting.intercompany.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/accounting.yaml#/IntercompanyMatchRequest' }
+          examples:
+            exact: { summary: Exact match, value: { counterpartyDocId: ic_gulf_0031 } }
+            acceptDifference: { summary: Accept FX difference, value: { counterpartyDocId: ic_gulf_0029, acceptDifference: true, note: Rate-date difference, immaterial } }
+    responses:
+      '200':
+        description: Matched
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/accounting.yaml#/IntercompanyDoc' }
+            examples:
+              matched: { $ref: '../components/examples/accounting.yaml#/IntercompanyInvoice' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Business rule
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              amountDiffers: { summary: Amounts differ, value: { code: AMOUNT_MISMATCH, message: 'USD 5,000 here vs USD 4,500 on IC-GULF-0031 — pass acceptDifference or fix the counterparty document', details: { here: 5000, counterparty: 4500 }, correlationId: corr_9f1c2e7a } }
+
+# ── period close ──────────────────────────────────────────────────────────
+
+/accounting/period-close/{code}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Code'
+  get:
+    tags: [Accounting]
+    summary: Period-close checklist (live)
+    description: "Finance view of the close: unposted journals, draft SI/VI, unmatched bank lines, pending approvals, failed integrations, control tie-out, stock vs GL. Blockers stop `soft-close`/`lock` under `/periods/{code}`."
+    operationId: getAccountingPeriodClose
+    x-permission: accounting.period.view
+    x-frd: [FR-ACC-012, FR-ACC-013]
+    responses:
+      '200':
+        description: Checklist
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/accounting.yaml#/PeriodClose' }
+            examples:
+              blocked: { summary: Two blockers, value: { period: '2026-09', status: Open, from: '2026-09-01', to: '2026-09-30', items: [{ id: drafts, label: Unposted draft journals, status: Blocked, count: 2, detail: 'JV/2026-27/00410, JV/2026-27/00411 — post or delete', link: accounting/journals }, { id: si, label: Draft / submitted sales invoices, status: Done, count: 0, detail: No unposted sales invoices, link: sales/invoices }, { id: vi, label: Draft / submitted vendor invoices & match exceptions, status: Blocked, count: 1, detail: Resolve exceptions and post, link: purchase/vendor-invoices }, { id: bank, label: Unmatched bank statement lines, status: Warning, count: 4, detail: Reconcile in Banking, link: banking/reconciliation }, { id: appr, label: Pending approvals, status: Done, count: 0, detail: Approval inbox is clear for this period, link: approvals }, { id: integ, label: Failed statutory / provider calls, status: Done, count: 0, detail: No failed integration logs, link: admin/integrations/logs }, { id: tieout, label: Control accounts tie out, status: Done, count: 0, detail: AR/AP/Employee tie to sub-ledgers, link: accounting/control-tieout }, { id: stockgl, label: Stock valuation vs inventory GL, status: Done, count: 0, detail: 'Ledger ₹18,42,000 = GL ₹18,42,000', link: inventory/valuation }], blocked: 2, warnings: 1, canSoftClose: false, canLock: false, inventoryGl: { ledgerValue: 1842000, glBalance: 1842000, difference: 0 } } }
+              clean: { summary: Ready to close, value: { period: '2026-08', status: Soft Closed, from: '2026-08-01', to: '2026-08-31', items: [{ id: drafts, label: Unposted draft journals, status: Done, count: 0, detail: All journals dated in the period are posted, link: accounting/journals }], blocked: 0, warnings: 0, canSoftClose: true, canLock: true, inventoryGl: { ledgerValue: 1790000, glBalance: 1790000, difference: 0 } } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── settings ──────────────────────────────────────────────────────────────
+
+/accounting/settings:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Accounting]
+    summary: Accounting settings (default accounts, dimensions, duplicate rules)
+    operationId: getAccountingSettings
+    x-permission: accounting.journal.view
+    responses:
+      '200':
+        description: Settings
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/accounting.yaml#/AccountingSettings' }
+            examples:
+              current: { summary: Current, value: { roundOffAccountId: acc_5990, fxGainAccountId: acc_4910, fxLossAccountId: acc_5600, unrealisedFxGainAccountId: acc_4920, unrealisedFxLossAccountId: acc_5610, retainedEarningsAccountId: acc_3100, openingBalanceEquityAccountId: acc_3900, defaultDimensions: { Branch: br_ho }, duplicateRules: { Journal: { fields: [date, totalDr, narration], mode: Warn }, 'Vendor Invoice': { fields: [partyId, supplierInvoiceNo], mode: Block } } } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  put:
+    tags: [Accounting]
+    summary: Update accounting settings
+    operationId: updateAccountingSettings
+    x-permission: accounting.settings.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/accounting.yaml#/AccountingSettings' }
+          examples:
+            fxAccounts: { summary: Map FX accounts, value: { fxGainAccountId: acc_4910, fxLossAccountId: acc_5600, unrealisedFxGainAccountId: acc_4920, unrealisedFxLossAccountId: acc_5610 } }
+            duplicateRule: { summary: Block duplicate journals, value: { duplicateRules: { Journal: { fields: [date, totalDr, narration], mode: Block } } } }
+    responses:
+      '200':
+        description: Saved
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/accounting.yaml#/AccountingSettings' }
+            examples:
+              saved: { summary: Saved, value: { roundOffAccountId: acc_5990, fxGainAccountId: acc_4910, fxLossAccountId: acc_5600, unrealisedFxGainAccountId: acc_4920, unrealisedFxLossAccountId: acc_5610, retainedEarningsAccountId: acc_3100, openingBalanceEquityAccountId: acc_3900, defaultDimensions: { Branch: br_ho }, duplicateRules: { Journal: { fields: [date, totalDr, narration], mode: Block } } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }

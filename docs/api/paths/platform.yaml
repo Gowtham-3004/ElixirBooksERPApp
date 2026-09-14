@@ -1,0 +1,505 @@
+# Platform administration (tag: Platform). Platform admins only (x-platform-only). Not company-scoped.
+
+/platform/usage:
+  get:
+    tags: [Platform]
+    summary: Tenants by state and MRR by plan
+    operationId: getPlatformUsage
+    x-platform-only: true
+    x-permission: platform.usage.view
+    responses:
+      '200':
+        description: Usage
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/platform.yaml#/PlatformUsage' }
+            examples:
+              usage: { summary: Snapshot, value: { tenantsByState: { Trial: 12, Active: 41, Grace: 3, Suspended: 2, Expired: 5, Cancelled: 4 }, mrrByPlan: { LITE: 29970, GROWTH: 204959, ENTERPRISE: 149970 }, totals: { tenants: 67, activeUsers: 412, mrr: 384899 } } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/platform/audit:
+  get:
+    tags: [Platform]
+    summary: Platform-level audit log
+    description: Plan / tenant lifecycle events only. Query examples — `?action=tenant.suspended` · `?tenantId=tnt_acme` · `?dateFrom=2026-09-01`.
+    operationId: listPlatformAudit
+    x-platform-only: true
+    x-permission: platform.audit.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: tenantId, in: query, schema: { type: string } }
+      - { name: action, in: query, schema: { type: string }, example: tenant.suspended }
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Audit events
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/system.yaml#/AuditEvent' } }
+            examples:
+              firstPage:
+                summary: Recent platform events
+                value:
+                  data:
+                    - { id: paud_1, at: '2026-09-13T09:12:04Z', actor: Platform Admin, actorId: usr_platform, tenantId: tnt_zen, action: tenant.created, objectType: Tenant, objectId: tnt_zen, objectNumber: Zen Foods, result: Success, detail: Trial (14 days) · Trading · India · INR, correlationId: corr_p1, channel: web, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+                    - { id: paud_2, at: '2026-09-12T15:00:00Z', actor: Platform Admin, actorId: usr_platform, tenantId: tnt_oldco, action: tenant.suspended, objectType: Tenant, objectId: tnt_oldco, result: Success, detail: Invoice 2026-08 unpaid for 45 days, correlationId: corr_p2, channel: web, createdAt: '2026-09-12T15:00:00Z', updatedAt: '2026-09-12T15:00:00Z', version: 1 }
+                  meta: { nextCursor: null, limit: 25, total: 2 }
+                  scope: { companyId: platform, currency: INR, asOf: '2026-09-13T09:12:04Z' }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+# ── plans ─────────────────────────────────────────────────────────────────
+
+/platform/plans:
+  get:
+    tags: [Platform]
+    summary: List plans (all versions)
+    description: Query examples — `?status=Active` · `?tier=Growth`.
+    operationId: listPlans
+    x-platform-only: true
+    x-permission: platform.plans.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: status, in: query, schema: { type: string, enum: [Draft, Active, Retired] } }
+      - { name: tier, in: query, schema: { type: string, enum: [Lite, Growth, Enterprise, Pro] } }
+    responses:
+      '200':
+        description: Plans
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/platform.yaml#/Plan' } }
+            examples:
+              firstPage:
+                summary: Active plans
+                value:
+                  data:
+                    - { id: plan_lite, code: LITE, name: Lite, tier: Lite, planVersion: 2, status: Active, modules: [home, approvals, sales, purchase, accounting, banking, taxation, reports, masters, admin], limits: { users: 5, companies: 1, invoicesPerMonth: 500, storageMb: 2048 }, priceMonthly: 999, currency: INR, tenantCount: 12, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', version: 2 }
+                    - { id: plan_std, code: GROWTH, name: Growth, tier: Growth, planVersion: 3, status: Active, modules: [home, approvals, crm, sales, purchase, inventory, pos, projects, accounting, banking, taxation, payroll, fixed-assets, budgets, reports, masters, admin], limits: { users: 25, companies: 3, invoicesPerMonth: 5000, storageMb: 20480 }, priceMonthly: 4999, currency: INR, tenantCount: 41, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-07-01T00:00:00Z', version: 3 }
+                    - { id: plan_ent, code: ENTERPRISE, name: Enterprise, tier: Enterprise, planVersion: 1, status: Active, modules: [home, approvals, crm, sales, purchase, inventory, pos, projects, production, accounting, banking, taxation, payroll, fixed-assets, budgets, reports, masters, admin], limits: { users: 500, companies: 25, invoicesPerMonth: 100000, storageMb: 512000 }, priceMonthly: 14999, currency: INR, tenantCount: 10, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', version: 1 }
+                  meta: { nextCursor: null, limit: 25, total: 3, counts: { All: 5, Active: 3, Draft: 1, Retired: 1 } }
+                  scope: { companyId: platform, currency: INR, asOf: '2026-09-13T09:12:04Z' }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Platform]
+    summary: Create a plan (Draft)
+    operationId: createPlan
+    x-platform-only: true
+    x-permission: platform.plans.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/platform.yaml#/PlanInput'
+              - { required: [code, name, tier, modules, limits, priceMonthly, currency] }
+          examples:
+            growthPlus: { summary: New Growth+ plan, value: { code: GROWTH_PLUS, name: Growth Plus, tier: Growth, modules: [home, approvals, crm, sales, purchase, inventory, pos, projects, production, accounting, banking, taxation, payroll, fixed-assets, budgets, reports, masters, admin], limits: { users: 50, companies: 5, invoicesPerMonth: 10000, storageMb: 51200 }, priceMonthly: 7999, currency: INR } }
+            liteUsd: { summary: USD-priced Lite, value: { code: LITE_US, name: Lite (US), tier: Lite, modules: [home, approvals, sales, purchase, accounting, banking, reports, masters, admin], limits: { users: 5, companies: 1, invoicesPerMonth: 500, storageMb: 2048 }, priceMonthly: 19, currency: USD } }
+    responses:
+      '201':
+        description: Draft plan
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/platform.yaml#/Plan' }
+            examples:
+              draft: { summary: Created as Draft v1, value: { id: plan_growth_plus, code: GROWTH_PLUS, name: Growth Plus, tier: Growth, planVersion: 1, status: Draft, modules: [home, approvals, crm, sales, purchase, inventory, pos, projects, production, accounting, banking, taxation, payroll, fixed-assets, budgets, reports, masters, admin], limits: { users: 50, companies: 5, invoicesPerMonth: 10000, storageMb: 51200 }, priceMonthly: 7999, currency: INR, tenantCount: 0, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/platform/plans/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Platform]
+    summary: Get a plan
+    operationId: getPlan
+    x-platform-only: true
+    x-permission: platform.plans.view
+    responses:
+      '200':
+        description: Plan
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/platform.yaml#/Plan' }
+            examples:
+              growth: { $ref: '../components/examples/admin.yaml#/PlanGrowth' }
+              lite: { $ref: '../components/examples/admin.yaml#/PlanLite' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Platform]
+    summary: Edit a Draft plan
+    description: Active plans are immutable — create a new version instead (`409 INVALID_STATE`).
+    operationId: updatePlan
+    x-platform-only: true
+    x-permission: platform.plans.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/platform.yaml#/PlanPatch' }
+          examples:
+            price: { summary: Change price, value: { expectedVersion: 1, priceMonthly: 8499 } }
+            limits: { summary: Raise limits and add a module, value: { expectedVersion: 1, limits: { users: 75, companies: 5, invoicesPerMonth: 10000, storageMb: 51200 }, modules: [home, approvals, crm, sales, purchase, inventory, pos, projects, production, accounting, banking, taxation, payroll, fixed-assets, budgets, reports, masters, admin, platform] } }
+    responses:
+      '200':
+        description: Updated draft
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/platform.yaml#/Plan' }
+            examples:
+              updated: { $ref: '../components/examples/admin.yaml#/PlanGrowth' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/platform/plans/{id}/versions:
+  parameters:
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Platform]
+    summary: Create a new version of an Active plan
+    description: Copies the plan into a Draft with `planVersion + 1`; activating it retires the previous version. Existing tenants keep the retired version until they switch.
+    operationId: createPlanVersion
+    x-platform-only: true
+    x-permission: platform.plans.edit
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/platform.yaml#/PlanInput' }
+          examples:
+            copy: { summary: Plain copy (edit afterwards), value: {} }
+            withChanges: { summary: Copy with new limits, value: { limits: { users: 30, companies: 3, invoicesPerMonth: 7500, storageMb: 30720 }, priceMonthly: 5499 } }
+    responses:
+      '201':
+        description: New draft version
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/platform.yaml#/Plan' }
+            examples:
+              v4: { summary: Growth v4 (Draft), value: { id: plan_std_v4, code: GROWTH, name: Growth, tier: Growth, planVersion: 4, status: Draft, modules: [home, approvals, crm, sales, purchase, inventory, pos, projects, accounting, banking, taxation, payroll, fixed-assets, budgets, reports, masters, admin], limits: { users: 30, companies: 3, invoicesPerMonth: 7500, storageMb: 30720 }, priceMonthly: 5499, currency: INR, tenantCount: 0, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/platform/plans/{id}/activate:
+  parameters:
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Platform]
+    summary: Activate a Draft plan (retires the previous version of the same code)
+    operationId: activatePlan
+    x-platform-only: true
+    x-permission: platform.plans.edit
+    responses:
+      '200':
+        description: Activated
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plan]
+              properties:
+                plan: { $ref: '../components/schemas/platform.yaml#/Plan' }
+                retired: { $ref: '../components/schemas/platform.yaml#/Plan' }
+            examples:
+              firstVersion: { summary: No previous version, value: { plan: { id: plan_growth_plus, code: GROWTH_PLUS, name: Growth Plus, tier: Growth, planVersion: 1, status: Active, modules: [home, sales, purchase, accounting, reports, masters, admin], limits: { users: 50, companies: 5, invoicesPerMonth: 10000, storageMb: 51200 }, priceMonthly: 7999, currency: INR, tenantCount: 0, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:20:00Z', version: 2 } } }
+              supersedes: { summary: Previous version retired, value: { plan: { id: plan_std_v4, code: GROWTH, name: Growth, tier: Growth, planVersion: 4, status: Active, modules: [home, sales, purchase, accounting, reports, masters, admin], limits: { users: 30, companies: 3, invoicesPerMonth: 7500, storageMb: 30720 }, priceMonthly: 5499, currency: INR, tenantCount: 0, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:20:00Z', version: 2 }, retired: { id: plan_std, code: GROWTH, name: Growth, tier: Growth, planVersion: 3, status: Retired, modules: [home, sales, purchase, accounting, reports, masters, admin], limits: { users: 25, companies: 3, invoicesPerMonth: 5000, storageMb: 20480 }, priceMonthly: 4999, currency: INR, tenantCount: 41, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-09-13T09:20:00Z', version: 4 } } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/platform/plans/{id}/retire:
+  parameters:
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Platform]
+    summary: Retire a plan (no new subscriptions)
+    operationId: retirePlan
+    x-platform-only: true
+    x-permission: platform.plans.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Replaced by Growth v4 pricing from Oct 2026 } }
+    responses:
+      '200':
+        description: Retired
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/platform.yaml#/Plan' }
+            examples:
+              retired: { summary: Retired, value: { id: plan_pro, code: PRO, name: Pro, tier: Pro, planVersion: 1, status: Retired, modules: [home, sales, purchase, accounting, reports, masters, admin], limits: { users: 10, companies: 2, invoicesPerMonth: 2000, storageMb: 10240 }, priceMonthly: 2999, currency: INR, tenantCount: 3, createdAt: '2025-06-01T00:00:00Z', updatedAt: '2026-09-13T09:20:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── tenants ───────────────────────────────────────────────────────────────
+
+/platform/tenants:
+  get:
+    tags: [Platform]
+    summary: List tenants
+    description: Query examples — `?subscriptionState=Trial` · `?planId=plan_std` · `?q=acme` · `?trialEndsBefore=2026-09-20`.
+    operationId: listTenants
+    x-platform-only: true
+    x-permission: platform.tenants.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/Q'
+      - { name: subscriptionState, in: query, schema: { type: string }, style: form, explode: false, example: 'Trial,Grace' }
+      - { name: planId, in: query, schema: { type: string } }
+      - { name: trialEndsBefore, in: query, schema: { type: string, format: date } }
+    responses:
+      '200':
+        description: Tenants
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/platform.yaml#/Tenant' } }
+            examples:
+              firstPage:
+                summary: Mixed states
+                value:
+                  data:
+                    - { id: tnt_acme, name: Acme Group, planId: plan_std, planCode: GROWTH, subscriptionState: Active, renewsAt: '2026-10-01', ownerUserId: usr_rahul, ownerName: Rahul Mehta, usage: { users: 7, companies: 2, invoicesPerMonth: 412, storageMb: 1830 }, limits: { users: 25, companies: 3, invoicesPerMonth: 5000, storageMb: 20480 }, country: IN, mrr: 4999, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-01T00:00:00Z', version: 5 }
+                    - { id: tnt_zen, name: Zen Foods, planId: plan_std, planCode: GROWTH, subscriptionState: Trial, trialEndsAt: '2026-09-27', ownerUserId: usr_zen_owner, ownerName: Meera Iyer, usage: { users: 1, companies: 1, invoicesPerMonth: 0, storageMb: 0 }, limits: { users: 25, companies: 3, invoicesPerMonth: 5000, storageMb: 20480 }, country: IN, mrr: 0, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+                  meta: { nextCursor: eyJpZCI6InRudF96ZW4ifQ, limit: 25, total: 67, counts: { All: 67, Trial: 12, Active: 41, Grace: 3, Suspended: 2, Expired: 5, Cancelled: 4 } }
+                  scope: { companyId: platform, currency: INR, asOf: '2026-09-13T09:12:04Z' }
+              lastPage:
+                summary: Last page
+                value:
+                  data:
+                    - { id: tnt_oldco, name: Oldco Ltd, planId: plan_lite, planCode: LITE, subscriptionState: Suspended, ownerUserId: usr_old, ownerName: R. Bose, usage: { users: 2, companies: 1, invoicesPerMonth: 0, storageMb: 120 }, limits: { users: 5, companies: 1, invoicesPerMonth: 500, storageMb: 2048 }, country: IN, suspendedReason: Invoice 2026-08 unpaid for 45 days, mrr: 0, createdAt: '2025-11-01T09:00:00Z', updatedAt: '2026-09-12T15:00:00Z', version: 9 }
+                  meta: { nextCursor: null, limit: 25, total: 67 }
+                  scope: { companyId: platform, currency: INR, asOf: '2026-09-13T09:12:04Z' }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/platform/tenants/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Platform]
+    summary: Get a tenant (usage vs limits)
+    operationId: getTenant
+    x-platform-only: true
+    x-permission: platform.tenants.view
+    responses:
+      '200':
+        description: Tenant
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/platform.yaml#/Tenant' }
+            examples:
+              active: { $ref: '../components/examples/admin.yaml#/TenantAcme' }
+              trial: { $ref: '../components/examples/admin.yaml#/TenantTrial' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/platform/tenants/{id}/change-plan:
+  parameters:
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Platform]
+    summary: Change a tenant's plan
+    description: Upgrades apply immediately. Downgrades are allowed only when current usage fits the target limits — otherwise `409 PLAN_LIMIT` with the blockers. A plan change never changes business data.
+    operationId: changeTenantPlan
+    x-platform-only: true
+    x-permission: platform.tenants.edit
+    x-frd: [FR-PLT-004]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/platform.yaml#/TenantChangePlanRequest' }
+          examples:
+            upgrade: { summary: Upgrade to Enterprise, value: { planId: plan_ent, reason: Customer signed annual contract } }
+            downgrade: { summary: Downgrade to Lite (may be blocked), value: { planId: plan_lite, effectiveAt: '2026-10-01' } }
+    responses:
+      '200':
+        description: Plan changed
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/platform.yaml#/Tenant' }
+            examples:
+              upgraded: { summary: Now on Enterprise, value: { id: tnt_acme, name: Acme Group, planId: plan_ent, planCode: ENTERPRISE, subscriptionState: Active, renewsAt: '2026-10-01', ownerUserId: usr_rahul, ownerName: Rahul Mehta, usage: { users: 7, companies: 2, invoicesPerMonth: 412, storageMb: 1830 }, limits: { users: 500, companies: 25, invoicesPerMonth: 100000, storageMb: 512000 }, country: IN, mrr: 14999, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:20:00Z', version: 6 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Downgrade blocked by usage, or plan not Active
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              blocked: { summary: Usage exceeds target limits, value: { code: PLAN_LIMIT, message: 'Cannot switch to Lite: users (7 used; 5 allowed), companies (2 used; 1 allowed)', details: { blockers: ['users (7 used; 5 allowed)', 'companies (2 used; 1 allowed)'] }, correlationId: corr_9f1c2e7a } }
+              retiredPlan: { summary: Target plan retired, value: { code: INVALID_STATE, message: Plan PRO is retired and cannot be assigned, correlationId: corr_9f1c2e7a } }
+
+/platform/tenants/{id}/extend-trial:
+  parameters:
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Platform]
+    summary: Extend a trial
+    operationId: extendTenantTrial
+    x-platform-only: true
+    x-permission: platform.tenants.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/platform.yaml#/TenantExtendTrialRequest' }
+          examples:
+            twoWeeks: { summary: 14 more days, value: { days: 14, reason: Customer requested more time to import history } }
+    responses:
+      '200':
+        description: Extended
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/platform.yaml#/Tenant' }
+            examples:
+              extended: { summary: Trial now ends 11 Oct, value: { id: tnt_zen, name: Zen Foods, planId: plan_std, planCode: GROWTH, subscriptionState: Trial, trialEndsAt: '2026-10-11', ownerUserId: usr_zen_owner, ownerName: Meera Iyer, usage: { users: 1, companies: 1, invoicesPerMonth: 0, storageMb: 0 }, limits: { users: 25, companies: 3, invoicesPerMonth: 5000, storageMb: 20480 }, country: IN, mrr: 0, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:30:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/platform/tenants/{id}/suspend:
+  parameters:
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Platform]
+    summary: Suspend a tenant
+    description: Users can still sign in but only Home and Company administration remain accessible (`403 TENANT_SUSPENDED` elsewhere).
+    operationId: suspendTenant
+    x-platform-only: true
+    x-permission: platform.tenants.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/platform.yaml#/TenantStateChangeRequest' }
+          examples:
+            nonPayment: { summary: Non-payment, value: { reason: Invoice 2026-08 unpaid for 45 days } }
+    responses:
+      '200':
+        description: Suspended
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/platform.yaml#/Tenant' }
+            examples:
+              suspended: { summary: Suspended, value: { id: tnt_oldco, name: Oldco Ltd, planId: plan_lite, planCode: LITE, subscriptionState: Suspended, ownerUserId: usr_old, usage: { users: 2, companies: 1, invoicesPerMonth: 0, storageMb: 120 }, country: IN, suspendedReason: Invoice 2026-08 unpaid for 45 days, mrr: 0, createdAt: '2025-11-01T09:00:00Z', updatedAt: '2026-09-12T15:00:00Z', version: 9 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/platform/tenants/{id}/reinstate:
+  parameters:
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Platform]
+    summary: Reinstate a suspended / grace tenant
+    operationId: reinstateTenant
+    x-platform-only: true
+    x-permission: platform.tenants.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/platform.yaml#/TenantStateChangeRequest' }
+          examples:
+            paid: { summary: Payment received, value: { reason: Outstanding invoices settled on 13 Sep } }
+    responses:
+      '200':
+        description: Active again
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/platform.yaml#/Tenant' }
+            examples:
+              reinstated: { $ref: '../components/examples/admin.yaml#/TenantAcme' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/platform/tenants/{id}/cancel:
+  parameters:
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Platform]
+    summary: Cancel a subscription
+    description: Data is retained read-only for 90 days, then purged. Irreversible.
+    operationId: cancelTenant
+    x-platform-only: true
+    x-permission: platform.tenants.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/platform.yaml#/TenantStateChangeRequest' }
+          examples:
+            churn: { summary: Customer churned, value: { reason: Customer moved to another vendor — written confirmation received } }
+    responses:
+      '200':
+        description: Cancelled
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/platform.yaml#/Tenant' }
+            examples:
+              cancelled: { summary: Cancelled, value: { id: tnt_oldco, name: Oldco Ltd, planId: plan_lite, planCode: LITE, subscriptionState: Cancelled, ownerUserId: usr_old, usage: { users: 2, companies: 1, invoicesPerMonth: 0, storageMb: 120 }, country: IN, mrr: 0, createdAt: '2025-11-01T09:00:00Z', updatedAt: '2026-09-13T09:40:00Z', version: 10 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }

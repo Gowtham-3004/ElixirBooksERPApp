@@ -1,0 +1,717 @@
+# POS (tag: POS). src/modules/pos/actions.ts.
+
+/pos/terminals:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [POS]
+    summary: List terminals
+    operationId: listPosTerminals
+    x-permission: pos.terminal.view
+    x-frd: [FR-POS-001]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/BranchFilter'
+    responses:
+      '200':
+        description: Terminals
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/pos.yaml#/PosTerminal' } }
+            examples:
+              firstPage: { summary: Two tills, value: { data: [{ id: term_and_t1, companyId: co_acme, code: AND-T1, name: Andheri till 1, branchId: br_andheri, warehouseId: wh_andheri, cashAccountId: acc_1300, location: Ground floor, status: Active, openShiftId: shift_0091, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:00:00Z', version: 3 }, { id: term_and_t2, companyId: co_acme, code: AND-T2, name: Andheri till 2, branchId: br_andheri, warehouseId: wh_andheri, cashAccountId: acc_1300, location: First floor, status: Inactive, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-08-01T09:00:00Z', version: 2 }], meta: { nextCursor: null, limit: 25, total: 2 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [POS]
+    summary: Create a terminal
+    operationId: createPosTerminal
+    x-permission: pos.terminal.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/pos.yaml#/PosTerminalInput'
+              - { required: [code, name, branchId, warehouseId] }
+          examples:
+            full: { summary: New till, value: { code: AND-T2, name: Andheri till 2, branchId: br_andheri, warehouseId: wh_andheri, cashAccountId: acc_1300, location: First floor } }
+    responses:
+      '201':
+        description: Created
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/pos.yaml#/PosTerminal' }
+            examples:
+              created: { summary: Created, value: { id: term_and_t2, companyId: co_acme, code: AND-T2, name: Andheri till 2, branchId: br_andheri, warehouseId: wh_andheri, cashAccountId: acc_1300, location: First floor, status: Active, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/pos/terminals/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [POS]
+    summary: Get a terminal
+    operationId: getPosTerminal
+    x-permission: pos.terminal.view
+    responses:
+      '200':
+        description: Terminal
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/pos.yaml#/PosTerminal' }
+            examples:
+              active: { summary: Active with open shift, value: { id: term_and_t1, companyId: co_acme, code: AND-T1, name: Andheri till 1, branchId: br_andheri, warehouseId: wh_andheri, cashAccountId: acc_1300, location: Ground floor, status: Active, openShiftId: shift_0091, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:00:00Z', version: 3 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [POS]
+    summary: Update a terminal (status, defaults)
+    operationId: updatePosTerminal
+    x-permission: pos.terminal.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/pos.yaml#/PosTerminalInput'
+              - { type: object, properties: { status: { type: string, enum: [Active, Inactive] } } }
+              - $ref: '../components/schemas/common.yaml#/ExpectedVersion'
+          examples:
+            deactivate: { summary: Deactivate (no open shift), value: { expectedVersion: 3, status: Inactive } }
+            move: { summary: Change warehouse, value: { expectedVersion: 3, warehouseId: wh_andheri2, location: Basement } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/pos.yaml#/PosTerminal' }
+            examples:
+              updated: { summary: Updated, value: { id: term_and_t2, companyId: co_acme, code: AND-T2, name: Andheri till 2, branchId: br_andheri, warehouseId: wh_andheri, cashAccountId: acc_1300, location: First floor, status: Inactive, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 4 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [POS]
+    summary: Delete a terminal (no shifts recorded)
+    operationId: deletePosTerminal
+    x-permission: pos.terminal.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── shifts ────────────────────────────────────────────────────────────────
+
+/pos/shifts:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [POS]
+    summary: List shifts
+    description: Tabs → Open · Pending approval · Closed · All. Query examples — `?terminalId=term_and_t1` · `?cashierId=usr_meena` · `?dateFrom=2026-09-01`.
+    operationId: listPosShifts
+    x-permission: pos.shift.view
+    x-frd: [FR-POS-002]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: terminalId, in: query, schema: { type: string } }
+      - { name: cashierId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Shifts
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/pos.yaml#/PosShift' } }
+            examples:
+              firstPage: { summary: Open and closed, value: { data: [{ id: shift_0091, companyId: co_acme, number: SH/AND-T1/0091, terminalId: term_and_t1, terminalName: Andheri till 1, cashierId: usr_meena, cashierName: Meena Joshi, branchId: br_andheri, openedAt: '2026-09-13T09:00:00Z', openingFloat: 5000, status: Open, bills: 12, sales: 18650, refunds: 0, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T12:00:00Z', version: 13 }, { id: shift_0090, companyId: co_acme, number: SH/AND-T1/0090, terminalId: term_and_t1, terminalName: Andheri till 1, cashierId: usr_meena, cashierName: Meena Joshi, branchId: br_andheri, openedAt: '2026-09-12T09:00:00Z', closedAt: '2026-09-12T20:05:00Z', openingFloat: 5000, status: Closed, expected: { Cash: 23150, Card: 41200, UPI: 18900 }, counted: { Cash: 23100, Card: 41200, UPI: 18900 }, variance: { Cash: -50, Card: 0, UPI: 0 }, varianceTotal: -50, bills: 64, sales: 83250, refunds: 1200, journalId: jnl_sh_90, journalNumber: JV/2026-27/00340, closedBy: Meena Joshi, createdAt: '2026-09-12T09:00:00Z', updatedAt: '2026-09-12T20:05:00Z', version: 66 }], meta: { nextCursor: null, limit: 25, total: 2, counts: { Open: 1, 'Pending approval': 0, Closed: 90, All: 91 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [POS]
+    summary: Open a shift
+    description: "One open shift per terminal — a second open → `409 INVALID_STATE`. Opening float is posted Dr Till cash / Cr Main cash."
+    operationId: openPosShift
+    x-permission: pos.shift.open
+    x-events: [JournalPosted]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/pos.yaml#/OpenShiftRequest' }
+          examples:
+            self: { summary: Cashier opens own shift, value: { terminalId: term_and_t1, openingFloat: 5000 } }
+            manager: { summary: Manager opens for a cashier, value: { terminalId: term_and_t1, openingFloat: 5000, cashierId: usr_meena } }
+    responses:
+      '201':
+        description: Shift opened
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/pos.yaml#/PosShift' }
+            examples:
+              opened: { summary: Open, value: { id: shift_0091, companyId: co_acme, number: SH/AND-T1/0091, terminalId: term_and_t1, terminalName: Andheri till 1, cashierId: usr_meena, cashierName: Meena Joshi, branchId: br_andheri, openedAt: '2026-09-13T09:00:00Z', openingFloat: 5000, status: Open, bills: 0, sales: 0, refunds: 0, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T09:00:00Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/pos/shifts/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [POS]
+    summary: Get a shift (Z-report figures)
+    operationId: getPosShift
+    x-permission: pos.shift.view
+    responses:
+      '200':
+        description: Shift
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/pos.yaml#/PosShift' }
+            examples:
+              open: { summary: Open, value: { id: shift_0091, companyId: co_acme, number: SH/AND-T1/0091, terminalId: term_and_t1, terminalName: Andheri till 1, cashierId: usr_meena, cashierName: Meena Joshi, branchId: br_andheri, openedAt: '2026-09-13T09:00:00Z', openingFloat: 5000, status: Open, expected: { Cash: 9650, Card: 6000, UPI: 3000 }, bills: 12, sales: 18650, refunds: 0, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T12:00:00Z', version: 13 } }
+              pendingApproval: { summary: Closed with variance over tolerance, value: { id: shift_0089, companyId: co_acme, number: SH/AND-T1/0089, terminalId: term_and_t1, terminalName: Andheri till 1, cashierId: usr_meena, cashierName: Meena Joshi, branchId: br_andheri, openedAt: '2026-09-11T09:00:00Z', closedAt: '2026-09-11T20:10:00Z', openingFloat: 5000, status: Pending Approval, expected: { Cash: 23150, Card: 41200, UPI: 18900 }, counted: { Cash: 22800, Card: 41200, UPI: 18900 }, variance: { Cash: -350, Card: 0, UPI: 0 }, varianceTotal: -350, bills: 61, sales: 81400, refunds: 600, approvalId: apr_sh_89, closeNotes: ₹350 short — customer disputed change on bill 0038, closedBy: Meena Joshi, createdAt: '2026-09-11T09:00:00Z', updatedAt: '2026-09-11T20:10:00Z', version: 64 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/pos/shifts/{id}/close:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [POS]
+    summary: Close a shift (count tenders)
+    description: "Variance within `posVarianceTolerance` → Closed and the day's sales/tenders journal posts. Variance over tolerance → Pending Approval ('POS Shift Variance' workflow); nothing posts until approved."
+    operationId: closePosShift
+    x-permission: pos.shift.close
+    x-idempotent: true
+    x-workflow-doc-type: POS Shift Variance
+    x-events: [JournalPosted, DocumentSubmitted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/pos.yaml#/CloseShiftRequest' }
+          examples:
+            exact: { summary: Counts match, value: { counted: { Cash: 23150, Card: 41200, UPI: 18900 } } }
+            smallVariance: { summary: Within tolerance, value: { counted: { Cash: 23100, Card: 41200, UPI: 18900 }, closeNotes: ₹50 short } }
+            overTolerance: { summary: Over tolerance (needs approval), value: { counted: { Cash: 22800, Card: 41200, UPI: 18900 }, closeNotes: ₹350 short — customer disputed change on bill 0038 } }
+    responses:
+      '200':
+        description: Outcome
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/pos.yaml#/PosShift' }
+                    outcome: { type: string, enum: [closed, routed-for-approval] }
+            examples:
+              closed: { summary: outcome = closed (journal posted), value: { document: { id: shift_0090, companyId: co_acme, number: SH/AND-T1/0090, terminalId: term_and_t1, terminalName: Andheri till 1, cashierId: usr_meena, cashierName: Meena Joshi, branchId: br_andheri, openedAt: '2026-09-12T09:00:00Z', closedAt: '2026-09-12T20:05:00Z', openingFloat: 5000, status: Closed, expected: { Cash: 23150, Card: 41200, UPI: 18900 }, counted: { Cash: 23100, Card: 41200, UPI: 18900 }, variance: { Cash: -50, Card: 0, UPI: 0 }, varianceTotal: -50, bills: 64, sales: 83250, refunds: 1200, journalId: jnl_sh_90, journalNumber: JV/2026-27/00340, closedBy: Meena Joshi, createdAt: '2026-09-12T09:00:00Z', updatedAt: '2026-09-12T20:05:00Z', version: 66 }, outcome: closed, journal: { id: jnl_sh_90, companyId: co_acme, number: JV/2026-27/00340, date: '2026-09-12', period: '2026-09', fy: '2026-27', branchId: br_andheri, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: POS Shift, sourceId: shift_0090, sourceNumber: SH/AND-T1/0090, narration: POS shift SH/AND-T1/0090 — tender settlement, lines: [{ id: j1, accountId: acc_1300, accountCode: '1300', accountName: Cash in hand, dr: 18100, cr: 0, drBase: 18100, crBase: 0, dimensions: {} }, { id: j2, accountId: acc_1310, accountCode: '1310', accountName: Card / UPI clearing, dr: 60100, cr: 0, drBase: 60100, crBase: 0, dimensions: {} }, { id: j3, accountId: acc_5900, accountCode: '5900', accountName: Cash short / over, dr: 50, cr: 0, drBase: 50, crBase: 0, dimensions: {} }, { id: j4, accountId: acc_1150, accountCode: '1150', accountName: POS clearing, dr: 0, cr: 78250, drBase: 0, crBase: 78250, dimensions: {} }], totalDr: 78250, totalCr: 78250, postedAt: '2026-09-12T20:05:00Z', postedBy: Meena Joshi, correlationId: corr_sh90, createdAt: '2026-09-12T20:05:00Z', updatedAt: '2026-09-12T20:05:00Z', version: 1 }, warnings: ['Cash short by ₹50 — posted to Cash short/over'] } }
+              routed: { summary: outcome = routed-for-approval, value: { document: { id: shift_0089, companyId: co_acme, number: SH/AND-T1/0089, terminalId: term_and_t1, terminalName: Andheri till 1, cashierId: usr_meena, cashierName: Meena Joshi, branchId: br_andheri, openedAt: '2026-09-11T09:00:00Z', closedAt: '2026-09-11T20:10:00Z', openingFloat: 5000, status: Pending Approval, expected: { Cash: 23150, Card: 41200, UPI: 18900 }, counted: { Cash: 22800, Card: 41200, UPI: 18900 }, variance: { Cash: -350, Card: 0, UPI: 0 }, varianceTotal: -350, bills: 61, sales: 81400, refunds: 600, approvalId: apr_sh_89, closeNotes: ₹350 short — customer disputed change on bill 0038, closedBy: Meena Joshi, createdAt: '2026-09-11T09:00:00Z', updatedAt: '2026-09-11T20:10:00Z', version: 64 }, outcome: routed-for-approval, approval: { id: apr_sh_89, companyId: co_acme, docType: POS Shift Variance, collection: posShifts, docId: shift_0089, docNumber: SH/AND-T1/0089, amount: 350, currency: INR, branchId: br_andheri, requesterId: usr_meena, requesterName: Meena Joshi, steps: [{ order: 1, name: Store manager, approverType: Role, approverRef: role_storemgr, approverLabel: Store Manager, status: Pending, commentRequired: true }], currentStep: 0, status: Pending, submittedAt: '2026-09-11T20:10:00Z', history: [], createdAt: '2026-09-11T20:10:00Z', updatedAt: '2026-09-11T20:10:00Z', version: 1 }, warnings: ['Variance ₹350 exceeds tolerance ₹100'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/pos/shifts/{id}/approve-variance:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [POS]
+    summary: Approve / reject a Pending Approval shift close
+    description: "Approve → Closed, journal posts with the variance to Cash short/over. Reject → shift returns to Open for a recount."
+    operationId: approvePosShiftVariance
+    x-permission: pos.shift.approve
+    x-idempotent: true
+    x-events: [DocumentApproved, DocumentRejected, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [decision, comment], properties: { decision: { type: string, enum: [Approved, Rejected] }, comment: { type: string, minLength: 1 } } }
+          examples:
+            approve: { summary: Approve, value: { decision: Approved, comment: Verified CCTV — change dispute genuine } }
+            reject: { summary: Reject (recount), value: { decision: Rejected, comment: Recount the drawer with the supervisor } }
+    responses:
+      '200':
+        description: Decided
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/pos.yaml#/PosShift' }
+                    outcome: { type: string, enum: [closed, reopened] }
+            examples:
+              approved: { summary: Approved → Closed, value: { document: { id: shift_0089, companyId: co_acme, number: SH/AND-T1/0089, terminalId: term_and_t1, terminalName: Andheri till 1, cashierId: usr_meena, cashierName: Meena Joshi, branchId: br_andheri, openedAt: '2026-09-11T09:00:00Z', closedAt: '2026-09-11T20:10:00Z', openingFloat: 5000, status: Closed, varianceTotal: -350, bills: 61, sales: 81400, refunds: 600, journalId: jnl_sh_89, journalNumber: JV/2026-27/00339, approvalId: apr_sh_89, closedBy: Meena Joshi, createdAt: '2026-09-11T09:00:00Z', updatedAt: '2026-09-12T08:30:00Z', version: 65 }, outcome: closed, warnings: [] } }
+              rejected: { summary: Rejected → Open, value: { document: { id: shift_0089, companyId: co_acme, number: SH/AND-T1/0089, terminalId: term_and_t1, terminalName: Andheri till 1, cashierId: usr_meena, cashierName: Meena Joshi, branchId: br_andheri, openedAt: '2026-09-11T09:00:00Z', openingFloat: 5000, status: Open, bills: 61, sales: 81400, refunds: 600, createdAt: '2026-09-11T09:00:00Z', updatedAt: '2026-09-12T08:30:00Z', version: 65 }, outcome: reopened, warnings: ['Shift reopened for recount'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+# ── held carts ────────────────────────────────────────────────────────────
+
+/pos/held-carts:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [POS]
+    summary: List held carts for a shift
+    operationId: listPosHeldCarts
+    x-permission: pos.bill.view
+    parameters:
+      - { name: shiftId, in: query, required: true, schema: { type: string } }
+    responses:
+      '200':
+        description: Held carts
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/pos.yaml#/PosHeldCart' } } } }
+            examples:
+              two: { summary: Two carts, value: { data: [{ id: hc_1, companyId: co_acme, shiftId: shift_0091, cartId: cart_7f2a, label: Blue jacket — Mrs Rao, lines: [{ id: l1, itemId: item_jacket, itemCode: JKT-BL-M, itemName: Blue jacket M, qty: 1, uom: NOS, rate: 2499, discountPct: 0, discountAmt: 0, taxable: 2117.8, taxRate: 18, taxAmt: 381.2, taxComponents: { CGST: 190.6, SGST: 190.6 }, amount: 2499 }], customerId: cust_walkin, customerName: Walk-in, heldAt: '2026-09-13T11:40:00Z', total: 2499, createdAt: '2026-09-13T11:40:00Z', updatedAt: '2026-09-13T11:40:00Z', version: 1 }, { id: hc_2, companyId: co_acme, shiftId: shift_0091, cartId: cart_9c11, label: Tea + biscuits, lines: [], heldAt: '2026-09-13T11:52:00Z', total: 430, createdAt: '2026-09-13T11:52:00Z', updatedAt: '2026-09-13T11:52:00Z', version: 1 }] } }
+              none: { summary: None, value: { data: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [POS]
+    summary: Hold the current cart
+    operationId: createPosHeldCart
+    x-permission: pos.bill.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/pos.yaml#/PosHeldCartInput' }
+          examples:
+            hold: { summary: Hold, value: { shiftId: shift_0091, cartId: cart_7f2a, label: Blue jacket — Mrs Rao, customerId: cust_walkin, lines: [{ itemId: item_jacket, qty: 1 }] } }
+    responses:
+      '201':
+        description: Held
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/pos.yaml#/PosHeldCart' }
+            examples:
+              held: { summary: Held, value: { id: hc_1, companyId: co_acme, shiftId: shift_0091, cartId: cart_7f2a, label: Blue jacket — Mrs Rao, lines: [{ id: l1, itemId: item_jacket, itemCode: JKT-BL-M, itemName: Blue jacket M, qty: 1, uom: NOS, rate: 2499, discountPct: 0, discountAmt: 0, taxable: 2117.8, taxRate: 18, taxAmt: 381.2, taxComponents: { CGST: 190.6, SGST: 190.6 }, amount: 2499 }], customerId: cust_walkin, customerName: Walk-in, heldAt: '2026-09-13T11:40:00Z', total: 2499, createdAt: '2026-09-13T11:40:00Z', updatedAt: '2026-09-13T11:40:00Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/pos/held-carts/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [POS]
+    summary: Recall a held cart
+    operationId: getPosHeldCart
+    x-permission: pos.bill.view
+    responses:
+      '200':
+        description: Cart
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/pos.yaml#/PosHeldCart' }
+            examples:
+              cart: { summary: Cart, value: { id: hc_1, companyId: co_acme, shiftId: shift_0091, cartId: cart_7f2a, label: Blue jacket — Mrs Rao, lines: [], customerId: cust_walkin, customerName: Walk-in, heldAt: '2026-09-13T11:40:00Z', total: 2499, createdAt: '2026-09-13T11:40:00Z', updatedAt: '2026-09-13T11:40:00Z', version: 1 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  delete:
+    tags: [POS]
+    summary: Discard a held cart
+    operationId: deletePosHeldCart
+    x-permission: pos.bill.create
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── bills ─────────────────────────────────────────────────────────────────
+
+/pos/bills:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [POS]
+    summary: List bills
+    description: Query examples — `?shiftId=shift_0091` · `?terminalId=term_and_t1&dateFrom=2026-09-13` · `?q=BILL/AND-T1/0042` · `?onCredit=true`.
+    operationId: listPosBills
+    x-permission: pos.bill.view
+    x-frd: [FR-POS-003]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: shiftId, in: query, schema: { type: string } }
+      - { name: terminalId, in: query, schema: { type: string } }
+      - { name: onCredit, in: query, schema: { type: boolean } }
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Bills
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/pos.yaml#/PosBill' } }
+            examples:
+              firstPage: { summary: Bills of a shift, value: { data: [{ $ref: '#/components/examples/PosBillCash/value' }], meta: { nextCursor: null, limit: 25, total: 12 }, scope: { companyId: co_acme, branchId: br_andheri, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [POS]
+    summary: Checkout (create + post a bill in one call)
+    description: |
+      Idempotent on `Idempotency-Key` (use the cart id) — a retry after a network drop returns the original bill with `201` and `Idempotent-Replayed: true`.
+      Stock leaves the terminal's warehouse, the sale + tax journal posts to POS clearing, and a Credit tender opens an AR item for the customer.
+      Tenders must sum to ≥ total (change is returned in `change`).
+    operationId: posCheckout
+    x-permission: pos.bill.create
+    x-idempotent: true
+    x-events: [DocumentPosted, StockMoved, JournalPosted, InvoicePosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/pos.yaml#/PosCheckoutRequest' }
+          examples:
+            cash: { summary: Cash with change, value: { shiftId: shift_0091, lines: [{ itemId: item_chai, qty: 2 }, { itemId: item_biscuit, qty: 1 }], tenders: [{ type: Cash, amount: 500 }] } }
+            card: { summary: Card, value: { shiftId: shift_0091, lines: [{ itemId: item_jacket, qty: 1 }], tenders: [{ type: Card, amount: 2499, reference: AUTH-77A12, last4: '4412' }] } }
+            upi: { summary: UPI, value: { shiftId: shift_0091, lines: [{ itemId: item_jacket, qty: 1 }], tenders: [{ type: UPI, amount: 2499, reference: UPI-9182736455 }] } }
+            split: { summary: Split cash + card, value: { shiftId: shift_0091, lines: [{ itemId: item_jacket, qty: 1 }, { itemId: item_belt, qty: 1 }], tenders: [{ type: Cash, amount: 1000 }, { type: Card, amount: 2298, reference: AUTH-77A13, last4: '4412' }] } }
+            credit: { summary: On credit (named customer), value: { shiftId: shift_0091, customerId: cust_arlene, lines: [{ itemId: item_jacket, qty: 3 }], tenders: [{ type: Credit, amount: 7497 }] } }
+            heldCart: { summary: Check out a held cart with a discount override, value: { shiftId: shift_0091, heldCartId: hc_1, lines: [{ itemId: item_jacket, qty: 1, discountPct: 10 }], tenders: [{ type: Cash, amount: 2300 }] } }
+    responses:
+      '201':
+        description: Bill posted
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+          Idempotent-Replayed: { $ref: '../components/headers.yaml#/IdempotentReplayed' }
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/pos.yaml#/PosBill' }
+            examples:
+              cash: { summary: Cash bill, value: { document: { $ref: '#/components/examples/PosBillCash/value' }, outcome: posted, journal: { id: jnl_bill_42, companyId: co_acme, number: JV/2026-27/00341, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_andheri, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: POS Bill, sourceId: bill_0042, sourceNumber: BILL/AND-T1/0042, narration: POS bill BILL/AND-T1/0042, lines: [{ id: j1, accountId: acc_1150, accountCode: '1150', accountName: POS clearing, dr: 430, cr: 0, drBase: 430, crBase: 0, dimensions: {} }, { id: j2, accountId: acc_4010, accountCode: '4010', accountName: Retail sales, dr: 0, cr: 409.52, drBase: 0, crBase: 409.52, dimensions: {} }, { id: j3, accountId: acc_2310, accountCode: '2310', accountName: CGST payable, dr: 0, cr: 10.24, drBase: 0, crBase: 10.24, dimensions: {} }, { id: j4, accountId: acc_2320, accountCode: '2320', accountName: SGST payable, dr: 0, cr: 10.24, drBase: 0, crBase: 10.24, dimensions: {} }], totalDr: 430, totalCr: 430, postedAt: '2026-09-13T12:01:00Z', postedBy: Meena Joshi, correlationId: corr_bill42, createdAt: '2026-09-13T12:01:00Z', updatedAt: '2026-09-13T12:01:00Z', version: 1 }, stockMovements: [{ id: sm_100, companyId: co_acme, date: '2026-09-13', itemId: item_chai, itemCode: CHAI-250, itemName: Masala Chai 250g, warehouseId: wh_andheri, qty: -2, uom: NOS, baseQty: -2, batch: CH-2609, rate: 90, value: -180, type: POS Sale, sourceType: POS Bill, sourceId: bill_0042, sourceNumber: BILL/AND-T1/0042, journalId: jnl_bill_42, balanceAfter: 198, createdAt: '2026-09-13T12:01:00Z', updatedAt: '2026-09-13T12:01:00Z', version: 1 }], warnings: [] } }
+              credit: { summary: Credit bill (open item created), value: { document: { $ref: '#/components/examples/PosBillCredit/value' }, outcome: posted, openItems: [{ id: oi_bill_43, companyId: co_acme, partyType: Customer, partyId: cust_arlene, partyName: Arlene Fashions, docType: POS Bill, docId: bill_0043, docNumber: BILL/AND-T1/0043, date: '2026-09-13', dueDate: '2026-10-13', currency: INR, rate: 1, amount: 7497, baseAmount: 7497, settled: 0, balance: 7497, baseBalance: 7497, status: Open, settlements: [], createdAt: '2026-09-13T12:20:00Z', updatedAt: '2026-09-13T12:20:00Z', version: 1 }], warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Business rule
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              shortTender: { summary: Tenders below total, value: { code: VALIDATION, message: Tendered ₹400 is less than bill total ₹430, field: tenders, correlationId: corr_9f1c2e7a } }
+              creditNotAllowed: { summary: Credit disabled / walk-in, value: { code: PARTY_BLOCKED, message: Credit tender requires a named customer with credit enabled, field: customerId, correlationId: corr_9f1c2e7a } }
+              creditBlock: { summary: Customer over credit limit, value: { code: CREDIT_BLOCK, message: "Arlene Fashions would exceed credit limit ₹5,00,000 (exposure ₹4,98,900 + ₹7,497)", details: { limit: 500000, exposure: 498900, documentAmount: 7497 }, correlationId: corr_9f1c2e7a } }
+              negativeStock: { summary: No stock at the terminal warehouse, value: { code: NEGATIVE_STOCK, message: Blue jacket M — available 0 in Andheri Store, details: { itemId: item_jacket, warehouseId: wh_andheri, available: 0, requested: 1 }, correlationId: corr_9f1c2e7a } }
+              shiftClosed: { summary: Shift not open, value: { code: INVALID_STATE, message: Shift SH/AND-T1/0090 is Closed, correlationId: corr_9f1c2e7a } }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/pos/bills/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [POS]
+    summary: Get a bill
+    operationId: getPosBill
+    x-permission: pos.bill.view
+    responses:
+      '200':
+        description: Bill
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/pos.yaml#/PosBill' }
+            examples:
+              cash: { $ref: '../components/examples/pos.yaml#/PosBillCash' }
+              credit: { $ref: '../components/examples/pos.yaml#/PosBillCredit' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/pos/bills/{id}/reprint:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [POS]
+    summary: Reprint receipt (audited, counter incremented)
+    operationId: reprintPosBill
+    x-permission: pos.bill.view
+    responses:
+      '200':
+        description: "Receipt PDF (`Content-Disposition: inline`)"
+        content:
+          application/pdf:
+            schema: { type: string, format: binary }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── returns ───────────────────────────────────────────────────────────────
+
+/pos/returns:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [POS]
+    summary: List POS returns
+    description: Tabs → All · Pending approval · Posted.
+    operationId: listPosReturns
+    x-permission: pos.return.view
+    x-frd: [FR-POS-004]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: shiftId, in: query, schema: { type: string } }
+      - { name: billId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Returns
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/pos.yaml#/PosReturn' } }
+            examples:
+              firstPage: { summary: Returns, value: { data: [{ $ref: '#/components/examples/PosReturnPosted/value' }], meta: { nextCursor: null, limit: 25, total: 1, counts: { All: 4, 'Pending approval': 0, Posted: 4 } }, scope: { companyId: co_acme, branchId: br_andheri, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [POS]
+    summary: Create a return
+    description: "With receipt → posts immediately (refund tender, stock back in, sales reversal journal). No-receipt returns follow `posNoReceiptReturns`: `Deny` → 422, `Manager approval` → Submitted ('POS Return' workflow), `Allow` → posted."
+    operationId: createPosReturn
+    x-permission: pos.return.create
+    x-idempotent: true
+    x-workflow-doc-type: POS Return
+    x-events: [DocumentPosted, DocumentSubmitted, StockMoved, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/pos.yaml#/PosReturnCreate' }
+          examples:
+            withReceipt: { summary: "Against a bill, cash refund", value: { shiftId: shift_0091, billId: bill_0042, reasonCode: RET-DMG, reasonText: Packet torn, lines: [{ itemId: item_chai, qty: 1 }], refund: { type: Cash, amount: 150 } } }
+            cardRefund: { summary: Refund to card, value: { shiftId: shift_0091, billId: bill_0040, reasonCode: RET-SIZE, lines: [{ itemId: item_jacket, qty: 1 }], refund: { type: Card, amount: 2499, reference: RFND-77A12, last4: '4412' } } }
+            noReceipt: { summary: No receipt (manager approval), value: { shiftId: shift_0091, noReceipt: true, reasonCode: RET-OTH, reasonText: Gift return — no receipt, lines: [{ itemId: item_belt, qty: 1 }], refund: { type: Cash, amount: 799 } } }
+    responses:
+      '201':
+        description: Return created (posted or awaiting approval)
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/pos.yaml#/PosReturn' }
+            examples:
+              posted: { summary: outcome = posted, value: { document: { $ref: '#/components/examples/PosReturnPosted/value' }, outcome: posted, stockMovements: [{ id: sm_101, companyId: co_acme, date: '2026-09-13', itemId: item_chai, itemCode: CHAI-250, itemName: Masala Chai 250g, warehouseId: wh_andheri, qty: 1, uom: NOS, baseQty: 1, batch: CH-2609, rate: 90, value: 90, type: POS Return, sourceType: POS Return, sourceId: ret_0007, sourceNumber: RET/AND-T1/0007, balanceAfter: 199, createdAt: '2026-09-13T12:30:00Z', updatedAt: '2026-09-13T12:30:00Z', version: 1 }], warnings: [] } }
+              routed: { summary: outcome = routed-for-approval (no receipt), value: { document: { id: ret_0008, companyId: co_acme, number: RET/AND-T1/0008, docType: POS Return, date: '2026-09-13', branchId: br_andheri, status: Submitted, currency: INR, rate: 1, partyType: Customer, partyId: cust_walkin, partyName: Walk-in, shiftId: shift_0091, terminalId: term_and_t1, cashierName: Meena Joshi, reasonCode: RET-OTH, reasonText: Gift return — no receipt, noReceipt: true, refund: { type: Cash, amount: 799 }, approvalRequired: true, approvalId: apr_ret_8, lines: [], totals: { subtotal: 677.12, discount: 0, taxable: 677.12, tax: 121.88, components: { CGST: 60.94, SGST: 60.94 }, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 799, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 799 }, createdAt: '2026-09-13T12:45:00Z', updatedAt: '2026-09-13T12:45:00Z', version: 1 }, outcome: routed-for-approval, warnings: ['No-receipt return needs store manager approval'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Business rule
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              overReturn: { summary: Qty exceeds billed, value: { code: VALIDATION, message: Masala Chai 250g — 3 returned but only 2 billed on BILL/AND-T1/0042, field: 'lines[0].qty', correlationId: corr_9f1c2e7a } }
+              noReceiptDenied: { summary: No-receipt returns disabled, value: { code: BLOCKED, message: No-receipt returns are not allowed at this store, correlationId: corr_9f1c2e7a } }
+              refundMismatch: { summary: Refund ≠ total, value: { code: VALIDATION, message: Refund ₹80 does not equal return total ₹90, field: refund.amount, correlationId: corr_9f1c2e7a } }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/pos/returns/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [POS]
+    summary: Get a return
+    operationId: getPosReturn
+    x-permission: pos.return.view
+    responses:
+      '200':
+        description: Return
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/pos.yaml#/PosReturn' }
+            examples:
+              posted: { $ref: '../components/examples/pos.yaml#/PosReturnPosted' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/pos/returns/{id}/post:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [POS]
+    summary: Post an Approved (no-receipt) return
+    operationId: postPosReturn
+    x-permission: pos.return.approve
+    x-idempotent: true
+    x-events: [DocumentPosted, StockMoved, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Posted
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/pos.yaml#/PosReturn' }
+            examples:
+              posted: { summary: Posted, value: { document: { id: ret_0008, companyId: co_acme, number: RET/AND-T1/0008, docType: POS Return, date: '2026-09-13', branchId: br_andheri, status: Posted, currency: INR, rate: 1, partyType: Customer, partyId: cust_walkin, partyName: Walk-in, shiftId: shift_0091, terminalId: term_and_t1, cashierName: Meena Joshi, reasonCode: RET-OTH, reasonText: Gift return — no receipt, noReceipt: true, refund: { type: Cash, amount: 799 }, approvalRequired: true, approvalId: apr_ret_8, lines: [], totals: { subtotal: 677.12, discount: 0, taxable: 677.12, tax: 121.88, components: { CGST: 60.94, SGST: 60.94 }, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 799, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 799 }, journalId: jnl_ret_8, journalNumber: JV/2026-27/00348, postedAt: '2026-09-13T13:10:00Z', postedBy: Meena Joshi, createdAt: '2026-09-13T12:45:00Z', updatedAt: '2026-09-13T13:10:00Z', version: 3 }, outcome: posted, warnings: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+# ── settings ──────────────────────────────────────────────────────────────
+
+/pos/settings:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [POS]
+    summary: POS settings
+    operationId: getPosSettings
+    x-permission: pos.terminal.view
+    responses:
+      '200':
+        description: Settings
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/pos.yaml#/PosSettings' }
+            examples:
+              current: { summary: Current, value: { posVarianceTolerance: 100, posNoReceiptReturns: Manager approval, posNoReceiptApprovalThreshold: 2000, posDefaultCustomerId: cust_walkin, posDefaultWarehouseId: wh_andheri, posCashAccountId: acc_1300, posCardAccountId: acc_1310, posUpiAccountId: acc_1310, posPriceListId: pl_retail, posAllowCredit: true } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  put:
+    tags: [POS]
+    summary: Update POS settings
+    operationId: updatePosSettings
+    x-permission: pos.admin.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/pos.yaml#/PosSettings' }
+          examples:
+            tolerance: { summary: Tolerance and no-receipt policy, value: { posVarianceTolerance: 200, posNoReceiptReturns: Deny } }
+            accounts: { summary: Tender accounts, value: { posCashAccountId: acc_1300, posCardAccountId: acc_1311, posUpiAccountId: acc_1312 } }
+    responses:
+      '200':
+        description: Saved
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/pos.yaml#/PosSettings' }
+            examples:
+              saved: { summary: Saved, value: { posVarianceTolerance: 200, posNoReceiptReturns: Deny, posNoReceiptApprovalThreshold: 2000, posDefaultCustomerId: cust_walkin, posDefaultWarehouseId: wh_andheri, posCashAccountId: acc_1300, posCardAccountId: acc_1310, posUpiAccountId: acc_1310, posPriceListId: pl_retail, posAllowCredit: true } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }

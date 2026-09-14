@@ -1,0 +1,469 @@
+# CRM (tag: CRM): leads & pipeline, activities, customer 360. src/modules/crm/*
+
+/crm/leads:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [CRM]
+    summary: List leads (register / pipeline board)
+    description: Query examples — pipeline column `?stage=Proposal` · `?source=Referral&ownerId=usr_vikram` · closing this month `?expectedCloseTo=2026-09-30` · `?q=metro`.
+    operationId: listLeads
+    x-permission: crm.lead.view
+    x-frd: [FR-CRM-001]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/Q'
+      - { name: stage, in: query, schema: { type: string }, style: form, explode: false, example: 'New,Qualified,Proposal' }
+      - { name: source, in: query, schema: { type: string } }
+      - { name: ownerId, in: query, schema: { type: string } }
+      - { name: expectedCloseFrom, in: query, schema: { type: string, format: date } }
+      - { name: expectedCloseTo, in: query, schema: { type: string, format: date } }
+      - { name: tag, in: query, schema: { type: string } }
+    responses:
+      '200':
+        description: Leads
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/crm.yaml#/Lead' } }
+                    pipeline: { type: object, additionalProperties: { type: object, properties: { count: { type: integer }, value: { type: number }, weighted: { type: number } } }, description: Per-stage totals for the board. }
+            examples:
+              firstPage: { summary: Open pipeline, value: { data: [{ id: lead_metro, companyId: co_acme, name: Q3 steel supply — Metro Infra, company: Metro Infra Projects Ltd, contactName: Rakesh Jain, source: Referral, stage: Proposal, value: 850000, probability: 40, ownerId: usr_vikram, ownerName: Vikram Nair, expectedClose: '2026-10-15', nextStep: Send revised quotation, tags: [infra, steel], createdAt: '2026-08-20T09:00:00Z', updatedAt: '2026-09-10T09:00:00Z', version: 4 }, { id: lead_delta, companyId: co_acme, name: Fabrication brackets — Delta, company: Delta Fabricators, source: Trade show, stage: Qualified, value: 320000, probability: 25, ownerId: usr_priya, ownerName: Priya Sharma, expectedClose: '2026-11-30', createdAt: '2026-09-01T09:00:00Z', updatedAt: '2026-09-05T09:00:00Z', version: 2 }], pipeline: { New: { count: 4, value: 610000, weighted: 61000 }, Qualified: { count: 3, value: 920000, weighted: 230000 }, Proposal: { count: 2, value: 1450000, weighted: 580000 }, Won: { count: 5, value: 3900000, weighted: 3900000 }, Lost: { count: 2, value: 400000, weighted: 0 } }, meta: { nextCursor: null, limit: 25, total: 9, counts: { All: 16, New: 4, Qualified: 3, Proposal: 2, Won: 5, Lost: 2 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [CRM]
+    summary: Create a lead (stage New)
+    operationId: createLead
+    x-permission: crm.lead.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/crm.yaml#/LeadInput'
+              - { required: [name, company, source] }
+          examples:
+            minimal: { summary: Minimal, value: { name: Website enquiry — tea crates, company: Chai Point Franchise, source: Website, value: 0, probability: 10 } }
+            full: { summary: "Full with owner, value and close date", value: { name: Q3 steel supply — Metro Infra, company: Metro Infra Projects Ltd, contactName: Rakesh Jain, email: rakesh@metroinfra.example, phone: '+91 98765 43210', city: Navi Mumbai, stateCode: '27', source: Referral, value: 850000, probability: 20, ownerId: usr_vikram, expectedClose: '2026-10-15', nextStep: Site visit on 18 Sep, tags: [infra, steel] } }
+            fromExistingCustomer: { summary: Upsell to existing customer, value: { name: AMC renewal — Sunrise Hotels, company: Sunrise Hotels, source: Existing customer, value: 60000, probability: 70, ownerId: usr_priya, expectedClose: '2026-09-30' } }
+    responses:
+      '201':
+        description: Lead
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/crm.yaml#/Lead' }
+            examples:
+              created: { summary: Created (New), value: { id: lead_metro, companyId: co_acme, name: Q3 steel supply — Metro Infra, company: Metro Infra Projects Ltd, contactName: Rakesh Jain, email: rakesh@metroinfra.example, source: Referral, stage: New, value: 850000, probability: 20, ownerId: usr_vikram, ownerName: Vikram Nair, expectedClose: '2026-10-15', nextStep: Site visit on 18 Sep, tags: [infra, steel], createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/crm/leads/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [CRM]
+    summary: Get a lead
+    operationId: getLead
+    x-permission: crm.lead.view
+    responses:
+      '200':
+        description: Lead
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/crm.yaml#/Lead' }
+            examples:
+              proposal: { $ref: '../components/examples/masters.yaml#/LeadMetro' }
+              won: { $ref: '../components/examples/masters.yaml#/LeadWon' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [CRM]
+    summary: Update a lead
+    description: Won / Lost leads are read-only except `notes` and `tags` (`409 INVALID_STATE`).
+    operationId: updateLead
+    x-permission: crm.lead.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/crm.yaml#/LeadPatch' }
+          examples:
+            forecast: { summary: Update value / probability / close, value: { expectedVersion: 4, value: 920000, probability: 60, expectedClose: '2026-10-05' } }
+            reassign: { summary: Reassign owner + next step, value: { expectedVersion: 4, ownerId: usr_priya, nextStep: Priya to present pricing on 20 Sep } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/crm.yaml#/Lead' }
+            examples:
+              updated: { $ref: '../components/examples/masters.yaml#/LeadMetro' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [CRM]
+    summary: Delete a lead (not converted)
+    operationId: deleteLead
+    x-permission: crm.lead.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/crm/leads/{id}/move-stage:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [CRM]
+    summary: Move a lead along the pipeline
+    description: New → Qualified → Proposal → Won / Lost. Moving to **Won** requires `convert` (use `/convert`); moving to **Lost** requires `lostReason`. Backward moves are allowed with a note.
+    operationId: moveLeadStage
+    x-permission: crm.lead.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/crm.yaml#/LeadMoveStage' }
+          examples:
+            qualify: { summary: New → Qualified, value: { stage: Qualified, note: Budget confirmed by their MD } }
+            proposal: { summary: Qualified → Proposal, value: { stage: Proposal } }
+            lost: { summary: Mark lost, value: { stage: Lost, lostReason: Chose a competitor on price } }
+    responses:
+      '200':
+        description: Lead
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/crm.yaml#/Lead' }
+            examples:
+              qualified: { summary: Now Qualified, value: { id: lead_metro, companyId: co_acme, name: Q3 steel supply — Metro Infra, company: Metro Infra Projects Ltd, source: Referral, stage: Qualified, value: 850000, probability: 25, ownerId: usr_vikram, ownerName: Vikram Nair, createdAt: '2026-08-20T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 5 } }
+              lost: { summary: Now Lost, value: { id: lead_delta, companyId: co_acme, name: Fabrication brackets — Delta, company: Delta Fabricators, source: Trade show, stage: Lost, value: 320000, probability: 0, ownerId: usr_priya, ownerName: Priya Sharma, lostReason: Chose a competitor on price, lostAt: '2026-09-13T09:12:04Z', createdAt: '2026-09-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 3 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/crm/leads/{id}/convert:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [CRM]
+    summary: Mark won and convert to a customer (+ draft quotation)
+    description: Creates a customer from the lead (or links an existing one), marks the lead `Won`, and optionally creates a draft quotation with the given lines.
+    operationId: convertLead
+    x-permission: crm.lead.edit
+    x-idempotent: true
+    x-events: [DocumentCreated]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/crm.yaml#/LeadConvertRequest' }
+          examples:
+            newCustomerWithQuote: { summary: Create customer + quotation, value: { customer: { name: Metro Infra Projects Ltd, gstin: 27AABCM4567N1Z4, taxTreatment: Registered, currency: INR, paymentTerms: Net 30, creditLimit: 1000000, creditPolicy: Warn }, createQuotation: true, quotationLines: [{ itemId: item_stl4, qty: 5000, rate: 58, taxRateId: tax_gst18 }, { itemId: item_stl6, qty: 3000, rate: 63, taxRateId: tax_gst18 }] } }
+            linkExisting: { summary: "Link existing customer, no quotation", value: { customerId: cust_sunrise, createQuotation: false } }
+    responses:
+      '200':
+        description: Converted
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/crm.yaml#/LeadConvertResult' }
+            examples:
+              withQuotation: { summary: Customer + quotation created, value: { lead: { id: lead_metro, companyId: co_acme, name: Q3 steel supply — Metro Infra, company: Metro Infra Projects Ltd, source: Referral, stage: Won, value: 850000, probability: 100, ownerId: usr_vikram, ownerName: Vikram Nair, customerId: cust_metro, quotationId: qt_00044, quotationNumber: DRAFT-QT-44, wonAt: '2026-09-13T09:12:04Z', createdAt: '2026-08-20T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 6 }, customer: { id: cust_metro, companyId: co_acme, code: C-0161, name: Metro Infra Projects Ltd, gstin: 27AABCM4567N1Z4, taxTreatment: Registered, addresses: [], contacts: [{ id: ct_m1, name: Rakesh Jain, email: rakesh@metroinfra.example, isDefault: true }], currency: INR, paymentTerms: Net 30, creditLimit: 1000000, creditPolicy: Warn, status: Active, outstanding: 0, overdue: 0, exposure: 0, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }, quotation: { id: qt_00044, number: DRAFT-QT-44, docType: Quotation, status: Draft, partyId: cust_metro, totals: { total: 565160 } } } }
+              linked: { summary: Linked existing customer, value: { lead: { id: lead_sunrise, companyId: co_acme, name: AMC renewal — Sunrise Hotels, company: Sunrise Hotels, source: Existing customer, stage: Won, value: 60000, probability: 100, ownerId: usr_priya, ownerName: Priya Sharma, customerId: cust_sunrise, wonAt: '2026-09-13T09:12:04Z', createdAt: '2026-09-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 3 }, customer: { id: cust_sunrise, companyId: co_acme, code: C-0110, name: Sunrise Hotels, taxTreatment: Registered, addresses: [], contacts: [], currency: INR, paymentTerms: Net 30, creditLimit: 300000, creditPolicy: Inherit, status: Active, outstanding: 42000, overdue: 0, exposure: 42000, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+# ── activities ────────────────────────────────────────────────────────────
+
+/crm/activities:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [CRM]
+    summary: List activities
+    description: Tabs → Open · Overdue (`overdue=true`) · Mine (`ownerId=me`) · Done · All. Query examples — `?customerId=cust_arlene` · `?type=Promise to pay&status=Open` · `?dueTo=2026-09-20`.
+    operationId: listActivities
+    x-permission: crm.activity.view
+    x-frd: [FR-CRM-002]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - { name: status, in: query, schema: { type: string }, style: form, explode: false, example: Open }
+      - { name: type, in: query, schema: { type: string } }
+      - { name: ownerId, in: query, schema: { type: string }, description: Use `me` for the caller. }
+      - { name: overdue, in: query, schema: { type: boolean } }
+      - $ref: '../components/parameters.yaml#/CustomerId'
+      - { name: leadId, in: query, schema: { type: string } }
+      - { name: dueFrom, in: query, schema: { type: string, format: date-time } }
+      - { name: dueTo, in: query, schema: { type: string, format: date-time } }
+    responses:
+      '200':
+        description: Activities
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/crm.yaml#/Activity' } }
+            examples:
+              firstPage: { summary: Open + overdue, value: { data: [{ id: act_1, companyId: co_acme, type: Call, subject: Follow up on overdue INV/2026-27/00031, customerId: cust_arlene, customerName: Arlene Traders, invoiceId: inv_00031, invoiceNumber: INV/2026-27/00031, dueAt: '2026-09-16T10:00:00Z', status: Open, ownerId: usr_priya, ownerName: Priya Sharma, overdue: false, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }, { id: act_3, companyId: co_acme, type: Meeting, subject: Site visit — Metro Infra, leadId: lead_metro, leadName: Q3 steel supply — Metro Infra, dueAt: '2026-09-10T11:00:00Z', status: Open, ownerId: usr_vikram, ownerName: Vikram Nair, overdue: true, createdAt: '2026-09-05T09:00:00Z', updatedAt: '2026-09-05T09:00:00Z', version: 1 }], meta: { nextCursor: null, limit: 25, total: 2, counts: { Open: 6, Overdue: 1, Mine: 3, Done: 40, All: 47 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [CRM]
+    summary: Log an activity
+    operationId: createActivity
+    x-permission: crm.activity.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/crm.yaml#/ActivityInput'
+              - { required: [type, subject] }
+          examples:
+            call: { summary: Follow-up call on an invoice, value: { type: Call, subject: Follow up on overdue INV/2026-27/00031, customerId: cust_arlene, invoiceId: inv_00031, dueAt: '2026-09-16T10:00:00Z', ownerId: usr_priya } }
+            promise: { summary: Promise to pay, value: { type: Promise to pay, subject: Arlene promised ₹50k by 20 Sep, customerId: cust_arlene, invoiceId: inv_00031, promiseAmount: 50000, promiseDate: '2026-09-20' } }
+            meeting: { summary: Meeting on a lead, value: { type: Meeting, subject: Site visit — Metro Infra, leadId: lead_metro, dueAt: '2026-09-18T11:00:00Z', ownerId: usr_vikram, notes: Bring samples of 4mm and 6mm rods } }
+            note: { summary: Plain note (done immediately), value: { type: Note, subject: Customer changed billing contact, customerId: cust_arlene, notes: New contact Joseph D'Souza } }
+    responses:
+      '201':
+        description: Activity
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/crm.yaml#/Activity' }
+            examples:
+              open: { $ref: '../components/examples/masters.yaml#/ActivityFollowUp' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/crm/activities/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [CRM]
+    summary: Get an activity
+    operationId: getActivity
+    x-permission: crm.activity.view
+    responses:
+      '200':
+        description: Activity
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/crm.yaml#/Activity' }
+            examples:
+              open: { $ref: '../components/examples/masters.yaml#/ActivityFollowUp' }
+              done: { $ref: '../components/examples/masters.yaml#/ActivityPromise' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [CRM]
+    summary: Edit an open activity
+    operationId: updateActivity
+    x-permission: crm.activity.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/crm.yaml#/ActivityPatch' }
+          examples:
+            reschedule: { summary: Change due time, value: { expectedVersion: 1, dueAt: '2026-09-17T10:00:00Z' } }
+            reassign: { summary: Reassign, value: { expectedVersion: 1, ownerId: usr_vikram } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/crm.yaml#/Activity' }
+            examples:
+              updated: { $ref: '../components/examples/masters.yaml#/ActivityFollowUp' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [CRM]
+    summary: Delete an activity
+    operationId: deleteActivity
+    x-permission: crm.activity.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/crm/activities/{id}/complete:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [CRM]
+    summary: Mark done (with outcome, optional follow-up)
+    operationId: completeActivity
+    x-permission: crm.activity.edit
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/crm.yaml#/ActivityComplete' }
+          examples:
+            outcome: { summary: Outcome only, value: { outcome: Spoke to accounts — cheque in courier } }
+            withFollowUp: { summary: Outcome + next activity, value: { outcome: Customer promised payment by 20 Sep, followUp: { type: Reminder, subject: Check receipt of Arlene payment, customerId: cust_arlene, dueAt: '2026-09-21T09:00:00Z' } } }
+    responses:
+      '200':
+        description: Done
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [activity]
+              properties:
+                activity: { $ref: '../components/schemas/crm.yaml#/Activity' }
+                followUp: { $ref: '../components/schemas/crm.yaml#/Activity' }
+            examples:
+              done: { summary: Done, value: { activity: { id: act_1, companyId: co_acme, type: Call, subject: Follow up on overdue INV/2026-27/00031, customerId: cust_arlene, customerName: Arlene Traders, status: Done, doneAt: '2026-09-13T11:00:00Z', outcome: Spoke to accounts — cheque in courier, ownerId: usr_priya, ownerName: Priya Sharma, overdue: false, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T11:00:00Z', version: 2 } } }
+              doneWithFollowUp: { summary: Done + follow-up created, value: { activity: { id: act_1, companyId: co_acme, type: Call, subject: Follow up on overdue INV/2026-27/00031, customerId: cust_arlene, customerName: Arlene Traders, status: Done, doneAt: '2026-09-13T11:00:00Z', outcome: Customer promised payment by 20 Sep, ownerId: usr_priya, ownerName: Priya Sharma, overdue: false, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T11:00:00Z', version: 2 }, followUp: { id: act_9, companyId: co_acme, type: Reminder, subject: Check receipt of Arlene payment, customerId: cust_arlene, customerName: Arlene Traders, dueAt: '2026-09-21T09:00:00Z', status: Open, ownerId: usr_priya, ownerName: Priya Sharma, overdue: false, createdAt: '2026-09-13T11:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 1 } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/crm/activities/{id}/snooze:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [CRM]
+    summary: Snooze (push due date)
+    operationId: snoozeActivity
+    x-permission: crm.activity.edit
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { type: object, properties: { days: { type: integer, minimum: 1, default: 3 }, dueAt: { type: string, format: date-time } } }
+          examples:
+            threeDays: { summary: Default 3 days, value: {} }
+            explicit: { summary: Specific date, value: { dueAt: '2026-09-25T09:00:00Z' } }
+    responses:
+      '200':
+        description: Rescheduled
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/crm.yaml#/Activity' }
+            examples:
+              snoozed: { summary: Due in 3 days, value: { id: act_1, companyId: co_acme, type: Call, subject: Follow up on overdue INV/2026-27/00031, customerId: cust_arlene, customerName: Arlene Traders, dueAt: '2026-09-19T10:00:00Z', status: Open, ownerId: usr_priya, ownerName: Priya Sharma, overdue: false, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T11:00:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/crm/activities/{id}/cancel:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [CRM]
+    summary: Cancel an open activity
+    operationId: cancelActivity
+    x-permission: crm.activity.edit
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Comment' }
+          examples:
+            cancel: { summary: Cancel, value: { comment: Invoice was paid before the call } }
+    responses:
+      '200':
+        description: Cancelled
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/crm.yaml#/Activity' }
+            examples:
+              cancelled: { summary: Cancelled, value: { id: act_1, companyId: co_acme, type: Call, subject: Follow up on overdue INV/2026-27/00031, customerId: cust_arlene, customerName: Arlene Traders, status: Cancelled, outcome: Invoice was paid before the call, ownerId: usr_priya, ownerName: Priya Sharma, overdue: false, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T11:00:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── customer 360 ──────────────────────────────────────────────────────────
+
+/crm/customers/{id}/360:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [CRM]
+    summary: Customer 360 (exposure, documents, open items, activities, KPIs)
+    operationId: getCustomer360
+    x-permission: crm.lead.view
+    x-frd: [FR-CRM-003]
+    responses:
+      '200':
+        description: 360 view
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/crm.yaml#/Customer360' }
+            examples:
+              arlene:
+                summary: Active customer with overdue
+                value:
+                  customer: { id: cust_arlene, companyId: co_acme, code: C-0101, name: Arlene Traders, gstin: 27AAPFU0939F1ZV, taxTreatment: Registered, addresses: [], contacts: [], currency: INR, paymentTerms: Net 30, creditLimit: 500000, creditPolicy: Inherit, status: Active, outstanding: 168000, overdue: 50000, exposure: 245000, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-12T11:00:00Z', version: 4 }
+                  exposure: { partyId: cust_arlene, currency: INR, outstanding: 168000, overdue: 50000, creditLimit: 500000, exposure: 245000, buckets: { Current: 118000, '0-30': 50000 }, items: [] }
+                  openItems: []
+                  recentDocuments: [{ collection: salesInvoices, id: inv_01j8k3, number: INV/2026-27/00042, date: '2026-09-13', status: Posted, total: 118000 }, { collection: salesOrders, id: so_00090, number: SO/2026-27/00090, date: '2026-09-11', status: Confirmed, total: 77000 }, { collection: receipts, id: rcp_00201, number: RCP/2026-27/00201, date: '2026-09-02', status: Posted, total: 50000 }]
+                  activities: [{ id: act_1, companyId: co_acme, type: Call, subject: Follow up on overdue INV/2026-27/00031, customerId: cust_arlene, customerName: Arlene Traders, dueAt: '2026-09-16T10:00:00Z', status: Open, ownerId: usr_priya, ownerName: Priya Sharma, overdue: false, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }]
+                  leads: []
+                  kpis: { lifetimeRevenue: 4820000, avgDaysToPay: 34, openOrders: 1, lastInvoiceAt: '2026-09-13' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }

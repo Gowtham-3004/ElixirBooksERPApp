@@ -1,0 +1,834 @@
+# Production — part 1 (tag: Production). masterActions.ts (BOMs, routings, work centres), qualityActions.ts (inspection plans), planning.ts (MRP, capacity), core.ts (settings).
+
+# ── BOMs ──────────────────────────────────────────────────────────────────
+
+/production/boms:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Production]
+    summary: Bills of material
+    description: Tabs → Active · Draft · Superseded · All. Query examples — `?itemId=item_frame` · `?q=frame`.
+    operationId: listBoms
+    x-permission: production.bom.view
+    x-frd: [FR-MFG-002]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/ItemId'
+    responses:
+      '200':
+        description: BOMs
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/production.yaml#/Bom' } }
+            examples:
+              firstPage: { summary: BOMs, value: { data: [{ $ref: '#/components/examples/BomFrameActive/value' }], meta: { nextCursor: null, limit: 25, total: 7, counts: { Active: 5, Draft: 1, Superseded: 1, All: 7 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Production]
+    summary: "Create a BOM (Draft, or Active with `status: Active`)"
+    operationId: createBom
+    x-permission: production.bom.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/production.yaml#/BomCreate' }
+          examples:
+            discrete: { summary: Discrete with by-product, value: { itemId: item_frame, effectiveFrom: '2026-10-01', mode: discrete, outputQty: 1, components: [{ itemId: item_stl4, qty: 12, uom: KG, scrapPct: 2 }, { itemId: item_electrode, qty: 6, uom: NOS }, { itemId: item_paint, qty: 0.4, uom: L, substitutes: [item_paint_alt] }], byProducts: [{ itemId: item_offcut, qty: 0.5, uom: KG, costSharePct: 2 }], routingId: rt_frame } }
+            process: { summary: Process (batch) BOM, value: { itemId: item_chai, effectiveFrom: '2026-10-01', mode: process, outputQty: 100, components: [{ itemId: item_tea_leaf, qty: 22, uom: KG }, { itemId: item_spice_mix, qty: 3, uom: KG }, { itemId: item_pouch, qty: 100, uom: NOS, scrapPct: 1 }], byProducts: [], status: Active } }
+            phantom: { summary: Phantom sub-assembly, value: { itemId: item_cabinet, effectiveFrom: '2026-10-01', mode: discrete, outputQty: 1, components: [{ itemId: item_frame, qty: 1, uom: NOS, isPhantom: true }, { itemId: item_panel, qty: 4, uom: NOS }], byProducts: [] } }
+    responses:
+      '201':
+        description: Created
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/Bom' }
+            examples:
+              draft: { $ref: '../components/examples/production.yaml#/BomFrameDraft' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Validation (validateBom)
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              selfRef: { summary: Contains its own output, value: { code: VALIDATION, message: A BOM cannot contain its own output item, field: components, correlationId: corr_9f1c2e7a } }
+              scrap: { summary: Scrap out of range, value: { code: VALIDATION, message: 'Steel Rod 4mm: scrap % must be 0–100', field: components, correlationId: corr_9f1c2e7a } }
+
+/production/boms/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Production]
+    summary: Get a BOM
+    operationId: getBom
+    x-permission: production.bom.view
+    responses:
+      '200':
+        description: BOM
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/Bom' }
+            examples:
+              active: { $ref: '../components/examples/production.yaml#/BomFrameActive' }
+              draft: { $ref: '../components/examples/production.yaml#/BomFrameDraft' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Production]
+    summary: Edit a Draft BOM (Active BOMs — create a new version instead)
+    operationId: updateBom
+    x-permission: production.bom.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/production.yaml#/BomPatch' }
+          examples:
+            components: { summary: Replace components, value: { expectedVersion: 1, components: [{ itemId: item_stl4, qty: 11.5, uom: KG, scrapPct: 2 }, { itemId: item_electrode, qty: 6, uom: NOS }] } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/Bom' }
+            examples:
+              updated: { $ref: '../components/examples/production.yaml#/BomFrameDraft' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Production]
+    summary: Delete a Draft BOM
+    operationId: deleteBom
+    x-permission: production.bom.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Conflict
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              notDraft: { summary: Not a draft, value: { code: INVALID_STATE, message: Only Draft BOMs can be deleted, correlationId: corr_9f1c2e7a } }
+              inUse: { summary: Referenced, value: { code: IN_USE, message: BOM is referenced by production orders, details: { orders: [PO-MFG/2026-27/00041] }, correlationId: corr_9f1c2e7a } }
+
+/production/boms/{id}/activate:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Production]
+    summary: Activate (supersedes the previous active BOM for the item from effectiveFrom)
+    operationId: activateBom
+    x-permission: production.bom.approve
+    responses:
+      '200':
+        description: Active
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/production.yaml#/Bom' }
+                    superseded: { $ref: '../components/schemas/production.yaml#/Bom' }
+            examples:
+              activated: { summary: Activated; v1 superseded, value: { document: { $ref: '#/components/examples/BomFrameActive/value' }, outcome: approved, superseded: { id: bom_frame_1, companyId: co_acme, code: BOM-FRAME-A1, itemId: item_frame, itemCode: FRM-A1, itemName: Steel Frame A1, bomVersion: 1, effectiveFrom: '2026-04-01', effectiveTo: '2026-09-30', status: Superseded, mode: discrete, outputQty: 1, uom: NOS, components: [], byProducts: [], supersededById: bom_frame_2, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 3 }, warnings: ['Open production orders keep BOM v1; new orders use v2'] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/production/boms/{id}/cost-rollup:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Production]
+    summary: Standard-cost roll-up (materials at AVCO/standard + routing conversion)
+    operationId: getBomCostRollup
+    x-permission: production.bom.view
+    x-frd: [FR-MFG-012]
+    responses:
+      '200':
+        description: Roll-up
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/CostRollup' }
+            examples:
+              frame: { summary: Frame A1, value: { material: 1960, labour: 240, machine: 150, overhead: 80, subcontract: 0, byProductCredit: 50, total: 2380, perUnit: 2380, lines: [{ itemId: item_stl4, itemName: Steel Rod 4mm, qty: 12.24, unitCost: 49.8, scrapPct: 2, extended: 609.55, source: AVCO }, { itemId: item_electrode, itemName: Welding electrode, qty: 6, unitCost: 35.87, scrapPct: 0, extended: 215.22, source: AVCO }, { itemId: item_paint, itemName: Powder paint grey, qty: 0.4, unitCost: 2838.08, scrapPct: 0, extended: 1135.23, source: Standard }], ops: [{ name: Cutting, minutes: 19, labour: 95, machine: 60, overhead: 30, subcontract: 0 }, { name: Welding, minutes: 29, labour: 145, machine: 90, overhead: 50, subcontract: 0 }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/production/boms/{id}/update-standard-cost:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Production]
+    summary: Write the roll-up to the item's standard cost (audited)
+    operationId: updateItemStandardCostFromBom
+    x-permission: production.bom.approve
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { type: object, required: [itemId, itemName, to], properties: { itemId: { type: string }, itemName: { type: string }, from: { type: number }, to: { type: number }, rolledUpAt: { type: string, format: date-time } } }
+            examples:
+              updated: { summary: Standard cost updated, value: { itemId: item_frame, itemName: Steel Frame A1, from: 2300, to: 2380, rolledUpAt: '2026-09-13T09:12:04Z' } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/production/boms/compare:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Production]
+    summary: Compare two BOM versions
+    operationId: compareBoms
+    x-permission: production.bom.view
+    parameters:
+      - { name: a, in: query, required: true, schema: { type: string }, example: bom_frame_1 }
+      - { name: b, in: query, required: true, schema: { type: string }, example: bom_frame_2 }
+    responses:
+      '200':
+        description: Diff
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/BomCompare' }
+            examples:
+              diff: { summary: v1 vs v2, value: { a: { id: bom_frame_1, code: BOM-FRAME-A1, bomVersion: 1 }, b: { id: bom_frame_2, code: BOM-FRAME-A1, bomVersion: 2 }, added: [{ id: bc_3, itemId: item_paint, itemCode: PNT-GRY, itemName: Powder paint grey, qty: 0.4, uom: L, scrapPct: 0, substitutes: [item_paint_alt], isPhantom: false }], removed: [], changed: [{ itemId: item_stl4, itemName: Steel Rod 4mm, from: { qty: 12.5, scrapPct: 3 }, to: { qty: 12, scrapPct: 2 } }], stdCostA: 2300, stdCostB: 2380 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/production/boms/where-used:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Production]
+    summary: BOMs that use a component
+    operationId: getBomWhereUsed
+    x-permission: production.bom.view
+    parameters:
+      - { name: itemId, in: query, required: true, schema: { type: string }, example: item_stl4 }
+    responses:
+      '200':
+        description: BOMs
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/production.yaml#/Bom' } } } }
+            examples:
+              list: { summary: Used in two BOMs, value: { data: [{ $ref: '#/components/examples/BomFrameActive/value' }] } }
+              none: { summary: Not used, value: { data: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+# ── routings ──────────────────────────────────────────────────────────────
+
+/production/routings:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Production]
+    summary: Routings
+    operationId: listRoutings
+    x-permission: production.bom.view
+    x-frd: [FR-MFG-003]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IncludeInactive'
+      - $ref: '../components/parameters.yaml#/ItemId'
+    responses:
+      '200':
+        description: Routings
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/production.yaml#/Routing' } } } }
+            examples:
+              list: { summary: Routings, value: { data: [{ $ref: '#/components/examples/RoutingFrame/value' }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Production]
+    summary: Create a routing
+    operationId: createRouting
+    x-permission: production.bom.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/production.yaml#/RoutingCreate' }
+          examples:
+            inHouse: { summary: Three in-house operations, value: { code: RT-FRAME, name: Frame A1 standard route, itemId: item_frame, operations: [{ seq: 10, name: Cutting, workCentreId: wc_cut, setupMin: 15, runMinPerUnit: 4 }, { seq: 20, name: Welding, workCentreId: wc_weld, setupMin: 20, runMinPerUnit: 9 }, { seq: 30, name: Finishing, workCentreId: wc_fin, setupMin: 10, runMinPerUnit: 3, yieldPct: 98 }] } }
+            withSubcontract: { summary: Subcontracted coating step, value: { code: RT-FRAME-SC, name: Frame A1 with outsourced coating, itemId: item_frame, operations: [{ seq: 10, name: Cutting, workCentreId: wc_cut, setupMin: 15, runMinPerUnit: 4 }, { seq: 20, name: Welding, workCentreId: wc_weld, setupMin: 20, runMinPerUnit: 9 }, { seq: 30, name: Powder coating, workCentreId: wc_ext, setupMin: 0, runMinPerUnit: 0, subcontract: true, supplierId: sup_powdercoat, serviceItemId: item_svc_coat, subcontractRate: 180 }] } }
+    responses:
+      '201':
+        description: Created
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/Routing' }
+            examples:
+              created: { $ref: '../components/examples/production.yaml#/RoutingFrame' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Validation
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              seq: { summary: Duplicate sequence, value: { code: VALIDATION, message: Operation sequence numbers must be unique, field: operations, correlationId: corr_9f1c2e7a } }
+
+/production/routings/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Production]
+    summary: Get a routing
+    operationId: getRouting
+    x-permission: production.bom.view
+    responses:
+      '200':
+        description: Routing
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/Routing' }
+            examples:
+              frame: { $ref: '../components/examples/production.yaml#/RoutingFrame' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Production]
+    summary: Update a routing (open orders keep their copied operations)
+    operationId: updateRouting
+    x-permission: production.bom.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/production.yaml#/RoutingPatch' }
+          examples:
+            times: { summary: Faster welding, value: { expectedVersion: 1, operations: [{ id: rop_10, seq: 10, name: Cutting, workCentreId: wc_cut, setupMin: 15, runMinPerUnit: 4 }, { id: rop_20, seq: 20, name: Welding, workCentreId: wc_weld, setupMin: 20, runMinPerUnit: 8 }, { id: rop_30, seq: 30, name: Finishing, workCentreId: wc_fin, setupMin: 10, runMinPerUnit: 3 }] } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/Routing' }
+            examples:
+              updated: { $ref: '../components/examples/production.yaml#/RoutingFrame' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Production]
+    summary: Delete an unused routing
+    operationId: deleteRouting
+    x-permission: production.bom.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── work centres ──────────────────────────────────────────────────────────
+
+/production/work-centres:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Production]
+    summary: Work centres
+    operationId: listWorkCentres
+    x-permission: production.bom.view
+    x-frd: [FR-MFG-004]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IncludeInactive'
+    responses:
+      '200':
+        description: Work centres
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/production.yaml#/WorkCentre' } } } }
+            examples:
+              list: { summary: Work centres, value: { data: [{ $ref: '#/components/examples/WorkCentreWeld/value' }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Production]
+    summary: Create a work centre
+    operationId: createWorkCentre
+    x-permission: production.bom.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/production.yaml#/WorkCentreCreate' }
+          examples:
+            weld: { summary: Welding bay, value: { code: WC-WELD, name: Welding bay, workingDays: [1, 2, 3, 4, 5, 6], hoursPerDay: 8, capacityHrsPerDay: 16, efficiencyPct: 85, costRateLabour: 300, costRateMachine: 500, overheadRate: 120, warehouseId: wh_wip, permittedOperations: [Welding, Re-weld] } }
+    responses:
+      '201':
+        description: Created
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/WorkCentre' }
+            examples:
+              created: { $ref: '../components/examples/production.yaml#/WorkCentreWeld' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Validation
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              days: { summary: No working days, value: { code: VALIDATION, message: Pick at least one working day, field: workingDays, correlationId: corr_9f1c2e7a } }
+
+/production/work-centres/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Production]
+    summary: Get a work centre
+    operationId: getWorkCentre
+    x-permission: production.bom.view
+    responses:
+      '200':
+        description: Work centre
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/WorkCentre' }
+            examples:
+              weld: { $ref: '../components/examples/production.yaml#/WorkCentreWeld' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Production]
+    summary: Update a work centre
+    operationId: updateWorkCentre
+    x-permission: production.bom.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/production.yaml#/WorkCentrePatch' }
+          examples:
+            rates: { summary: New cost rates, value: { expectedVersion: 1, costRateLabour: 320, overheadRate: 130 } }
+            deactivate: { summary: Deactivate, value: { expectedVersion: 1, status: Inactive } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/WorkCentre' }
+            examples:
+              updated: { $ref: '../components/examples/production.yaml#/WorkCentreWeld' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Production]
+    summary: Delete an unused work centre
+    operationId: deleteWorkCentre
+    x-permission: production.bom.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/production/work-centres/{id}/capacity:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Production]
+    summary: Capacity board (weekly load vs capacity from released orders)
+    operationId: getWorkCentreCapacity
+    x-permission: production.order.view
+    x-frd: [FR-MFG-006]
+    parameters:
+      - { name: weeks, in: query, schema: { type: integer, default: 4, maximum: 26 } }
+      - { name: from, in: query, schema: { type: string, format: date } }
+    responses:
+      '200':
+        description: Weeks
+        content:
+          application/json:
+            schema: { type: object, required: [workCentreId, data], properties: { workCentreId: { type: string }, data: { type: array, items: { $ref: '../components/schemas/production.yaml#/WeekLoad' } } } }
+            examples:
+              board: { summary: Four weeks, value: { workCentreId: wc_weld, data: [{ weekStart: '2026-09-14', weekEnd: '2026-09-20', label: 'Wk 38 · 14–20 Sep', capacity: 96, load: 74, orders: [{ id: mo_0041, number: PO-MFG/2026-27/00041, hours: 8.3 }, { id: mo_0042, number: PO-MFG/2026-27/00042, hours: 65.7 }] }, { weekStart: '2026-09-21', weekEnd: '2026-09-27', label: 'Wk 39 · 21–27 Sep', capacity: 96, load: 104, orders: [{ id: mo_0043, number: PO-MFG/2026-27/00043, hours: 104 }] }, { weekStart: '2026-09-28', weekEnd: '2026-10-04', label: 'Wk 40 · 28 Sep–4 Oct', capacity: 80, load: 12, orders: [] }, { weekStart: '2026-10-05', weekEnd: '2026-10-11', label: 'Wk 41 · 5–11 Oct', capacity: 96, load: 0, orders: [] }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── inspection plans ──────────────────────────────────────────────────────
+
+/production/inspection-plans:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Production]
+    summary: Inspection plans
+    operationId: listInspectionPlans
+    x-permission: production.qc.view
+    x-frd: [FR-MFG-013]
+    parameters:
+      - { name: type, in: query, schema: { $ref: '../components/schemas/production.yaml#/InspectionType' } }
+      - $ref: '../components/parameters.yaml#/ItemId'
+      - $ref: '../components/parameters.yaml#/IncludeInactive'
+    responses:
+      '200':
+        description: Plans
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/production.yaml#/InspectionPlan' } } } }
+            examples:
+              list: { summary: Plans, value: { data: [{ $ref: '#/components/examples/InspectionPlanFrame/value' }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Production]
+    summary: Create a plan
+    operationId: createInspectionPlan
+    x-permission: production.qc.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/production.yaml#/InspectionPlanCreate' }
+          examples:
+            fg: { summary: Finished-goods plan, value: { code: QP-FG-FRAME, name: Frame finished-goods check, type: Finished goods, itemId: item_frame, samplePct: 10, checks: [{ name: Weld integrity, spec: No visible cracks, method: Visual + dye penetrant, kind: Pass/Fail }, { name: Diagonal, spec: '1200 ± 2 mm', method: Tape, kind: Measurement, min: 1198, max: 1202, unit: mm }] } }
+            incoming: { summary: Incoming plan (all items), value: { code: QP-IN-STEEL, name: Incoming steel, type: Incoming, samplePct: 5, checks: [{ name: Mill certificate, spec: Present and matches heat no., method: Document, kind: Pass/Fail }, { name: Diameter, spec: '4.0 ± 0.1 mm', method: Micrometer, kind: Measurement, min: 3.9, max: 4.1, unit: mm }] } }
+    responses:
+      '201':
+        description: Created
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/InspectionPlan' }
+            examples:
+              created: { $ref: '../components/examples/production.yaml#/InspectionPlanFrame' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/production/inspection-plans/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Production]
+    summary: Get a plan
+    operationId: getInspectionPlan
+    x-permission: production.qc.view
+    responses:
+      '200':
+        description: Plan
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/InspectionPlan' }
+            examples:
+              plan: { $ref: '../components/examples/production.yaml#/InspectionPlanFrame' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Production]
+    summary: Update a plan
+    operationId: updateInspectionPlan
+    x-permission: production.qc.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/production.yaml#/InspectionPlanPatch' }
+          examples:
+            sample: { summary: Sample %, value: { expectedVersion: 1, samplePct: 20 } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/InspectionPlan' }
+            examples:
+              updated: { $ref: '../components/examples/production.yaml#/InspectionPlanFrame' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Production]
+    summary: Delete an unused plan
+    operationId: deleteInspectionPlan
+    x-permission: production.qc.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── MRP ───────────────────────────────────────────────────────────────────
+
+/production/mrp-runs:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Production]
+    summary: MRP runs
+    operationId: listMrpRuns
+    x-permission: production.order.view
+    x-frd: [FR-MFG-005]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+    responses:
+      '200':
+        description: Runs (suggestions / details omitted in lists)
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/production.yaml#/MrpRun' } }
+            examples:
+              firstPage: { summary: Runs, value: { data: [{ id: mrp_0009, companyId: co_acme, number: MRP/2026-27/00009, date: '2026-09-13', branchId: br_ho, params: { horizonDays: 30, includeSafetyStock: true, lotSizing: Lot-for-lot, includeDrafts: false }, suggestions: [], details: [], status: Completed, runBy: Suresh Patel, summary: { itemsPlanned: 42, shortfalls: 6, purchase: 4, production: 2, transfer: 0, value: 384000 }, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }], meta: { nextCursor: null, limit: 25, total: 9 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Production]
+    summary: Run MRP (net requirements → purchase / production / transfer suggestions)
+    description: "`dryRun=true` returns the result without saving a run."
+    operationId: runMrp
+    x-permission: production.order.create
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/production.yaml#/MrpParams'
+              - { type: object, properties: { dryRun: { type: boolean, default: false } } }
+          examples:
+            default: { summary: 30-day horizon, value: { horizonDays: 30, includeSafetyStock: true, lotSizing: Lot-for-lot } }
+            mto: { summary: "Include draft sales orders, one warehouse", value: { horizonDays: 45, includeSafetyStock: false, lotSizing: Min order, warehouseId: wh_main, includeDrafts: true } }
+            preview: { summary: Dry run, value: { horizonDays: 30, dryRun: true } }
+    responses:
+      '201':
+        description: Run saved
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/MrpRun' }
+            examples:
+              run: { $ref: '../components/examples/production.yaml#/MrpRunSep' }
+      '200':
+        description: Dry-run result
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/MrpRun' }
+            examples:
+              preview: { $ref: '../components/examples/production.yaml#/MrpRunSep' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/production/mrp-runs/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Production]
+    summary: Get a run (suggestions + item details)
+    operationId: getMrpRun
+    x-permission: production.order.view
+    responses:
+      '200':
+        description: Run
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/MrpRun' }
+            examples:
+              run: { $ref: '../components/examples/production.yaml#/MrpRunSep' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/production/mrp-runs/{id}/suggestions:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  patch:
+    tags: [Production]
+    summary: Accept / reject suggestions
+    operationId: setMrpSuggestionStatus
+    x-permission: production.order.approve
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [ids, status], properties: { ids: { type: array, minItems: 1, items: { type: string } }, status: { type: string, enum: [Accepted, Rejected, Suggested] } } }
+          examples:
+            accept: { summary: Accept two, value: { ids: [sg_1, sg_2], status: Accepted } }
+            reject: { summary: Reject one, value: { ids: [sg_3], status: Rejected } }
+    responses:
+      '200':
+        description: Updated run
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/MrpRun' }
+            examples:
+              updated: { $ref: '../components/examples/production.yaml#/MrpRunSep' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/production/mrp-runs/{id}/convert:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Production]
+    summary: Convert Accepted suggestions into draft POs / production orders
+    description: Production suggestions below `autoReleaseThreshold` are released automatically. Purchase suggestions without a preferred supplier are skipped.
+    operationId: convertMrpSuggestions
+    x-permission: production.order.create
+    x-idempotent: true
+    x-events: [DocumentCreated]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Result
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/MrpConvertResult' }
+            examples:
+              converted: { summary: "1 PO + 1 production order, 1 skipped", value: { purchaseOrders: [{ id: po_00127, number: DRAFT-PO-127, supplierName: Bharat Steel Ltd, total: 141600 }], productionOrders: [{ id: mo_0044, number: PO-MFG/2026-27/00044, itemName: Steel Frame A1, qty: 120, status: Planned }], skipped: ['Tea Crate: no preferred supplier'] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Nothing accepted
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              empty: { summary: No accepted suggestions, value: { code: EMPTY, message: No Accepted suggestions to convert, correlationId: corr_9f1c2e7a } }
+
+# ── settings ──────────────────────────────────────────────────────────────
+
+/production/settings:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Production]
+    summary: Manufacturing settings
+    operationId: getMfgSettings
+    x-permission: production.order.view
+    responses:
+      '200':
+        description: Settings
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/MfgSettings' }
+            examples:
+              current: { summary: Current, value: { mode: discrete, planning: MTO, overIssueTolerancePct: 5, backflushDefault: false, qcRequiredForFG: true, costingMethod: Standard, autoReleaseThreshold: 0, wipWarehouseId: wh_wip, scrapWarehouseId: wh_scrap, subcontractWarehouseId: wh_subcon, fgWarehouseId: wh_main, rmWarehouseId: wh_rm, labourAbsorbedAccountId: acc_5810, overheadAbsorbedAccountId: acc_5820 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  put:
+    tags: [Production]
+    summary: Update manufacturing settings
+    operationId: updateMfgSettings
+    x-permission: production.settings.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/production.yaml#/MfgSettings' }
+          examples:
+            backflush: { summary: "Backflush by default, actual costing", value: { backflushDefault: true, costingMethod: Actual } }
+            autoRelease: { summary: Auto-release small MRP orders, value: { autoReleaseThreshold: 50000 } }
+    responses:
+      '200':
+        description: Saved
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/production.yaml#/MfgSettings' }
+            examples:
+              saved: { summary: Saved, value: { mode: discrete, planning: MTO, overIssueTolerancePct: 5, backflushDefault: true, qcRequiredForFG: true, costingMethod: Actual, autoReleaseThreshold: 0, wipWarehouseId: wh_wip, scrapWarehouseId: wh_scrap, subcontractWarehouseId: wh_subcon, fgWarehouseId: wh_main, rmWarehouseId: wh_rm, labourAbsorbedAccountId: acc_5810, overheadAbsorbedAccountId: acc_5820 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }

@@ -1,0 +1,143 @@
+# Purchase payloads.
+
+RequisitionApproved:
+  summary: Approved requisition
+  value: { id: req_00031, companyId: co_acme, number: PR/2026-27/00031, docType: Requisition, date: '2026-09-10', branchId: br_surat, status: Approved, currency: INR, rate: 1, partyType: None, requesterId: emp_005, requesterName: Suresh Patel, department: dim_dept_ops, needByDate: '2026-09-30', purpose: Q3 raw material top-up, lines: [{ id: ln_pr_1, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, qty: 5000, uom: KG, rate: 48, discountPct: 0, discountAmt: 0, taxable: 240000, taxRate: 0, taxAmt: 0, taxComponents: {}, amount: 240000, purpose: Replenish Surat stock }], totals: { subtotal: 240000, discount: 0, taxable: 240000, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 240000, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 240000 }, estimatedTotal: 240000, approvalId: apr_pr_31, createdAt: '2026-09-10T09:00:00Z', updatedAt: '2026-09-11T10:00:00Z', version: 3 }
+
+PurchaseOrderApproved:
+  summary: Approved PO, partially received
+  value:
+    id: po_00118
+    companyId: co_acme
+    number: PO/SRT/0118/26-27
+    docType: Purchase Order
+    date: '2026-09-11'
+    branchId: br_surat
+    status: Partially Received
+    currency: INR
+    rate: 1
+    partyType: Supplier
+    partyId: sup_bharatsteel
+    partyName: Bharat Steel Industries
+    partySnapshot: { name: Bharat Steel Industries, gstin: 27AABCB1234C1Z2, pan: AABCB1234C, taxTreatment: Registered, state: Maharashtra, stateCode: '27', paymentTerms: Net 45, currency: INR }
+    expectedDate: '2026-09-25'
+    requisitionId: req_00031
+    requisitionNumber: PR/2026-27/00031
+    warehouseId: wh_main
+    lines:
+      - { id: ln_po_1, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, hsn: '7214', qty: 5000, uom: KG, rate: 48, discountPct: 0, discountAmt: 0, taxable: 240000, taxRateId: tax_gst18, taxRate: 18, taxAmt: 43200, taxComponents: { IGST: 43200 }, amount: 283200, warehouseId: wh_main, expectedDate: '2026-09-25', receivedQty: 3000, acceptedQty: 2950, rejectedQty: 50, invoicedQty: 2950, cancelledQty: 0, pendingQty: 2000 }
+    totals: { subtotal: 240000, discount: 0, taxable: 240000, tax: 43200, components: { IGST: 43200 }, breakup: [{ component: IGST, rate: 18, hsn: '7214', taxable: 240000, tax: 43200 }], charges: 0, tds: 0, roundOff: 0, total: 283200, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 283200 }
+    placeOfSupply: Gujarat
+    placeOfSupplyCode: '24'
+    paymentTerms: Net 45
+    amendments: []
+    revision: 1
+    emailedAt: '2026-09-11T12:00:00Z'
+    fulfilment: { ordered: 5000, received: 3000, accepted: 2950, rejected: 50, invoiced: 2950, returned: 0, pending: 2000 }
+    approvalId: apr_po_118
+    fy: '2026-27'
+    period: '2026-09'
+    correlationId: corr_po118
+    createdAt: '2026-09-11T09:00:00Z'
+    updatedAt: '2026-09-13T09:12:04Z'
+    version: 6
+
+GrnPosted:
+  summary: Posted GRN with QC rejection
+  value:
+    id: grn_00077
+    companyId: co_acme
+    number: GRN/2026-27/00077
+    docType: GRN
+    date: '2026-09-12'
+    branchId: br_surat
+    status: Posted
+    qcStatus: Partial Accept
+    currency: INR
+    rate: 1
+    partyType: Supplier
+    partyId: sup_bharatsteel
+    partyName: Bharat Steel Industries
+    poId: po_00118
+    poNumber: PO/SRT/0118/26-27
+    sourceType: Purchase Order
+    sourceId: po_00118
+    sourceNumber: PO/SRT/0118/26-27
+    warehouseId: wh_main
+    supplierChallan: DC-BS-4471
+    vehicleNo: GJ05AB9876
+    receivedBy: Suresh Patel
+    lines:
+      - { id: ln_g1, poLineId: ln_po_1, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, hsn: '7214', qty: 2950, uom: KG, rate: 48, discountPct: 0, discountAmt: 0, taxable: 141600, taxRateId: tax_gst18, taxRate: 18, taxAmt: 25488, taxComponents: { IGST: 25488 }, amount: 167088, warehouseId: wh_main, bin: A-01, batch: B-2609-11, orderedQty: 5000, receivedQty: 3000, acceptedQty: 2950, rejectedQty: 50, heldQty: 0, disposition: Return to supplier, qcNote: 50 KG rusted, invoicedQty: 2950, returnedQty: 0 }
+    totals: { subtotal: 141600, discount: 0, taxable: 141600, tax: 25488, components: { IGST: 25488 }, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 167088, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 167088 }
+    journalId: jnl_grn_77
+    journalNumber: JV/2026-27/00306
+    postedAt: '2026-09-12T11:00:00Z'
+    postedBy: Suresh Patel
+    invoiced: true
+    landedCostIds: []
+    fy: '2026-27'
+    period: '2026-09'
+    correlationId: corr_grn77
+    createdAt: '2026-09-12T10:30:00Z'
+    updatedAt: '2026-09-13T09:12:04Z'
+    version: 4
+
+VendorInvoicePosted:
+  summary: Posted, matched vendor invoice with TDS
+  value:
+    id: vinv_00019
+    companyId: co_acme
+    number: VINV/2026-27/00019
+    docType: Vendor Invoice
+    date: '2026-09-13'
+    dueDate: '2026-10-28'
+    branchId: br_surat
+    status: Posted
+    matchStatus: Matched
+    matchMode: 3-way
+    currency: INR
+    rate: 1
+    partyType: Supplier
+    partyId: sup_bharatsteel
+    partyName: Bharat Steel Industries
+    partySnapshot: { name: Bharat Steel Industries, gstin: 27AABCB1234C1Z2, pan: AABCB1234C, taxTreatment: Registered, state: Maharashtra, stateCode: '27', paymentTerms: Net 45, currency: INR }
+    supplierInvoiceNumber: BS-7781
+    supplierInvoiceDate: '2026-09-12'
+    poId: po_00118
+    poNumber: PO/SRT/0118/26-27
+    grnIds: [grn_00077]
+    grnNumbers: [GRN/2026-27/00077]
+    lines:
+      - { id: ln_v1, poLineId: ln_po_1, grnId: grn_00077, grnLineId: ln_g1, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, hsn: '7214', qty: 2950, uom: KG, rate: 48, discountPct: 0, discountAmt: 0, taxable: 141600, taxRateId: tax_gst18, taxRate: 18, taxAmt: 25488, taxComponents: { IGST: 25488 }, amount: 167088, poRate: 48, poQty: 5000, grnQty: 2950 }
+    totals: { subtotal: 141600, discount: 0, taxable: 141600, tax: 25488, components: { IGST: 25488 }, breakup: [], charges: 0, tds: 2832, tdsSection: 194C, roundOff: 0, total: 167088, paid: 0, credited: 0, writtenOff: 0, due: 164256, baseTotal: 167088 }
+    tdsSectionId: tds_194c
+    reverseCharge: false
+    journalId: jnl_vinv_19
+    journalNumber: JV/2026-27/00309
+    openItemId: oi_ap_19
+    postedAt: '2026-09-13T09:30:00Z'
+    postedBy: Rahul Mehta
+    openExceptions: 0
+    fy: '2026-27'
+    period: '2026-09'
+    correlationId: corr_v19
+    createdAt: '2026-09-13T09:00:00Z'
+    updatedAt: '2026-09-13T09:30:00Z'
+    version: 5
+
+VendorInvoiceException:
+  summary: Submitted with a price-variance exception
+  value: { id: vinv_00020, companyId: co_acme, number: DRAFT-VINV-20, docType: Vendor Invoice, date: '2026-09-13', dueDate: '2026-10-13', branchId: br_ho, status: Submitted, matchStatus: Exception, matchMode: 3-way, currency: INR, rate: 1, partyType: Supplier, partyId: sup_globalpack, partyName: Global Packaging Co, supplierInvoiceNumber: GP-9911, supplierInvoiceDate: '2026-09-12', poId: po_00120, poNumber: PO/2026-27/00120, grnIds: [grn_00079], grnNumbers: [GRN/2026-27/00079], lines: [{ id: ln_v2, poLineId: ln_po_9, grnId: grn_00079, grnLineId: ln_g9, itemId: item_box, itemCode: BOX-L, itemName: Carton box L, hsn: '4819', qty: 1000, uom: NOS, rate: 26.5, discountPct: 0, discountAmt: 0, taxable: 26500, taxRateId: tax_gst18, taxRate: 18, taxAmt: 4770, taxComponents: { CGST: 2385, SGST: 2385 }, amount: 31270, poRate: 25, poQty: 1000, grnQty: 1000 }], totals: { subtotal: 26500, discount: 0, taxable: 26500, tax: 4770, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 31270, paid: 0, credited: 0, writtenOff: 0, due: 31270, baseTotal: 31270 }, reverseCharge: false, openExceptions: 1, submittedAt: '2026-09-13T09:12:04Z', submittedBy: Anita Rao, approvalId: apr_vinv_20, fy: '2026-27', period: '2026-09', correlationId: corr_v20, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 3 }
+
+MatchExceptionOpen:
+  summary: Open price variance
+  value: { id: mex_1, companyId: co_acme, invoiceId: vinv_00020, invoiceNumber: DRAFT-VINV-20, supplierId: sup_globalpack, supplierName: Global Packaging Co, poId: po_00120, poNumber: PO/2026-27/00120, grnId: grn_00079, grnNumber: GRN/2026-27/00079, lineId: ln_v2, itemName: Carton box L, type: Price variance, poValue: 25, invoiceValue: 26.5, variance: 1.5, variancePct: 6, tolerance: '2% / ₹500', status: Open, raisedAt: '2026-09-13T09:12:04Z', createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+
+PaymentCompleted:
+  summary: Completed NEFT payment with TDS
+  value: { id: pay_00061, companyId: co_acme, number: PAY/2026-27/00061, docType: Payment, date: '2026-09-13', branchId: br_ho, status: Completed, currency: INR, rate: 1, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, method: NEFT, bankAccountId: acc_1310, bankAccountName: HDFC Bank — Current, utr: N246509999, allocations: [{ id: pa_1, openItemId: oi_ap_19, docType: Vendor Invoice, docId: vinv_00019, docNumber: VINV/2026-27/00019, outstanding: 164256, amount: 164256, tds: 0 }], tdsSectionId: tds_194c, tdsAmount: 0, chargesAmount: 0, grossAmount: 164256, netAmount: 164256, unappliedAmount: 0, lines: [], totals: { subtotal: 164256, discount: 0, taxable: 164256, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 164256, paid: 164256, credited: 0, writtenOff: 0, due: 0, baseTotal: 164256 }, journalId: jnl_pay_61, journalNumber: JV/2026-27/00340, postedAt: '2026-09-13T14:00:00Z', postedBy: Anita Rao, fy: '2026-27', period: '2026-09', correlationId: corr_p61, createdAt: '2026-09-13T13:50:00Z', updatedAt: '2026-09-13T14:00:00Z', version: 3 }
+
+PaymentBatchApproved:
+  summary: Approved batch awaiting bank file
+  value: { id: pb_00012, companyId: co_acme, number: PB/2026-27/00012, docType: Payment Batch, date: '2026-09-13', branchId: br_ho, currency: INR, bankAccountId: acc_1310, bankAccountName: HDFC Bank — Current, method: NEFT, status: Approved, lines: [{ id: pbl_1, supplierId: sup_bharatsteel, supplierName: Bharat Steel Industries, openItemIds: [oi_ap_19], docNumbers: [VINV/2026-27/00019], amount: 164256, tds: 0, net: 164256, bankName: HDFC Bank, accountNumber: XXXXXXXX4412, ifsc: HDFC0000240, status: Pending }, { id: pbl_2, supplierId: sup_transport, supplierName: Speedy Transport Co, openItemIds: [oi_ap_22, oi_ap_23], docNumbers: [VINV/2026-27/00022, VINV/2026-27/00023], amount: 38000, tds: 760, net: 37240, bankName: ICICI Bank, accountNumber: XXXXXXXX0091, ifsc: ICIC0000012, status: Pending }], total: 202256, makerId: usr_anita, makerName: Anita Rao, checkerName: Rahul Mehta, approvalId: apr_7e2f, submittedAt: '2026-09-13T09:00:00Z', approvedAt: '2026-09-13T10:00:00Z', correlationId: corr_pb12, createdAt: '2026-09-13T08:50:00Z', updatedAt: '2026-09-13T10:00:00Z', version: 4 }

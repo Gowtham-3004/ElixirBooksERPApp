@@ -1,0 +1,1089 @@
+# Sales part 1 (tag: Sales): quotations → sales orders → deliveries. src/modules/sales/fulfilment.ts
+# Attachments / PDF / e-mail / journal / activity: see /documents/{collection}/{id}/… (System).
+
+# ── quotations ────────────────────────────────────────────────────────────
+
+/sales/quotations:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Sales]
+    summary: List quotations
+    description: "Tabs → All + one per status. Query examples — `?status=Sent` · expiring `?validUntilTo=2026-09-20&status=Sent` · `?partyId=cust_sunrise` · `?salespersonId=sp_priya` · `?q=QT/2026-27/00031`."
+    operationId: listQuotations
+    x-permission: sales.quotation.view
+    x-frd: [FR-SAL-001]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/PartyId'
+      - { name: salespersonId, in: query, schema: { type: string } }
+      - { name: validUntilTo, in: query, schema: { type: string, format: date } }
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+      - $ref: '../components/parameters.yaml#/AmountMin'
+      - $ref: '../components/parameters.yaml#/AmountMax'
+      - $ref: '../components/parameters.yaml#/BranchFilter'
+    responses:
+      '200':
+        description: Quotations
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/sales.yaml#/Quotation' } }
+            examples:
+              firstPage: { summary: Sent + converted, value: { data: [{ id: qt_00031, companyId: co_acme, number: QT/2026-27/00031, docType: Quotation, date: '2026-09-01', validUntil: '2026-09-15', branchId: br_ho, status: Sent, currency: INR, rate: 1, partyType: Customer, partyId: cust_sunrise, partyName: Sunrise Hotels, lines: [], totals: { subtotal: 190000, discount: 9500, taxable: 180500, tax: 9025, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 189525, paid: 0, credited: 0, writtenOff: 0, due: 189525, baseTotal: 189525 }, salespersonId: sp_priya, sentAt: '2026-09-01T11:00:00Z', revision: 1, createdAt: '2026-09-01T10:00:00Z', updatedAt: '2026-09-01T11:00:00Z', version: 3 }, { id: qt_00030, companyId: co_acme, number: QT/2026-27/00030, docType: Quotation, date: '2026-08-25', validUntil: '2026-09-08', branchId: br_ho, status: Converted, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, lines: [], totals: { subtotal: 108400, discount: 0, taxable: 108400, tax: 16488, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 124888, paid: 0, credited: 0, writtenOff: 0, due: 124888, baseTotal: 124888 }, convertedToId: so_00087, convertedToNumber: SO/2026-27/00087, revision: 2, createdAt: '2026-08-25T10:00:00Z', updatedAt: '2026-09-08T10:00:00Z', version: 5 }], meta: { nextCursor: null, limit: 25, total: 2, counts: { All: 31, Draft: 3, Sent: 6, Accepted: 2, Declined: 4, Converted: 12, Expired: 3, Cancelled: 1 } }, scope: { companyId: co_acme, branchId: br_ho, period: '2026-09', currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Sales]
+    summary: Create a quotation (Draft)
+    description: Prices resolve from the customer price list (`listRate`); a `rate` below list beyond `salesDiscountThresholdPct` needs `overrideReason`. Totals are recomputed server-side.
+    operationId: createQuotation
+    x-permission: sales.quotation.create
+    x-events: [DocumentCreated]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/sales.yaml#/QuotationCreate' }
+          examples:
+            minimal: { summary: "Minimal — one line, defaults resolved", value: { partyId: cust_sunrise, date: '2026-09-13', lines: [{ itemId: item_assam, qty: 500 }] } }
+            full: { summary: "Full with discount, validity, salesperson, notes", value: { partyId: cust_sunrise, date: '2026-09-13', validUntil: '2026-09-30', reference: RFQ-SUN-77, salespersonId: sp_priya, lines: [{ itemId: item_assam, qty: 500, rate: 380, discountPct: 5, taxRateId: tax_gst5 }, { itemId: item_darj, qty: 100, rate: 1200, taxRateId: tax_gst5 }], charges: [{ name: Freight, amount: 2500, taxRateId: tax_gst18 }], notes: Delivery within 7 days of order, terms: 50% advance } }
+            fromLead: { summary: From a CRM lead with free-text service line, value: { partyId: cust_metro, leadId: lead_metro, date: '2026-09-13', lines: [{ itemName: Site survey and installation, qty: 1, uom: JOB, rate: 45000, taxRateId: tax_gst18, accountId: acc_4010 }] } }
+            usd: { summary: Export quotation in USD, value: { partyId: cust_ustech, date: '2026-09-13', currency: USD, priceListId: pl_usd, lines: [{ itemId: item_stl4, qty: 5000, rate: 0.72, taxRateId: tax_export }] } }
+    responses:
+      '201':
+        description: Draft quotation
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/Quotation' }
+            examples:
+              draft: { summary: Draft, value: { id: qt_00032, companyId: co_acme, number: DRAFT-QT-32, docType: Quotation, date: '2026-09-13', validUntil: '2026-09-27', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: Customer, partyId: cust_sunrise, partyName: Sunrise Hotels, lines: [{ id: ln_q1, itemId: item_assam, itemCode: TEA-ASSAM, itemName: Assam CTC 1kg, hsn: '0902', qty: 500, uom: NOS, rate: 380, listRate: 380, priceListName: Wholesale INR, discountPct: 0, discountAmt: 0, taxable: 190000, taxRateId: tax_gst5, taxRate: 5, taxAmt: 9500, taxComponents: { CGST: 4750, SGST: 4750 }, amount: 199500 }], totals: { subtotal: 190000, discount: 0, taxable: 190000, tax: 9500, components: { CGST: 4750, SGST: 4750 }, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 199500, paid: 0, credited: 0, writtenOff: 0, due: 199500, baseTotal: 199500 }, revision: 1, fy: '2026-27', period: '2026-09', correlationId: corr_q32, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/sales/quotations/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Sales]
+    summary: Get a quotation
+    operationId: getQuotation
+    x-permission: sales.quotation.view
+    responses:
+      '200':
+        description: Quotation
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/Quotation' }
+            examples:
+              sent: { $ref: '../components/examples/sales.yaml#/QuotationSent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Sales]
+    summary: Edit a Draft / Sent quotation (autosave)
+    description: Sent quotations can still be edited (material changes are audited); Accepted / Converted / Expired ones cannot — use `revise`.
+    operationId: updateQuotation
+    x-permission: sales.quotation.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/sales.yaml#/QuotationPatch' }
+          examples:
+            fieldsOnly: { summary: Validity + notes, value: { expectedVersion: 3, validUntil: '2026-09-30', notes: Prices firm till 30 Sep } }
+            replaceLines: { summary: Replace lines, value: { expectedVersion: 3, lines: [{ id: ln_q1, itemId: item_assam, qty: 600, rate: 375, discountPct: 0, taxRateId: tax_gst5 }, { itemId: item_green, qty: 50, rate: 900, taxRateId: tax_gst5 }] } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/Quotation' }
+            examples:
+              updated: { $ref: '../components/examples/sales.yaml#/QuotationSent' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Sales]
+    summary: Delete a Draft quotation
+    operationId: deleteQuotation
+    x-permission: sales.quotation.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/sales/quotations/{id}/send:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Send (e-mail) and mark Sent
+    description: Allocates the number, e-mails the PDF and moves Draft → Sent. Sending again re-sends without changing status.
+    operationId: sendQuotation
+    x-permission: sales.quotation.submit
+    x-idempotent: true
+    x-events: [DocumentSubmitted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/EmailRequest' }
+          examples:
+            default: { summary: To the default contact, value: { to: [purchase@sunrisehotels.example], subject: Quotation QT/2026-27/00031 from Acme Trading, message: Please find our quotation attached. Valid until 15 Sep. } }
+            withCc: { $ref: '../components/examples/common.yaml#/EmailWithCc' }
+    responses:
+      '200':
+        description: Sent
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [document, email]
+              properties:
+                document: { $ref: '../components/schemas/sales.yaml#/Quotation' }
+                email: { $ref: '../components/schemas/common.yaml#/EmailResult' }
+            examples:
+              sent: { summary: Now Sent, value: { document: { id: qt_00031, companyId: co_acme, number: QT/2026-27/00031, docType: Quotation, date: '2026-09-01', validUntil: '2026-09-15', branchId: br_ho, status: Sent, currency: INR, rate: 1, partyType: Customer, partyId: cust_sunrise, partyName: Sunrise Hotels, lines: [], totals: { subtotal: 190000, discount: 9500, taxable: 180500, tax: 9025, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 189525, paid: 0, credited: 0, writtenOff: 0, due: 189525, baseTotal: 189525 }, sentAt: '2026-09-13T09:12:04Z', sentTo: purchase@sunrisehotels.example, revision: 1, createdAt: '2026-09-01T10:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 3 }, email: { integrationLogId: ilog_email_88a1, status: Queued, to: [purchase@sunrisehotels.example], sentAt: '2026-09-13T09:12:04Z' } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '502': { $ref: '../components/responses.yaml#/ProviderError' }
+
+/sales/quotations/{id}/accept:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Record customer acceptance (Sent → Accepted)
+    operationId: acceptQuotation
+    x-permission: sales.quotation.edit
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { type: object, properties: { reference: { type: string, description: Customer PO / acceptance reference. }, acceptedAt: { type: string, format: date-time } } }
+          examples:
+            withPo: { summary: With customer PO reference, value: { reference: PO-SUN-2026-118 } }
+            plain: { summary: Plain, value: {} }
+    responses:
+      '200':
+        description: Accepted
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/Quotation' }
+            examples:
+              accepted: { summary: Accepted, value: { id: qt_00031, companyId: co_acme, number: QT/2026-27/00031, docType: Quotation, date: '2026-09-01', validUntil: '2026-09-15', branchId: br_ho, status: Accepted, currency: INR, rate: 1, partyType: Customer, partyId: cust_sunrise, partyName: Sunrise Hotels, reference: PO-SUN-2026-118, lines: [], totals: { subtotal: 190000, discount: 9500, taxable: 180500, tax: 9025, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 189525, paid: 0, credited: 0, writtenOff: 0, due: 189525, baseTotal: 189525 }, acceptedAt: '2026-09-13T09:12:04Z', revision: 1, createdAt: '2026-09-01T10:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 4 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/sales/quotations/{id}/decline:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Record a decline (Sent → Declined)
+    operationId: declineQuotation
+    x-permission: sales.quotation.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            price: { summary: Lost on price, value: { reason: Customer chose a competitor quoting 8% lower } }
+    responses:
+      '200':
+        description: Declined
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/Quotation' }
+            examples:
+              declined: { summary: Declined, value: { id: qt_00031, companyId: co_acme, number: QT/2026-27/00031, docType: Quotation, date: '2026-09-01', validUntil: '2026-09-15', branchId: br_ho, status: Declined, currency: INR, rate: 1, partyType: Customer, partyId: cust_sunrise, partyName: Sunrise Hotels, lines: [], totals: { subtotal: 190000, discount: 9500, taxable: 180500, tax: 9025, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 189525, paid: 0, credited: 0, writtenOff: 0, due: 189525, baseTotal: 189525 }, declinedReason: Customer chose a competitor quoting 8% lower, revision: 1, createdAt: '2026-09-01T10:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 4 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/sales/quotations/{id}/revise:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Create a new revision (supersedes this one)
+    description: Copies the quotation into a new Draft with `revision + 1` and `revisionOfId`; the original gets `supersededById`. Blocked when Converted.
+    operationId: reviseQuotation
+    x-permission: sales.quotation.create
+    responses:
+      '201':
+        description: New revision
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/Quotation' }
+            examples:
+              rev2: { summary: Revision 2 draft, value: { id: qt_00031r2, companyId: co_acme, number: DRAFT-QT-31R2, docType: Quotation, date: '2026-09-13', validUntil: '2026-09-27', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: Customer, partyId: cust_sunrise, partyName: Sunrise Hotels, lines: [], totals: { subtotal: 190000, discount: 9500, taxable: 180500, tax: 9025, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 189525, paid: 0, credited: 0, writtenOff: 0, due: 189525, baseTotal: 189525 }, revisionOfId: qt_00031, revision: 2, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/sales/quotations/{id}/convert-to-order:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Convert (Sent / Accepted) to a sales order
+    description: "Creates a Draft sales order with the quotation lines (`sourceType: Quotation`), marks the quotation Converted. Expired quotations cannot be converted."
+    operationId: convertQuotationToOrder
+    x-permission: sales.order.create
+    x-idempotent: true
+    x-events: [DocumentCreated]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { type: object, properties: { expectedDate: { type: string, format: date }, warehouseId: { type: string }, reference: { type: string } } }
+          examples:
+            plain: { summary: Defaults, value: {} }
+            withDelivery: { summary: Expected date + warehouse, value: { expectedDate: '2026-09-25', warehouseId: wh_main, reference: PO-SUN-2026-118 } }
+    responses:
+      '201':
+        description: Sales order created
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quotation, order]
+              properties:
+                quotation: { $ref: '../components/schemas/sales.yaml#/Quotation' }
+                order: { $ref: '../components/schemas/sales.yaml#/SalesOrder' }
+            examples:
+              converted: { summary: Converted, value: { quotation: { id: qt_00031, companyId: co_acme, number: QT/2026-27/00031, docType: Quotation, date: '2026-09-01', validUntil: '2026-09-15', branchId: br_ho, status: Converted, currency: INR, rate: 1, partyType: Customer, partyId: cust_sunrise, partyName: Sunrise Hotels, lines: [], totals: { subtotal: 190000, discount: 9500, taxable: 180500, tax: 9025, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 189525, paid: 0, credited: 0, writtenOff: 0, due: 189525, baseTotal: 189525 }, convertedToId: so_00091, convertedToNumber: DRAFT-SO-91, revision: 1, createdAt: '2026-09-01T10:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 5 }, order: { id: so_00091, companyId: co_acme, number: DRAFT-SO-91, docType: Sales Order, date: '2026-09-13', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: Customer, partyId: cust_sunrise, partyName: Sunrise Hotels, sourceType: Quotation, sourceId: qt_00031, sourceNumber: QT/2026-27/00031, expectedDate: '2026-09-25', warehouseId: wh_main, lines: [], totals: { subtotal: 190000, discount: 9500, taxable: 180500, tax: 9025, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 189525, paid: 0, credited: 0, writtenOff: 0, due: 189525, baseTotal: 189525 }, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/sales/quotations/expire:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Sales]
+    summary: Expire all Sent quotations past validity (housekeeping)
+    operationId: expireQuotations
+    x-permission: sales.quotation.edit
+    responses:
+      '200':
+        description: Count expired
+        content:
+          application/json:
+            schema: { type: object, required: [expired], properties: { expired: { type: integer }, ids: { type: array, items: { type: string } } } }
+            examples:
+              some: { summary: Two expired, value: { expired: 2, ids: [qt_00021, qt_00024] } }
+              none: { summary: Nothing to do, value: { expired: 0, ids: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/sales/quotations/{id}/cancel:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Cancel a quotation (not Converted)
+    operationId: cancelQuotation
+    x-permission: sales.quotation.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            cancel: { summary: Cancel, value: { reason: Duplicate of QT/2026-27/00030 } }
+    responses:
+      '200':
+        description: Cancelled
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/Quotation' }
+            examples:
+              cancelled: { summary: Cancelled, value: { id: qt_00033, companyId: co_acme, number: QT/2026-27/00033, docType: Quotation, date: '2026-09-12', branchId: br_ho, status: Cancelled, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 0, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 0 }, cancelReason: Duplicate of QT/2026-27/00030, revision: 1, createdAt: '2026-09-12T10:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── sales orders ──────────────────────────────────────────────────────────
+
+/sales/orders:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Sales]
+    summary: List sales orders
+    description: "Tabs → All · Open (`status=Confirmed,Partially Delivered`) · one per status. Query examples — `?status=Confirmed` · `?warehouseId=wh_main` · `?partyId=cust_arlene` · `?expectedDateTo=2026-09-20`."
+    operationId: listSalesOrders
+    x-permission: sales.order.view
+    x-frd: [FR-SAL-005]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/PartyId'
+      - $ref: '../components/parameters.yaml#/WarehouseId'
+      - { name: expectedDateTo, in: query, schema: { type: string, format: date } }
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+      - $ref: '../components/parameters.yaml#/AmountMin'
+      - $ref: '../components/parameters.yaml#/AmountMax'
+      - $ref: '../components/parameters.yaml#/BranchFilter'
+    responses:
+      '200':
+        description: Orders
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/sales.yaml#/SalesOrder' } }
+            examples:
+              firstPage: { summary: Open orders, value: { data: [{ id: so_00087, companyId: co_acme, number: SO/2026-27/00087, docType: Sales Order, date: '2026-09-08', branchId: br_ho, status: Partially Delivered, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, expectedDate: '2026-09-20', warehouseId: wh_main, lines: [], totals: { subtotal: 108400, discount: 0, taxable: 108400, tax: 16488, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 124888, paid: 0, credited: 0, writtenOff: 0, due: 124888, baseTotal: 124888 }, quantities: { ordered: 1120, reserved: 80, delivered: 1100, invoiced: 1100, pending: 20 }, createdAt: '2026-09-08T10:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 8 }, { id: so_00090, companyId: co_acme, number: SO/2026-27/00090, docType: Sales Order, date: '2026-09-11', branchId: br_ho, status: Confirmed, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, expectedDate: '2026-09-18', warehouseId: wh_main, lines: [], totals: { subtotal: 65000, discount: 0, taxable: 65000, tax: 11700, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 76700, paid: 0, credited: 0, writtenOff: 0, due: 76700, baseTotal: 76700 }, quantities: { ordered: 500, reserved: 500, delivered: 0, invoiced: 0, pending: 500 }, createdAt: '2026-09-11T10:00:00Z', updatedAt: '2026-09-11T10:30:00Z', version: 3 }], meta: { nextCursor: null, limit: 25, total: 2, counts: { All: 96, Open: 9, Draft: 2, Submitted: 1, Confirmed: 6, 'Partially Delivered': 3, Delivered: 4, Closed: 70, 'Short Closed': 6, Cancelled: 4 } }, scope: { companyId: co_acme, branchId: br_ho, period: '2026-09', currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Sales]
+    summary: Create a sales order (Draft)
+    operationId: createSalesOrder
+    x-permission: sales.order.create
+    x-events: [DocumentCreated]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/sales.yaml#/SalesOrderCreate' }
+          examples:
+            direct: { summary: Direct order, value: { partyId: cust_arlene, date: '2026-09-13', reference: PO-ARL-2291, expectedDate: '2026-09-20', warehouseId: wh_main, lines: [{ itemId: item_stl4, qty: 1000, rate: 58, taxRateId: tax_gst18, warehouseId: wh_main }, { itemId: item_crate, qty: 120, rate: 420, overrideReason: Negotiated annual contract, taxRateId: tax_gst12 }] } }
+            fromQuotation: { summary: From a quotation (source lines), value: { partyId: cust_sunrise, date: '2026-09-13', sourceType: Quotation, sourceId: qt_00031, expectedDate: '2026-09-25', lines: [{ itemId: item_assam, qty: 500, rate: 380, discountPct: 5, taxRateId: tax_gst5, sourceDocId: qt_00031, sourceLineId: ln_q1 }] } }
+            serviceOnly: { summary: Service order (no stock), value: { partyId: cust_globaltech, date: '2026-09-13', lines: [{ itemId: item_amc, qty: 1, rate: 60000, taxRateId: tax_gst18 }] } }
+            usd: { summary: Export order in USD, value: { partyId: cust_ustech, date: '2026-09-13', currency: USD, priceListId: pl_usd, expectedDate: '2026-10-05', lines: [{ itemId: item_stl4, qty: 5000, rate: 0.72, taxRateId: tax_export, warehouseId: wh_main }] } }
+    responses:
+      '201':
+        description: Draft order
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/SalesOrder' }
+            examples:
+              draft: { summary: Draft, value: { id: so_00092, companyId: co_acme, number: DRAFT-SO-92, docType: Sales Order, date: '2026-09-13', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, reference: PO-ARL-2291, expectedDate: '2026-09-20', warehouseId: wh_main, lines: [{ id: ln_1, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, hsn: '7214', qty: 1000, uom: KG, rate: 58, listRate: 58, discountPct: 0, discountAmt: 0, taxable: 58000, taxRateId: tax_gst18, taxRate: 18, taxAmt: 10440, taxComponents: { CGST: 5220, SGST: 5220 }, amount: 68440, warehouseId: wh_main }], totals: { subtotal: 58000, discount: 0, taxable: 58000, tax: 10440, components: { CGST: 5220, SGST: 5220 }, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 68440, paid: 0, credited: 0, writtenOff: 0, due: 68440, baseTotal: 68440 }, quantities: { ordered: 1000, reserved: 0, delivered: 0, invoiced: 0, pending: 1000 }, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/sales/orders/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Sales]
+    summary: Get a sales order (with fulfilment quantities)
+    operationId: getSalesOrder
+    x-permission: sales.order.view
+    responses:
+      '200':
+        description: Order
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/SalesOrder' }
+            examples:
+              confirmed: { $ref: '../components/examples/sales.yaml#/SalesOrderConfirmed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Sales]
+    summary: Edit a Draft / Returned order
+    description: Confirmed orders are changed through `amend` (reason + audit trail).
+    operationId: updateSalesOrder
+    x-permission: sales.order.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/sales.yaml#/SalesOrderPatch' }
+          examples:
+            fieldsOnly: { summary: Expected date, value: { expectedVersion: 1, expectedDate: '2026-09-22' } }
+            replaceLines: { summary: Replace lines, value: { expectedVersion: 1, lines: [{ id: ln_1, itemId: item_stl4, qty: 1200, rate: 58, taxRateId: tax_gst18, warehouseId: wh_main }] } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/SalesOrder' }
+            examples:
+              updated: { $ref: '../components/examples/sales.yaml#/SalesOrderConfirmed' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Sales]
+    summary: Delete a Draft order
+    operationId: deleteSalesOrder
+    x-permission: sales.order.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/sales/orders/{id}/submit:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Submit (credit check → workflow or confirm)
+    description: |
+      Runs the customer credit check. `Block` → `422 CREDIT_BLOCK`; `Override` → routed for approval with the exception flag;
+      `Warn` → warning returned. When no `Sales Order` rule matches the order is **confirmed immediately** (stock reserved
+      per `salesAutoReserveOnConfirm`, number allocated).
+    operationId: submitSalesOrder
+    x-permission: sales.order.submit
+    x-idempotent: true
+    x-workflow-doc-type: Sales Order
+    x-events: [DocumentSubmitted, StockReserved]
+    x-frd: [FR-SAL-006, FR-SAL-007]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Outcome
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/OrderSubmitResult' }
+            examples:
+              confirmed: { summary: outcome = confirmed (no rule; stock reserved), value: { outcome: confirmed, order: { id: so_00090, companyId: co_acme, number: SO/2026-27/00090, docType: Sales Order, date: '2026-09-11', branchId: br_ho, status: Confirmed, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, expectedDate: '2026-09-18', warehouseId: wh_main, lines: [], totals: { subtotal: 65000, discount: 0, taxable: 65000, tax: 11700, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 76700, paid: 0, credited: 0, writtenOff: 0, due: 76700, baseTotal: 76700 }, confirmedAt: '2026-09-13T09:12:04Z', confirmedBy: Priya Sharma, reservationExpiry: '2026-09-27', creditCheck: { ok: true, mode: Warn, exposure: 245000, limit: 500000, at: '2026-09-13T09:12:04Z' }, quantities: { ordered: 500, reserved: 500, delivered: 0, invoiced: 0, pending: 500 }, createdAt: '2026-09-11T10:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 3 }, creditCheck: { ok: true, mode: Warn, exposure: 245000, limit: 500000, at: '2026-09-13T09:12:04Z' }, reservations: [{ id: rsv_1, companyId: co_acme, itemId: item_stl4, warehouseId: wh_main, qty: 500, fulfilledQty: 0, sourceType: Sales Order, sourceId: so_00090, sourceNumber: SO/2026-27/00090, lineId: ln_1, status: Reserved, expiresAt: '2026-09-27T00:00:00Z', createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }], warnings: [] } }
+              routed: { summary: outcome = routed-for-approval (credit override), value: { outcome: routed-for-approval, order: { id: so_00093, companyId: co_acme, number: DRAFT-SO-93, docType: Sales Order, date: '2026-09-13', branchId: br_ho, status: Submitted, currency: INR, rate: 1, partyType: Customer, partyId: cust_kiran, partyName: Kiran Enterprises, lines: [], totals: { subtotal: 200000, discount: 0, taxable: 200000, tax: 36000, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 236000, paid: 0, credited: 0, writtenOff: 0, due: 236000, baseTotal: 236000 }, creditCheck: { ok: true, mode: Override, exposure: 546000, limit: 200000, message: 'Exposure ₹5,46,000 exceeds credit limit ₹2,00,000 — needs approval', needsApproval: true, at: '2026-09-13T09:12:04Z' }, quantities: { ordered: 100, reserved: 0, delivered: 0, invoiced: 0, pending: 100 }, submittedAt: '2026-09-13T09:12:04Z', submittedBy: Vikram Nair, approvalId: apr_so_93, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 }, creditCheck: { ok: true, mode: Override, exposure: 546000, limit: 200000, message: 'Exposure ₹5,46,000 exceeds credit limit ₹2,00,000 — needs approval', needsApproval: true, at: '2026-09-13T09:12:04Z' }, approval: { id: apr_so_93, companyId: co_acme, docType: Sales Order, collection: salesOrders, docId: so_00093, docNumber: DRAFT-SO-93, amount: 236000, currency: INR, branchId: br_ho, requesterId: usr_vikram, requesterName: Vikram Nair, ruleId: wf_so_credit, ruleName: Credit override, ruleVersion: 1, steps: [{ order: 1, name: Sales manager credit override, approverType: Role, approverRef: role_salesmgr, approverLabel: Sales Manager, status: Pending, commentRequired: true }], currentStep: 0, status: Pending, submittedAt: '2026-09-13T09:12:04Z', history: [], summary: 'Kiran Enterprises · ₹2,36,000 · exposure exceeds limit', createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }, warnings: ['Exposure ₹5,46,000 exceeds credit limit ₹2,00,000'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/sales/orders/{id}/confirm:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Confirm an Approved order (allocate number, reserve stock)
+    operationId: confirmSalesOrder
+    x-permission: sales.order.approve
+    x-idempotent: true
+    x-events: [DocumentApproved, StockReserved]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/sales.yaml#/ConfirmOrderRequest' }
+          examples:
+            reserve: { summary: Confirm and reserve, value: { reserve: true } }
+            noReserve: { summary: Confirm without reserving (make-to-order), value: { reserve: false } }
+    responses:
+      '200':
+        description: Confirmed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/sales.yaml#/SalesOrder' }
+            examples:
+              reserved: { summary: Confirmed with reservations, value: { document: { id: so_00093, companyId: co_acme, number: SO/2026-27/00093, docType: Sales Order, date: '2026-09-13', branchId: br_ho, status: Confirmed, currency: INR, rate: 1, partyType: Customer, partyId: cust_kiran, partyName: Kiran Enterprises, lines: [], totals: { subtotal: 200000, discount: 0, taxable: 200000, tax: 36000, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 236000, paid: 0, credited: 0, writtenOff: 0, due: 236000, baseTotal: 236000 }, confirmedAt: '2026-09-13T10:00:00Z', confirmedBy: Priya Sharma, reservationExpiry: '2026-09-27', quantities: { ordered: 100, reserved: 100, delivered: 0, invoiced: 0, pending: 100 }, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T10:00:00Z', version: 4 }, outcome: confirmed, reservations: [{ id: rsv_2, companyId: co_acme, itemId: item_frame, warehouseId: wh_main, qty: 100, fulfilledQty: 0, sourceType: Sales Order, sourceId: so_00093, sourceNumber: SO/2026-27/00093, lineId: ln_1, status: Reserved, expiresAt: '2026-09-27T00:00:00Z', createdAt: '2026-09-13T10:00:00Z', updatedAt: '2026-09-13T10:00:00Z', version: 1 }], warnings: [] } }
+              partialAvailability: { summary: Confirmed; reservation short (warning), value: { document: { id: so_00093, companyId: co_acme, number: SO/2026-27/00093, docType: Sales Order, date: '2026-09-13', branchId: br_ho, status: Confirmed, currency: INR, rate: 1, partyType: Customer, partyId: cust_kiran, partyName: Kiran Enterprises, lines: [], totals: { subtotal: 200000, discount: 0, taxable: 200000, tax: 36000, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 236000, paid: 0, credited: 0, writtenOff: 0, due: 236000, baseTotal: 236000 }, confirmedAt: '2026-09-13T10:00:00Z', confirmedBy: Priya Sharma, quantities: { ordered: 100, reserved: 40, delivered: 0, invoiced: 0, pending: 100 }, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T10:00:00Z', version: 4 }, outcome: confirmed, reservations: [{ id: rsv_2, companyId: co_acme, itemId: item_frame, warehouseId: wh_main, qty: 40, fulfilledQty: 0, sourceType: Sales Order, sourceId: so_00093, sourceNumber: SO/2026-27/00093, lineId: ln_1, status: Reserved, createdAt: '2026-09-13T10:00:00Z', updatedAt: '2026-09-13T10:00:00Z', version: 1 }], warnings: ['Steel Frame A1: only 40 of 100 available — 60 left unreserved'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/sales/orders/{id}/reservations:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Sales]
+    summary: Reservations for the order
+    operationId: listOrderReservations
+    x-permission: sales.order.view
+    responses:
+      '200':
+        description: Reservations
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/document.yaml#/Reservation' } } } }
+            examples:
+              active: { summary: Partially fulfilled, value: { data: [{ id: rsv_0, companyId: co_acme, itemId: item_crate, warehouseId: wh_main, qty: 120, fulfilledQty: 100, sourceType: Sales Order, sourceId: so_00087, sourceNumber: SO/2026-27/00087, lineId: ln_so_2, status: Partially Fulfilled, expiresAt: '2026-09-22T00:00:00Z', createdAt: '2026-09-08T12:00:00Z', updatedAt: '2026-09-10T15:00:00Z', version: 2 }] } }
+              none: { summary: None, value: { data: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  post:
+    tags: [Sales]
+    summary: Reserve stock for a line
+    operationId: reserveOrderLine
+    x-permission: sales.order.edit
+    x-events: [StockReserved]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/sales.yaml#/ReserveLineRequest' }
+          examples:
+            reserve: { summary: Reserve 80 from main warehouse, value: { lineId: ln_so_2, qty: 80, warehouseId: wh_main, expiresAt: '2026-09-27T00:00:00Z' } }
+    responses:
+      '201':
+        description: Reservation
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/document.yaml#/Reservation' }
+            examples:
+              reserved: { summary: Reserved, value: { id: rsv_3, companyId: co_acme, itemId: item_crate, warehouseId: wh_main, qty: 80, fulfilledQty: 0, sourceType: Sales Order, sourceId: so_00087, sourceNumber: SO/2026-27/00087, lineId: ln_so_2, status: Reserved, expiresAt: '2026-09-27T00:00:00Z', createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Sales]
+    summary: Release all reservations of the order
+    operationId: releaseOrderReservations
+    x-permission: sales.order.edit
+    x-events: [StockReleased]
+    parameters:
+      - { name: reason, in: query, required: true, schema: { type: string }, example: Customer postponed delivery to Q4 }
+    responses:
+      '200':
+        description: Released
+        content:
+          application/json:
+            schema: { type: object, required: [released], properties: { released: { type: integer } } }
+            examples:
+              released: { summary: Two released, value: { released: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/sales/orders/{id}/amend:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Amend a Confirmed / Partially Delivered order (reason ≥ 10 chars)
+    description: Replaces the line set, re-runs credit check, adjusts reservations and records an amendment entry with the diff.
+    operationId: amendSalesOrder
+    x-permission: sales.order.edit
+    x-frd: [FR-SAL-008]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/sales.yaml#/AmendOrderRequest' }
+          examples:
+            increaseQty: { summary: Increase a quantity, value: { reason: Customer increased the order after site measurement, lines: [{ id: ln_so_1, itemId: item_stl4, qty: 1200, rate: 58, taxRateId: tax_gst18, warehouseId: wh_main }, { id: ln_so_2, itemId: item_crate, qty: 120, rate: 420, taxRateId: tax_gst12 }] } }
+            addLine: { summary: Add a line + new expected date, value: { reason: Customer added bolts to the same PO, expectedDate: '2026-09-25', lines: [{ id: ln_so_1, itemId: item_stl4, qty: 1000, rate: 58, taxRateId: tax_gst18, warehouseId: wh_main }, { id: ln_so_2, itemId: item_crate, qty: 120, rate: 420, taxRateId: tax_gst12 }, { itemId: item_bolt, qty: 2000, rate: 4.5, taxRateId: tax_gst18 }] } }
+    responses:
+      '200':
+        description: Amended
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/SalesOrder' }
+            examples:
+              amended: { summary: Amendment recorded, value: { id: so_00087, companyId: co_acme, number: SO/2026-27/00087, docType: Sales Order, date: '2026-09-08', branchId: br_ho, status: Partially Delivered, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, lines: [], totals: { subtotal: 120000, discount: 0, taxable: 120000, tax: 18576, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 138576, paid: 0, credited: 0, writtenOff: 0, due: 138576, baseTotal: 138576 }, amendments: [{ at: '2026-09-13T09:12:04Z', by: Priya Sharma, reason: Customer increased the order after site measurement, changes: 'Line 1 qty 1000 → 1200' }], quantities: { ordered: 1320, reserved: 80, delivered: 1100, invoiced: 1100, pending: 220 }, createdAt: '2026-09-08T10:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 9 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/sales/orders/{id}/short-close:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Short-close the undelivered balance
+    description: Releases remaining reservations, records the reason and the pending value; status → Short Closed.
+    operationId: shortCloseSalesOrder
+    x-permission: sales.order.edit
+    x-events: [StockReleased, DocumentCancelled]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Customer will not take the remaining 20 crates } }
+    responses:
+      '200':
+        description: Short closed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/sales.yaml#/SalesOrder' }
+                    impact: { type: object, properties: { pendingValue: { type: number }, releasedReservations: { type: integer } } }
+            examples:
+              closed: { summary: Short closed, value: { document: { id: so_00087, companyId: co_acme, number: SO/2026-27/00087, docType: Sales Order, date: '2026-09-08', branchId: br_ho, status: Short Closed, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, lines: [], totals: { subtotal: 108400, discount: 0, taxable: 108400, tax: 16488, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 124888, paid: 0, credited: 0, writtenOff: 0, due: 124888, baseTotal: 124888 }, shortCloseReason: Customer will not take the remaining 20 crates, quantities: { ordered: 1120, reserved: 0, delivered: 1100, invoiced: 1100, pending: 20 }, createdAt: '2026-09-08T10:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 9 }, outcome: short-closed, impact: { pendingValue: 9408, releasedReservations: 1 }, warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/sales/orders/{id}/cancel:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Cancel an order with no fulfilment
+    operationId: cancelSalesOrder
+    x-permission: sales.order.edit
+    x-events: [DocumentCancelled, StockReleased]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            cancel: { summary: Cancel, value: { reason: Customer withdrew the PO before dispatch } }
+    responses:
+      '200':
+        description: Cancelled
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/SalesOrder' }
+            examples:
+              cancelled: { summary: Cancelled, value: { id: so_00090, companyId: co_acme, number: SO/2026-27/00090, docType: Sales Order, date: '2026-09-11', branchId: br_ho, status: Cancelled, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, lines: [], totals: { subtotal: 65000, discount: 0, taxable: 65000, tax: 11700, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 76700, paid: 0, credited: 0, writtenOff: 0, due: 76700, baseTotal: 76700 }, cancelReason: Customer withdrew the PO before dispatch, quantities: { ordered: 500, reserved: 0, delivered: 0, invoiced: 0, pending: 500 }, createdAt: '2026-09-11T10:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 4 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/sales/orders/{id}/deliveries:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Create a delivery draft from the order (remaining quantities)
+    operationId: createDeliveryFromOrder
+    x-permission: sales.delivery.create
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              warehouseId: { type: string }
+              lines: { type: array, description: Subset / partial quantities (default all remaining)., items: { type: object, required: [sourceLineId, qty], properties: { sourceLineId: { type: string }, qty: { type: number }, batch: { type: string }, serials: { type: array, items: { type: string } } } } }
+              vehicleNo: { type: string }
+              transporter: { type: string }
+          examples:
+            allRemaining: { summary: Everything still pending, value: {} }
+            partial: { summary: Partial with batch, value: { warehouseId: wh_main, lines: [{ sourceLineId: ln_so_2, qty: 20, batch: B-2409-07 }], vehicleNo: MH02AB1234, transporter: Speedy Transport Co } }
+    responses:
+      '201':
+        description: Draft delivery
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/Delivery' }
+            examples:
+              draft: { summary: Draft delivery, value: { id: dlv_00341, companyId: co_acme, number: DRAFT-DC-341, docType: Delivery, date: '2026-09-13', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, sourceType: Sales Order, sourceId: so_00087, sourceNumber: SO/2026-27/00087, warehouseId: wh_main, lines: [{ id: ln_d2, itemId: item_crate, itemCode: CRT-TEA, itemName: Tea Crate, hsn: '4415', qty: 20, uom: NOS, rate: 420, discountPct: 0, discountAmt: 0, taxable: 8400, taxRateId: tax_gst12, taxRate: 12, taxAmt: 1008, taxComponents: { CGST: 504, SGST: 504 }, amount: 9408, warehouseId: wh_main, batch: B-2409-07, sourceLineId: ln_so_2, sourceDocId: so_00087, sourceQty: 120, remainingQty: 20 }], totals: { subtotal: 8400, discount: 0, taxable: 8400, tax: 1008, components: { CGST: 504, SGST: 504 }, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 9408, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 9408 }, vehicleNo: MH02AB1234, transporter: Speedy Transport Co, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/sales/orders/{id}/invoices:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Create an invoice draft from the order (uninvoiced quantities)
+    operationId: createInvoiceFromOrder
+    x-permission: sales.invoice.create
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              lines: { type: array, items: { type: object, required: [sourceLineId, qty], properties: { sourceLineId: { type: string }, qty: { type: number } } } }
+              date: { type: string, format: date }
+          examples:
+            allRemaining: { summary: Everything uninvoiced, value: {} }
+            partial: { summary: Partial, value: { date: '2026-09-13', lines: [{ sourceLineId: ln_so_1, qty: 500 }] } }
+    responses:
+      '201':
+        description: Draft invoice
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/SalesInvoice' }
+            examples:
+              draft: { $ref: '../components/examples/sales.yaml#/SalesInvoiceDraft' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+# ── deliveries ────────────────────────────────────────────────────────────
+
+/sales/deliveries:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Sales]
+    summary: List deliveries
+    description: "Tabs → All · Draft · Posted · Awaiting invoice (`status=Posted&invoiced=false`) · Reversed. Query examples — `?sourceId=so_00087` · `?warehouseId=wh_main` · `?partyId=cust_arlene`."
+    operationId: listDeliveries
+    x-permission: sales.delivery.view
+    x-frd: [FR-SAL-010]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: invoiced, in: query, schema: { type: boolean } }
+      - { name: sourceId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/PartyId'
+      - $ref: '../components/parameters.yaml#/WarehouseId'
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Deliveries
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/sales.yaml#/Delivery' } }
+            examples:
+              firstPage: { summary: Posted deliveries, value: { data: [{ id: dlv_00340, companyId: co_acme, number: DC/2026-27/00340, docType: Delivery, date: '2026-09-10', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, sourceType: Sales Order, sourceId: so_00087, sourceNumber: SO/2026-27/00087, warehouseId: wh_main, lines: [], totals: { subtotal: 42000, discount: 0, taxable: 42000, tax: 5040, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 47040, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 47040 }, invoiced: true, createdAt: '2026-09-10T14:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 5 }], meta: { nextCursor: null, limit: 25, total: 1, counts: { All: 88, Draft: 2, Posted: 80, 'Awaiting invoice': 3, Reversed: 3 } }, scope: { companyId: co_acme, branchId: br_ho, period: '2026-09', currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Sales]
+    summary: Create a delivery (from order or direct)
+    operationId: createDelivery
+    x-permission: sales.delivery.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/sales.yaml#/DeliveryCreate' }
+          examples:
+            fromOrder: { summary: Against an order, value: { partyId: cust_arlene, date: '2026-09-13', sourceType: Sales Order, sourceId: so_00087, warehouseId: wh_main, vehicleNo: MH02AB1234, transporter: Speedy Transport Co, lines: [{ itemId: item_crate, qty: 20, sourceDocId: so_00087, sourceLineId: ln_so_2, batch: B-2409-07 }] } }
+            direct: { summary: Direct delivery (no order), value: { partyId: cust_walkin, date: '2026-09-13', warehouseId: wh_andheri, lines: [{ itemId: item_chai, qty: 24, rate: 150, taxRateId: tax_gst5 }] } }
+            serials: { summary: Serial-tracked item, value: { partyId: cust_kiran, date: '2026-09-13', warehouseId: wh_main, lines: [{ itemId: item_frame, qty: 2, serials: [SN-00121, SN-00122] }] } }
+    responses:
+      '201':
+        description: Draft delivery
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/Delivery' }
+            examples:
+              draft: { summary: Draft, value: { id: dlv_00341, companyId: co_acme, number: DRAFT-DC-341, docType: Delivery, date: '2026-09-13', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, sourceType: Sales Order, sourceId: so_00087, sourceNumber: SO/2026-27/00087, warehouseId: wh_main, lines: [], totals: { subtotal: 8400, discount: 0, taxable: 8400, tax: 1008, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 9408, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 9408 }, vehicleNo: MH02AB1234, transporter: Speedy Transport Co, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/sales/deliveries/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Sales]
+    summary: Get a delivery
+    operationId: getDelivery
+    x-permission: sales.delivery.view
+    responses:
+      '200':
+        description: Delivery
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/Delivery' }
+            examples:
+              posted: { $ref: '../components/examples/sales.yaml#/DeliveryPosted' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Sales]
+    summary: Edit a Draft delivery
+    operationId: updateDelivery
+    x-permission: sales.delivery.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/sales.yaml#/DeliveryPatch' }
+          examples:
+            transport: { summary: Vehicle / transporter, value: { expectedVersion: 1, vehicleNo: MH04CD5678, transporter: Speedy Transport Co } }
+            replaceLines: { summary: Change quantity, value: { expectedVersion: 1, lines: [{ id: ln_d2, itemId: item_crate, qty: 18, sourceDocId: so_00087, sourceLineId: ln_so_2, batch: B-2409-07 }] } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/Delivery' }
+            examples:
+              updated: { $ref: '../components/examples/sales.yaml#/DeliveryPosted' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Sales]
+    summary: Delete a Draft delivery
+    operationId: deleteDelivery
+    x-permission: sales.delivery.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/sales/deliveries/{id}/post:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Post a delivery (stock out + COGS, order quantities updated)
+    description: Allocates the number, issues stock (batch/serial validated, negative-stock policy applied), posts the COGS journal, fulfils reservations and updates the order `deliveredQty`. Idempotent on `dlv:<id>:post`.
+    operationId: postDelivery
+    x-permission: sales.delivery.post
+    x-idempotent: true
+    x-events: [DocumentPosted, StockMoved, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Posted
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/sales.yaml#/Delivery' }
+            examples:
+              posted: { summary: Posted with stock + COGS, value: { document: { id: dlv_00341, companyId: co_acme, number: DC/2026-27/00341, docType: Delivery, date: '2026-09-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, sourceType: Sales Order, sourceId: so_00087, sourceNumber: SO/2026-27/00087, warehouseId: wh_main, lines: [], totals: { subtotal: 8400, discount: 0, taxable: 8400, tax: 1008, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 9408, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 9408 }, invoiced: false, journalId: jnl_01j8p1, journalNumber: JV/2026-27/00322, postedAt: '2026-09-13T09:12:04Z', postedBy: Suresh Patel, statutory: { ewbStatus: Not Applicable }, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 3 }, outcome: posted, journal: { id: jnl_01j8p1, companyId: co_acme, number: JV/2026-27/00322, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Delivery, sourceId: dlv_00341, sourceNumber: DC/2026-27/00341, narration: COGS for DC/2026-27/00341, lines: [{ id: j1, accountId: acc_5000, accountCode: '5000', accountName: Cost of Goods Sold, dr: 6360, cr: 0, drBase: 6360, crBase: 0, dimensions: {} }, { id: j2, accountId: acc_1200, accountCode: '1200', accountName: Inventory — Finished Goods, dr: 0, cr: 6360, drBase: 0, crBase: 6360, dimensions: {} }], totalDr: 6360, totalCr: 6360, idempotencyKey: 'dlv:dlv_00341:cogs', postedAt: '2026-09-13T09:12:04Z', postedBy: Suresh Patel, correlationId: corr_d341, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }, stockMovements: [{ id: sm_9, companyId: co_acme, date: '2026-09-13', itemId: item_crate, itemCode: CRT-TEA, itemName: Tea Crate, warehouseId: wh_main, qty: -20, uom: NOS, baseQty: -20, batch: B-2409-07, rate: 318, value: -6360, type: Delivery, sourceType: Delivery, sourceId: dlv_00341, sourceNumber: DC/2026-27/00341, journalId: jnl_01j8p1, balanceAfter: 100, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }], reservations: [{ id: rsv_0, companyId: co_acme, itemId: item_crate, warehouseId: wh_main, qty: 120, fulfilledQty: 120, sourceType: Sales Order, sourceId: so_00087, sourceNumber: SO/2026-27/00087, lineId: ln_so_2, status: Fulfilled, createdAt: '2026-09-08T12:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 3 }], warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/sales/deliveries/{id}/reverse:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Reverse a posted delivery (not yet invoiced)
+    operationId: reverseDelivery
+    x-permission: sales.delivery.reverse
+    x-idempotent: true
+    x-events: [DocumentReversed, StockReversed, JournalReversed]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { $ref: '../components/examples/common.yaml#/ReasonReverse' }
+            dated: { $ref: '../components/examples/common.yaml#/ReasonReverseDated' }
+    responses:
+      '200':
+        description: Reversed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/sales.yaml#/Delivery' }
+            examples:
+              reversed: { summary: "Stock restored, order quantities rolled back", value: { document: { id: dlv_00341, companyId: co_acme, number: DC/2026-27/00341, docType: Delivery, date: '2026-09-13', branchId: br_ho, status: Reversed, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, sourceType: Sales Order, sourceId: so_00087, sourceNumber: SO/2026-27/00087, warehouseId: wh_main, lines: [], totals: { subtotal: 8400, discount: 0, taxable: 8400, tax: 1008, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 9408, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 9408 }, reversalReason: Customer returned the full consignment on 12 Sep (RMA-118), createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 4 }, outcome: reversed, journal: { id: jnl_01j8p2, companyId: co_acme, number: JV/2026-27/00323, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Reversal, sourceType: Delivery, sourceId: dlv_00341, sourceNumber: DC/2026-27/00341, narration: Reversal of JV/2026-27/00322, lines: [], totalDr: 6360, totalCr: 6360, reversalOfId: jnl_01j8p1, postedAt: '2026-09-13T11:00:00Z', postedBy: Suresh Patel, correlationId: corr_d341, createdAt: '2026-09-13T11:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 1 }, stockMovements: [{ id: sm_10, companyId: co_acme, date: '2026-09-13', itemId: item_crate, itemCode: CRT-TEA, itemName: Tea Crate, warehouseId: wh_main, qty: 20, uom: NOS, baseQty: 20, batch: B-2409-07, rate: 318, value: 6360, type: Sales Return, sourceType: Delivery Reversal, sourceId: dlv_00341, sourceNumber: DC/2026-27/00341, reversalOfId: sm_9, balanceAfter: 120, createdAt: '2026-09-13T11:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 1 }], warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/sales/deliveries/{id}/eway-bill:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Generate an e-Way bill for the delivery
+    operationId: generateDeliveryEwayBill
+    x-permission: taxation.einvoice.create
+    x-idempotent: true
+    x-events: [StatutorySubmissionAccepted, StatutorySubmissionRejected]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/sales.yaml#/EwayBillRequest' }
+          examples:
+            vehicle: { summary: Own vehicle (Part-B), value: { vehicleNo: MH02AB1234, distanceKm: 120, mode: Road } }
+            transporter: { summary: Transporter (Part-A only), value: { transporterId: 27AABCT1332L1ZU, distanceKm: 120 } }
+    responses:
+      '200':
+        description: Generated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/StatutoryResult' }
+            examples:
+              generated: { summary: EWB generated, value: { document: { id: dlv_00340, number: DC/2026-27/00340, status: Posted }, statutory: { ewbNo: '271000123456', ewbStatus: Generated, ewbValidUpto: '2026-09-12T23:59:00Z', vehicleNo: MH02AB1234, distanceKm: 120 }, integrationLog: { id: ilog_ewb_1, companyId: co_acme, provider: EWB, action: GenerateEWB, objectType: Delivery, objectId: dlv_00340, objectNumber: DC/2026-27/00340, requestFingerprint: 'sha256:aa91', idempotencyKey: 'dlv_00340:ewb:1', request: { docNo: DC/2026-27/00340, distance: 120, vehicleNo: MH02AB1234 }, response: { ewayBillNo: '271000123456', validUpto: '2026-09-12 23:59:00' }, status: Accepted, providerRef: '271000123456', at: '2026-09-10T15:01:00Z', correlationId: corr_d340, createdAt: '2026-09-10T15:01:00Z', updatedAt: '2026-09-10T15:01:00Z', version: 1 } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '502': { $ref: '../components/responses.yaml#/ProviderError' }
+  delete:
+    tags: [Sales]
+    summary: Cancel the delivery's e-Way bill
+    operationId: cancelDeliveryEwayBill
+    x-permission: taxation.einvoice.edit
+    x-events: [StatutorySubmissionCancelled]
+    parameters:
+      - { name: reason, in: query, required: true, schema: { type: string }, example: Vehicle broke down — goods not moved }
+    responses:
+      '200':
+        description: Cancelled
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/StatutoryResult' }
+            examples:
+              cancelled: { summary: EWB cancelled, value: { document: { id: dlv_00340, number: DC/2026-27/00340, status: Posted }, statutory: { ewbNo: '271000123456', ewbStatus: Cancelled }, integrationLog: { id: ilog_ewb_2, companyId: co_acme, provider: EWB, action: CancelEWB, objectType: Delivery, objectId: dlv_00340, requestFingerprint: 'sha256:bb02', idempotencyKey: 'dlv_00340:ewb-cancel:1', request: { ewbNo: '271000123456', reason: Vehicle broke down }, response: { status: cancelled }, status: Accepted, at: '2026-09-13T09:12:04Z', correlationId: corr_9f1c2e7a, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '502': { $ref: '../components/responses.yaml#/ProviderError' }

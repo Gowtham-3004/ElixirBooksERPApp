@@ -1,0 +1,624 @@
+# Auth, current user, onboarding (tag: Auth). Not company-scoped.
+
+/auth/login:
+  post:
+    tags: [Auth]
+    summary: Sign in with e-mail + password
+    description: |
+      Returns a `LoginResult` whose `next` tells the client what to do: `app` (tokens + `me`), `mfa`
+      (MFA challenge), `choose-company` (user has several companies) or `onboarding` (setup wizard
+      incomplete). Suspended / deactivated users and users who have not accepted their invitation cannot sign in.
+      Every attempt is audited (`auth.login`, result Success/Failure/Denied).
+    operationId: login
+    security: []
+    x-frd: [FR-IAM-001, FR-IAM-005, FR-IAM-007]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/auth.yaml#/LoginRequest' }
+          examples:
+            basic: { summary: E-mail + password, value: { email: priya@acme.example, password: 'S3cure!pass' } }
+            trustedDevice: { summary: With a trusted-device token (skips MFA), value: { email: priya@acme.example, password: 'S3cure!pass', deviceToken: dev_trust_9a1f } }
+            acceptTerms: { summary: First login after a terms update, value: { email: rahul@acme.example, password: 'S3cure!pass', acceptTerms: true } }
+    responses:
+      '200':
+        description: Login result (see `next`)
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/auth.yaml#/LoginResult' }
+            examples:
+              app:
+                summary: next = app — straight in
+                value:
+                  next: app
+                  tokens: { accessToken: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfcHJpeWEifQ.sig, refreshToken: rt_4f1c9e2b7a, expiresIn: 900, tokenType: Bearer }
+                  me:
+                    user: { id: usr_priya, tenantId: tnt_acme, name: Priya Sharma, email: priya@acme.example, roleIds: [role_salesmgr], companyIds: [co_acme], branchIds: [], status: Active, mfaEnabled: false, lastLoginAt: '2026-09-13T08:58:00Z', passwordSet: true, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T08:58:00Z', version: 6 }
+                    roles: [{ id: role_salesmgr, code: SALES_MGR, name: Sales Manager, description: Full sales cycle, permissions: ['sales.*', 'crm.*'], dataScope: company, isSystem: true, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }]
+                    permissions: ['sales.*', 'crm.*']
+                    companies: [{ id: co_acme, code: ACME, legalName: Acme Trading Pvt Ltd, baseCurrency: INR, country: IN, status: Active, profiles: [Trading], onboardingComplete: true }]
+                    tenant: { id: tnt_acme, name: Acme Group, planCode: GROWTH, planTier: Growth, subscriptionState: Active, renewsAt: '2026-10-01' }
+                    context: { companyId: co_acme, branchId: br_ho, fy: '2026-27', periodCode: '2026-09' }
+                    isTenantOwner: false
+                    isPlatformAdmin: false
+              mfa:
+                summary: next = mfa — MFA challenge required
+                value: { next: mfa, mfaToken: mfa_7d2e91c0, expiresIn: 300, method: totp }
+              chooseCompany:
+                summary: next = choose-company — user has two companies
+                value:
+                  next: choose-company
+                  tokens: { accessToken: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfcHJpeWEifQ.sig, refreshToken: rt_4f1c9e2b7a, expiresIn: 900, tokenType: Bearer }
+                  companies:
+                    - { id: co_acme, code: ACME, legalName: Acme Trading Pvt Ltd, baseCurrency: INR, country: IN, status: Active, profiles: [Trading], onboardingComplete: true }
+                    - { id: co_gulf, code: GULF, legalName: Acme Gulf Trading LLC, baseCurrency: AED, country: AE, status: Active, profiles: [Trading], onboardingComplete: false }
+              onboarding:
+                summary: next = onboarding — setup wizard incomplete
+                value:
+                  next: onboarding
+                  tokens: { accessToken: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfemVuIn0.sig, refreshToken: rt_9c2d, expiresIn: 900, tokenType: Bearer }
+                  me:
+                    user: { id: usr_zen_owner, tenantId: tnt_zen, name: Meera Iyer, email: meera@zenfoods.example, roleIds: [role_owner], companyIds: [co_zen], branchIds: [], status: Active, mfaEnabled: false, passwordSet: true, isTenantOwner: true, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+                    roles: [{ id: role_owner, code: OWNER, name: Tenant Owner, description: Everything, permissions: ['*'], dataScope: company, isSystem: true, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', version: 1 }]
+                    permissions: ['*']
+                    companies: [{ id: co_zen, code: ZENFOO, legalName: Zen Foods Pvt Ltd, baseCurrency: INR, country: IN, status: Active, profiles: [Trading], onboardingComplete: false }]
+                    tenant: { id: tnt_zen, name: Zen Foods, planCode: GROWTH, planTier: Growth, subscriptionState: Trial, trialEndsAt: '2026-09-27' }
+                    context: { companyId: co_zen, branchId: br_zen_ho, fy: '2026-27', periodCode: '2026-09' }
+                    isTenantOwner: true
+                    isPlatformAdmin: false
+                    banner: Your Growth trial ends in 14 days
+                  onboarding:
+                    companyId: co_zen
+                    steps: { nature: Done, legal: Pending, address: Pending, currency: Pending, periods: Done, users: Pending, masters: Pending, opening: Pending, bank: Pending, numbering: Done, einvoice: Pending }
+                    readiness: [{ key: legal, label: Legal identity & registrations, status: Pending, detail: PAN missing, link: admin/company }]
+                    complete: false
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401':
+        description: Invalid credentials or account cannot sign in
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              invalidCredentials: { summary: Wrong e-mail / password (same message for both), value: { code: UNAUTHENTICATED, message: Incorrect e-mail or password, correlationId: corr_9f1c2e7a } }
+              suspended: { summary: User suspended, value: { code: AUTH_SUSPENDED, message: Account is suspended — contact your administrator, correlationId: corr_9f1c2e7a } }
+              deactivated: { summary: User deactivated, value: { code: AUTH_DEACTIVATED, message: Account is deactivated — contact your administrator, correlationId: corr_9f1c2e7a } }
+              invitePending: { summary: Invitation not accepted yet, value: { code: INVITE_PENDING, message: Accept your invitation first — check your e-mail for the link, correlationId: corr_9f1c2e7a } }
+              ssoNotConfigured: { summary: SSO button used but provider not configured (FR-IAM-007), value: { code: UNAUTHENTICATED, message: Google sign-in is not configured for this workspace, details: { provider: google }, correlationId: corr_9f1c2e7a } }
+      '429': { $ref: '../components/responses.yaml#/TooManyRequests' }
+
+/auth/mfa/verify:
+  post:
+    tags: [Auth]
+    summary: Complete the MFA challenge
+    description: Three attempts per challenge; after that the challenge is locked (`423 ACCOUNT_LOCKED`) and the user must sign in again. `rememberDevice` issues a 30-day trusted-device token. Audited as `auth.mfa`.
+    operationId: verifyMfa
+    security: []
+    x-frd: [FR-IAM-002]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/auth.yaml#/MfaVerifyRequest' }
+          examples:
+            code: { summary: Six-digit code, value: { mfaToken: mfa_7d2e91c0, code: '482913' } }
+            rememberDevice: { summary: Remember this device for 30 days, value: { mfaToken: mfa_7d2e91c0, code: '482913', rememberDevice: true } }
+    responses:
+      '200':
+        description: Signed in
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/auth.yaml#/MfaVerifyResult' }
+            examples:
+              signedIn:
+                summary: Tokens + me
+                value:
+                  next: app
+                  tokens: { accessToken: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfcHJpeWEifQ.sig, refreshToken: rt_4f1c9e2b7a, expiresIn: 900, tokenType: Bearer }
+                  me: { user: { id: usr_priya, tenantId: tnt_acme, name: Priya Sharma, email: priya@acme.example, roleIds: [role_salesmgr], companyIds: [co_acme], branchIds: [], status: Active, mfaEnabled: true, passwordSet: true, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T08:58:00Z', version: 6 }, roles: [], permissions: ['sales.*'], companies: [{ id: co_acme, code: ACME, legalName: Acme Trading Pvt Ltd, baseCurrency: INR, country: IN, status: Active }], tenant: { id: tnt_acme, name: Acme Group, planCode: GROWTH, subscriptionState: Active }, context: { companyId: co_acme, branchId: br_ho, fy: '2026-27', periodCode: '2026-09' } }
+              withDeviceToken:
+                summary: rememberDevice = true
+                value:
+                  next: app
+                  tokens: { accessToken: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfcHJpeWEifQ.sig, refreshToken: rt_4f1c9e2b7a, expiresIn: 900, tokenType: Bearer }
+                  deviceToken: dev_trust_9a1f
+                  me: { user: { id: usr_priya, tenantId: tnt_acme, name: Priya Sharma, email: priya@acme.example, roleIds: [role_salesmgr], companyIds: [co_acme], branchIds: [], status: Active, mfaEnabled: true, passwordSet: true, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T08:58:00Z', version: 6 }, roles: [], permissions: ['sales.*'], companies: [{ id: co_acme, code: ACME, legalName: Acme Trading Pvt Ltd, baseCurrency: INR, country: IN, status: Active }], tenant: { id: tnt_acme, name: Acme Group, planCode: GROWTH, subscriptionState: Active }, context: { companyId: co_acme, branchId: br_ho, fy: '2026-27', periodCode: '2026-09' } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401':
+        description: Wrong code or expired challenge
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              wrongCode: { summary: "Wrong code, attempts remaining", value: { code: UNAUTHENTICATED, message: Incorrect code — 2 attempts remaining, details: { attemptsRemaining: 2 }, correlationId: corr_9f1c2e7a } }
+              expired: { summary: Challenge expired, value: { code: EXPIRED, message: MFA challenge expired — sign in again, correlationId: corr_9f1c2e7a } }
+      '423':
+        description: Attempts exhausted
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              locked: { summary: Locked after 3 failures, value: { code: ACCOUNT_LOCKED, message: Too many incorrect codes — sign in again to get a new challenge, correlationId: corr_9f1c2e7a } }
+      '429': { $ref: '../components/responses.yaml#/TooManyRequests' }
+
+/auth/refresh:
+  post:
+    tags: [Auth]
+    summary: Refresh the access token
+    operationId: refreshToken
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/auth.yaml#/RefreshRequest' }
+          examples:
+            refresh: { summary: Rotate tokens, value: { refreshToken: rt_4f1c9e2b7a } }
+    responses:
+      '200':
+        description: New token pair (refresh token rotated)
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/auth.yaml#/TokenPair' }
+            examples:
+              rotated: { $ref: '../components/examples/auth.yaml#/TokenPair' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401':
+        description: Refresh token invalid, expired or revoked (signed out elsewhere)
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              revoked: { summary: Session revoked, value: { code: UNAUTHENTICATED, message: Session has been signed out — sign in again, correlationId: corr_9f1c2e7a } }
+              expired: { summary: Refresh token expired, value: { code: EXPIRED, message: Refresh token expired, correlationId: corr_9f1c2e7a } }
+
+/auth/logout:
+  post:
+    tags: [Auth]
+    summary: Sign out the current session
+    operationId: logout
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+
+/auth/logout-others:
+  post:
+    tags: [Auth]
+    summary: Sign out every other session
+    description: Revokes all refresh tokens except the current one (also done automatically after a password reset).
+    operationId: logoutOtherSessions
+    responses:
+      '200':
+        description: Sessions revoked
+        content:
+          application/json:
+            schema: { type: object, required: [revoked], properties: { revoked: { type: integer } } }
+            examples:
+              two: { summary: Two other sessions signed out, value: { revoked: 2 } }
+              none: { summary: No other sessions, value: { revoked: 0 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+
+/auth/forgot-password:
+  post:
+    tags: [Auth]
+    summary: Request a password-reset link
+    description: Always returns `202` regardless of whether the e-mail exists (no account enumeration). Audited as `auth.password_reset_requested`; an e-mail notification is queued when the account exists.
+    operationId: forgotPassword
+    security: []
+    x-frd: [FR-IAM-004]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/auth.yaml#/ForgotPasswordRequest' }
+          examples:
+            known: { summary: Existing account, value: { email: priya@acme.example } }
+            unknown: { summary: Unknown e-mail — same response, value: { email: nobody@example.com } }
+    responses:
+      '202':
+        description: If the address exists, a reset link has been sent
+        content:
+          application/json:
+            schema: { type: object, required: [message], properties: { message: { type: string } } }
+            examples:
+              always: { summary: Neutral message, value: { message: "If an account exists for that e-mail, a reset link has been sent." } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '429': { $ref: '../components/responses.yaml#/TooManyRequests' }
+
+/auth/reset-password:
+  post:
+    tags: [Auth]
+    summary: Set a new password from a reset link
+    description: Password strength must be ≥ 3 (8+ characters, an uppercase letter and a digit). Signs out all other sessions. Audited as `auth.password_reset`.
+    operationId: resetPassword
+    security: []
+    x-frd: [FR-IAM-004]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/auth.yaml#/ResetPasswordRequest' }
+          examples:
+            strong: { summary: Valid password, value: { token: rst_3b7c9a, password: 'N3wPass!word' } }
+            weak: { summary: Too weak (rejected), value: { token: rst_3b7c9a, password: password } }
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '400':
+        description: Weak password or missing fields
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              weak: { summary: Strength below policy, value: { code: VALIDATION, message: 'Password too weak: add an uppercase letter and a digit', field: password, details: { strength: 1, required: 3, missing: [uppercase, digit] }, correlationId: corr_9f1c2e7a } }
+      '410': { $ref: '../components/responses.yaml#/Gone' }
+      '429': { $ref: '../components/responses.yaml#/TooManyRequests' }
+
+/auth/invitations/{token}:
+  parameters:
+    - { name: token, in: path, required: true, schema: { type: string }, example: inv_tok_8f2a }
+  get:
+    tags: [Auth]
+    summary: Inspect an invitation
+    description: Used by the accept-invitation screen to show who invited you, the roles and companies, and whether the link is still valid (14 days).
+    operationId: getInvitation
+    security: []
+    x-frd: [FR-IAM-006]
+    responses:
+      '200':
+        description: Invitation
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/auth.yaml#/Invitation' }
+            examples:
+              valid: { summary: Still valid, value: { token: inv_tok_8f2a, email: anil@acme.example, name: Anil Kumar, roles: [{ id: role_accountant, name: Accountant }], companies: [{ id: co_acme, code: ACME, legalName: Acme Trading Pvt Ltd, baseCurrency: INR, country: IN, status: Active }], invitedBy: Rahul Mehta, invitedAt: '2026-09-13T09:12:04Z', expiresAt: '2026-09-27T09:12:04Z', status: Valid } }
+              accepted: { summary: Already accepted, value: { token: inv_tok_8f2a, email: anil@acme.example, name: Anil Kumar, roles: [{ id: role_accountant, name: Accountant }], companies: [{ id: co_acme, code: ACME, legalName: Acme Trading Pvt Ltd, baseCurrency: INR, country: IN, status: Active }], invitedBy: Rahul Mehta, invitedAt: '2026-09-01T09:12:04Z', expiresAt: '2026-09-15T09:12:04Z', status: Accepted } }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '410': { $ref: '../components/responses.yaml#/Gone' }
+
+/auth/invitations/{token}/accept:
+  parameters:
+    - { name: token, in: path, required: true, schema: { type: string }, example: inv_tok_8f2a }
+  post:
+    tags: [Auth]
+    summary: Accept an invitation (set name + password) and sign in
+    description: Moves the user from `Invited` to `Active`, audits `auth.invite_accepted` and returns tokens.
+    operationId: acceptInvitation
+    security: []
+    x-frd: [FR-IAM-006]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/auth.yaml#/AcceptInvitationRequest' }
+          examples:
+            accept: { summary: Set name and password, value: { name: Anil Kumar, password: 'Welc0me!2026', acceptTerms: true } }
+    responses:
+      '200':
+        description: Signed in
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/auth.yaml#/LoginApp' }
+            examples:
+              signedIn:
+                summary: Tokens + me
+                value:
+                  next: app
+                  tokens: { accessToken: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfYW5pbCJ9.sig, refreshToken: rt_7a1b, expiresIn: 900, tokenType: Bearer }
+                  me: { user: { id: usr_anil, tenantId: tnt_acme, name: Anil Kumar, email: anil@acme.example, roleIds: [role_accountant], companyIds: [co_acme], branchIds: [], status: Active, mfaEnabled: false, passwordSet: true, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T10:00:00Z', version: 2 }, roles: [], permissions: ['accounting.*', 'masters.*.view'], companies: [{ id: co_acme, code: ACME, legalName: Acme Trading Pvt Ltd, baseCurrency: INR, country: IN, status: Active }], tenant: { id: tnt_acme, name: Acme Group, planCode: GROWTH, subscriptionState: Active }, context: { companyId: co_acme, branchId: br_ho, fy: '2026-27', periodCode: '2026-09' } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '410': { $ref: '../components/responses.yaml#/Gone' }
+
+/auth/register:
+  post:
+    tags: [Auth]
+    summary: Create a workspace (14-day Growth trial)
+    description: |
+      Creates the tenant (Trial, 14 days, Growth plan), the first company (currency / time zone / locale /
+      localization pack / FY start derived from `country`), a Head Office branch, the current FY periods, the owner
+      user (role Tenant Owner) and the default number series, then returns tokens with `next: onboarding`.
+    operationId: register
+    security: []
+    x-idempotent: true
+    x-frd: [FR-ORG-001, FR-PLT-002]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/auth.yaml#/RegisterRequest' }
+          examples:
+            indiaTrading: { summary: Indian trading company, value: { fullName: Meera Iyer, email: meera@zenfoods.example, password: 'Z3nFoods!', companyName: Zen Foods Pvt Ltd, country: IN, nature: Trading, acceptTerms: true } }
+            uaeServices: { summary: UAE services company, value: { fullName: Omar Haddad, email: omar@nimbus.ae, password: 'N1mbus!2026', companyName: Nimbus Consulting FZ-LLC, country: AE, nature: Services, acceptTerms: true } }
+            hybridManufacturing: { summary: Hybrid (trading + manufacturing), value: { fullName: Suresh Patel, email: suresh@steelworks.example, password: 'St33l!works', companyName: Patel Steelworks, country: IN, nature: Hybrid, acceptTerms: true } }
+    responses:
+      '201':
+        description: Workspace created
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/auth.yaml#/RegisterResult' }
+            examples:
+              created:
+                summary: Trial tenant + company + owner
+                value:
+                  next: onboarding
+                  tokens: { accessToken: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfemVuIn0.sig, refreshToken: rt_9c2d, expiresIn: 900, tokenType: Bearer }
+                  tenant: { id: tnt_zen, name: Zen Foods Pvt Ltd, planId: plan_std, planCode: GROWTH, subscriptionState: Trial, trialEndsAt: '2026-09-27', ownerUserId: usr_zen_owner, usage: { users: 1, companies: 1, invoicesPerMonth: 0, storageMb: 0 }, country: IN, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 }
+                  company: { id: co_zen, tenantId: tnt_zen, code: ZENFOO, legalName: Zen Foods Pvt Ltd, tradeName: Zen Foods Pvt Ltd, country: IN, baseCurrency: INR, permittedCurrencies: [INR, USD], timeZone: Asia/Kolkata, locale: en-IN, language: en, fiscalYearStartMonth: 4, booksFrom: '2026-09-13', openingBalanceDate: '2026-09-13', nature: Trading, profiles: [Trading], profileHistory: [], businessType: Private Limited, address: { line1: '', city: '', state: '', country: IN }, email: meera@zenfoods.example, logoText: Z, brandColor: '#325CFF', localizationPack: IN, localizationVersion: '1.4', registrations: [], defaults: { allowNegativeStock: false, valuationMethod: AVCO, matchingMode: 3-way, matchTolerancePct: 2, matchToleranceAmt: 500, creditPolicy: Warn, directInvoiceStock: true, paymentTerms: Net 30 }, status: Active, onboarding: { nature: Done, legal: Pending, address: Pending, currency: Pending, periods: Done, users: Pending, masters: Pending, opening: Pending, bank: Pending, numbering: Done, einvoice: Pending }, baseCurrencyLocked: false, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 }
+                  branch: { id: br_zen_ho, companyId: co_zen, code: BR-001, name: Head Office, type: Office, address: { line1: '', city: '', state: '', country: IN }, status: Active, isDefault: true, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+                  user: { id: usr_zen_owner, tenantId: tnt_zen, name: Meera Iyer, email: meera@zenfoods.example, roleIds: [role_owner], companyIds: [co_zen], branchIds: [], status: Active, mfaEnabled: false, passwordSet: true, isTenantOwner: true, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+                  periodsCreated: 12
+                  numberSeriesCreated: 18
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '409':
+        description: E-mail already registered, or idempotency conflict
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              emailExists: { summary: E-mail already in use, value: { code: DUPLICATE, message: An account already exists for meera@zenfoods.example — sign in or reset your password, field: email, correlationId: corr_9f1c2e7a } }
+              idempotency: { summary: Key reused with a different payload, value: { code: IDEMPOTENCY_CONFLICT, message: Idempotency-Key was already used with a different payload, correlationId: corr_9f1c2e7a } }
+      '429': { $ref: '../components/responses.yaml#/TooManyRequests' }
+
+# ── current user ──────────────────────────────────────────────────────────
+
+/me:
+  get:
+    tags: [Auth]
+    summary: Current user, roles, permissions, companies, tenant and context
+    operationId: getMe
+    responses:
+      '200':
+        description: Me
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/auth.yaml#/Me' }
+            examples:
+              salesManager: { $ref: '../components/examples/auth.yaml#/MeFull' }
+              ownerOnTrial: { $ref: '../components/examples/auth.yaml#/MeOwnerTrial' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  patch:
+    tags: [Auth]
+    summary: Update my profile
+    operationId: updateMe
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/auth.yaml#/MeUpdate' }
+          examples:
+            phone: { summary: Change phone, value: { phone: '+91 98200 99887' } }
+            locale: { summary: Change locale + time zone, value: { locale: en-US, timeZone: Asia/Dubai } }
+    responses:
+      '200':
+        description: Updated user
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/User' }
+            examples:
+              updated: { $ref: '../components/examples/admin.yaml#/UserPriya' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/me/context:
+  get:
+    tags: [Auth]
+    summary: Current scope (company / branch / FY / period)
+    operationId: getContext
+    responses:
+      '200':
+        description: Context
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/auth.yaml#/Context' }
+            examples:
+              acme: { summary: Acme · HO · Sep 2026, value: { companyId: co_acme, branchId: br_ho, fy: '2026-27', periodCode: '2026-09' } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  put:
+    tags: [Auth]
+    summary: Switch company / branch / period
+    description: Switching company re-derives the default branch, FY and open period and refreshes permissions, defaults, currency and entitled modules — the response is the full `Me`.
+    operationId: setContext
+    x-frd: [FR-ORG-003]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/auth.yaml#/Context' }
+          examples:
+            switchCompany: { summary: Switch to the UAE entity (branch/period re-derived), value: { companyId: co_gulf } }
+            switchBranch: { summary: Change branch only, value: { companyId: co_acme, branchId: br_andheri } }
+            switchPeriod: { summary: Work in a prior open period, value: { companyId: co_acme, branchId: br_ho, fy: '2026-27', periodCode: '2026-08' } }
+    responses:
+      '200':
+        description: Refreshed me
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/auth.yaml#/Me' }
+            examples:
+              switched: { $ref: '../components/examples/auth.yaml#/MeFull' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/me/mfa/enable:
+  post:
+    tags: [Auth]
+    summary: Enable MFA (TOTP) for my account
+    description: Returns the TOTP secret / otpauth URL and one-time recovery codes. MFA becomes effective on the next sign-in.
+    operationId: enableMfa
+    x-frd: [FR-IAM-002]
+    responses:
+      '200':
+        description: TOTP setup
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/auth.yaml#/MfaEnableResult' }
+            examples:
+              setup: { summary: Secret + recovery codes, value: { secret: JBSWY3DPEHPK3PXP, otpauthUrl: 'otpauth://totp/ElixirBooks:priya@acme.example?secret=JBSWY3DPEHPK3PXP&issuer=ElixirBooks', recoveryCodes: [9f3k-2m1p, 7a8c-4e2q, 1b2d-8k9l, 5m6n-3p4q, 0r1s-7t8u] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/me/mfa/disable:
+  post:
+    tags: [Auth]
+    summary: Disable MFA for my account
+    description: Requires the current password. Not allowed when the tenant enforces MFA (`403`).
+    operationId: disableMfa
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [password], properties: { password: { type: string, format: password, writeOnly: true } } }
+          examples:
+            confirm: { summary: Confirm with password, value: { password: 'S3cure!pass' } }
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/me/sessions:
+  get:
+    tags: [Auth]
+    summary: My active sessions
+    operationId: listMySessions
+    responses:
+      '200':
+        description: Sessions
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/auth.yaml#/UserSession' } } } }
+            examples:
+              two: { summary: Two devices, value: { data: [{ id: s_1a2b, device: Chrome on Windows, at: '2026-09-13T08:58:00Z', ip: 103.21.58.10, current: true }, { id: s_9z8y, device: Safari on iPhone, at: '2026-09-11T19:20:00Z', ip: 49.36.12.7 }] } }
+              one: { summary: Only this device, value: { data: [{ id: s_1a2b, device: Chrome on Windows, at: '2026-09-13T08:58:00Z', current: true }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/me/sessions/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/Id'
+  delete:
+    tags: [Auth]
+    summary: Sign out one of my sessions
+    operationId: revokeMySession
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── onboarding wizard ─────────────────────────────────────────────────────
+
+/onboarding:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Auth]
+    summary: Onboarding state for the company
+    operationId: getOnboarding
+    x-permission: admin.company.view
+    x-frd: [FR-ORG-008]
+    responses:
+      '200':
+        description: State + readiness rows
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/auth.yaml#/OnboardingState' }
+            examples:
+              fresh: { $ref: '../components/examples/auth.yaml#/OnboardingFresh' }
+              complete: { $ref: '../components/examples/auth.yaml#/OnboardingComplete' }
+              blocked: { $ref: '../components/examples/auth.yaml#/OnboardingBlockedOpening' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/onboarding/readiness:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Auth]
+    summary: Readiness checklist (home dashboard card)
+    operationId: getOnboardingReadiness
+    x-permission: admin.company.view
+    responses:
+      '200':
+        description: Rows
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/auth.yaml#/ReadinessRow' } } } }
+            examples:
+              rows: { summary: Mixed, value: { data: [{ key: legal, label: Legal identity & registrations, status: Pending, detail: PAN missing, link: admin/company }, { key: periods, label: Financial year & periods, status: Done, detail: 12 periods, link: admin/periods }, { key: opening, label: Opening balances, status: Blocked, detail: Opening-balance date falls in a locked period, link: accounting/opening-balances }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/onboarding/steps/{step}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - { name: step, in: path, required: true, schema: { type: string, enum: [nature, legal, address, currency, periods, users, masters, opening, bank, einvoice] }, example: legal }
+  put:
+    tags: [Auth]
+    summary: Save a wizard step
+    description: Body shape depends on `step` (see `OnboardingStepInput`). Each step writes a slice of the Company record and flips its readiness flag; `users` sends invitations; `bank` creates bank accounts; `periods` regenerates the FY periods when the FY start changes (blocked once postings exist).
+    operationId: saveOnboardingStep
+    x-permission: admin.company.edit
+    x-frd: [FR-ORG-001, FR-ORG-002, FR-BIZ-002]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/auth.yaml#/OnboardingStepInput' }
+          examples:
+            nature: { summary: step = nature, value: { nature: Hybrid, characteristics: [Multi-branch, Export] } }
+            legal: { summary: step = legal, value: { legalName: Zen Foods Pvt Ltd, pan: AABCZ1234F, businessType: Private Limited, registrations: [{ type: GSTIN, number: 27AABCZ1234F1Z9, state: Maharashtra, stateCode: '27' }] } }
+            address: { summary: step = address (+ extra branch), value: { address: { line1: 12 MIDC Road, city: Pune, state: Maharashtra, stateCode: '27', pin: '411019', country: IN }, phone: '+91 20 4000 9876', branches: [{ code: BR-002, name: Pune Warehouse, type: Warehouse, address: { line1: Plot 7 MIDC, city: Pune, state: Maharashtra, stateCode: '27', pin: '411019', country: IN } }] } }
+            currency: { summary: step = currency, value: { baseCurrency: INR, reportingCurrency: USD, permittedCurrencies: [INR, USD], timeZone: Asia/Kolkata, locale: en-IN } }
+            periods: { summary: step = periods, value: { fiscalYearStartMonth: 4, booksFrom: '2026-04-01', openingBalanceDate: '2026-03-31' } }
+            users: { summary: step = users (invitations), value: { invites: [{ email: cfo@zenfoods.example, roleId: role_finadmin }, { email: sales@zenfoods.example, roleId: role_salesuser }] } }
+            masters: { summary: step = masters, value: { mode: import } }
+            opening: { summary: step = opening, value: { mode: manual } }
+            bank: { summary: step = bank, value: { bankAccounts: [{ name: HDFC Bank — Current A/c, bankName: HDFC Bank, accountNumber: '50200012344412', ifsc: HDFC0000240, branch: Nariman Point, currency: INR, openingBalance: 250000 }] } }
+            einvoice: { summary: step = einvoice (skip for now), value: { skip: true } }
+    responses:
+      '200':
+        description: Updated onboarding state
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/auth.yaml#/OnboardingState' }
+            examples:
+              afterLegal: { $ref: '../components/examples/auth.yaml#/OnboardingFresh' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/onboarding/complete:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Auth]
+    summary: Finish the wizard
+    description: Recomputes readiness, stores the flags and audits `onboarding.completed`. Allowed with pending items (they stay on the home checklist); blocked items are reported back.
+    operationId: completeOnboarding
+    x-permission: admin.company.edit
+    responses:
+      '200':
+        description: Final state
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/auth.yaml#/OnboardingState' }
+            examples:
+              complete: { $ref: '../components/examples/auth.yaml#/OnboardingComplete' }
+              withBlocked: { $ref: '../components/examples/auth.yaml#/OnboardingBlockedOpening' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }

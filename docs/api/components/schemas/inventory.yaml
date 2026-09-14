@@ -1,0 +1,405 @@
+# Inventory (src/modules/inventory/types.ts, actions.ts; engine.ts stockPosition/moveStock/reserveStock)
+
+InventorySettings:
+  type: object
+  properties:
+    negativeStockPolicy: { type: string, enum: [Block, Warn, Allow], example: Block }
+    valuationMethod: { type: string, enum: [AVCO, FIFO, Standard], example: AVCO }
+    transitWarehouseId: { type: string, example: wh_transit }
+    scrapWarehouseId: { type: string, example: wh_scrap }
+    countTolerancePct: { type: number, example: 1 }
+
+StockPosition:
+  type: object
+  description: Result of `engine.stockPosition` for one item × warehouse (or all warehouses).
+  required: [itemId, itemCode, itemName, uom, onHand, reserved, available, inTransit, committed, projected, avgRate, value]
+  properties:
+    itemId: { type: string, example: item_stl4 }
+    itemCode: { type: string, example: STL-4 }
+    itemName: { type: string, example: Steel Rod 4mm }
+    group: { type: string, example: Steel }
+    warehouseId: { type: string, description: Absent when aggregated across warehouses., example: wh_main }
+    warehouseName: { type: string }
+    warehouses: { type: integer, description: Number of warehouses holding stock (aggregate rows)., example: 2 }
+    uom: { type: string, example: KG }
+    onHand: { type: number, example: 1240 }
+    reserved: { type: number, example: 80 }
+    available: { type: number, description: onHand − reserved, example: 1160 }
+    onOrder: { type: number, description: Open PO quantity., example: 2000 }
+    inTransit: { type: number, example: 0 }
+    committed: { type: number, description: Confirmed sales orders not yet delivered., example: 120 }
+    projected: { type: number, description: onHand + onOrder + inTransit − committed., example: 3120 }
+    reorderLevel: { type: number, example: 200 }
+    safetyStock: { type: number, example: 100 }
+    belowReorder: { type: boolean }
+    avgRate: { type: number, example: 49.8 }
+    value: { type: number, example: 61752 }
+
+StockLedgerRow:
+  allOf:
+    - $ref: './document.yaml#/StockMovement'
+    - type: object
+      properties:
+        balanceAfter: { type: number, example: 1240 }
+        source: { type: string, description: Link to the source document., example: '#/purchase/grn/grn_00077' }
+
+BatchBalance:
+  type: object
+  required: [itemId, itemName, type, code, warehouseId, warehouseName, qty, value]
+  properties:
+    itemId: { type: string }
+    itemName: { type: string, example: Steel Rod 4mm }
+    type: { type: string, enum: [Batch, Serial] }
+    code: { type: string, description: Batch number or serial., example: B-2609-11 }
+    warehouseId: { type: string }
+    warehouseName: { type: string }
+    bin: { type: string }
+    qty: { type: number, example: 2950 }
+    value: { type: number, example: 141600 }
+    expiryDate: { type: string, format: date }
+    expiresInDays: { type: integer }
+    lastMovementAt: { type: string, format: date-time }
+
+# ── adjustments ───────────────────────────────────────────────────────────
+
+AdjustmentType:
+  type: string
+  enum: [Write-off, Count variance, Found, Damage, Rework, Other]
+
+AdjustmentLineInput:
+  type: object
+  required: [itemId, qty]
+  properties:
+    id: { type: string }
+    itemId: { type: string, example: item_grease }
+    qty: { type: number, description: "Signed — positive adds stock, negative removes.", example: -5 }
+    uom: { type: string }
+    rate: { type: number, description: Valuation rate for positive adjustments (default AVCO). }
+    batch: { type: string }
+    serials: { type: array, items: { type: string } }
+    bin: { type: string }
+    reasonCode: { type: string }
+    accountId: { type: string, description: Offset account (default inventory adjustment 5020). }
+
+AdjustmentLine:
+  allOf:
+    - $ref: './document.yaml#/DocLine'
+    - type: object
+      required: [value]
+      properties:
+        value: { type: number, description: Signed value at valuation rate., example: -1200 }
+        reasonCode: { type: string }
+
+StockAdjustmentCreate:
+  type: object
+  required: [date, warehouseId, adjustmentType, reasonCode, reason, lines]
+  properties:
+    date: { type: string, format: date }
+    branchId: { type: string }
+    warehouseId: { type: string, example: wh_main }
+    adjustmentType: { $ref: '#/AdjustmentType' }
+    reasonCode: { type: string, example: ADJ-DMG }
+    reason: { type: string, minLength: 10, example: 5 tins leaked during storage — written off }
+    lines: { type: array, minItems: 1, items: { $ref: '#/AdjustmentLineInput' } }
+    dimensions: { $ref: './common.yaml#/KeyValue' }
+    notes: { type: string }
+
+StockAdjustmentPatch:
+  allOf:
+    - $ref: './common.yaml#/ExpectedVersion'
+    - type: object
+      properties:
+        date: { type: string, format: date }
+        adjustmentType: { $ref: '#/AdjustmentType' }
+        reasonCode: { type: string }
+        reason: { type: string }
+        lines: { type: array, items: { $ref: '#/AdjustmentLineInput' } }
+        notes: { type: string }
+
+StockAdjustment:
+  allOf:
+    - $ref: './document.yaml#/DocHeader'
+    - type: object
+      required: [status, warehouseId, adjustmentType, reasonCode, reason, totalValue]
+      properties:
+        docType: { type: string, const: Stock Adjustment }
+        status: { type: string, enum: [Draft, Submitted, Approved, Rejected, Returned, Posted, Reversed, Cancelled] }
+        warehouseId: { type: string }
+        warehouseName: { type: string, readOnly: true }
+        adjustmentType: { $ref: '#/AdjustmentType' }
+        reasonCode: { type: string }
+        reason: { type: string }
+        lines: { type: array, items: { $ref: '#/AdjustmentLine' } }
+        totalValue: { type: number, readOnly: true, example: -1200 }
+        countId: { type: string, readOnly: true }
+        countNumber: { type: string, readOnly: true }
+        approverName: { type: string, readOnly: true }
+
+# ── transfers ─────────────────────────────────────────────────────────────
+
+TransferLineInput:
+  type: object
+  required: [itemId, qty]
+  properties:
+    id: { type: string }
+    itemId: { type: string, example: item_stl4 }
+    qty: { type: number, example: 500 }
+    uom: { type: string }
+    batch: { type: string }
+    serials: { type: array, items: { type: string } }
+
+TransferReceiveLine:
+  type: object
+  required: [lineId, receivedQty]
+  properties:
+    lineId: { type: string, example: ln_t1 }
+    receivedQty: { type: number, example: 495 }
+    shortageQty: { type: number, example: 5 }
+    damageQty: { type: number, example: 0 }
+    shortageReason: { type: string, example: 5 KG spilled in transit }
+    bin: { type: string }
+
+TransferLine:
+  allOf:
+    - $ref: './document.yaml#/DocLine'
+    - type: object
+      properties:
+        receivedQty: { type: number }
+        shortageQty: { type: number }
+        damageQty: { type: number }
+        shortageReason: { type: string }
+
+StockTransferCreate:
+  type: object
+  required: [date, fromWarehouseId, toWarehouseId, lines]
+  properties:
+    date: { type: string, format: date }
+    branchId: { type: string }
+    fromWarehouseId: { type: string, example: wh_main }
+    toWarehouseId: { type: string, example: wh_pune }
+    vehicleNo: { type: string }
+    lines: { type: array, minItems: 1, items: { $ref: '#/TransferLineInput' } }
+    notes: { type: string }
+
+StockTransferPatch:
+  allOf:
+    - $ref: './common.yaml#/ExpectedVersion'
+    - type: object
+      properties:
+        date: { type: string, format: date }
+        toWarehouseId: { type: string }
+        vehicleNo: { type: string }
+        lines: { type: array, items: { $ref: '#/TransferLineInput' } }
+        notes: { type: string }
+
+StockTransfer:
+  allOf:
+    - $ref: './document.yaml#/DocHeader'
+    - type: object
+      required: [status, fromWarehouseId, toWarehouseId, totalValue]
+      properties:
+        docType: { type: string, const: Stock Transfer }
+        status: { type: string, enum: [Draft, In Transit, Completed, Reversed, Cancelled] }
+        fromWarehouseId: { type: string }
+        fromWarehouseName: { type: string, readOnly: true }
+        toWarehouseId: { type: string }
+        toWarehouseName: { type: string, readOnly: true }
+        lines: { type: array, items: { $ref: '#/TransferLine' } }
+        totalValue: { type: number, readOnly: true }
+        dispatchedAt: { type: string, format: date-time, readOnly: true }
+        dispatchedBy: { type: string, readOnly: true }
+        receivedAt: { type: string, format: date-time, readOnly: true }
+        receivedBy: { type: string, readOnly: true }
+        vehicleNo: { type: string }
+
+TransferReceiveRequest:
+  type: object
+  required: [lines]
+  properties:
+    date: { type: string, format: date }
+    lines: { type: array, minItems: 1, items: { $ref: '#/TransferReceiveLine' } }
+    notes: { type: string }
+
+# ── counts ────────────────────────────────────────────────────────────────
+
+CountLine:
+  type: object
+  required: [id, itemId, itemCode, itemName, uom, systemQty, countedQty, rate]
+  properties:
+    id: { type: string, example: cl_1 }
+    itemId: { type: string }
+    itemCode: { type: string }
+    itemName: { type: string }
+    uom: { type: string }
+    batch: { type: string }
+    bin: { type: string }
+    systemQty: { type: number, description: Frozen system quantity at count start., example: 1240 }
+    countedQty: { type: [number, 'null'], example: 1232 }
+    rate: { type: number, example: 49.8 }
+    variance: { type: number, readOnly: true, example: -8 }
+    varianceValue: { type: number, readOnly: true, example: -398.4 }
+    countedBy: { type: string }
+    countedAt: { type: string, format: date-time }
+    note: { type: string }
+
+StockCountCreate:
+  type: object
+  required: [date, warehouseId]
+  properties:
+    date: { type: string, format: date }
+    branchId: { type: string }
+    warehouseId: { type: string, example: wh_main }
+    itemGroup: { type: string, description: Scope the count to one item group (default all)., example: Steel }
+    itemIds: { type: array, items: { type: string }, description: Explicit items (cycle count). }
+    bins: { type: array, items: { type: string } }
+    notes: { type: string }
+
+CountLinesPatch:
+  type: object
+  required: [expectedVersion, lines]
+  properties:
+    expectedVersion: { type: integer }
+    lines:
+      type: array
+      items:
+        type: object
+        required: [id, countedQty]
+        properties:
+          id: { type: string }
+          countedQty: { type: [number, 'null'] }
+          note: { type: string }
+
+StockCount:
+  allOf:
+    - $ref: './document.yaml#/DocHeader'
+    - type: object
+      required: [status, warehouseId, countLines]
+      properties:
+        docType: { type: string, const: Stock Count }
+        status: { type: string, enum: [Draft, In Progress, Submitted, Approved, Rejected, Posted, Cancelled] }
+        warehouseId: { type: string }
+        warehouseName: { type: string, readOnly: true }
+        itemGroup: { type: string }
+        frozenAt: { type: string, format: date-time, readOnly: true }
+        countLines: { type: array, items: { $ref: '#/CountLine' } }
+        progress: { type: object, readOnly: true, properties: { counted: { type: integer, example: 12 }, total: { type: integer, example: 14 } } }
+        netVariance: { type: number, readOnly: true, example: -398.4 }
+        adjustmentId: { type: string, readOnly: true }
+        adjustmentNumber: { type: string, readOnly: true }
+        approverName: { type: string, readOnly: true }
+
+# ── landed cost ───────────────────────────────────────────────────────────
+
+LandedCostItemInput:
+  type: object
+  required: [name, amount]
+  properties:
+    id: { type: string }
+    name: { type: string, example: Sea freight }
+    supplierId: { type: string, example: sup_transport }
+    amount: { type: number, example: 66700 }
+    accountId: { type: string, example: acc_5030 }
+    reference: { type: string, example: ST-BL-4471 }
+
+LandedCostAllocation:
+  type: object
+  required: [id, grnId, grnNumber, lineId, itemId, itemName, warehouseId, qty, baseValue, weight, allocated, newRate]
+  properties:
+    id: { type: string }
+    grnId: { type: string }
+    grnNumber: { type: string }
+    lineId: { type: string }
+    itemId: { type: string }
+    itemName: { type: string }
+    warehouseId: { type: string }
+    qty: { type: number }
+    baseValue: { type: number }
+    weight: { type: number }
+    allocated: { type: number }
+    newRate: { type: number }
+
+LandedCostCreate:
+  type: object
+  required: [date, grnIds, basis, costs]
+  properties:
+    date: { type: string, format: date }
+    branchId: { type: string }
+    grnIds: { type: array, minItems: 1, items: { type: string }, example: [grn_00080] }
+    basis: { type: string, enum: [Value, Qty, Weight] }
+    costs: { type: array, minItems: 1, items: { $ref: '#/LandedCostItemInput' } }
+    notes: { type: string }
+
+LandedCost:
+  allOf:
+    - $ref: './document.yaml#/DocHeader'
+    - type: object
+      required: [status, grnIds, grnNumbers, basis, costs, allocations, totalCost]
+      properties:
+        docType: { type: string, const: Landed Cost }
+        status: { type: string, enum: [Draft, Posted, Reversed] }
+        grnIds: { type: array, items: { type: string } }
+        grnNumbers: { type: array, items: { type: string }, readOnly: true }
+        basis: { type: string, enum: [Value, Qty, Weight] }
+        costs: { type: array, items: { $ref: '#/LandedCostItemInput' } }
+        allocations: { type: array, readOnly: true, items: { $ref: '#/LandedCostAllocation' } }
+        totalCost: { type: number, readOnly: true }
+
+# ── replenishment / valuation ─────────────────────────────────────────────
+
+ReplenishmentRow:
+  type: object
+  required: [itemId, itemCode, itemName, trigger, onHand, reserved, onOrder, projected, reorderLevel, safetyStock, shortfall, orderQty, estValue]
+  properties:
+    itemId: { type: string }
+    itemCode: { type: string }
+    itemName: { type: string }
+    trigger: { type: string, enum: [Out of stock, Below safety stock, Below reorder level] }
+    onHand: { type: number }
+    reserved: { type: number }
+    onOrder: { type: number }
+    projected: { type: number }
+    reorderLevel: { type: number }
+    safetyStock: { type: number }
+    shortfall: { type: number }
+    orderQty: { type: number, description: "Suggested order quantity (max of reorderQty and shortfall, rounded to minOrderQty)." }
+    estValue: { type: number }
+    preferredSupplierId: { type: string }
+    preferredSupplierName: { type: string }
+    leadTimeDays: { type: integer }
+    needBy: { type: string, format: date }
+
+ValuationRow:
+  type: object
+  required: [itemId, itemCode, itemName, warehouseId, inventoryAccountId, qty, avgRate, value]
+  properties:
+    itemId: { type: string }
+    itemCode: { type: string }
+    itemName: { type: string }
+    warehouseId: { type: string }
+    warehouseName: { type: string }
+    inventoryAccountId: { type: string, example: acc_1210 }
+    qty: { type: number }
+    avgRate: { type: number }
+    standardCost: { type: number }
+    purchasePrice: { type: number }
+    value: { type: number }
+
+ValuationReport:
+  type: object
+  required: [asOf, rows, totalValue, reconciliation]
+  properties:
+    asOf: { type: string, format: date }
+    rows: { type: array, items: { $ref: '#/ValuationRow' } }
+    totalValue: { type: number }
+    reconciliation:
+      type: array
+      description: Stock ledger value vs GL inventory control balance per account.
+      items:
+        type: object
+        properties:
+          accountId: { type: string }
+          accountName: { type: string }
+          ledgerValue: { type: number }
+          glBalance: { type: number }
+          difference: { type: number }
+    scope: { $ref: './common.yaml#/Scope' }

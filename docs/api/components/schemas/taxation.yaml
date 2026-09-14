@@ -1,0 +1,375 @@
+# Taxation (src/modules/taxation/types.ts, derive.ts; engine.ts e-invoice / e-way bill)
+
+TaxOverview:
+  type: object
+  required: [period, output, itc, netPayable, tdsPayable, eInvoice, ewb, calendar]
+  properties:
+    period: { type: string, example: '2026-09' }
+    output: { type: object, properties: { cgst: { type: number }, sgst: { type: number }, igst: { type: number }, cess: { type: number }, total: { type: number } }, example: { cgst: 412000, sgst: 412000, igst: 98000, cess: 0, total: 922000 } }
+    itc: { type: object, properties: { cgst: { type: number }, sgst: { type: number }, igst: { type: number }, cess: { type: number }, total: { type: number } }, example: { cgst: 310000, sgst: 310000, igst: 45000, cess: 0, total: 665000 } }
+    netPayable: { type: number, example: 257000 }
+    ledgerReconciliation: { type: object, properties: { registerOutput: { type: number }, ledgerOutput: { type: number }, difference: { type: number } } }
+    tdsPayable: { type: number, description: Balance of the TDS payable control account., example: 84500 }
+    eInvoice: { type: object, properties: { pending: { type: integer }, accepted: { type: integer }, rejected: { type: integer } }, example: { pending: 2, accepted: 38, rejected: 1 } }
+    ewb: { type: object, properties: { pending: { type: integer }, generated: { type: integer }, expiringToday: { type: integer } }, example: { pending: 1, generated: 12, expiringToday: 0 } }
+    calendar: { type: array, items: { $ref: '#/FilingCalendarItem' } }
+
+FilingCalendarItem:
+  type: object
+  required: [id, label, type, period, due, status]
+  properties:
+    id: { type: string, example: 'gstr1:2026-09' }
+    label: { type: string, example: GSTR-1 September 2026 }
+    type: { $ref: '#/ReturnType' }
+    period: { type: string, example: '2026-09' }
+    due: { type: string, format: date, example: '2026-10-11' }
+    status: { type: string, enum: [Pending, Overdue, Filed] }
+    filedAt: { type: string, format: date-time }
+    arn: { type: string }
+
+ReturnType:
+  type: string
+  enum: [GSTR-1, GSTR-3B, 26Q, 27EQ, 24Q, PF-ECR, ESI, PT]
+
+GstRegisterRow:
+  type: object
+  required: [id, collection, docId, docType, number, date, period, party, pos, taxable, cgst, sgst, igst, cess, tax, total, reverseCharge, eInvoiceStatus, hsnMissing, sign, link, hsnRows]
+  properties:
+    id: { type: string }
+    collection: { type: string, example: salesInvoices }
+    docId: { type: string, example: inv_01j8k3 }
+    docType: { type: string, example: Sales Invoice }
+    number: { type: string, example: INV/2026-27/00042 }
+    date: { type: string, format: date }
+    period: { type: string, example: '2026-09' }
+    party: { type: string, example: Arlene Traders }
+    gstin: { type: string, example: 27AABCA1234F1Z5 }
+    treatment: { type: string, enum: [Registered, Unregistered, Composition, SEZ, Export, Overseas, Deemed Export, Consumer] }
+    pos: { type: string, description: Place of supply (state name)., example: Maharashtra }
+    posCode: { type: string, example: '27' }
+    taxable: { type: number }
+    cgst: { type: number }
+    sgst: { type: number }
+    igst: { type: number }
+    cess: { type: number }
+    tax: { type: number }
+    total: { type: number }
+    reverseCharge: { type: boolean }
+    eInvoiceStatus: { type: string, example: Accepted }
+    ewbStatus: { type: string }
+    ewbNo: { type: string }
+    ewbValidUpto: { type: string, format: date-time }
+    hsnMissing: { type: boolean }
+    itcEligible: { type: boolean, description: Purchase register only. }
+    itcIneligibleReason: { type: string, example: 'Blocked u/s 17(5) — motor vehicle' }
+    sign: { type: integer, enum: [1, -1], description: −1 for credit notes / returns. }
+    link: { type: string, example: sales/invoices/inv_01j8k3 }
+    registrationId: { type: string }
+    branchId: { type: string }
+    hsnRows: { type: array, items: { type: object, properties: { hsn: { type: string }, taxable: { type: number }, tax: { type: number }, qty: { type: number }, rate: { type: number } } } }
+
+GstRegisterTotals:
+  type: object
+  properties:
+    count: { type: integer }
+    taxable: { type: number }
+    cgst: { type: number }
+    sgst: { type: number }
+    igst: { type: number }
+    cess: { type: number }
+    tax: { type: number }
+    total: { type: number }
+
+ReturnSection:
+  type: object
+  required: [code, desc, count, taxable, cgst, sgst, igst, cess, tax]
+  properties:
+    code: { type: string, example: 4A }
+    desc: { type: string, example: B2B supplies to registered persons }
+    count: { type: integer }
+    taxable: { type: number }
+    cgst: { type: number }
+    sgst: { type: number }
+    igst: { type: number }
+    cess: { type: number }
+    tax: { type: number }
+
+HsnSummaryRow:
+  type: object
+  required: [hsn, description, qty, taxable, tax, rate]
+  properties:
+    hsn: { type: string, example: '7214' }
+    description: { type: string, example: Bars and rods of iron or non-alloy steel }
+    qty: { type: number }
+    taxable: { type: number }
+    tax: { type: number }
+    rate: { type: number, example: 18 }
+
+SetOff:
+  type: object
+  description: ITC set-off per GST rules (IGST → IGST/CGST/SGST; CGST → CGST/IGST; SGST → SGST/IGST).
+  required: [steps, payable, carried]
+  properties:
+    steps: { type: array, items: { type: object, properties: { label: { type: string, example: IGST credit → IGST liability }, amount: { type: number } } } }
+    payable: { type: object, properties: { igst: { type: number }, cgst: { type: number }, sgst: { type: number }, cess: { type: number }, total: { type: number } } }
+    carried: { type: object, properties: { igst: { type: number }, cgst: { type: number }, sgst: { type: number }, cess: { type: number } } }
+
+ReturnPreview:
+  type: object
+  description: Live computation for a period (not stored).
+  required: [type, period, sections, totals]
+  properties:
+    type: { $ref: '#/ReturnType' }
+    period: { type: string }
+    registrationId: { type: string }
+    gstin: { type: string }
+    sections: { type: array, items: { $ref: '#/ReturnSection' } }
+    hsn: { type: array, items: { $ref: '#/HsnSummaryRow' }, description: GSTR-1 only. }
+    docsIssued: { type: integer }
+    totals: { $ref: '#/ReturnTotals' }
+    setOff: { $ref: '#/SetOff' }
+    reconciliation: { type: object, properties: { registerTax: { type: number }, ledgerTax: { type: number }, difference: { type: number } } }
+    dueDate: { type: string, format: date }
+    latestVersion: { $ref: '#/StatutoryReturn' }
+
+ReturnTotals:
+  type: object
+  required: [taxable, cgst, sgst, igst, cess, tax]
+  properties:
+    taxable: { type: number }
+    cgst: { type: number }
+    sgst: { type: number }
+    igst: { type: number }
+    cess: { type: number }
+    tax: { type: number }
+    itc: { type: number }
+    netPayable: { type: number }
+    tds: { type: number }
+
+StatutoryReturn:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [type, period, fy, status, sections, totals, generatedAt, generatedBy, dueDate]
+      properties:
+        type: { $ref: '#/ReturnType' }
+        period: { type: string, description: "`yyyy-mm` for GST; `2026-27 Q1` for TDS.", example: '2026-09' }
+        fy: { type: string, example: '2026-27' }
+        registrationId: { type: string }
+        gstin: { type: string }
+        status: { type: string, enum: [Generated, Filed, Superseded] }
+        sections: { type: array, items: { $ref: '#/ReturnSection' } }
+        totals: { $ref: '#/ReturnTotals' }
+        reconciliation: { type: object, properties: { registerTax: { type: number }, ledgerTax: { type: number }, difference: { type: number } } }
+        generatedAt: { type: string, format: date-time }
+        generatedBy: { type: string }
+        filedAt: { type: string, format: date-time }
+        filedBy: { type: string }
+        arn: { type: string, example: AA270926123456K }
+        dueDate: { type: string, format: date }
+        hasJson: { type: boolean, readOnly: true, description: "Download via `GET /taxation/returns/{id}/json`." }
+        paymentJournalId: { type: string }
+        paymentJournalNumber: { type: string }
+        notes: { type: string }
+
+ReturnGenerateRequest:
+  type: object
+  required: [period]
+  properties:
+    period: { type: string, example: '2026-09' }
+    registrationId: { type: string, description: Defaults to the current branch's registration. }
+    notes: { type: string }
+
+MarkFiledRequest:
+  type: object
+  required: [arn]
+  properties:
+    arn: { type: string, example: AA270926123456K }
+    filedAt: { type: string, format: date-time }
+    notes: { type: string }
+
+ChallanJournalRequest:
+  type: object
+  description: Creates a Draft journal for the GST liability payment (Dr output tax payable / Cr bank or cash ledger).
+  properties:
+    date: { type: string, format: date }
+    bankAccountId: { type: string, example: acc_1310 }
+    cpin: { type: string, example: '26092700123456' }
+
+EInvoiceRow:
+  type: object
+  required: [id, collection, docId, docType, number, date, party, total, status, applicable, ready, issues]
+  properties:
+    id: { type: string }
+    collection: { type: string, example: salesInvoices }
+    docId: { type: string }
+    docType: { type: string, example: Sales Invoice }
+    number: { type: string, example: INV/2026-27/00042 }
+    date: { type: string, format: date }
+    party: { type: string }
+    gstin: { type: string }
+    total: { type: number }
+    status: { type: string, enum: [Not Applicable, Pending, Queued, Submitted, Accepted, Rejected, Cancelled, Failed] }
+    applicable: { type: boolean }
+    ready: { type: boolean }
+    issues: { type: array, items: { type: string }, example: ['Buyer GSTIN missing', 'HSN missing on line 2'] }
+    statutory: { $ref: './document.yaml#/StatutoryInfo' }
+    link: { type: string }
+
+EInvoiceBulkRequest:
+  type: object
+  properties:
+    ids: { type: array, items: { type: string }, description: "Row ids (`{collection}:{docId}`); omit to submit every Pending + ready document in the period." }
+    period: { type: string, example: '2026-09' }
+
+EInvoiceBulkResult:
+  type: object
+  required: [submitted, accepted, rejected, skipped, results]
+  properties:
+    submitted: { type: integer }
+    accepted: { type: integer }
+    rejected: { type: integer }
+    skipped: { type: integer }
+    results: { type: array, items: { type: object, properties: { id: { type: string }, number: { type: string }, status: { type: string }, irn: { type: string }, error: { type: string } } } }
+
+EwayBillRow:
+  type: object
+  required: [id, collection, docId, docType, number, date, party, total, status]
+  properties:
+    id: { type: string }
+    collection: { type: string, example: deliveries }
+    docId: { type: string }
+    docType: { type: string, example: Delivery }
+    number: { type: string, example: DC/2026-27/00031 }
+    date: { type: string, format: date }
+    party: { type: string }
+    total: { type: number }
+    status: { type: string, enum: [Not Applicable, Pending, Generated, Cancelled, Expired, Failed] }
+    ewbNo: { type: string }
+    ewbValidUpto: { type: string, format: date-time }
+    vehicleNo: { type: string }
+    link: { type: string }
+
+EwayBillExtendRequest:
+  type: object
+  required: [reason]
+  properties:
+    reason: { type: string, example: Vehicle breakdown at Lonavala }
+    vehicleNo: { type: string, description: New vehicle (Part-B update). }
+    remainingDistanceKm: { type: number, example: 60 }
+
+TdsRegisterRow:
+  type: object
+  required: [id, sourceType, sourceId, sourceNumber, date, partyType, partyName, section, kindOfTax, rate, base, threshold, amount, quarter, fy, status]
+  properties:
+    id: { type: string }
+    sourceType: { type: string, example: Payment }
+    sourceId: { type: string }
+    sourceNumber: { type: string, example: PAY/2026-27/00131 }
+    date: { type: string, format: date }
+    partyType: { type: string, enum: [Customer, Supplier, Employee] }
+    partyId: { type: string }
+    partyName: { type: string }
+    pan: { type: string, example: AABCB1234C }
+    section: { type: string, example: 194C }
+    sectionId: { type: string }
+    kindOfTax: { type: string, enum: [TDS, TCS] }
+    rate: { type: number, example: 2 }
+    base: { type: number }
+    threshold: { type: number }
+    amount: { type: number }
+    quarter: { type: string, example: Q2 }
+    fy: { type: string, example: '2026-27' }
+    certificateNo: { type: string }
+    challanNo: { type: string }
+    status: { type: string, enum: [Deducted, Exempt, Deposited, Certified] }
+    link: { type: string }
+    overlayId: { type: string, description: TdsEntry id when a challan/certificate overlay exists. }
+
+TdsSummaryRow:
+  type: object
+  required: [section, kindOfTax, deductees, base, amount, deposited, pending]
+  properties:
+    section: { type: string, example: 194C }
+    kindOfTax: { type: string, enum: [TDS, TCS] }
+    deductees: { type: integer }
+    base: { type: number }
+    amount: { type: number }
+    deposited: { type: number }
+    pending: { type: number }
+    dueDate: { type: string, format: date }
+
+TdsEntry:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [kind, sourceType, sourceId, sourceNumber, date, partyType, partyName, section, kindOfTax, rate, base, amount, quarter, fy, status]
+      properties:
+        kind: { type: string, enum: [Deduction, Challan, Certificate] }
+        sourceType: { type: string }
+        sourceId: { type: string }
+        sourceNumber: { type: string }
+        date: { type: string, format: date }
+        partyType: { type: string, enum: [Customer, Supplier, Employee] }
+        partyId: { type: string }
+        partyName: { type: string }
+        pan: { type: string }
+        sectionId: { type: string }
+        section: { type: string }
+        kindOfTax: { type: string, enum: [TDS, TCS] }
+        rate: { type: number }
+        base: { type: number }
+        amount: { type: number }
+        quarter: { type: string }
+        fy: { type: string }
+        certificateNo: { type: string, example: TDS/2026-27/Q2/0007 }
+        certificateIssuedAt: { type: string, format: date-time }
+        challanNo: { type: string, example: '0510123456789012' }
+        challanDate: { type: string, format: date }
+        bsrCode: { type: string, example: '0510123' }
+        journalId: { type: string }
+        journalNumber: { type: string }
+        status: { type: string, enum: [Deducted, Exempt, Deposited, Certified] }
+        note: { type: string }
+
+TdsChallanCreate:
+  type: object
+  description: Records a deposit challan; creates a Draft journal (Dr TDS payable / Cr bank) and marks the covered deductions Deposited.
+  required: [date, section, amount, deductionIds]
+  properties:
+    date: { type: string, format: date }
+    section: { type: string, example: 194C }
+    kindOfTax: { type: string, enum: [TDS, TCS], default: TDS }
+    amount: { type: number, example: 8400 }
+    challanNo: { type: string, description: CIN; may be added later., example: '0510123456789012' }
+    bsrCode: { type: string, example: '0510123' }
+    bankAccountId: { type: string, example: acc_1310 }
+    deductionIds: { type: array, minItems: 1, items: { type: string }, description: TdsRegisterRow ids covered. }
+    note: { type: string }
+
+TdsCertificateRequest:
+  type: object
+  properties:
+    certificateNo: { type: string, description: Generated when omitted., example: TDS/2026-27/Q2/0007 }
+    email: { type: boolean, default: false, description: Email the certificate to the deductee. }
+
+Form24qRow:
+  type: object
+  required: [employeeId, employeeName, pan, quarter, grossSalary, tdsDeducted, tdsDeposited]
+  properties:
+    employeeId: { type: string }
+    employeeName: { type: string }
+    pan: { type: string }
+    quarter: { type: string }
+    grossSalary: { type: number }
+    tdsDeducted: { type: number }
+    tdsDeposited: { type: number }
+    regime: { type: string, enum: [Old, New] }
+
+TdsReturnGenerateRequest:
+  type: object
+  required: [fy, quarter]
+  properties:
+    fy: { type: string, example: '2026-27' }
+    quarter: { type: string, enum: [Q1, Q2, Q3, Q4] }
+    kindOfTax: { type: string, enum: [TDS, TCS], default: TDS, description: "TDS → 26Q, TCS → 27EQ." }

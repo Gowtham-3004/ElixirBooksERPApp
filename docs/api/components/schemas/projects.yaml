@@ -1,0 +1,668 @@
+# Projects & contracts (src/modules/projects/types.ts, actions.ts, billing.ts, revenue.ts)
+
+ServiceUnit:
+  type: string
+  enum: [Hr, Day, Month, Fixed]
+
+ServiceInput:
+  type: object
+  properties:
+    code: { type: string, example: SVC-CONS }
+    name: { type: string, example: Consulting }
+    description: { type: string }
+    sac: { type: string, example: '998311' }
+    unit: { $ref: '#/ServiceUnit' }
+    defaultRate: { type: number, example: 4500 }
+    taxRateId: { type: string, example: tr_gst18 }
+    revenueAccountId: { type: string, example: acc_4010 }
+    billableDefault: { type: boolean, default: true }
+
+ServiceCreate:
+  allOf:
+    - $ref: '#/ServiceInput'
+    - { required: [name, unit, defaultRate] }
+
+ServicePatch:
+  allOf:
+    - $ref: '#/ServiceInput'
+    - { type: object, properties: { status: { type: string, enum: [Active, Inactive] } } }
+    - $ref: './common.yaml#/ExpectedVersion'
+
+Service:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/ServiceInput'
+    - type: object
+      required: [itemId, code, name, unit, defaultRate, billableDefault, status]
+      properties:
+        itemId: { type: string, readOnly: true, description: Mirrored Item of type Service., example: item_consult }
+        status: { type: string, enum: [Active, Inactive] }
+
+BillingMethod:
+  type: string
+  enum: [Fixed price, Time & material, Milestone, Recurring, Usage, Cost plus]
+
+RevenueMethod:
+  type: string
+  enum: [Auto, Hours, Percent complete, Milestone, Straight-line, Usage]
+
+ContractStatus:
+  type: string
+  enum: [Draft, Submitted, Approved, Returned, Rejected, Active, Completed, Cancelled]
+
+RateRow:
+  type: object
+  required: [role, rate]
+  properties:
+    role: { type: string, example: Senior consultant }
+    rate: { type: number, example: 6000 }
+
+UsageTier:
+  type: object
+  required: [upTo, rate]
+  properties:
+    upTo: { type: number, example: 10000 }
+    rate: { type: number, example: 1.2 }
+
+MilestoneInput:
+  type: object
+  required: [name, amount, due]
+  properties:
+    id: { type: string, description: Existing milestone id when editing. }
+    kind: { type: string, enum: [Milestone, Instalment], default: Milestone }
+    order: { type: integer, example: 1 }
+    name: { type: string, example: Design sign-off }
+    amount: { type: number, example: 600000 }
+    due: { type: string, format: date, example: '2026-10-15' }
+    deliverable: { type: string, example: Approved solution design }
+
+ContractInput:
+  type: object
+  properties:
+    customerId: { type: string, example: cust_arlene }
+    projectId: { type: string, example: prj_erp }
+    title: { type: string, example: ERP implementation — phase 1 }
+    billingMethod: { $ref: '#/BillingMethod' }
+    amount: { type: number, description: Contract value (fixed / milestone total / T&M cap)., example: 2400000 }
+    currency: { $ref: './common.yaml#/CurrencyCode' }
+    rateCardId: { type: string, description: T&M / cost plus., example: rc_std }
+    rates: { type: array, items: { $ref: '#/RateRow' }, description: Per-role overrides. }
+    capHours: { type: number, example: 400 }
+    capAmount: { type: number }
+    recurrence: { type: object, description: Recurring., properties: { amount: { type: number, example: 150000 }, frequency: { type: string, enum: [Monthly, Quarterly, Yearly] }, nextBillDate: { type: string, format: date, example: '2026-10-01' }, endDate: { type: string, format: date } } }
+    usage: { type: object, description: Usage., properties: { metric: { type: string, example: API calls }, unit: { type: string, example: '1k calls' }, unitRate: { type: number, example: 1.5 }, tiers: { type: array, items: { $ref: '#/UsageTier' } } } }
+    markupPct: { type: number, description: Cost plus., example: 15 }
+    start: { type: string, format: date, example: '2026-09-15' }
+    end: { type: string, format: date, example: '2027-03-31' }
+    taxRateId: { type: string, example: tr_gst18 }
+    serviceItemId: { type: string, example: item_consult }
+    revenueMethod: { $ref: '#/RevenueMethod' }
+    milestones: { type: array, items: { $ref: '#/MilestoneInput' }, description: Milestone / instalment schedule (Milestone & Fixed price). }
+    branchId: { type: string }
+    dimensions: { $ref: './common.yaml#/KeyValue' }
+    notes: { type: string }
+
+ContractCreate:
+  allOf:
+    - $ref: '#/ContractInput'
+    - { required: [customerId, title, billingMethod, start, revenueMethod] }
+
+ContractPatch:
+  allOf:
+    - $ref: '#/ContractInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+Contract:
+  allOf:
+    - $ref: './document.yaml#/DocHeader'
+    - $ref: '#/ContractInput'
+    - type: object
+      required: [customerId, title, billingMethod, amount, start, revenueMethod]
+      properties:
+        docType: { type: string, const: Contract }
+        status: { $ref: '#/ContractStatus' }
+        progress: { type: array, readOnly: true, items: { type: object, properties: { period: { type: string }, pct: { type: number }, note: { type: string } } } }
+        activatedAt: { type: string, format: date-time, readOnly: true }
+        activatedBy: { type: string, readOnly: true }
+        completedAt: { type: string, format: date-time, readOnly: true }
+        approvedAt: { type: string, format: date-time, readOnly: true }
+        approvedBy: { type: string, readOnly: true }
+        lastRecurringPeriod: { type: string, readOnly: true, example: '2026-09' }
+        billedToDate: { type: number, readOnly: true }
+        recognizedToDate: { type: number, readOnly: true }
+        milestoneSummary: { type: object, readOnly: true, properties: { total: { type: integer }, achieved: { type: integer }, invoiced: { type: integer } } }
+
+ProgressRequest:
+  type: object
+  required: [period, pct]
+  properties:
+    period: { type: string, example: '2026-09' }
+    pct: { type: number, minimum: 0, maximum: 100, example: 35 }
+    note: { type: string, example: "Design complete, build 20%" }
+
+ProjectStatus:
+  type: string
+  enum: [Planned, Active, On Hold, Completed, Cancelled]
+
+ProjectInput:
+  type: object
+  properties:
+    code: { type: string, example: PRJ-ERP }
+    name: { type: string, example: Arlene ERP implementation }
+    description: { type: string }
+    customerId: { type: string, example: cust_arlene }
+    contractId: { type: string, example: ctr_0012 }
+    managerEmployeeId: { type: string, example: emp_priya }
+    start: { type: string, format: date, example: '2026-09-15' }
+    end: { type: string, format: date, example: '2027-03-31' }
+    budgetHours: { type: number, example: 800 }
+    budgetAmount: { type: number, example: 2400000 }
+    teamEmployeeIds: { type: array, items: { type: string } }
+    branchId: { type: string }
+
+ProjectCreate:
+  allOf:
+    - $ref: '#/ProjectInput'
+    - { required: [name, customerId, start] }
+
+ProjectPatch:
+  allOf:
+    - $ref: '#/ProjectInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+Project:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/ProjectInput'
+    - type: object
+      required: [code, name, customerId, start, budgetHours, budgetAmount, status, dimensionId, teamEmployeeIds]
+      properties:
+        customerName: { type: string, readOnly: true }
+        status: { $ref: '#/ProjectStatus' }
+        dimensionId: { type: string, readOnly: true, description: Project dimension carried on journals., example: dim_prj_erp }
+        statusHistory: { type: array, readOnly: true, items: { type: object, properties: { at: { type: string, format: date-time }, by: { type: string }, from: { type: string }, to: { type: string }, reason: { type: string } } } }
+        hoursLogged: { type: number, readOnly: true }
+        hoursBilled: { type: number, readOnly: true }
+
+ProjectStatusRequest:
+  type: object
+  required: [status]
+  properties:
+    status: { $ref: '#/ProjectStatus' }
+    reason: { type: string }
+
+ResourceInput:
+  type: object
+  properties:
+    employeeId: { type: string, example: emp_neha }
+    role: { type: string, example: Senior consultant }
+    costRate: { type: number, description: Hourly cost., example: 2200 }
+    billRate: { type: number, description: Default hourly bill rate., example: 6000 }
+    capacityHoursPerWeek: { type: number, minimum: 1, maximum: 80, example: 40 }
+
+ResourceCreate:
+  allOf:
+    - $ref: '#/ResourceInput'
+    - { required: [employeeId, role, costRate, billRate, capacityHoursPerWeek] }
+
+ResourcePatch:
+  allOf:
+    - $ref: '#/ResourceInput'
+    - { type: object, properties: { status: { type: string, enum: [Active, Inactive] } } }
+    - $ref: './common.yaml#/ExpectedVersion'
+
+Resource:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/ResourceInput'
+    - type: object
+      required: [employeeId, employeeName, role, costRate, billRate, capacityHoursPerWeek, status]
+      properties:
+        employeeName: { type: string, readOnly: true }
+        status: { type: string, enum: [Active, Inactive] }
+        utilisationPct: { type: number, readOnly: true, description: Last 4 weeks., example: 82 }
+
+RateCardInput:
+  type: object
+  properties:
+    code: { type: string, example: RC-STD }
+    name: { type: string, example: Standard 2026 }
+    currency: { $ref: './common.yaml#/CurrencyCode' }
+    rows: { type: array, minItems: 1, items: { $ref: '#/RateRow' } }
+    validFrom: { type: string, format: date }
+    validTo: { type: string, format: date }
+
+RateCardCreate:
+  allOf:
+    - $ref: '#/RateCardInput'
+    - { required: [name, currency, rows] }
+
+RateCardPatch:
+  allOf:
+    - $ref: '#/RateCardInput'
+    - { type: object, properties: { status: { type: string, enum: [Active, Inactive] } } }
+    - $ref: './common.yaml#/ExpectedVersion'
+
+RateCard:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/RateCardInput'
+    - type: object
+      required: [code, name, currency, rows, status]
+      properties:
+        status: { type: string, enum: [Active, Inactive] }
+
+TimesheetStatus:
+  type: string
+  enum: [Draft, Submitted, Approved, Rejected, Returned, Invoiced]
+
+TimesheetRowInput:
+  type: object
+  required: [projectId, task, hours]
+  properties:
+    id: { type: string }
+    projectId: { type: string, example: prj_erp }
+    task: { type: string, example: Requirement workshops }
+    hours: { type: array, minItems: 7, maxItems: 7, items: { type: number }, description: 7 day cells from weekStart., example: [8, 8, 6, 8, 4, 0, 0] }
+    billable: { type: boolean, default: true }
+    notes: { type: string }
+    serviceId: { type: string, example: svc_cons }
+
+TimesheetRow:
+  allOf:
+    - $ref: '#/TimesheetRowInput'
+    - type: object
+      properties:
+        invoiceId: { type: string, readOnly: true }
+        invoiceNumber: { type: string, readOnly: true }
+        invoicedAt: { type: string, format: date-time, readOnly: true }
+
+TimesheetInput:
+  type: object
+  properties:
+    employeeId: { type: string, description: Defaults to the caller. }
+    weekStart: { type: string, format: date, example: '2026-09-07' }
+    rows: { type: array, minItems: 1, items: { $ref: '#/TimesheetRowInput' } }
+    branchId: { type: string }
+
+TimesheetCreate:
+  allOf:
+    - $ref: '#/TimesheetInput'
+    - { required: [weekStart, rows] }
+
+TimesheetPatch:
+  allOf:
+    - $ref: '#/TimesheetInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+Timesheet:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/TimesheetInput'
+    - type: object
+      required: [number, docType, employeeId, employeeName, weekStart, rows, totalHours, billableHours, status, branchId, source]
+      properties:
+        number: { type: string, readOnly: true, example: TS/2026-27/00218 }
+        docType: { type: string, const: Timesheet }
+        employeeName: { type: string, readOnly: true }
+        rows: { type: array, items: { $ref: '#/TimesheetRow' } }
+        totalHours: { type: number, readOnly: true, example: 40 }
+        billableHours: { type: number, readOnly: true, example: 34 }
+        status: { $ref: '#/TimesheetStatus' }
+        approvalId: { type: string, readOnly: true }
+        submittedAt: { type: string, format: date-time, readOnly: true }
+        submittedBy: { type: string, readOnly: true }
+        approvedAt: { type: string, format: date-time, readOnly: true }
+        approvedBy: { type: string, readOnly: true }
+        rejectedAt: { type: string, format: date-time, readOnly: true }
+        rejectionReason: { type: string, readOnly: true }
+        invoicedInvoiceId: { type: string, readOnly: true }
+        invoicedAt: { type: string, format: date-time, readOnly: true }
+        source: { type: string, enum: [Web, Import], readOnly: true }
+        value: { type: number, readOnly: true, description: Billable value at contract / rate-card rates., example: 204000 }
+        correlationId: { type: string, readOnly: true }
+
+TimesheetAction:
+  type: object
+  required: [action]
+  properties:
+    action: { type: string, enum: [Approve, Reject, Return, Recall] }
+    comment: { type: string }
+
+Milestone:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/MilestoneInput'
+    - type: object
+      required: [contractId, kind, order, name, amount, due, status]
+      properties:
+        contractId: { type: string }
+        contractNumber: { type: string, readOnly: true }
+        projectId: { type: string }
+        status: { type: string, enum: [Pending, Achieved, Invoiced] }
+        achievedAt: { type: string, format: date-time, readOnly: true }
+        achievedBy: { type: string, readOnly: true }
+        invoiceId: { type: string, readOnly: true }
+        invoiceNumber: { type: string, readOnly: true }
+        invoicedAt: { type: string, format: date-time, readOnly: true }
+
+UsageRecordInput:
+  type: object
+  properties:
+    contractId: { type: string, example: ctr_0019 }
+    metric: { type: string, example: API calls }
+    qty: { type: number, example: 12500 }
+    period: { type: string, pattern: '^\d{4}-\d{2}$', example: '2026-09' }
+    date: { type: string, format: date, example: '2026-09-30' }
+    notes: { type: string }
+
+UsageRecordCreate:
+  allOf:
+    - $ref: '#/UsageRecordInput'
+    - { required: [contractId, qty, period] }
+
+UsageRecord:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/UsageRecordInput'
+    - type: object
+      required: [contractId, metric, qty, rate, amount, period, date, invoiced, source]
+      properties:
+        rate: { type: number, readOnly: true, description: Tier rate resolved from the contract., example: 1.2 }
+        amount: { type: number, readOnly: true, example: 15000 }
+        invoiced: { type: boolean, readOnly: true }
+        invoiceId: { type: string, readOnly: true }
+        invoiceNumber: { type: string, readOnly: true }
+        source: { type: string, enum: [Web, Import], readOnly: true }
+
+BillableExpense:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [claimId, claimNumber, lineId, employeeId, employeeName, projectId, date, description, amount, markupPct, billAmount, status]
+      properties:
+        claimId: { type: string }
+        claimNumber: { type: string, example: EXP/2026-27/00031 }
+        lineId: { type: string }
+        employeeId: { type: string }
+        employeeName: { type: string }
+        projectId: { type: string }
+        contractId: { type: string }
+        date: { type: string, format: date }
+        description: { type: string, example: Cab to client site }
+        amount: { type: number, example: 850 }
+        markupPct: { type: number, example: 10 }
+        billAmount: { type: number, example: 935 }
+        status: { type: string, enum: [Ready, Invoiced, Excluded] }
+        invoiceId: { type: string }
+        invoiceNumber: { type: string }
+        invoicedAt: { type: string, format: date-time }
+        approvedBy: { type: string }
+
+ClaimLineView:
+  type: object
+  description: Approved / reimbursed claim lines with any project dimension resolved.
+  required: [claimId, claimNumber, lineId, employeeId, employeeName, date, description, amount, claimStatus]
+  properties:
+    claimId: { type: string }
+    claimNumber: { type: string }
+    lineId: { type: string }
+    employeeId: { type: string }
+    employeeName: { type: string }
+    date: { type: string, format: date }
+    description: { type: string }
+    amount: { type: number }
+    projectDim: { type: string }
+    projectId: { type: string }
+    claimStatus: { type: string }
+    billable: { $ref: '#/BillableExpense' }
+
+MarkBillableRequest:
+  type: object
+  required: [claimId, lineId, projectId]
+  properties:
+    claimId: { type: string }
+    lineId: { type: string }
+    projectId: { type: string }
+    markupPct: { type: number, minimum: 0, maximum: 100, description: Defaults to `prjExpenseMarkupPct`. }
+
+BillingSource:
+  type: object
+  required: [type, id, label, qty, rate, amount, date]
+  properties:
+    type: { type: string, enum: [Timesheet, Expense, Milestone, Instalment, Usage, Recurring, Cost] }
+    id: { type: string }
+    rowId: { type: string }
+    label: { type: string, example: 'TS/2026-27/00218 · Neha Rao · Requirement workshops' }
+    detail: { type: string }
+    qty: { type: number }
+    rate: { type: number }
+    amount: { type: number }
+    date: { type: string, format: date }
+
+BillingPreview:
+  type: object
+  required: [contractId, contractNumber, customerId, customerName, method, lines, sources, taxable, taxAmt, total, currency, rate, retainerAvailable, warnings]
+  properties:
+    contractId: { type: string }
+    contractNumber: { type: string, example: CTR/2026-27/00012 }
+    customerId: { type: string }
+    customerName: { type: string }
+    method: { $ref: '#/BillingMethod' }
+    lines: { type: array, items: { $ref: './document.yaml#/DocLine' } }
+    sources: { type: array, items: { $ref: '#/BillingSource' } }
+    taxable: { type: number }
+    taxAmt: { type: number }
+    total: { type: number }
+    currency: { type: string }
+    rate: { type: number }
+    skipReason: { type: string, example: Nothing approved and unbilled in the period }
+    retainerAvailable: { type: number }
+    warnings: { type: array, items: { type: string } }
+
+BillingRunRequest:
+  type: object
+  required: [from, to]
+  properties:
+    period: { type: string, example: '2026-09' }
+    from: { type: string, format: date, example: '2026-09-01' }
+    to: { type: string, format: date, example: '2026-09-30' }
+    date: { type: string, format: date, description: Invoice date (default = to). }
+    contractIds: { type: array, items: { type: string }, description: Omit for all active contracts with billable sources. }
+    applyRetainer: { type: boolean, default: true }
+    notes: { type: string }
+
+BillingResult:
+  type: object
+  required: [contractId, contractNumber, customerId, customerName, method, currency, amount, taxable, sources]
+  properties:
+    contractId: { type: string }
+    contractNumber: { type: string }
+    customerId: { type: string }
+    customerName: { type: string }
+    method: { $ref: '#/BillingMethod' }
+    currency: { type: string }
+    amount: { type: number }
+    taxable: { type: number }
+    invoiceId: { type: string }
+    invoiceNumber: { type: string }
+    retainerApplied: { type: number }
+    skipped: { type: string }
+    sources: { type: integer }
+
+BillingRun:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [number, period, from, to, date, contractIds, results, invoiceIds, status, by, applyRetainer, branchId]
+      properties:
+        number: { type: string, example: BR/2026-27/00006 }
+        period: { type: string }
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        date: { type: string, format: date }
+        contractIds: { type: array, items: { type: string } }
+        results: { type: array, items: { $ref: '#/BillingResult' } }
+        invoiceIds: { type: array, items: { type: string } }
+        status: { type: string, enum: [Generated, Cancelled] }
+        by: { type: string }
+        applyRetainer: { type: boolean }
+        branchId: { type: string }
+        notes: { type: string }
+
+RetainerInput:
+  type: object
+  properties:
+    customerId: { type: string, example: cust_arlene }
+    contractId: { type: string, example: ctr_0012 }
+    amount: { type: number, example: 500000 }
+    currency: { $ref: './common.yaml#/CurrencyCode' }
+    receivedDate: { type: string, format: date, example: '2026-09-15' }
+    bankAccountId: { type: string, example: acc_1310 }
+    reference: { type: string, example: NEFT26091500334 }
+    notes: { type: string }
+    branchId: { type: string }
+
+RetainerCreate:
+  allOf:
+    - $ref: '#/RetainerInput'
+    - { required: [customerId, amount, receivedDate, bankAccountId] }
+
+RetainerAllocation:
+  type: object
+  required: [id, invoiceId, invoiceNumber, amount, date, status]
+  properties:
+    id: { type: string }
+    invoiceId: { type: string }
+    invoiceNumber: { type: string }
+    amount: { type: number }
+    date: { type: string, format: date }
+    journalId: { type: string }
+    journalNumber: { type: string }
+    status: { type: string, enum: [Pending, Settled, Reversed], description: Pending = applied to a draft invoice; settles when it posts. }
+
+Retainer:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/RetainerInput'
+    - type: object
+      required: [number, customerId, customerName, amount, currency, rate, baseAmount, receivedDate, bankAccountId, allocations, allocated, remaining, status, branchId]
+      properties:
+        number: { type: string, readOnly: true, example: RET/2026-27/00004 }
+        customerName: { type: string, readOnly: true }
+        rate: { type: number, readOnly: true }
+        baseAmount: { type: number, readOnly: true }
+        journalId: { type: string, readOnly: true }
+        journalNumber: { type: string, readOnly: true }
+        openItemId: { type: string, readOnly: true }
+        allocations: { type: array, readOnly: true, items: { $ref: '#/RetainerAllocation' } }
+        allocated: { type: number, readOnly: true }
+        remaining: { type: number, readOnly: true }
+        status: { type: string, enum: [Open, Fully allocated, Reversed] }
+        reversedById: { type: string, readOnly: true }
+        reversalReason: { type: string, readOnly: true }
+
+RetainerAllocateRequest:
+  type: object
+  required: [invoiceId, amount]
+  properties:
+    invoiceId: { type: string, example: inv_01j8k3 }
+    amount: { type: number, example: 118000 }
+    date: { type: string, format: date }
+
+PeriodPosition:
+  type: object
+  required: [period, billed, recognized, cumBilled, cumRecognized, unbilled, deferred, adjustment, adjustmentType, basis]
+  properties:
+    period: { type: string, example: '2026-09' }
+    billed: { type: number }
+    recognized: { type: number }
+    cumBilled: { type: number }
+    cumRecognized: { type: number }
+    unbilled: { type: number }
+    deferred: { type: number }
+    adjustment: { type: number }
+    adjustmentType: { type: string, enum: [Accrual, Deferral, None] }
+    basis: { type: string, example: '340 of 800 budget hours (42.5%)' }
+    posted: { $ref: '#/RevenueSchedule' }
+
+RevenueSchedule:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [contractId, contractNumber, customerId, period, method, billed, recognized, cumBilled, cumRecognized, unbilled, deferred, reversed, adjustment, status, runAt, runBy]
+      properties:
+        contractId: { type: string }
+        contractNumber: { type: string }
+        projectId: { type: string }
+        customerId: { type: string }
+        period: { type: string }
+        method: { $ref: '#/BillingMethod' }
+        billed: { type: number }
+        recognized: { type: number }
+        cumBilled: { type: number }
+        cumRecognized: { type: number }
+        unbilled: { type: number }
+        deferred: { type: number }
+        reversed: { type: number }
+        journalId: { type: string }
+        journalNumber: { type: string }
+        adjustmentType: { type: string, enum: [Accrual, Deferral, None] }
+        adjustment: { type: number }
+        reversalJournalId: { type: string }
+        reversalJournalNumber: { type: string }
+        status: { type: string, enum: [Posted, Reversed] }
+        runAt: { type: string, format: date-time }
+        runBy: { type: string }
+        idempotencyKey: { type: string }
+        reversedById: { type: string }
+        reversalReason: { type: string }
+
+RevenueRunRequest:
+  type: object
+  required: [period]
+  properties:
+    period: { type: string, example: '2026-09' }
+    contractIds: { type: array, items: { type: string }, description: Omit for every Active / Completed contract. }
+
+RevenueRunResult:
+  type: object
+  required: [period, rows, errors]
+  properties:
+    period: { type: string }
+    rows: { type: array, items: { $ref: '#/RevenueSchedule' } }
+    errors: { type: array, items: { type: object, properties: { contractId: { type: string }, contractNumber: { type: string }, message: { type: string } } } }
+
+ProfitRow:
+  type: object
+  required: [key, label, revenue, billed, resourceCost, hours, purchases, expenses, overhead, cost, margin, marginPct, sources]
+  properties:
+    key: { type: string, example: prj_erp }
+    label: { type: string, example: Arlene ERP implementation }
+    sub: { type: string, example: Arlene Traders }
+    projectId: { type: string }
+    customerId: { type: string }
+    revenue: { type: number }
+    billed: { type: number }
+    resourceCost: { type: number }
+    hours: { type: number }
+    purchases: { type: number }
+    expenses: { type: number }
+    overhead: { type: number }
+    cost: { type: number }
+    margin: { type: number }
+    marginPct: { type: number }
+    sources: { type: array, items: { type: object, properties: { type: { type: string }, ref: { type: string }, label: { type: string }, amount: { type: number }, link: { type: string } } } }
+
+ProjectsSettings:
+  type: object
+  properties:
+    prjOverheadPct: { type: number, example: 12 }
+    prjDefaultRateCardId: { type: string, example: rc_std }
+    prjWeekStart: { type: string, enum: [Mon, Sun] }
+    prjTimesheetApproval: { type: boolean, example: true }
+    prjRevenueMethodDefault: { $ref: '#/RevenueMethod' }
+    prjDefaultServiceItemId: { type: string, example: item_consult }
+    prjExpenseMarkupPct: { type: number, example: 10 }
+    prjRetainerAutoApply: { type: boolean, example: true }
+    prjContractApproval: { type: boolean, example: true }

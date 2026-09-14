@@ -1,0 +1,161 @@
+# Sales payloads. Shared line/totals shapes reused across create / get / post examples.
+
+SalesInvoiceDraft:
+  summary: Draft invoice (number not yet allocated)
+  value:
+    id: inv_01j9a0
+    companyId: co_acme
+    number: DRAFT-8830
+    docType: Sales Invoice
+    date: '2026-09-13'
+    dueDate: '2026-10-13'
+    branchId: br_ho
+    status: Draft
+    currency: INR
+    rate: 1
+    partyType: Customer
+    partyId: cust_arlene
+    partyName: Arlene Traders
+    reference: PO-ARL-2291
+    lines:
+      - { id: ln_1, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, hsn: '7214', qty: 1000, uom: KG, rate: 58, listRate: 58, priceListName: Wholesale INR, discountPct: 0, discountAmt: 0, taxable: 58000, taxRateId: tax_gst18, taxRate: 18, taxAmt: 10440, taxComponents: { CGST: 5220, SGST: 5220 }, amount: 68440, warehouseId: wh_main, batch: B-2409-07 }
+      - { id: ln_2, itemId: item_crate, itemCode: CRT-TEA, itemName: Tea Crate, hsn: '4415', qty: 100, uom: NOS, rate: 420, listRate: 450, priceListName: Wholesale INR, overrideReason: Negotiated annual contract, discountPct: 0, discountAmt: 0, taxable: 42000, taxRateId: tax_gst12, taxRate: 12, taxAmt: 5040, taxComponents: { CGST: 2520, SGST: 2520 }, amount: 47040, warehouseId: wh_main }
+    totals: { subtotal: 100000, discount: 0, taxable: 100000, tax: 15480, components: { CGST: 7740, SGST: 7740 }, breakup: [{ component: CGST, rate: 9, hsn: '7214', taxable: 58000, tax: 5220 }, { component: SGST, rate: 9, hsn: '7214', taxable: 58000, tax: 5220 }, { component: CGST, rate: 6, hsn: '4415', taxable: 42000, tax: 2520 }, { component: SGST, rate: 6, hsn: '4415', taxable: 42000, tax: 2520 }], charges: 0, tds: 0, roundOff: 0, total: 115480, paid: 0, credited: 0, writtenOff: 0, due: 115480, baseTotal: 115480 }
+    placeOfSupply: Maharashtra
+    placeOfSupplyCode: '27'
+    paymentTerms: Net 30
+    priceListId: pl_wholesale
+    salespersonId: sp_vikram
+    roundTotal: true
+    fy: '2026-27'
+    period: '2026-09'
+    correlationId: corr_x
+    createdAt: '2026-09-13T09:30:00Z'
+    updatedAt: '2026-09-13T09:30:00Z'
+    version: 1
+
+SalesInvoicePosted:
+  summary: Posted invoice with e-invoice accepted and open item
+  value:
+    id: inv_01j8k3
+    companyId: co_acme
+    number: INV/2026-27/00042
+    docType: Sales Invoice
+    date: '2026-09-13'
+    dueDate: '2026-10-13'
+    branchId: br_ho
+    status: Posted
+    currency: INR
+    rate: 1
+    partyType: Customer
+    partyId: cust_arlene
+    partyName: Arlene Traders
+    partySnapshot: { name: Arlene Traders, gstin: 27AAPFU0939F1ZV, pan: AAPFU0939F, taxTreatment: Registered, state: Maharashtra, stateCode: '27', billingAddress: { line1: 21 Lamington Road, city: Mumbai, state: Maharashtra, stateCode: '27', pin: '400007', country: IN }, paymentTerms: Net 30, priceListName: Wholesale INR, currency: INR }
+    reference: PO-ARL-2291
+    sourceType: Sales Order
+    sourceId: so_00087
+    sourceNumber: SO/2026-27/00087
+    lines:
+      - { id: ln_1, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, hsn: '7214', qty: 1000, uom: KG, rate: 58, listRate: 58, priceListName: Wholesale INR, discountPct: 0, discountAmt: 0, taxable: 58000, taxRateId: tax_gst18, taxRate: 18, taxAmt: 10440, taxComponents: { CGST: 5220, SGST: 5220 }, amount: 68440, warehouseId: wh_main, batch: B-2409-07, sourceLineId: ln_so_1, sourceDocId: so_00087, sourceQty: 1000 }
+      - { id: ln_2, itemId: item_crate, itemCode: CRT-TEA, itemName: Tea Crate, hsn: '4415', qty: 100, uom: NOS, rate: 420, listRate: 450, priceListName: Wholesale INR, overrideReason: Negotiated annual contract, discountPct: 0, discountAmt: 0, taxable: 42000, taxRateId: tax_gst12, taxRate: 12, taxAmt: 5040, taxComponents: { CGST: 2520, SGST: 2520 }, amount: 47040, warehouseId: wh_main, sourceLineId: ln_so_2, sourceDocId: so_00087, sourceQty: 100 }
+    totals: { subtotal: 100000, discount: 0, taxable: 100000, tax: 15480, components: { CGST: 7740, SGST: 7740 }, breakup: [{ component: CGST, rate: 9, hsn: '7214', taxable: 58000, tax: 5220 }, { component: SGST, rate: 9, hsn: '7214', taxable: 58000, tax: 5220 }, { component: CGST, rate: 6, hsn: '4415', taxable: 42000, tax: 2520 }, { component: SGST, rate: 6, hsn: '4415', taxable: 42000, tax: 2520 }], charges: 0, tds: 0, roundOff: 0, total: 115480, paid: 0, credited: 0, writtenOff: 0, due: 115480, baseTotal: 115480 }
+    placeOfSupply: Maharashtra
+    placeOfSupplyCode: '27'
+    paymentTerms: Net 30
+    priceListId: pl_wholesale
+    salespersonId: sp_vikram
+    roundTotal: true
+    journalId: jnl_01j8k4
+    journalNumber: JV/2026-27/00311
+    openItemId: oi_2
+    postedAt: '2026-09-13T09:12:04Z'
+    postedBy: Rahul Mehta
+    approvalId: apr_6c1d
+    statutory: { irn: 35054cc24d97033afc24f49ec4444dbab81f542c999a4f3f4e7a6f6a4a5b1c2d, ackNo: '112010036563789', ackDate: '2026-09-13T09:12:10Z', eInvoiceStatus: Accepted, eInvoiceSubmittedAt: '2026-09-13T09:12:05Z', ewbStatus: Pending }
+    templateId: tpl_taxinv_v3
+    templateVersion: 3
+    fy: '2026-27'
+    period: '2026-09'
+    idempotencyKey: 'inv:inv_01j8k3:post'
+    correlationId: corr_9f1c2e7a
+    overdueDays: 0
+    canReverse: true
+    createdAt: '2026-09-12T15:02:00Z'
+    updatedAt: '2026-09-13T09:12:10Z'
+    version: 7
+
+SalesInvoiceUsd:
+  summary: Posted USD export invoice (zero-rated, FX rate captured)
+  value:
+    id: inv_01j8u7
+    companyId: co_acme
+    number: INV/2026-27/00043
+    docType: Sales Invoice
+    date: '2026-09-13'
+    dueDate: '2026-10-28'
+    branchId: br_ho
+    status: Posted
+    currency: USD
+    rate: 83.42
+    rateType: Closing
+    rateSource: 'RBI reference rate 2026-09-12'
+    partyType: Customer
+    partyId: cust_ustech
+    partyName: US Tech Imports LLC
+    partySnapshot: { name: US Tech Imports LLC, taxTreatment: Overseas, billingAddress: { line1: 500 Market St, city: San Francisco, state: CA, pin: '94105', country: US }, paymentTerms: Net 45, priceListName: Export USD, currency: USD }
+    reference: USTI-PO-3310
+    lines:
+      - { id: ln_1, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, hsn: '7214', qty: 5000, uom: KG, rate: 0.72, listRate: 0.72, priceListName: Export USD, discountPct: 0, discountAmt: 0, taxable: 3600, taxRateId: tax_export, taxRate: 0, taxAmt: 0, taxComponents: {}, taxTreatment: Overseas, amount: 3600, warehouseId: wh_main, batch: B-2409-07 }
+    totals: { subtotal: 3600, discount: 0, taxable: 3600, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 3600, paid: 0, credited: 0, writtenOff: 0, due: 3600, baseTotal: 300312 }
+    placeOfSupply: Other Territory
+    placeOfSupplyCode: '96'
+    paymentTerms: Net 45
+    priceListId: pl_usd
+    roundTotal: false
+    journalId: jnl_01j8u8
+    journalNumber: JV/2026-27/00313
+    openItemId: oi_9
+    postedAt: '2026-09-13T10:00:00Z'
+    postedBy: Rahul Mehta
+    statutory: { eInvoiceStatus: Pending, ewbStatus: Not Applicable }
+    fy: '2026-27'
+    period: '2026-09'
+    idempotencyKey: 'inv:inv_01j8u7:post'
+    correlationId: corr_u7
+    overdueDays: 0
+    canReverse: true
+    createdAt: '2026-09-13T09:50:00Z'
+    updatedAt: '2026-09-13T10:00:00Z'
+    version: 3
+
+SalesInvoiceReversed:
+  summary: Reversed invoice (original)
+  value: { id: inv_00035, companyId: co_acme, number: INV/2026-27/00035, docType: Sales Invoice, date: '2026-08-28', dueDate: '2026-09-27', branchId: br_ho, status: Reversed, currency: INR, rate: 1, partyType: Customer, partyId: cust_vimal, partyName: Vimal Stores, lines: [{ id: ln_1, itemId: item_chai, itemCode: TEA-CHAI, itemName: Masala Chai 250g, hsn: '0902', qty: 200, uom: NOS, rate: 150, discountPct: 0, discountAmt: 0, taxable: 30000, taxRateId: tax_gst5, taxRate: 5, taxAmt: 1500, taxComponents: { CGST: 750, SGST: 750 }, amount: 31500, warehouseId: wh_main }], totals: { subtotal: 30000, discount: 0, taxable: 30000, tax: 1500, components: { CGST: 750, SGST: 750 }, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 31500, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 31500 }, journalId: jnl_00280, journalNumber: JV/2026-27/00280, reversedById: inv_00051, reversalReason: Raised against the wrong customer account — re-issued as INV/2026-27/00052, postedAt: '2026-08-28T10:00:00Z', postedBy: Rahul Mehta, fy: '2026-27', period: '2026-08', correlationId: corr_35, overdueDays: 0, canReverse: false, reverseBlockReason: Invoice is Reversed, createdAt: '2026-08-28T09:00:00Z', updatedAt: '2026-09-02T10:00:00Z', version: 5 }
+
+QuotationSent:
+  summary: Quotation sent to the customer
+  value: { id: qt_00031, companyId: co_acme, number: QT/2026-27/00031, docType: Quotation, date: '2026-09-01', validUntil: '2026-09-15', branchId: br_ho, status: Sent, currency: INR, rate: 1, partyType: Customer, partyId: cust_sunrise, partyName: Sunrise Hotels, lines: [{ id: ln_q1, itemId: item_assam, itemCode: TEA-ASSAM, itemName: Assam CTC 1kg, hsn: '0902', qty: 500, uom: NOS, rate: 380, discountPct: 5, discountAmt: 9500, taxable: 180500, taxRateId: tax_gst5, taxRate: 5, taxAmt: 9025, taxComponents: { CGST: 4512.5, SGST: 4512.5 }, amount: 189525 }], totals: { subtotal: 190000, discount: 9500, taxable: 180500, tax: 9025, components: { CGST: 4512.5, SGST: 4512.5 }, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 189525, paid: 0, credited: 0, writtenOff: 0, due: 189525, baseTotal: 189525 }, salespersonId: sp_priya, sentAt: '2026-09-01T11:00:00Z', sentTo: purchase@sunrisehotels.example, leadId: lead_sunrise, revision: 1, fy: '2026-27', period: '2026-09', correlationId: corr_q31, createdAt: '2026-09-01T10:00:00Z', updatedAt: '2026-09-01T11:00:00Z', version: 3 }
+
+SalesOrderConfirmed:
+  summary: Confirmed order with reservations, partially delivered
+  value: { id: so_00087, companyId: co_acme, number: SO/2026-27/00087, docType: Sales Order, date: '2026-09-08', branchId: br_ho, status: Partially Delivered, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, reference: PO-ARL-2291, expectedDate: '2026-09-20', warehouseId: wh_main, lines: [{ id: ln_so_1, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, hsn: '7214', qty: 1000, uom: KG, rate: 58, discountPct: 0, discountAmt: 0, taxable: 58000, taxRateId: tax_gst18, taxRate: 18, taxAmt: 10440, taxComponents: { CGST: 5220, SGST: 5220 }, amount: 68440, warehouseId: wh_main, reservedQty: 1000, deliveredQty: 1000, invoicedQty: 1000 }, { id: ln_so_2, itemId: item_crate, itemCode: CRT-TEA, itemName: Tea Crate, hsn: '4415', qty: 120, uom: NOS, rate: 420, discountPct: 0, discountAmt: 0, taxable: 50400, taxRateId: tax_gst12, taxRate: 12, taxAmt: 6048, taxComponents: { CGST: 3024, SGST: 3024 }, amount: 56448, warehouseId: wh_main, reservedQty: 80, deliveredQty: 100, invoicedQty: 100 }], totals: { subtotal: 108400, discount: 0, taxable: 108400, tax: 16488, components: { CGST: 8244, SGST: 8244 }, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 124888, paid: 0, credited: 0, writtenOff: 0, due: 124888, baseTotal: 124888 }, confirmedAt: '2026-09-08T12:00:00Z', confirmedBy: Priya Sharma, reservationExpiry: '2026-09-22', creditCheck: { ok: true, mode: Warn, exposure: 245000, limit: 500000, at: '2026-09-08T12:00:00Z' }, quantities: { ordered: 1120, reserved: 80, delivered: 1100, invoiced: 1100, pending: 20 }, fy: '2026-27', period: '2026-09', correlationId: corr_so87, createdAt: '2026-09-08T10:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 8 }
+
+DeliveryPosted:
+  summary: Posted delivery challan against an order
+  value: { id: dlv_00340, companyId: co_acme, number: DC/2026-27/00340, docType: Delivery, date: '2026-09-10', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, sourceType: Sales Order, sourceId: so_00087, sourceNumber: SO/2026-27/00087, warehouseId: wh_main, vehicleNo: MH02AB1234, transporter: Speedy Transport Co, lines: [{ id: ln_d1, itemId: item_crate, itemCode: CRT-TEA, itemName: Tea Crate, hsn: '4415', qty: 100, uom: NOS, rate: 420, discountPct: 0, discountAmt: 0, taxable: 42000, taxRateId: tax_gst12, taxRate: 12, taxAmt: 5040, taxComponents: { CGST: 2520, SGST: 2520 }, amount: 47040, warehouseId: wh_main, sourceLineId: ln_so_2, sourceDocId: so_00087, sourceQty: 120, invoicedQty: 100 }], totals: { subtotal: 42000, discount: 0, taxable: 42000, tax: 5040, components: { CGST: 2520, SGST: 2520 }, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 47040, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 47040 }, invoiced: true, journalId: jnl_00301, journalNumber: JV/2026-27/00301, postedAt: '2026-09-10T15:00:00Z', postedBy: Suresh Patel, statutory: { ewbNo: '271000123456', ewbStatus: Generated, ewbValidUpto: '2026-09-12T23:59:00Z', vehicleNo: MH02AB1234, distanceKm: 120 }, fy: '2026-27', period: '2026-09', correlationId: corr_d340, createdAt: '2026-09-10T14:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 5 }
+
+CreditNotePosted:
+  summary: Posted credit note with goods return, partly unapplied
+  value: { id: cn_00012, companyId: co_acme, number: CN/2026-27/00012, docType: Credit Note, date: '2026-09-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, invoiceId: inv_01j8k3, invoiceNumber: INV/2026-27/00042, reasonCode: RET-DMG, reasonText: 20 crates damaged in transit — accepted back, goodsReturn: true, returnWarehouseId: wh_main, lines: [{ id: ln_c1, itemId: item_crate, itemCode: CRT-TEA, itemName: Tea Crate, hsn: '4415', qty: 20, uom: NOS, rate: 420, discountPct: 0, discountAmt: 0, taxable: 8400, taxRateId: tax_gst12, taxRate: 12, taxAmt: 1008, taxComponents: { CGST: 504, SGST: 504 }, amount: 9408, warehouseId: wh_main, sourceLineId: ln_2, sourceDocId: inv_01j8k3 }], totals: { subtotal: 8400, discount: 0, taxable: 8400, tax: 1008, components: { CGST: 504, SGST: 504 }, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 9408, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 9408 }, allocated: 9408, unapplied: 0, salesReturnId: sret_0012, journalId: jnl_01j8m1, journalNumber: JV/2026-27/00318, postedAt: '2026-09-13T12:00:00Z', postedBy: Rahul Mehta, statutory: { eInvoiceStatus: Pending, ewbStatus: Not Applicable }, fy: '2026-27', period: '2026-09', correlationId: corr_cn12, createdAt: '2026-09-13T11:30:00Z', updatedAt: '2026-09-13T12:00:00Z', version: 4 }
+
+ReceiptPosted:
+  summary: Posted NEFT receipt fully allocated
+  value: { id: rcp_00210, companyId: co_acme, number: RCP/2026-27/00210, docType: Receipt, date: '2026-09-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, method: NEFT, reference: UTR N246509132, bankAccountId: acc_1310, amount: 50000, charges: 0, tds: 0, allocations: [{ openItemId: oi_1, docId: inv_00031, docNumber: INV/2026-27/00031, amount: 50000 }], unapplied: 0, totals: { subtotal: 50000, discount: 0, taxable: 50000, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 50000, paid: 50000, credited: 0, writtenOff: 0, due: 0, baseTotal: 50000 }, journalId: jnl_01j8n2, journalNumber: JV/2026-27/00320, fxGainLoss: 0, postedAt: '2026-09-13T13:00:00Z', postedBy: Anita Rao, lines: [], correlationId: corr_r210, createdAt: '2026-09-13T12:50:00Z', updatedAt: '2026-09-13T13:00:00Z', version: 3 }
+
+ReceiptAdvance:
+  summary: Posted receipt with TDS and unapplied advance
+  value: { id: rcp_00211, companyId: co_acme, number: RCP/2026-27/00211, docType: Receipt, date: '2026-09-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: Customer, partyId: cust_globaltech, partyName: GlobalTech Solutions, method: Bank, reference: RTGS GT-8812, bankAccountId: acc_1310, amount: 200000, charges: 250, tds: 4000, allocations: [{ openItemId: oi_5, docId: inv_00038, docNumber: INV/2026-27/00038, amount: 150000 }], unapplied: 45750, advanceOpenItemId: oi_adv_3, totals: { subtotal: 200000, discount: 0, taxable: 200000, tax: 0, components: {}, breakup: [], charges: 250, tds: 4000, roundOff: 0, total: 200000, paid: 150000, credited: 0, writtenOff: 0, due: 0, baseTotal: 200000 }, journalId: jnl_01j8n3, journalNumber: JV/2026-27/00321, fxGainLoss: 0, postedAt: '2026-09-13T13:10:00Z', postedBy: Anita Rao, lines: [], correlationId: corr_r211, createdAt: '2026-09-13T13:05:00Z', updatedAt: '2026-09-13T13:10:00Z', version: 2 }
+
+ReceiptUsdFx:
+  summary: USD receipt settling a USD invoice at a different rate (realised FX)
+  value: { id: rcp_00212, companyId: co_acme, number: RCP/2026-27/00212, docType: Receipt, date: '2026-09-30', branchId: br_ho, status: Posted, currency: USD, rate: 83.9, rateType: Closing, rateSource: 'RBI reference rate 2026-09-29', partyType: Customer, partyId: cust_ustech, partyName: US Tech Imports LLC, method: Bank, reference: SWIFT REF 77A1, bankAccountId: acc_1340, amount: 3600, charges: 25, tds: 0, allocations: [{ openItemId: oi_9, docId: inv_01j8u7, docNumber: INV/2026-27/00043, amount: 3575 }], unapplied: 0, totals: { subtotal: 3600, discount: 0, taxable: 3600, tax: 0, components: {}, breakup: [], charges: 25, tds: 0, roundOff: 0, total: 3600, paid: 3575, credited: 0, writtenOff: 0, due: 0, baseTotal: 302040 }, journalId: jnl_01j9z1, journalNumber: JV/2026-27/00360, fxGainLoss: 1716, postedAt: '2026-09-30T10:00:00Z', postedBy: Anita Rao, lines: [], correlationId: corr_r212, createdAt: '2026-09-30T09:50:00Z', updatedAt: '2026-09-30T10:00:00Z', version: 2 }

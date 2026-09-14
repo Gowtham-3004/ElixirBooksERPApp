@@ -1,0 +1,140 @@
+# CRM (src/modules/crm/types.ts)
+
+LeadStage:
+  type: string
+  enum: [New, Qualified, Proposal, Won, Lost]
+
+LeadInput:
+  type: object
+  properties:
+    name: { type: string, description: Opportunity name., example: Q3 steel supply — Metro Infra }
+    company: { type: string, example: Metro Infra Projects Ltd }
+    contactName: { type: string, example: Rakesh Jain }
+    email: { type: string, format: email, example: rakesh@metroinfra.example }
+    phone: { type: string, example: '+91 98765 43210' }
+    city: { type: string, example: Navi Mumbai }
+    stateCode: { type: string, example: '27' }
+    source: { type: string, enum: [Website, Referral, Trade show, Cold call, Partner, Inbound email, Existing customer] }
+    value: { type: number, example: 850000 }
+    probability: { type: number, minimum: 0, maximum: 100, example: 40 }
+    ownerId: { type: string, example: usr_vikram }
+    expectedClose: { type: string, format: date, example: '2026-10-15' }
+    nextStep: { type: string, example: Send revised quotation }
+    notes: { type: string }
+    tags: { type: array, items: { type: string }, example: [infra, steel] }
+
+LeadPatch:
+  allOf:
+    - $ref: '#/LeadInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+Lead:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/LeadInput'
+    - type: object
+      required: [name, company, source, stage, value, probability, ownerName]
+      properties:
+        stage: { $ref: '#/LeadStage', readOnly: true }
+        ownerName: { type: string, readOnly: true, example: Vikram Nair }
+        customerId: { type: string, readOnly: true, description: Set on convert. }
+        quotationId: { type: string, readOnly: true }
+        quotationNumber: { type: string, readOnly: true, example: QT/2026-27/00031 }
+        lostReason: { type: string, readOnly: true }
+        wonAt: { type: string, format: date-time, readOnly: true }
+        lostAt: { type: string, format: date-time, readOnly: true }
+
+LeadMoveStage:
+  type: object
+  required: [stage]
+  properties:
+    stage: { $ref: '#/LeadStage' }
+    lostReason: { type: string, description: Required when stage = Lost. }
+    note: { type: string }
+
+LeadConvertRequest:
+  type: object
+  description: Marks the lead Won and creates (or links) a customer, optionally with a draft quotation.
+  properties:
+    customerId: { type: string, description: Link to an existing customer instead of creating one. }
+    customer: { $ref: './masters.yaml#/CustomerInput' }
+    createQuotation: { type: boolean, default: true }
+    quotationLines: { type: array, items: { $ref: './document.yaml#/DocLineInput' } }
+
+LeadConvertResult:
+  type: object
+  required: [lead, customer]
+  properties:
+    lead: { $ref: '#/Lead' }
+    customer: { $ref: './masters.yaml#/Customer' }
+    quotation: { type: object, additionalProperties: true, description: Draft quotation (see Sales › Quotation). }
+
+ActivityInput:
+  type: object
+  properties:
+    type: { type: string, enum: [Call, Meeting, Email, Note, Follow-up, Promise to pay, Reminder] }
+    subject: { type: string, example: Follow up on overdue INV/2026-27/00031 }
+    notes: { type: string }
+    customerId: { type: string, example: cust_arlene }
+    leadId: { type: string }
+    invoiceId: { type: string, example: inv_00031 }
+    dueAt: { type: string, format: date-time, example: '2026-09-16T10:00:00Z' }
+    ownerId: { type: string, example: usr_priya }
+    promiseAmount: { type: number, description: For Promise to pay., example: 50000 }
+    promiseDate: { type: string, format: date, example: '2026-09-20' }
+    channel: { type: string, enum: [in-app, email, sms] }
+
+ActivityPatch:
+  allOf:
+    - $ref: '#/ActivityInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+Activity:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/ActivityInput'
+    - type: object
+      required: [type, subject, status, ownerName]
+      properties:
+        status: { type: string, enum: [Open, Done, Cancelled], readOnly: true }
+        ownerName: { type: string, readOnly: true }
+        customerName: { type: string, readOnly: true }
+        leadName: { type: string, readOnly: true }
+        invoiceNumber: { type: string, readOnly: true }
+        doneAt: { type: string, format: date-time, readOnly: true }
+        outcome: { type: string, readOnly: true }
+        overdue: { type: boolean, readOnly: true }
+
+ActivityComplete:
+  type: object
+  properties:
+    outcome: { type: string, example: Customer promised payment by 20 Sep }
+    followUp: { $ref: '#/ActivityInput', description: Optionally create the next activity in the same call. }
+
+Customer360:
+  type: object
+  required: [customer, exposure, openItems, recentDocuments, activities]
+  properties:
+    customer: { $ref: './masters.yaml#/Customer' }
+    exposure: { $ref: './masters.yaml#/PartyOutstanding' }
+    openItems: { type: array, items: { $ref: './document.yaml#/OpenItem' } }
+    recentDocuments:
+      type: array
+      items:
+        type: object
+        properties:
+          collection: { type: string, example: salesInvoices }
+          id: { type: string }
+          number: { type: string }
+          date: { type: string, format: date }
+          status: { type: string }
+          total: { type: number }
+    activities: { type: array, items: { $ref: '#/Activity' } }
+    leads: { type: array, items: { $ref: '#/Lead' } }
+    kpis:
+      type: object
+      properties:
+        lifetimeRevenue: { type: number, example: 4820000 }
+        avgDaysToPay: { type: number, example: 34 }
+        openOrders: { type: integer, example: 2 }
+        lastInvoiceAt: { type: string, format: date }

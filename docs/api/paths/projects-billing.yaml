@@ -1,0 +1,1226 @@
+# Projects & contracts — part 2 (tag: Projects). Timesheets, billable expenses, milestones, usage, billing runs, retainers, revenue recognition, profitability, settings.
+
+# ── timesheets ────────────────────────────────────────────────────────────
+
+/projects/timesheets:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Projects]
+    summary: Weekly timesheets
+    description: "Tabs → Mine (`mine=true`) · Awaiting approval · Approved (unbilled) · Invoiced · All. Query examples — `?employeeId=emp_neha` · `?projectId=prj_erp` · `?weekStart=2026-09-07`."
+    operationId: listTimesheets
+    x-permission: projects.timesheet.view
+    x-frd: [FR-SRV-003]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: mine, in: query, schema: { type: boolean } }
+      - $ref: '../components/parameters.yaml#/EmployeeId'
+      - $ref: '../components/parameters.yaml#/ProjectId'
+      - { name: weekStart, in: query, schema: { type: string, format: date } }
+    responses:
+      '200':
+        description: Timesheets
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/projects.yaml#/Timesheet' } }
+            examples:
+              firstPage: { summary: Timesheets, value: { data: [{ $ref: '#/components/examples/TimesheetApproved/value' }], meta: { nextCursor: null, limit: 25, total: 1, counts: { Mine: 2, 'Awaiting approval': 3, Approved: 5, Invoiced: 40, All: 52 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Projects]
+    summary: Create a timesheet (Draft)
+    operationId: createTimesheet
+    x-permission: projects.timesheet.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/projects.yaml#/TimesheetCreate' }
+          examples:
+            week: { summary: "One project, one task", value: { weekStart: '2026-09-07', rows: [{ projectId: prj_erp, task: Requirement workshops, hours: [8, 8, 6, 8, 4, 0, 0], billable: true, serviceId: svc_cons }] } }
+            mixed: { summary: Billable + internal rows, value: { weekStart: '2026-09-07', rows: [{ projectId: prj_erp, task: Build — GL module, hours: [6, 6, 6, 6, 6, 0, 0], billable: true }, { projectId: prj_internal, task: Training, hours: [2, 2, 2, 2, 2, 0, 0], billable: false, notes: Internal enablement }] } }
+    responses:
+      '201':
+        description: Draft
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Timesheet' }
+            examples:
+              draft: { summary: Draft, value: { id: ts_0218, companyId: co_acme, number: TS/2026-27/00218, docType: Timesheet, employeeId: emp_neha, employeeName: Neha Rao, weekStart: '2026-09-07', rows: [{ id: tr_1, projectId: prj_erp, task: Requirement workshops, hours: [8, 8, 6, 8, 4, 0, 0], billable: true, serviceId: svc_cons }], totalHours: 34, billableHours: 34, status: Draft, branchId: br_ho, source: Web, value: 204000, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Duplicate week
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              duplicate: { summary: Week already exists, value: { code: DUPLICATE, message: A timesheet for the week of 7 Sep already exists (TS/2026-27/00218), details: { timesheetId: ts_0218 }, correlationId: corr_9f1c2e7a } }
+      '422':
+        description: Validation (validateTimesheet)
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              dayLimit: { summary: More than 24 h in a day, value: { code: VALIDATION, message: 'Tue: 26 hours across rows exceeds 24', field: 'rows[1].hours[1]', correlationId: corr_9f1c2e7a } }
+              inactiveProject: { summary: Project not active, value: { code: VALIDATION, message: Project PRJ-OLD is Completed — pick an active project, field: 'rows[0].projectId', correlationId: corr_9f1c2e7a } }
+
+/projects/timesheets/import:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Projects]
+    summary: Import timesheets from CSV (dry-run → commit)
+    operationId: importTimesheets
+    x-permission: projects.timesheet.create
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [file]
+            properties:
+              file: { type: string, format: binary, description: "employeeCode, weekStart, projectCode, task, mon..sun, billable" }
+              dryRun: { type: boolean, default: true }
+              submit: { type: boolean, default: false, description: Submit imported sheets immediately. }
+          examples:
+            dryRun: { summary: Validate, value: { dryRun: true } }
+            commit: { summary: Import and submit, value: { dryRun: false, submit: true } }
+    responses:
+      '200':
+        description: Dry-run
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/ImportJob' }
+            examples:
+              dryRun: { $ref: '../components/examples/masters.yaml#/ImportDryRun' }
+      '201':
+        description: Committed
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/ImportJob' }
+            examples:
+              committed: { $ref: '../components/examples/masters.yaml#/ImportCommitted' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '413': { $ref: '../components/responses.yaml#/PayloadTooLarge' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/projects/timesheets/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Projects]
+    summary: Get a timesheet
+    operationId: getTimesheet
+    x-permission: projects.timesheet.view
+    responses:
+      '200':
+        description: Timesheet
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Timesheet' }
+            examples:
+              approved: { $ref: '../components/examples/projects.yaml#/TimesheetApproved' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Projects]
+    summary: Edit a Draft / Returned / Rejected timesheet
+    operationId: updateTimesheet
+    x-permission: projects.timesheet.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/projects.yaml#/TimesheetPatch' }
+          examples:
+            rows: { summary: Replace rows, value: { expectedVersion: 1, rows: [{ id: tr_1, projectId: prj_erp, task: Requirement workshops, hours: [8, 8, 8, 8, 8, 0, 0], billable: true }] } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Timesheet' }
+            examples:
+              updated: { summary: Updated, value: { id: ts_0218, companyId: co_acme, number: TS/2026-27/00218, docType: Timesheet, employeeId: emp_neha, employeeName: Neha Rao, weekStart: '2026-09-07', rows: [{ id: tr_1, projectId: prj_erp, task: Requirement workshops, hours: [8, 8, 8, 8, 8, 0, 0], billable: true }], totalHours: 40, billableHours: 40, status: Draft, branchId: br_ho, source: Web, value: 240000, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T10:00:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Projects]
+    summary: Delete a Draft timesheet
+    operationId: deleteTimesheet
+    x-permission: projects.timesheet.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/projects/timesheets/{id}/submit:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Projects]
+    summary: Submit ('Timesheet' workflow; auto-approves when `prjTimesheetApproval` is off)
+    operationId: submitTimesheet
+    x-permission: projects.timesheet.submit
+    x-idempotent: true
+    x-workflow-doc-type: Timesheet
+    x-events: [DocumentSubmitted, DocumentApproved]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Outcome
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/projects.yaml#/Timesheet' }
+                    outcome: { type: string, enum: [routed-for-approval, approved] }
+            examples:
+              routed: { summary: outcome = routed-for-approval, value: { document: { id: ts_0218, companyId: co_acme, number: TS/2026-27/00218, docType: Timesheet, employeeId: emp_neha, employeeName: Neha Rao, weekStart: '2026-09-07', rows: [], totalHours: 34, billableHours: 34, status: Submitted, branchId: br_ho, approvalId: apr_ts_218, submittedAt: '2026-09-13T09:30:00Z', submittedBy: Neha Rao, source: Web, value: 204000, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:30:00Z', version: 2 }, outcome: routed-for-approval, approval: { id: apr_ts_218, companyId: co_acme, docType: Timesheet, collection: timesheets, docId: ts_0218, docNumber: TS/2026-27/00218, amount: 204000, currency: INR, branchId: br_ho, requesterId: usr_neha, requesterName: Neha Rao, steps: [{ order: 1, name: Project manager, approverType: User, approverRef: usr_priya, approverLabel: Priya Sharma, status: Pending, commentRequired: false }], currentStep: 0, status: Pending, submittedAt: '2026-09-13T09:30:00Z', history: [], createdAt: '2026-09-13T09:30:00Z', updatedAt: '2026-09-13T09:30:00Z', version: 1 }, warnings: [] } }
+              approved: { summary: outcome = approved (approval disabled), value: { document: { $ref: '#/components/examples/TimesheetApproved/value' }, outcome: approved, warnings: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/projects/timesheets/{id}/act:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Projects]
+    summary: Approve / reject / return / recall
+    operationId: actOnTimesheet
+    x-permission: projects.timesheet.approve
+    x-events: [DocumentApproved, DocumentRejected]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/projects.yaml#/TimesheetAction' }
+          examples:
+            approve: { summary: Approve, value: { action: Approve } }
+            reject: { summary: Reject, value: { action: Reject, comment: Friday hours belong to PRJ-INT } }
+            return: { summary: Return for changes, value: { action: Return, comment: Add task notes } }
+            recall: { summary: Recall (requester), value: { action: Recall } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Timesheet' }
+            examples:
+              approved: { $ref: '../components/examples/projects.yaml#/TimesheetApproved' }
+              rejected: { summary: Rejected, value: { id: ts_0218, companyId: co_acme, number: TS/2026-27/00218, docType: Timesheet, employeeId: emp_neha, employeeName: Neha Rao, weekStart: '2026-09-07', rows: [], totalHours: 34, billableHours: 34, status: Rejected, branchId: br_ho, approvalId: apr_ts_218, rejectedAt: '2026-09-13T11:00:00Z', rejectionReason: Friday hours belong to PRJ-INT, source: Web, value: 204000, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T11:00:00Z', version: 3 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: No pending request
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              none: { summary: Nothing pending, value: { code: INVALID_STATE, message: No pending approval request for this timesheet, correlationId: corr_9f1c2e7a } }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/projects/timesheets/{id}/bill-now:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Projects]
+    summary: Bill an Approved timesheet immediately (single-contract billing run)
+    operationId: billTimesheetNow
+    x-permission: projects.billing.run
+    x-idempotent: true
+    x-events: [DocumentCreated]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { type: object, properties: { date: { type: string, format: date }, applyRetainer: { type: boolean, default: true } } }
+          examples:
+            today: { summary: Invoice dated today, value: { date: '2026-09-13' } }
+    responses:
+      '201':
+        description: Draft invoice created
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/BillingRun' }
+            examples:
+              run: { $ref: '../components/examples/projects.yaml#/BillingRunSep' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+# ── billable expenses ─────────────────────────────────────────────────────
+
+/projects/billable-expenses:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Projects]
+    summary: Approved claim lines and their billable status
+    description: "Tabs → Unflagged (`flagged=false`) · Ready · Invoiced · Excluded."
+    operationId: listBillableExpenses
+    x-permission: projects.billing.view
+    x-frd: [FR-SRV-003]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: flagged, in: query, schema: { type: boolean } }
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/ProjectId'
+    responses:
+      '200':
+        description: Lines
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/projects.yaml#/ClaimLineView' } }
+            examples:
+              rows: { summary: "One flagged, one not", value: { data: [{ claimId: exp_00031, claimNumber: EXP/2026-27/00031, lineId: el_1, employeeId: emp_priya, employeeName: Priya Sharma, date: '2026-09-10', description: Cab to client site, amount: 850, projectDim: dim_prj_erp, projectId: prj_erp, claimStatus: Approved, billable: { id: be_11, companyId: co_acme, claimId: exp_00031, claimNumber: EXP/2026-27/00031, lineId: el_1, employeeId: emp_priya, employeeName: Priya Sharma, projectId: prj_erp, contractId: ctr_0012, date: '2026-09-10', description: Cab to client site, amount: 850, markupPct: 10, billAmount: 935, status: Ready, createdAt: '2026-09-13T11:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 1 } }, { claimId: exp_00031, claimNumber: EXP/2026-27/00031, lineId: el_2, employeeId: emp_priya, employeeName: Priya Sharma, date: '2026-09-10', description: Hotel 1 night, amount: 4200, projectDim: dim_prj_erp, projectId: prj_erp, claimStatus: Approved }], meta: { nextCursor: null, limit: 25, total: 2, counts: { Unflagged: 1, Ready: 1, Invoiced: 12, Excluded: 2 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/projects/billable-expenses/mark-billable:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Projects]
+    summary: Flag a claim line as billable to a project (with markup)
+    operationId: markExpenseBillable
+    x-permission: projects.billing.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/projects.yaml#/MarkBillableRequest' }
+          examples:
+            markup: { summary: Default markup, value: { claimId: exp_00031, lineId: el_2, projectId: prj_erp } }
+            atCost: { summary: At cost, value: { claimId: exp_00031, lineId: el_2, projectId: prj_erp, markupPct: 0 } }
+    responses:
+      '201':
+        description: Flagged
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/BillableExpense' }
+            examples:
+              ready: { summary: Ready to bill, value: { id: be_12, companyId: co_acme, claimId: exp_00031, claimNumber: EXP/2026-27/00031, lineId: el_2, employeeId: emp_priya, employeeName: Priya Sharma, projectId: prj_erp, contractId: ctr_0012, date: '2026-09-10', description: Hotel 1 night, amount: 4200, markupPct: 10, billAmount: 4620, status: Ready, createdAt: '2026-09-13T11:05:00Z', updatedAt: '2026-09-13T11:05:00Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Already invoiced
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              invoiced: { summary: Invoiced, value: { code: INVALID_STATE, message: This expense is already invoiced, details: { invoiceNumber: INV/2026-27/00050 }, correlationId: corr_9f1c2e7a } }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/projects/billable-expenses/{id}/exclude:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Projects]
+    summary: Exclude from billing
+    operationId: excludeBillableExpense
+    x-permission: projects.billing.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Covered by fixed fee } }
+    responses:
+      '200':
+        description: Excluded
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/BillableExpense' }
+            examples:
+              excluded: { summary: Excluded, value: { id: be_12, companyId: co_acme, claimId: exp_00031, claimNumber: EXP/2026-27/00031, lineId: el_2, employeeId: emp_priya, employeeName: Priya Sharma, projectId: prj_erp, contractId: ctr_0012, date: '2026-09-10', description: Hotel 1 night, amount: 4200, markupPct: 10, billAmount: 4620, status: Excluded, createdAt: '2026-09-13T11:05:00Z', updatedAt: '2026-09-13T11:20:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── milestones ────────────────────────────────────────────────────────────
+
+/projects/milestones:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Projects]
+    summary: Milestones & instalments across contracts
+    description: Tabs → Pending · Achieved (unbilled) · Invoiced · Overdue (`overdue=true`).
+    operationId: listMilestones
+    x-permission: projects.billing.view
+    x-frd: [FR-SRV-004]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: contractId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/ProjectId'
+      - { name: overdue, in: query, schema: { type: boolean } }
+    responses:
+      '200':
+        description: Milestones
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/projects.yaml#/Milestone' } }
+            examples:
+              firstPage: { summary: Milestones, value: { data: [{ $ref: '#/components/examples/MilestoneAchieved/value' }, { id: ms_2, companyId: co_acme, contractId: ctr_0015, contractNumber: CTR/2026-27/00015, projectId: prj_erp, kind: Milestone, order: 2, name: Build complete, amount: 500000, due: '2026-11-30', status: Pending, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }], meta: { nextCursor: null, limit: 25, total: 2, counts: { Pending: 5, Achieved: 1, Invoiced: 3, Overdue: 0 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/projects/milestones/{id}/achieve:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Projects]
+    summary: Mark achieved (becomes billable in the next run)
+    operationId: achieveMilestone
+    x-permission: projects.project.edit
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { type: object, properties: { date: { type: string, format: date }, note: { type: string } } }
+          examples:
+            signed: { summary: Signed off, value: { date: '2026-10-14', note: Design signed by client CIO } }
+    responses:
+      '200':
+        description: Achieved
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Milestone' }
+            examples:
+              achieved: { $ref: '../components/examples/projects.yaml#/MilestoneAchieved' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: State conflict
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              already: { summary: Already achieved, value: { code: INVALID_STATE, message: Milestone is already Achieved, correlationId: corr_9f1c2e7a } }
+              contractInactive: { summary: Contract not active, value: { code: INVALID_STATE, message: Contract CTR/2026-27/00015 is Approved — activate it first, correlationId: corr_9f1c2e7a } }
+
+/projects/milestones/{id}/reopen:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Projects]
+    summary: Reopen an achieved (uninvoiced) milestone
+    operationId: reopenMilestone
+    x-permission: projects.project.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Client withdrew sign-off pending defect fixes } }
+    responses:
+      '200':
+        description: Pending again
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Milestone' }
+            examples:
+              pending: { summary: Pending, value: { id: ms_1, companyId: co_acme, contractId: ctr_0015, contractNumber: CTR/2026-27/00015, projectId: prj_erp, kind: Milestone, order: 1, name: Design sign-off, amount: 400000, due: '2026-10-15', status: Pending, deliverable: Approved design, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-10-16T09:00:00Z', version: 3 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── usage records ─────────────────────────────────────────────────────────
+
+/projects/usage-records:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Projects]
+    summary: Usage records
+    operationId: listUsageRecords
+    x-permission: projects.billing.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: contractId, in: query, schema: { type: string } }
+      - { name: period, in: query, schema: { type: string } }
+      - { name: invoiced, in: query, schema: { type: boolean } }
+    responses:
+      '200':
+        description: Records
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/projects.yaml#/UsageRecord' } }
+            examples:
+              firstPage: { summary: Records, value: { data: [{ $ref: '#/components/examples/UsageSep/value' }], meta: { nextCursor: null, limit: 25, total: 1 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Projects]
+    summary: Record usage (rate resolved from the contract tiers)
+    operationId: createUsageRecord
+    x-permission: projects.billing.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/projects.yaml#/UsageRecordCreate' }
+          examples:
+            month: { summary: September usage, value: { contractId: ctr_0019, metric: API calls, qty: 12500, period: '2026-09', date: '2026-09-30' } }
+    responses:
+      '201':
+        description: Created
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/UsageRecord' }
+            examples:
+              created: { $ref: '../components/examples/projects.yaml#/UsageSep' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '422':
+        description: Validation
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              notUsage: { summary: Not a usage contract, value: { code: VALIDATION, message: 'CTR/2026-27/00012 is Fixed price, not usage-based', field: contractId, correlationId: corr_9f1c2e7a } }
+
+/projects/usage-records/import:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Projects]
+    summary: Import usage from CSV (dry-run → commit)
+    operationId: importUsageRecords
+    x-permission: projects.billing.create
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [file]
+            properties:
+              file: { type: string, format: binary, description: "contractNumber, metric, qty, period, date" }
+              dryRun: { type: boolean, default: true }
+          examples:
+            dryRun: { summary: Validate, value: { dryRun: true } }
+    responses:
+      '200':
+        description: Dry-run
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/ImportJob' }
+            examples:
+              dryRun: { $ref: '../components/examples/masters.yaml#/ImportDryRun' }
+      '201':
+        description: Committed
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/ImportJob' }
+            examples:
+              committed: { $ref: '../components/examples/masters.yaml#/ImportCommitted' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '413': { $ref: '../components/responses.yaml#/PayloadTooLarge' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/projects/usage-records/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  patch:
+    tags: [Projects]
+    summary: Edit an uninvoiced record
+    operationId: updateUsageRecord
+    x-permission: projects.billing.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/projects.yaml#/UsageRecordInput'
+              - $ref: '../components/schemas/common.yaml#/ExpectedVersion'
+          examples:
+            qty: { summary: Corrected quantity, value: { expectedVersion: 1, qty: 13100 } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/UsageRecord' }
+            examples:
+              updated: { summary: Updated, value: { id: ur_0041, companyId: co_acme, contractId: ctr_0019, metric: API calls, qty: 13100, rate: 1.2, amount: 15720, period: '2026-09', date: '2026-09-30', invoiced: false, source: Web, createdAt: '2026-09-30T18:00:00Z', updatedAt: '2026-10-01T09:00:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Invoiced
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              invoiced: { summary: Invoiced, value: { code: INVALID_STATE, message: Invoiced usage cannot be edited, correlationId: corr_9f1c2e7a } }
+  delete:
+    tags: [Projects]
+    summary: Delete an uninvoiced record
+    operationId: deleteUsageRecord
+    x-permission: projects.billing.edit
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── billing runs ──────────────────────────────────────────────────────────
+
+/projects/billing-runs/preview:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Projects]
+    summary: Preview what each contract would bill for a window (no writes)
+    operationId: previewBillingRun
+    x-permission: projects.billing.view
+    x-frd: [FR-SRV-004]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/projects.yaml#/BillingRunRequest' }
+          examples:
+            month: { summary: "September, all contracts", value: { period: '2026-09', from: '2026-09-01', to: '2026-09-30' } }
+            selected: { summary: Two contracts, value: { period: '2026-09', from: '2026-09-01', to: '2026-09-30', contractIds: [ctr_0012, ctr_0019] } }
+    responses:
+      '200':
+        description: Previews
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/projects.yaml#/BillingPreview' } }, totals: { type: object, properties: { taxable: { type: number }, total: { type: number }, contracts: { type: integer }, skipped: { type: integer } } } } }
+            examples:
+              mixed: { summary: T&M + recurring + one skipped, value: { data: [{ contractId: ctr_0013, contractNumber: CTR/2026-27/00013, customerId: cust_arlene, customerName: Arlene Traders, method: Time & material, lines: [{ id: l1, itemId: item_consult, itemCode: SVC-CONS, itemName: Consulting — Senior consultant, qty: 34, uom: Hr, rate: 6000, discountPct: 0, discountAmt: 0, taxable: 204000, taxRate: 18, taxAmt: 36720, taxComponents: { CGST: 18360, SGST: 18360 }, amount: 240720, dimensions: { Project: dim_prj_erp } }], sources: [{ type: Timesheet, id: ts_0218, rowId: tr_1, label: 'TS/2026-27/00218 · Neha Rao · Requirement workshops', qty: 34, rate: 6000, amount: 204000, date: '2026-09-07' }], taxable: 204000, taxAmt: 36720, total: 240720, currency: INR, rate: 1, retainerAvailable: 500000, warnings: [] }, { contractId: ctr_0017, contractNumber: CTR/2026-27/00017, customerId: cust_ustech, customerName: US Tech Inc, method: Recurring, lines: [{ id: l1, itemId: item_support, itemCode: SVC-SUPP, itemName: Managed support — Gold (Sep 2026), qty: 1, uom: Month, rate: 2000, discountPct: 0, discountAmt: 0, taxable: 2000, taxRate: 0, taxAmt: 0, taxComponents: {}, amount: 2000 }], sources: [{ type: Recurring, id: ctr_0017, label: September 2026, qty: 1, rate: 2000, amount: 2000, date: '2026-09-01' }], taxable: 2000, taxAmt: 0, total: 2000, currency: USD, rate: 84, retainerAvailable: 0, warnings: [] }, { contractId: ctr_0015, contractNumber: CTR/2026-27/00015, customerId: cust_arlene, customerName: Arlene Traders, method: Milestone, lines: [], sources: [], taxable: 0, taxAmt: 0, total: 0, currency: INR, rate: 1, skipReason: No milestones achieved in the period, retainerAvailable: 500000, warnings: [] }], totals: { taxable: 372000, total: 408720, contracts: 2, skipped: 1 } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/projects/billing-runs:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Projects]
+    summary: Billing runs
+    operationId: listBillingRuns
+    x-permission: projects.billing.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: period, in: query, schema: { type: string } }
+    responses:
+      '200':
+        description: Runs
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/projects.yaml#/BillingRun' } }
+            examples:
+              firstPage: { summary: Runs, value: { data: [{ $ref: '#/components/examples/BillingRunSep/value' }], meta: { nextCursor: null, limit: 25, total: 6 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Projects]
+    summary: Generate draft sales invoices for the window (marks sources invoiced, applies retainers)
+    operationId: createBillingRun
+    x-permission: projects.billing.run
+    x-frd: [FR-SRV-004, FR-SRV-005]
+    x-idempotent: true
+    x-events: [DocumentCreated]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/projects.yaml#/BillingRunRequest' }
+          examples:
+            month: { summary: "September, apply retainers", value: { period: '2026-09', from: '2026-09-01', to: '2026-09-30', date: '2026-09-30', applyRetainer: true } }
+            noRetainer: { summary: "Selected contracts, no retainer", value: { period: '2026-09', from: '2026-09-01', to: '2026-09-30', contractIds: [ctr_0013], applyRetainer: false, notes: Bill separately per client request } }
+    responses:
+      '201':
+        description: Run generated
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/BillingRun' }
+            examples:
+              generated: { $ref: '../components/examples/projects.yaml#/BillingRunSep' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Nothing to bill
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              empty: { summary: Empty, value: { code: EMPTY, message: Nothing to generate — every selected contract is skipped, details: { skipped: [{ contractNumber: CTR/2026-27/00015, reason: No milestones achieved in the period }] }, correlationId: corr_9f1c2e7a } }
+
+/projects/billing-runs/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Projects]
+    summary: Get a billing run
+    operationId: getBillingRun
+    x-permission: projects.billing.view
+    responses:
+      '200':
+        description: Run
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/BillingRun' }
+            examples:
+              run: { $ref: '../components/examples/projects.yaml#/BillingRunSep' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/projects/billing-runs/{id}/cancel:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Projects]
+    summary: Cancel a run (deletes its draft invoices, releases sources)
+    operationId: cancelBillingRun
+    x-permission: projects.billing.run
+    x-events: [DocumentCancelled]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Rates were wrong — regenerate after rate card fix } }
+    responses:
+      '200':
+        description: Cancelled
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/BillingRun' }
+            examples:
+              cancelled: { summary: Cancelled, value: { id: br_0006, companyId: co_acme, number: BR/2026-27/00006, period: '2026-09', from: '2026-09-01', to: '2026-09-30', date: '2026-09-30', contractIds: [ctr_0013, ctr_0017], results: [], invoiceIds: [], status: Cancelled, by: Priya Sharma, applyRetainer: true, branchId: br_ho, notes: 'Cancelled: Rates were wrong — regenerate after rate card fix', createdAt: '2026-09-30T18:00:00Z', updatedAt: '2026-10-01T09:00:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Invoices posted
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              posted: { summary: Posted invoices, value: { code: INVALID_STATE, message: 1 invoice(s) from this run are already posted — reverse them in Sales first, details: { invoiceNumbers: [INV/2026-27/00050] }, correlationId: corr_9f1c2e7a } }
+
+# ── retainers ─────────────────────────────────────────────────────────────
+
+/projects/retainers:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Projects]
+    summary: Retainers / advances
+    description: Tabs → Open · Fully allocated · Reversed · All.
+    operationId: listRetainers
+    x-permission: projects.billing.view
+    x-frd: [FR-SRV-005]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/CustomerId'
+    responses:
+      '200':
+        description: Retainers
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/projects.yaml#/Retainer' } }
+            examples:
+              firstPage: { summary: Retainers, value: { data: [{ $ref: '#/components/examples/RetainerOpen/value' }], meta: { nextCursor: null, limit: 25, total: 4, counts: { Open: 2, 'Fully allocated': 1, Reversed: 1, All: 4 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Projects]
+    summary: Record a retainer received (Dr bank / Cr customer advances; unapplied open item)
+    operationId: createRetainer
+    x-permission: projects.retainer.record
+    x-idempotent: true
+    x-events: [JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/projects.yaml#/RetainerCreate' }
+          examples:
+            inr: { summary: INR retainer against a contract, value: { customerId: cust_arlene, contractId: ctr_0012, amount: 500000, receivedDate: '2026-09-15', bankAccountId: acc_1310, reference: NEFT26091500334 } }
+            usd: { summary: USD advance, value: { customerId: cust_ustech, amount: 5000, currency: USD, receivedDate: '2026-09-15', bankAccountId: acc_1320, reference: SWIFT-77812 } }
+    responses:
+      '201':
+        description: Retainer
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/projects.yaml#/Retainer' }
+            examples:
+              recorded: { summary: Recorded, value: { document: { $ref: '#/components/examples/RetainerOpen/value' }, outcome: posted, journal: { id: jnl_ret_4, companyId: co_acme, number: JV/2026-27/00411, date: '2026-09-15', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Retainer, sourceId: ret_0004, sourceNumber: RET/2026-27/00004, narration: Retainer RET/2026-27/00004 from Arlene Traders, lines: [{ id: j1, accountId: acc_1310, accountCode: '1310', accountName: HDFC Bank — CA 0042, dr: 500000, cr: 0, drBase: 500000, crBase: 0, dimensions: {} }, { id: j2, accountId: acc_2160, accountCode: '2160', accountName: Customer advances / retainers, dr: 0, cr: 500000, drBase: 0, crBase: 500000, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, dimensions: {} }], totalDr: 500000, totalCr: 500000, postedAt: '2026-09-15T10:00:00Z', postedBy: Priya Sharma, correlationId: corr_ret4, createdAt: '2026-09-15T10:00:00Z', updatedAt: '2026-09-15T10:00:00Z', version: 1 }, warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/projects/retainers/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Projects]
+    summary: Get a retainer
+    operationId: getRetainer
+    x-permission: projects.billing.view
+    responses:
+      '200':
+        description: Retainer
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Retainer' }
+            examples:
+              open: { $ref: '../components/examples/projects.yaml#/RetainerOpen' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/projects/retainers/{id}/allocate:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Projects]
+    summary: Allocate to a posted invoice (settles the receivable)
+    operationId: allocateRetainer
+    x-permission: projects.retainer.record
+    x-idempotent: true
+    x-events: [ReceiptAllocated, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/projects.yaml#/RetainerAllocateRequest' }
+          examples:
+            full: { summary: Cover an invoice fully, value: { invoiceId: inv_01j8k3, amount: 118000, date: '2026-09-16' } }
+            partial: { summary: Partial, value: { invoiceId: inv_01j8k7, amount: 200000 } }
+    responses:
+      '200':
+        description: Allocated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Retainer' }
+            examples:
+              allocated: { summary: Allocated, value: { id: ret_0004, companyId: co_acme, number: RET/2026-27/00004, customerId: cust_arlene, customerName: Arlene Traders, contractId: ctr_0012, amount: 500000, currency: INR, rate: 1, baseAmount: 500000, receivedDate: '2026-09-15', bankAccountId: acc_1310, reference: NEFT26091500334, journalId: jnl_ret_4, journalNumber: JV/2026-27/00411, openItemId: oi_ret_4, allocations: [{ id: ra_1, invoiceId: inv_01j8k3, invoiceNumber: INV/2026-27/00042, amount: 118000, date: '2026-09-16', journalId: jnl_ret_4a, journalNumber: JV/2026-27/00412, status: Settled }], allocated: 118000, remaining: 382000, status: Open, branchId: br_ho, createdAt: '2026-09-15T10:00:00Z', updatedAt: '2026-09-16T10:00:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: State conflict
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              notPosted: { summary: Invoice not posted, value: { code: INVALID_STATE, message: Invoice INV/2026-27/00051 is Draft — allocations settle posted invoices only, correlationId: corr_9f1c2e7a } }
+      '422':
+        description: Over-allocation
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              remaining: { summary: Exceeds remaining, value: { code: OVER_ALLOCATION, message: "Only ₹3,82,000.00 remains on RET/2026-27/00004", field: amount, correlationId: corr_9f1c2e7a } }
+              outstanding: { summary: Exceeds invoice outstanding, value: { code: OVER_ALLOCATION, message: "Invoice outstanding is ₹1,18,000.00", field: amount, correlationId: corr_9f1c2e7a } }
+              customer: { summary: Different customer, value: { code: VALIDATION, message: Invoice belongs to a different customer, field: invoiceId, correlationId: corr_9f1c2e7a } }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/projects/retainers/{id}/reverse:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Projects]
+    summary: Reverse a retainer with no settled allocations
+    operationId: reverseRetainer
+    x-permission: projects.retainer.record
+    x-idempotent: true
+    x-events: [JournalReversed]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Payment bounced } }
+    responses:
+      '200':
+        description: Reversed
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Retainer' }
+            examples:
+              reversed: { summary: Reversed, value: { id: ret_0005, companyId: co_acme, number: RET/2026-27/00005, customerId: cust_ustech, customerName: US Tech Inc, amount: 5000, currency: USD, rate: 84, baseAmount: 420000, receivedDate: '2026-09-15', bankAccountId: acc_1320, reference: SWIFT-77812, journalId: jnl_ret_5, journalNumber: JV/2026-27/00413, allocations: [], allocated: 0, remaining: 0, status: Reversed, branchId: br_ho, reversedById: jnl_ret_5r, reversalReason: Payment bounced, createdAt: '2026-09-15T10:00:00Z', updatedAt: '2026-09-18T10:00:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Settled allocations
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              settled: { summary: Has settled allocations, value: { code: INVALID_STATE, message: Retainer has settled allocations — reverse those invoices first, correlationId: corr_9f1c2e7a } }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+# ── revenue recognition ───────────────────────────────────────────────────
+
+/projects/revenue/schedule:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Projects]
+    summary: Revenue schedule for a contract (posted + projected period positions)
+    operationId: getRevenueSchedule
+    x-permission: projects.billing.view
+    x-frd: [FR-SRV-006]
+    parameters:
+      - { name: contractId, in: query, required: true, schema: { type: string }, example: ctr_0012 }
+      - { name: upto, in: query, schema: { type: string }, description: Last period to project (default = current)., example: '2027-03' }
+    responses:
+      '200':
+        description: Schedule
+        content:
+          application/json:
+            schema: { type: object, required: [contractId, contractNumber, method, revenueMethod, nextPeriodToRun, data], properties: { contractId: { type: string }, contractNumber: { type: string }, method: { $ref: '../components/schemas/projects.yaml#/BillingMethod' }, revenueMethod: { $ref: '../components/schemas/projects.yaml#/RevenueMethod' }, nextPeriodToRun: { type: string }, data: { type: array, items: { $ref: '../components/schemas/projects.yaml#/PeriodPosition' } } } }
+            examples:
+              percentComplete: { summary: "Fixed price, % complete", value: { contractId: ctr_0012, contractNumber: CTR/2026-27/00012, method: Fixed price, revenueMethod: Percent complete, nextPeriodToRun: '2026-10', data: [{ period: '2026-09', billed: 720000, recognized: 840000, cumBilled: 720000, cumRecognized: 840000, unbilled: 120000, deferred: 0, adjustment: 120000, adjustmentType: Accrual, basis: '35% complete of 2,400,000', posted: { $ref: '#/components/examples/RevenueScheduleSep/value' } }, { period: '2026-10', billed: 0, recognized: 240000, cumBilled: 720000, cumRecognized: 1080000, unbilled: 360000, deferred: 0, adjustment: 360000, adjustmentType: Accrual, basis: Projected (straight-line to end) }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/projects/revenue/runs:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Projects]
+    summary: Posted recognition rows
+    operationId: listRevenueRuns
+    x-permission: projects.billing.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: period, in: query, schema: { type: string } }
+      - { name: contractId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/Status'
+    responses:
+      '200':
+        description: Rows
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/projects.yaml#/RevenueSchedule' } }
+            examples:
+              firstPage: { summary: Rows, value: { data: [{ $ref: '#/components/examples/RevenueScheduleSep/value' }], meta: { nextCursor: null, limit: 25, total: 14 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Projects]
+    summary: Run recognition for a period (accrual → unbilled revenue; deferral → deferred revenue; auto-reversal next period)
+    description: Idempotent per contract × period. Periods must run in order; the previous period's adjustment is reversed on the first day of this period.
+    operationId: runRevenueRecognition
+    x-permission: projects.revenue.run
+    x-frd: [FR-SRV-006]
+    x-idempotent: true
+    x-events: [JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/projects.yaml#/RevenueRunRequest' }
+          examples:
+            all: { summary: All active contracts, value: { period: '2026-09' } }
+            one: { summary: One contract, value: { period: '2026-09', contractIds: [ctr_0012] } }
+    responses:
+      '200':
+        description: Result (rows + per-contract errors)
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/RevenueRunResult' }
+            examples:
+              mixed: { summary: "One posted, one error", value: { period: '2026-09', rows: [{ $ref: '#/components/examples/RevenueScheduleSep/value' }], errors: [{ contractId: ctr_0015, contractNumber: CTR/2026-27/00015, message: Contract CTR/2026-27/00015 is Approved — only active contracts recognise revenue }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Out of order
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              order: { summary: Later period already run, value: { code: INVALID_STATE, message: 2026-10 is already recognised for CTR/2026-27/00012 — periods must run in order, correlationId: corr_9f1c2e7a } }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/projects/revenue/runs/{id}/reverse:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Projects]
+    summary: Reverse a recognition row (latest period first)
+    operationId: reverseRevenueRecognition
+    x-permission: projects.revenue.run
+    x-idempotent: true
+    x-events: [JournalReversed]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Progress % was overstated } }
+    responses:
+      '200':
+        description: Reversed
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/RevenueSchedule' }
+            examples:
+              reversed: { summary: Reversed, value: { id: rs_0012_0909, companyId: co_acme, contractId: ctr_0012, contractNumber: CTR/2026-27/00012, projectId: prj_erp, customerId: cust_arlene, period: '2026-09', method: Fixed price, billed: 720000, recognized: 840000, cumBilled: 720000, cumRecognized: 840000, unbilled: 120000, deferred: 0, reversed: 0, journalId: jnl_rev_1, journalNumber: JV/2026-27/00414, adjustmentType: Accrual, adjustment: 120000, status: Reversed, runAt: '2026-09-30T18:00:00Z', runBy: Priya Sharma, idempotencyKey: 'rev:ctr_0012:2026-09', reversedById: jnl_rev_1r, reversalReason: Progress % was overstated, createdAt: '2026-09-30T18:00:00Z', updatedAt: '2026-10-02T09:00:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: State conflict
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              order: { summary: Reverse later period first, value: { code: INVALID_STATE, message: Reverse 2026-10 first — schedules unwind in reverse order, correlationId: corr_9f1c2e7a } }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+# ── profitability & settings ──────────────────────────────────────────────
+
+/projects/profitability:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Projects]
+    summary: Project / customer profitability (revenue, resource cost, purchases, expenses, overhead)
+    operationId: getProfitability
+    x-permission: projects.project.view
+    x-frd: [FR-SRV-007]
+    parameters:
+      - { name: groupBy, in: query, schema: { type: string, enum: [project, customer], default: project } }
+      - $ref: '../components/parameters.yaml#/ReportFrom'
+      - $ref: '../components/parameters.yaml#/ReportTo'
+      - $ref: '../components/parameters.yaml#/Preset'
+      - $ref: '../components/parameters.yaml#/ProjectId'
+    responses:
+      '200':
+        description: Rows
+        content:
+          application/json:
+            schema: { type: object, required: [from, to, groupBy, data, totals], properties: { from: { type: string, format: date }, to: { type: string, format: date }, groupBy: { type: string }, data: { type: array, items: { $ref: '../components/schemas/projects.yaml#/ProfitRow' } }, totals: { $ref: '../components/schemas/projects.yaml#/ProfitRow' }, scope: { $ref: '../components/schemas/common.yaml#/Scope' } } }
+            examples:
+              byProject: { summary: By project, value: { from: '2026-04-01', to: '2026-09-30', groupBy: project, data: [{ key: prj_erp, label: Arlene ERP implementation, sub: Arlene Traders, projectId: prj_erp, customerId: cust_arlene, revenue: 840000, billed: 720000, resourceCost: 374000, hours: 170, purchases: 0, expenses: 6300, overhead: 44880, cost: 425180, margin: 414820, marginPct: 49.4, sources: [{ type: Revenue, ref: rs_0012_0909, label: Recognised Sep 2026, amount: 840000 }, { type: Timesheet, ref: ts_0218, label: 'Neha Rao · 34 h', amount: 74800, link: projects/timesheets/ts_0218 }] }], totals: { key: total, label: Total, revenue: 840000, billed: 720000, resourceCost: 374000, hours: 170, purchases: 0, expenses: 6300, overhead: 44880, cost: 425180, margin: 414820, marginPct: 49.4, sources: [] }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { summary: No activity, value: { from: '2027-04-01', to: '2027-04-30', groupBy: customer, data: [], totals: { key: total, label: Total, revenue: 0, billed: 0, resourceCost: 0, hours: 0, purchases: 0, expenses: 0, overhead: 0, cost: 0, margin: 0, marginPct: 0, sources: [] }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/projects/settings:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Projects]
+    summary: Projects settings
+    operationId: getProjectsSettings
+    x-permission: projects.project.view
+    responses:
+      '200':
+        description: Settings
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/ProjectsSettings' }
+            examples:
+              current: { summary: Defaults, value: { prjOverheadPct: 12, prjDefaultRateCardId: rc_std, prjWeekStart: Mon, prjTimesheetApproval: true, prjRevenueMethodDefault: Auto, prjDefaultServiceItemId: item_consult, prjExpenseMarkupPct: 10, prjRetainerAutoApply: true, prjContractApproval: true } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  put:
+    tags: [Projects]
+    summary: Update projects settings
+    operationId: updateProjectsSettings
+    x-permission: projects.settings.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/projects.yaml#/ProjectsSettings' }
+          examples:
+            noApproval: { summary: Skip timesheet approval, value: { prjTimesheetApproval: false } }
+            overhead: { summary: Overhead and markup, value: { prjOverheadPct: 15, prjExpenseMarkupPct: 5 } }
+    responses:
+      '200':
+        description: Saved
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/ProjectsSettings' }
+            examples:
+              saved: { summary: Saved, value: { prjOverheadPct: 15, prjDefaultRateCardId: rc_std, prjWeekStart: Mon, prjTimesheetApproval: true, prjRevenueMethodDefault: Auto, prjDefaultServiceItemId: item_consult, prjExpenseMarkupPct: 5, prjRetainerAutoApply: true, prjContractApproval: true } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }

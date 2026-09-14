@@ -1,0 +1,1058 @@
+# Company administration part 1 (tag: Admin): company, companies, branches, periods, defaults, business profile, users, roles.
+
+/company:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: Company profile
+    operationId: getCompany
+    x-permission: admin.company.view
+    x-frd: [FR-ORG-001]
+    responses:
+      '200':
+        description: Company
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/Company' }
+            examples:
+              acme: { $ref: '../components/examples/admin.yaml#/CompanyAcme' }
+              gulf: { $ref: '../components/examples/admin.yaml#/CompanyGulf' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  patch:
+    tags: [Admin]
+    summary: Update company profile (optimistic concurrency)
+    description: Identity, address, branding, financial settings and GST registrations. `baseCurrency` is locked once any journal is posted (`409 INVALID_STATE`). PAN / GSTIN formats are validated. Changes are audited with before/after.
+    operationId: updateCompany
+    x-permission: admin.company.edit
+    x-frd: [FR-ORG-001, FR-ORG-004]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/admin.yaml#/CompanyPatch' }
+          examples:
+            identity: { summary: Legal identity, value: { expectedVersion: 9, legalName: Acme Trading Private Limited, pan: AAPCA1234F, cin: U51909MH2015PTC262001, businessType: Private Limited } }
+            addRegistration: { summary: Add a GSTIN for a new state, value: { expectedVersion: 9, registrations: [{ id: reg_gst_mh, type: GSTIN, number: 27AAPCA1234F1Z5, state: Maharashtra, stateCode: '27', branchId: br_ho, status: Active }, { id: reg_gst_gj, type: GSTIN, number: 24AAPCA1234F1Z1, state: Gujarat, stateCode: '24', branchId: br_surat, status: Active }, { type: GSTIN, number: 29AAPCA1234F1Z8, state: Karnataka, stateCode: '29', status: Active }] } }
+            currencies: { summary: Permit another transaction currency, value: { expectedVersion: 9, permittedCurrencies: [INR, USD, AED, EUR], reportingCurrency: USD } }
+            branding: { summary: Branding, value: { expectedVersion: 9, logoText: AT, brandColor: '#0f766e' } }
+    responses:
+      '200':
+        description: Updated company
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/Company' }
+            examples:
+              updated: { $ref: '../components/examples/admin.yaml#/CompanyAcme' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/companies:
+  get:
+    tags: [Admin]
+    summary: List the tenant's companies
+    description: Tenant owner sees all legal entities; others see only the companies they belong to.
+    operationId: listCompanies
+    x-permission: admin.company.view
+    responses:
+      '200':
+        description: Companies
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/admin.yaml#/Company' } }, planLimit: { type: integer }, used: { type: integer } } }
+            examples:
+              two:
+                summary: Two entities of three allowed
+                value:
+                  data:
+                    - { id: co_acme, tenantId: tnt_acme, code: ACME, legalName: Acme Trading Pvt Ltd, tradeName: Acme Trading, country: IN, baseCurrency: INR, permittedCurrencies: [INR, USD, AED], timeZone: Asia/Kolkata, locale: en-IN, language: en, fiscalYearStartMonth: 4, booksFrom: '2026-04-01', openingBalanceDate: '2026-03-31', nature: Trading, profiles: [Trading], profileHistory: [], businessType: Private Limited, address: { line1: 14 Marine Drive, city: Mumbai, state: Maharashtra, country: IN }, localizationPack: IN, localizationVersion: '1.4', registrations: [], defaults: { allowNegativeStock: false, valuationMethod: AVCO, matchingMode: 3-way, matchTolerancePct: 2, matchToleranceAmt: 500, creditPolicy: Warn, directInvoiceStock: true }, status: Active, onboarding: {}, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-01T10:00:00Z', version: 9 }
+                    - { id: co_gulf, tenantId: tnt_acme, code: GULF, legalName: Acme Gulf Trading LLC, tradeName: Acme Gulf, country: AE, baseCurrency: AED, permittedCurrencies: [AED, USD, INR], timeZone: Asia/Dubai, locale: en-US, language: en, fiscalYearStartMonth: 1, booksFrom: '2026-01-01', openingBalanceDate: '2025-12-31', nature: Trading, profiles: [Trading], profileHistory: [], businessType: LLC, address: { line1: Office 1204 Latifa Tower, city: Dubai, state: Dubai, country: AE }, localizationPack: AE, localizationVersion: '1.0', registrations: [], defaults: { allowNegativeStock: false, valuationMethod: AVCO, matchingMode: 3-way, matchTolerancePct: 2, matchToleranceAmt: 100, creditPolicy: Warn, directInvoiceStock: true }, status: Active, onboarding: {}, createdAt: '2026-06-01T09:00:00Z', updatedAt: '2026-06-01T09:00:00Z', version: 2 }
+                  planLimit: 3
+                  used: 2
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Admin]
+    summary: Add a legal entity (tenant owner)
+    description: Creates the company with its localization pack, Head Office branch, FY periods and default number series. Blocked when the plan's `companies` limit is reached (`409 PLAN_LIMIT`).
+    operationId: createCompany
+    x-permission: admin.company.create
+    x-frd: [FR-ORG-002, FR-PLT-003]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/admin.yaml#/CompanyCreate' }
+          examples:
+            india: { summary: Indian entity, value: { legalName: Acme Logistics Pvt Ltd, country: IN, fiscalYearStartMonth: 4, nature: Services } }
+            uae: { summary: UAE entity (calendar FY), value: { legalName: Acme Gulf Trading LLC, country: AE, fiscalYearStartMonth: 1, nature: Trading, baseCurrency: AED } }
+    responses:
+      '201':
+        description: Company created
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/Company' }
+            examples:
+              created: { $ref: '../components/examples/admin.yaml#/CompanyGulf' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── branches ──────────────────────────────────────────────────────────────
+
+/branches:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: List branches
+    description: Query examples — `?status=Active` · `?type=Store`.
+    operationId: listBranches
+    x-permission: admin.branches.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: status, in: query, schema: { type: string, enum: [Active, Inactive] } }
+      - { name: type, in: query, schema: { type: string, enum: [Office, Warehouse, Store, Factory] } }
+    responses:
+      '200':
+        description: Branches
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/admin.yaml#/Branch' } }
+            examples:
+              firstPage:
+                summary: Active branches
+                value:
+                  data:
+                    - { id: br_ho, companyId: co_acme, code: BR-001, name: Head Office, type: Office, address: { line1: 14 Marine Drive, city: Mumbai, state: Maharashtra, stateCode: '27', pin: '400021', country: IN }, registrationId: reg_gst_mh, gstin: 27AAPCA1234F1Z5, defaultWarehouseId: wh_main, status: Active, isDefault: true, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }
+                    - { id: br_andheri, companyId: co_acme, code: BR-002, name: Andheri Store, type: Store, address: { line1: Shop 4 Link Road, city: Mumbai, state: Maharashtra, stateCode: '27', pin: '400053', country: IN }, registrationId: reg_gst_mh, defaultWarehouseId: wh_andheri, status: Active, isDefault: false, createdAt: '2026-04-10T09:00:00Z', updatedAt: '2026-04-10T09:00:00Z', version: 1 }
+                    - { id: br_surat, companyId: co_acme, code: BR-003, name: Surat Warehouse, type: Warehouse, address: { line1: Plot 12 GIDC, city: Surat, state: Gujarat, stateCode: '24', pin: '394210', country: IN }, registrationId: reg_gst_gj, gstin: 24AAPCA1234F1Z1, status: Active, isDefault: false, createdAt: '2026-05-01T09:00:00Z', updatedAt: '2026-05-01T09:00:00Z', version: 1 }
+                  meta: { nextCursor: null, limit: 25, total: 3, counts: { Active: 3, Inactive: 1, All: 4 } }
+                  scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Admin]
+    summary: Create a branch
+    operationId: createBranch
+    x-permission: admin.branches.create
+    x-frd: [FR-ORG-005]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/admin.yaml#/BranchInput'
+              - { required: [code, name, type, address] }
+          examples:
+            store: { summary: Retail store, value: { code: BR-004, name: Pune Store, type: Store, address: { line1: 5 FC Road, city: Pune, state: Maharashtra, stateCode: '27', pin: '411004', country: IN }, registrationId: reg_gst_mh, defaultWarehouseId: wh_pune } }
+            factoryDefault: { summary: Factory set as default branch, value: { code: BR-005, name: Ambernath Plant, type: Factory, address: { line1: MIDC Phase II, city: Ambernath, state: Maharashtra, stateCode: '27', pin: '421506', country: IN }, isDefault: true } }
+    responses:
+      '201':
+        description: Branch
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/Branch' }
+            examples:
+              created: { $ref: '../components/examples/admin.yaml#/BranchAndheri' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/branches/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Admin]
+    summary: Get a branch
+    operationId: getBranch
+    x-permission: admin.branches.view
+    responses:
+      '200':
+        description: Branch
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/Branch' }
+            examples:
+              ho: { $ref: '../components/examples/admin.yaml#/BranchHO' }
+              store: { $ref: '../components/examples/admin.yaml#/BranchAndheri' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Admin]
+    summary: Update a branch
+    operationId: updateBranch
+    x-permission: admin.branches.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/admin.yaml#/BranchPatch' }
+          examples:
+            rename: { summary: Rename + default warehouse, value: { expectedVersion: 1, name: Andheri West Store, defaultWarehouseId: wh_andheri } }
+            address: { summary: Move address, value: { expectedVersion: 1, address: { line1: Shop 9 New Link Road, city: Mumbai, state: Maharashtra, stateCode: '27', pin: '400053', country: IN } } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/Branch' }
+            examples:
+              updated: { $ref: '../components/examples/admin.yaml#/BranchAndheri' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Admin]
+    summary: Delete a branch (only if unused)
+    description: Branches referenced by documents, users or warehouses cannot be deleted — deactivate instead (`409 REFERENCED`). The default branch cannot be deleted.
+    operationId: deleteBranch
+    x-permission: admin.branches.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/branches/{id}/set-default:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Admin]
+    summary: Make this the default branch for new documents
+    operationId: setDefaultBranch
+    x-permission: admin.branches.edit
+    responses:
+      '200':
+        description: Branch (now default)
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/Branch' }
+            examples:
+              nowDefault: { $ref: '../components/examples/admin.yaml#/BranchHO' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/branches/{id}/status:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Admin]
+    summary: Activate / deactivate a branch
+    operationId: setBranchStatus
+    x-permission: admin.branches.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [status], properties: { status: { type: string, enum: [Active, Inactive] }, reason: { type: string } } }
+          examples:
+            deactivate: { summary: Deactivate a closed store, value: { status: Inactive, reason: Store closed on 31 Aug 2026 } }
+            activate: { summary: Re-activate, value: { status: Active } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/Branch' }
+            examples:
+              inactive: { summary: Deactivated, value: { id: br_pune, companyId: co_acme, code: BR-004, name: Pune Store, type: Store, address: { line1: 5 FC Road, city: Pune, state: Maharashtra, country: IN }, status: Inactive, isDefault: false, createdAt: '2026-05-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 3 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── periods ───────────────────────────────────────────────────────────────
+
+/periods:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: List financial periods
+    description: Query examples — current FY `?fy=2026-27` · open only `?status=Open,Reopened`.
+    operationId: listPeriods
+    x-permission: admin.periods.view
+    x-frd: [FR-ORG-006]
+    parameters:
+      - $ref: '../components/parameters.yaml#/FiscalYear'
+      - { name: status, in: query, schema: { type: string }, style: form, explode: false, example: 'Open,Reopened' }
+    responses:
+      '200':
+        description: Periods (12 per FY)
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/admin.yaml#/Period' } }
+                    fiscalYears: { type: array, items: { type: string } }
+            examples:
+              fy2627:
+                summary: FY 2026-27 (excerpt)
+                value:
+                  data:
+                    - { id: per_acme_2026-08, companyId: co_acme, fy: '2026-27', code: '2026-08', label: Aug 2026, start: '2026-08-01', end: '2026-08-31', status: Locked, lockedAt: '2026-09-05T11:30:00Z', lockedBy: Rahul Mehta, history: [], createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-05T11:30:00Z', version: 4 }
+                    - { id: per_acme_2026-09, companyId: co_acme, fy: '2026-27', code: '2026-09', label: Sep 2026, start: '2026-09-01', end: '2026-09-30', status: Open, history: [], createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-01T00:00:00Z', version: 2 }
+                    - { id: per_acme_2026-10, companyId: co_acme, fy: '2026-27', code: '2026-10', label: Oct 2026, start: '2026-10-01', end: '2026-10-31', status: Future, history: [], createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }
+                  fiscalYears: ['2025-26', '2026-27']
+                  meta: { nextCursor: null, limit: 25, total: 12 }
+                  scope: { companyId: co_acme, fy: '2026-27', currency: INR, asOf: '2026-09-13T09:12:04Z' }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/periods/{code}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Code'
+  get:
+    tags: [Admin]
+    summary: Get a period with history
+    operationId: getPeriod
+    x-permission: admin.periods.view
+    responses:
+      '200':
+        description: Period
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/Period' }
+            examples:
+              open: { $ref: '../components/examples/admin.yaml#/PeriodSepOpen' }
+              locked: { $ref: '../components/examples/admin.yaml#/PeriodAugLocked' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/periods/{code}/close-checklist:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Code'
+  get:
+    tags: [Admin]
+    summary: Close checklist (blockers and warnings)
+    operationId: getPeriodCloseChecklist
+    x-permission: admin.periods.view
+    x-frd: [FR-ACC-010]
+    responses:
+      '200':
+        description: Checklist
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/CloseChecklist' }
+            examples:
+              blocked:
+                summary: Three blockers
+                value:
+                  period: '2026-09'
+                  canSoftClose: true
+                  canLock: false
+                  blockers: 3
+                  warnings: 1
+                  items:
+                    - { key: draftJournals, label: Draft journals dated in period, status: Blocker, count: 4, link: 'accounting/journals?status=Draft&period=2026-09' }
+                    - { key: bankRecon, label: Bank reconciliations not confirmed, status: Blocker, count: 1, link: banking/reconciliation }
+                    - { key: gstr3b, label: GSTR-3B not generated, status: Blocker, count: 1, link: taxation/gstr3b }
+                    - { key: pendingApprovals, label: Documents awaiting approval, status: Warning, count: 2, link: approvals }
+                    - { key: unpostedInvoices, label: Draft sales invoices dated in period, status: Ok, count: 0, link: sales/invoices }
+              clean:
+                summary: Ready to lock
+                value: { period: '2026-08', canSoftClose: true, canLock: true, blockers: 0, warnings: 0, items: [{ key: draftJournals, label: Draft journals dated in period, status: Ok, count: 0, link: accounting/journals }, { key: bankRecon, label: Bank reconciliations not confirmed, status: Ok, count: 0, link: banking/reconciliation }] }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/periods/{code}/soft-close:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Code'
+  post:
+    tags: [Admin]
+    summary: Soft-close a period
+    description: Operational users can no longer post; Finance Admin (`accounting.period.post`) still can. Requires status Open / Reopened.
+    operationId: softClosePeriod
+    x-permission: admin.periods.edit
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { type: object, properties: { reason: { type: string } } }
+          examples:
+            plain: { summary: No reason, value: {} }
+            withReason: { summary: With reason, value: { reason: Month-end review started } }
+    responses:
+      '200':
+        description: Period
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/Period' }
+            examples:
+              softClosed: { summary: Soft Closed, value: { id: per_acme_2026-09, companyId: co_acme, fy: '2026-27', code: '2026-09', label: Sep 2026, start: '2026-09-01', end: '2026-09-30', status: Soft Closed, history: [{ at: '2026-09-01T00:00:00Z', by: system, action: Opened }, { at: '2026-10-02T10:00:00Z', by: Rahul Mehta, action: Soft closed, reason: Month-end review started }], createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-10-02T10:00:00Z', version: 3 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/periods/{code}/lock:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Code'
+  post:
+    tags: [Admin]
+    summary: Lock a period
+    description: Requires a clean checklist (`422 CHECKLIST_BLOCKED` otherwise) and a reason. Publishes `PeriodLocked`.
+    operationId: lockPeriod
+    x-permission: admin.periods.edit
+    x-frd: [FR-ACC-010]
+    x-events: [PeriodLocked]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            monthEnd: { summary: Month-end close, value: { reason: Month-end close complete — TB reconciled } }
+    responses:
+      '200':
+        description: Locked
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/Period' }
+            examples:
+              locked: { $ref: '../components/examples/admin.yaml#/PeriodAugLocked' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/periods/{code}/reopen:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Code'
+  post:
+    tags: [Admin]
+    summary: Reopen a locked period (elevated approval)
+    description: "Routes through the `Period Reopen` workflow when one is active (`outcome: routed-for-approval`), otherwise reopens immediately for callers with `admin.periods.approve`. Audited with reason; publishes `PeriodReopened` when applied."
+    operationId: reopenPeriod
+    x-permission: admin.periods.edit
+    x-workflow-doc-type: Period Reopen
+    x-events: [PeriodReopened]
+    x-frd: [FR-ACC-011]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/admin.yaml#/PeriodReopenRequest' }
+          examples:
+            lateInvoice: { summary: Late supplier invoice, value: { reason: Late supplier invoice for Aug freight must be booked in the period, until: '2026-09-20' } }
+    responses:
+      '200':
+        description: Outcome
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/PeriodReopenResult' }
+            examples:
+              routed:
+                summary: outcome = routed-for-approval
+                value:
+                  outcome: routed-for-approval
+                  period: { id: per_acme_2026-08, companyId: co_acme, fy: '2026-27', code: '2026-08', label: Aug 2026, start: '2026-08-01', end: '2026-08-31', status: Locked, history: [{ at: '2026-09-13T09:12:04Z', by: Priya Sharma, action: Reopen requested, reason: Late supplier invoice for Aug freight must be booked in the period }], createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 5 }
+                  approval: { id: apr_reopen_aug, companyId: co_acme, docType: Period Reopen, collection: periods, docId: per_acme_2026-08, docNumber: '2026-08', amount: 0, currency: INR, branchId: br_ho, requesterId: usr_priya, requesterName: Priya Sharma, ruleId: wf_period_reopen, ruleName: Period reopen (CFO), ruleVersion: 1, steps: [{ order: 1, name: CFO approval, approverType: Role, approverRef: role_finadmin, approverLabel: Finance Admin, status: Pending, commentRequired: true }], currentStep: 0, status: Pending, submittedAt: '2026-09-13T09:12:04Z', history: [{ at: '2026-09-13T09:12:04Z', by: Priya Sharma, action: Submitted }], createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+              reopened:
+                summary: outcome = reopened (no workflow / approver)
+                value:
+                  outcome: reopened
+                  period: { id: per_acme_2026-08, companyId: co_acme, fy: '2026-27', code: '2026-08', label: Aug 2026, start: '2026-08-01', end: '2026-08-31', status: Reopened, history: [{ at: '2026-09-13T09:12:04Z', by: Rahul Mehta, action: Reopened, reason: Late supplier invoice for Aug freight must be booked in the period }], createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 5 }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/periods/{code}/open:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Code'
+  post:
+    tags: [Admin]
+    summary: Open a Future period early
+    operationId: openPeriod
+    x-permission: admin.periods.edit
+    responses:
+      '200':
+        description: Period
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/Period' }
+            examples:
+              opened: { summary: Oct opened early, value: { id: per_acme_2026-10, companyId: co_acme, fy: '2026-27', code: '2026-10', label: Oct 2026, start: '2026-10-01', end: '2026-10-31', status: Open, history: [{ at: '2026-09-13T09:12:04Z', by: Rahul Mehta, action: Opened }], createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/periods/generate-next-fy:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Admin]
+    summary: Generate the 12 periods of the next fiscal year
+    description: Idempotent by period code — existing periods are left untouched.
+    operationId: generateNextFiscalYear
+    x-permission: admin.periods.edit
+    responses:
+      '201':
+        description: Periods created
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/GenerateFyResult' }
+            examples:
+              created: { summary: FY 2027-28, value: { fy: '2027-28', created: 12, periods: [{ id: per_acme_2027-04, companyId: co_acme, fy: '2027-28', code: '2027-04', label: Apr 2027, start: '2027-04-01', end: '2027-04-30', status: Future, history: [], createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }] } }
+              alreadyExists: { summary: Nothing new, value: { fy: '2027-28', created: 0, periods: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+# ── defaults ──────────────────────────────────────────────────────────────
+
+/defaults:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: Company defaults & control accounts
+    operationId: getDefaults
+    x-permission: admin.company.view
+    responses:
+      '200':
+        description: Defaults
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/CompanyDefaults' }
+            examples:
+              acme: { summary: Trading defaults, value: { warehouseId: wh_main, salesAccountId: acc_4000, purchaseAccountId: acc_5010, receivableAccountId: acc_1100, payableAccountId: acc_2100, bankAccountId: acc_1310, cashAccountId: acc_1300, roundOffAccountId: acc_4900, fxGainAccountId: acc_4910, fxLossAccountId: acc_5600, taxRateId: tax_gst18, paymentTerms: Net 30, priceListId: pl_wholesale, templateId: tpl_taxinv_v3, allowNegativeStock: false, valuationMethod: AVCO, matchingMode: 3-way, matchTolerancePct: 2, matchToleranceAmt: 500, creditPolicy: Warn, directInvoiceStock: true, negativeStockPolicy: Block, transitWarehouseId: wh_transit, tax: { eInvoiceThreshold: 50000, eWayBillThreshold: 50000, autoSubmitOnPost: true, provider: NIC-IRP, gstr1DueDay: 11, gstr3bDueDay: 20 } } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  put:
+    tags: [Admin]
+    summary: Replace company defaults
+    description: Control accounts must be posting-allowed accounts of the right control type (`422 INVALID_ACCOUNT`). Valuation method cannot change once stock movements exist (`409 INVALID_STATE`).
+    operationId: updateDefaults
+    x-permission: admin.company.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/admin.yaml#/CompanyDefaults' }
+          examples:
+            controls: { summary: Control accounts + policies, value: { warehouseId: wh_main, salesAccountId: acc_4000, purchaseAccountId: acc_5010, receivableAccountId: acc_1100, payableAccountId: acc_2100, bankAccountId: acc_1310, cashAccountId: acc_1300, roundOffAccountId: acc_4900, fxGainAccountId: acc_4910, fxLossAccountId: acc_5600, taxRateId: tax_gst18, paymentTerms: Net 30, priceListId: pl_wholesale, allowNegativeStock: false, valuationMethod: AVCO, matchingMode: 3-way, matchTolerancePct: 2, matchToleranceAmt: 500, creditPolicy: Block, directInvoiceStock: true } }
+            fourWay: { summary: 4-way matching with tighter tolerance, value: { matchingMode: 4-way, matchTolerancePct: 1, matchToleranceAmt: 250, blockOnException: true, duplicateInvoiceScope: Supplier+FY } }
+    responses:
+      '200':
+        description: Defaults
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/CompanyDefaults' }
+            examples:
+              saved: { summary: Saved, value: { warehouseId: wh_main, salesAccountId: acc_4000, purchaseAccountId: acc_5010, receivableAccountId: acc_1100, payableAccountId: acc_2100, bankAccountId: acc_1310, cashAccountId: acc_1300, roundOffAccountId: acc_4900, fxGainAccountId: acc_4910, fxLossAccountId: acc_5600, taxRateId: tax_gst18, paymentTerms: Net 30, priceListId: pl_wholesale, allowNegativeStock: false, valuationMethod: AVCO, matchingMode: 3-way, matchTolerancePct: 2, matchToleranceAmt: 500, creditPolicy: Block, directInvoiceStock: true } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+# ── business profile ──────────────────────────────────────────────────────
+
+/business-profile:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: Operating profiles, history and available templates
+    operationId: getBusinessProfile
+    x-permission: admin.company.view
+    x-frd: [FR-BIZ-001, FR-BIZ-003]
+    responses:
+      '200':
+        description: Profile
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [profiles, nature, history, templates]
+              properties:
+                profiles: { type: array, items: { type: string } }
+                nature: { type: string }
+                characteristics: { type: array, items: { type: string } }
+                history: { type: array, items: { type: object, properties: { at: { type: string, format: date-time }, by: { type: string }, from: { type: array, items: { type: string } }, to: { type: array, items: { type: string } }, reason: { type: string } } } }
+                templates: { type: array, items: { $ref: '../components/schemas/admin.yaml#/OperatingProfileTemplate' } }
+                pendingChange: { $ref: '../components/schemas/approvals.yaml#/ApprovalRequest' }
+            examples:
+              trading: { summary: Trading only, value: { profiles: [Trading], nature: Trading, characteristics: [Multi-branch], history: [], templates: [{ id: tpl_trading, code: TPL-TRADING, name: Trading company, nature: Trading, templateVersion: 3, modules: [sales, purchase, inventory, pos], coaTemplate: IN-TRADING-COA-v3, dimensions: [Branch, Department], roles: [SALES_MGR, PURCH_MGR, WAREHOUSE], workflows: [WF-SI-100K, WF-PO-50K], numbering: [Sales Invoice, Purchase Order], dashboards: [trading], reports: [stock-valuation], terminology: { Item: Product }, secondaryCharacteristics: [Multi-branch, Export], createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', version: 1 }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/business-profile/change-requests:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Admin]
+    summary: Change operating profiles (impact review → approval)
+    description: "With `dryRun: true` returns the impact review only. Otherwise routes through the `Profile Change` workflow (`outcome: routed-for-approval`) or applies immediately when no rule is active. Adding a profile enables its modules (subject to plan entitlement); removing one is blocked while open documents exist."
+    operationId: requestProfileChange
+    x-permission: admin.company.edit
+    x-workflow-doc-type: Profile Change
+    x-frd: [FR-BIZ-003]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/admin.yaml#/ProfileChangeRequest' }
+          examples:
+            preview: { summary: Impact review only, value: { profiles: [Trading, Manufacturing], reason: Starting in-house assembly of steel brackets from Oct 2026, dryRun: true } }
+            submit: { summary: Submit for approval, value: { profiles: [Trading, Manufacturing], reason: Starting in-house assembly of steel brackets from Oct 2026 } }
+    responses:
+      '200':
+        description: Outcome
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/ProfileChangeResult' }
+            examples:
+              preview: { summary: outcome = preview, value: { outcome: preview, impact: { from: [Trading], to: [Trading, Manufacturing], modulesAdded: [production], modulesRemoved: [], blockers: [], warnings: ['Production is not in the Growth plan — upgrade required before activation'], requiresApproval: true } } }
+              routed: { summary: outcome = routed-for-approval, value: { outcome: routed-for-approval, impact: { from: [Trading], to: [Trading, Manufacturing], modulesAdded: [production], modulesRemoved: [], blockers: [], warnings: [], requiresApproval: true }, approval: { id: apr_profile_1, companyId: co_acme, docType: Profile Change, collection: companies, docId: co_acme, docNumber: ACME, amount: 0, currency: INR, branchId: br_ho, requesterId: usr_rahul, requesterName: Rahul Mehta, steps: [{ order: 1, name: Owner approval, approverType: Role, approverRef: role_owner, approverLabel: Tenant Owner, status: Pending, commentRequired: true }], currentStep: 0, status: Pending, submittedAt: '2026-09-13T09:12:04Z', history: [], createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } } }
+              applied: { summary: outcome = applied, value: { outcome: applied, impact: { from: [Trading], to: [Trading, Manufacturing], modulesAdded: [production], modulesRemoved: [], blockers: [], warnings: [], requiresApproval: false }, company: { id: co_acme, tenantId: tnt_acme, code: ACME, legalName: Acme Trading Pvt Ltd, tradeName: Acme Trading, country: IN, baseCurrency: INR, permittedCurrencies: [INR, USD], timeZone: Asia/Kolkata, locale: en-IN, language: en, fiscalYearStartMonth: 4, nature: Hybrid, profiles: [Trading, Manufacturing], profileHistory: [{ at: '2026-09-13T09:12:04Z', by: Rahul Mehta, from: [Trading], to: [Trading, Manufacturing], reason: Starting in-house assembly of steel brackets from Oct 2026 }], localizationPack: IN, registrations: [], defaults: { allowNegativeStock: false, valuationMethod: AVCO, matchingMode: 3-way, matchTolerancePct: 2, matchToleranceAmt: 500, creditPolicy: Warn, directInvoiceStock: true }, status: Active, onboarding: {}, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 10 } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+# ── users ─────────────────────────────────────────────────────────────────
+
+/users:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: List users
+    description: Query examples — `?status=Invited` · `?roleId=role_accountant` · `?mfa=false` · `?q=anil`.
+    operationId: listUsers
+    x-permission: admin.users.view
+    x-frd: [FR-IAM-003]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/Q'
+      - { name: status, in: query, schema: { type: string }, style: form, explode: false, example: 'Active,Invited' }
+      - { name: roleId, in: query, schema: { type: string } }
+      - { name: mfa, in: query, schema: { type: boolean } }
+    responses:
+      '200':
+        description: Users
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/admin.yaml#/User' } }
+            examples:
+              firstPage:
+                summary: Active + invited
+                value:
+                  data:
+                    - { id: usr_priya, tenantId: tnt_acme, name: Priya Sharma, email: priya@acme.example, roleIds: [role_salesmgr], companyIds: [co_acme, co_gulf], branchIds: [], status: Active, mfaEnabled: true, lastLoginAt: '2026-09-13T08:58:00Z', passwordSet: true, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T08:58:00Z', version: 6 }
+                    - { id: usr_anil, tenantId: tnt_acme, name: Anil Kumar, email: anil@acme.example, roleIds: [role_accountant], companyIds: [co_acme], branchIds: [], status: Invited, mfaEnabled: false, invitedAt: '2026-09-13T09:12:04Z', passwordSet: false, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+                  meta: { nextCursor: null, limit: 25, total: 7, counts: { All: 7, Active: 5, Invited: 1, Suspended: 1 } }
+                  scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Admin]
+    summary: Invite a user
+    description: Creates the user as `Invited` with a 14-day invitation link (e-mailed and returned). Blocked at the plan's `users` limit (`409 PLAN_LIMIT`). Segregation-of-duties conflicts across the chosen roles are returned as `sodWarnings` (not blocking).
+    operationId: inviteUser
+    x-permission: admin.users.create
+    x-frd: [FR-IAM-006, FR-IAM-008]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/admin.yaml#/UserInvite' }
+          examples:
+            accountant: { summary: Accountant for one company, value: { name: Anil Kumar, email: anil@acme.example, roleIds: [role_accountant], companyIds: [co_acme] } }
+            branchUser: { summary: Branch-restricted sales user, value: { name: Kiran Rao, email: kiran@acme.example, roleIds: [role_salesuser], companyIds: [co_acme], branchIds: [br_andheri], message: Welcome to the Andheri team! } }
+            multiCompany: { summary: Finance admin across companies (SoD warning), value: { name: Meena Joshi, email: meena@acme.example, roleIds: [role_finadmin, role_salesmgr], companyIds: [co_acme, co_gulf] } }
+    responses:
+      '201':
+        description: Invited
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/UserInviteResult' }
+            examples:
+              invited: { summary: Invitation sent, value: { user: { id: usr_anil, tenantId: tnt_acme, name: Anil Kumar, email: anil@acme.example, roleIds: [role_accountant], companyIds: [co_acme], branchIds: [], status: Invited, mfaEnabled: false, invitedAt: '2026-09-13T09:12:04Z', passwordSet: false, sodWarnings: [], createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }, inviteLink: 'https://app.elixirbooks.example/#/invite?token=inv_tok_8f2a', expiresAt: '2026-09-27T09:12:04Z', emailQueued: true } }
+              sodWarning: { summary: Invited with SoD warning, value: { user: { id: usr_meena, tenantId: tnt_acme, name: Meena Joshi, email: meena@acme.example, roleIds: [role_finadmin, role_salesmgr], companyIds: [co_acme, co_gulf], branchIds: [], status: Invited, mfaEnabled: false, invitedAt: '2026-09-13T09:12:04Z', passwordSet: false, sodWarnings: ['Sales Manager + Finance Admin: can create and post sales invoices'], createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }, inviteLink: 'https://app.elixirbooks.example/#/invite?token=inv_tok_9c3b', expiresAt: '2026-09-27T09:12:04Z', emailQueued: true } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/users/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Admin]
+    summary: Get a user (with sessions and SoD warnings)
+    operationId: getUser
+    x-permission: admin.users.view
+    responses:
+      '200':
+        description: User
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/User' }
+            examples:
+              active: { $ref: '../components/examples/admin.yaml#/UserPriya' }
+              invited: { $ref: '../components/examples/admin.yaml#/UserAnilInvited' }
+              suspended: { $ref: '../components/examples/admin.yaml#/UserSuspended' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Admin]
+    summary: Update roles, companies, branches, MFA
+    operationId: updateUser
+    x-permission: admin.users.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/admin.yaml#/UserPatch' }
+          examples:
+            roles: { summary: Change roles, value: { expectedVersion: 6, roleIds: [role_salesmgr, role_purchmgr] } }
+            branches: { summary: Restrict to branches, value: { expectedVersion: 6, branchIds: [br_andheri, br_surat] } }
+            disableMfa: { summary: Admin disables MFA (audited), value: { expectedVersion: 6, mfaEnabled: false } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/User' }
+            examples:
+              updated: { $ref: '../components/examples/admin.yaml#/UserPriya' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/users/{id}/resend-invite:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Admin]
+    summary: Resend an invitation (new 14-day token)
+    operationId: resendInvite
+    x-permission: admin.users.edit
+    responses:
+      '200':
+        description: New link
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/UserInviteResult' }
+            examples:
+              resent: { summary: New token, value: { user: { id: usr_anil, tenantId: tnt_acme, name: Anil Kumar, email: anil@acme.example, roleIds: [role_accountant], companyIds: [co_acme], branchIds: [], status: Invited, mfaEnabled: false, invitedAt: '2026-09-13T10:00:00Z', passwordSet: false, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T10:00:00Z', version: 2 }, inviteLink: 'https://app.elixirbooks.example/#/invite?token=inv_tok_c4d1', expiresAt: '2026-09-27T10:00:00Z', emailQueued: true } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/users/{id}/status:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Admin]
+    summary: Suspend / reactivate / deactivate a user
+    description: Suspend and deactivate require a reason and revoke all sessions. The tenant owner cannot be suspended or deactivated (`409 INVALID_STATE`). Deactivation is permanent.
+    operationId: setUserStatus
+    x-permission: admin.users.edit
+    x-frd: [FR-IAM-005]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [status], properties: { status: { type: string, enum: [Active, Suspended, Deactivated] }, reason: { type: string, minLength: 10 } } }
+          examples:
+            suspend: { summary: Suspend, value: { status: Suspended, reason: Extended leave — access paused until 1 Nov } }
+            reactivate: { summary: Reactivate, value: { status: Active } }
+            deactivate: { summary: Deactivate (left the company), value: { status: Deactivated, reason: Left the organisation on 31 Aug 2026 } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/User' }
+            examples:
+              suspended: { $ref: '../components/examples/admin.yaml#/UserSuspended' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/users/{id}/reset-password:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Admin]
+    summary: Send a password-reset link to a user
+    operationId: adminResetPassword
+    x-permission: admin.users.edit
+    responses:
+      '202':
+        description: Reset link queued
+        content:
+          application/json:
+            schema: { type: object, required: [emailQueued, expiresAt], properties: { emailQueued: { type: boolean }, expiresAt: { type: string, format: date-time } } }
+            examples:
+              queued: { summary: Sent, value: { emailQueued: true, expiresAt: '2026-09-14T09:12:04Z' } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/users/{id}/sessions:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  delete:
+    tags: [Admin]
+    summary: Sign the user out of all sessions
+    operationId: revokeUserSessions
+    x-permission: admin.users.edit
+    responses:
+      '200':
+        description: Sessions revoked
+        content:
+          application/json:
+            schema: { type: object, required: [revoked], properties: { revoked: { type: integer } } }
+            examples:
+              revoked: { summary: Two sessions, value: { revoked: 2 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── roles ─────────────────────────────────────────────────────────────────
+
+/roles:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: List roles (system + custom)
+    operationId: listRoles
+    x-permission: admin.roles.view
+    x-frd: [FR-IAM-003]
+    parameters:
+      - { name: isSystem, in: query, schema: { type: boolean } }
+    responses:
+      '200':
+        description: Roles
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/admin.yaml#/Role' } } } }
+            examples:
+              roles:
+                summary: Excerpt
+                value:
+                  data:
+                    - { id: role_owner, code: OWNER, name: Tenant Owner, description: Everything, permissions: ['*'], dataScope: company, isSystem: true, userCount: 1, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', version: 1 }
+                    - { id: role_finadmin, code: FIN_ADMIN, name: Finance Admin, description: Post/reverse, periods, banking, tax, permissions: ['accounting.*', 'banking.*', 'taxation.*', 'sales.*', 'purchase.*', 'reports.*', 'masters.*', admin.periods.view, admin.periods.edit, admin.periods.approve], dataScope: company, isSystem: true, userCount: 1, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', version: 1 }
+                    - { id: role_arclerk, companyId: co_acme, code: ROLE_AR_CLERK, name: AR Clerk, description: Creates invoices and receipts; cannot post, permissions: [sales.invoice.view, sales.invoice.create, sales.invoice.edit, sales.receipt.view, sales.receipt.create, masters.customers.view], dataScope: branch, isSystem: false, userCount: 0, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Admin]
+    summary: Create a custom role
+    operationId: createRole
+    x-permission: admin.roles.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/admin.yaml#/RoleInput'
+              - { required: [code, name, permissions] }
+          examples:
+            arClerk: { summary: "Granular permissions, branch scope", value: { code: ROLE_AR_CLERK, name: AR Clerk, description: Creates invoices and receipts; cannot post, permissions: [sales.invoice.view, sales.invoice.create, sales.invoice.edit, sales.receipt.view, sales.receipt.create, masters.customers.view], dataScope: branch, color: '#f59e0b' } }
+            viewer: { summary: Read-only everything, value: { code: ROLE_VIEWER, name: Viewer, description: Read-only access to all modules, permissions: ['*.*.view'], dataScope: company } }
+    responses:
+      '201':
+        description: Role
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/Role' }
+            examples:
+              created: { $ref: '../components/examples/admin.yaml#/RoleArClerk' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/roles/permission-matrix:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: Permission matrix metadata (module × resource × action)
+    operationId: getPermissionMatrix
+    x-permission: admin.roles.view
+    responses:
+      '200':
+        description: Matrix
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/PermissionMatrix' }
+            examples:
+              matrix: { summary: Excerpt, value: { actions: [view, create, edit, submit, approve, post, reverse, export, delete], modules: [{ module: sales, label: Sales, resources: [{ id: quotation, label: Quotations }, { id: order, label: Sales orders }, { id: delivery, label: Deliveries }, { id: invoice, label: Invoices }, { id: creditnote, label: Credit notes }, { id: receipt, label: Receipts }] }, { module: accounting, label: Accounting, resources: [{ id: journal, label: Journals }, { id: ledger, label: Ledgers }, { id: period, label: Periods (post-closed) }, { id: reports, label: Financial reports }] }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/roles/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Admin]
+    summary: Get a role
+    operationId: getRole
+    x-permission: admin.roles.view
+    responses:
+      '200':
+        description: Role
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/Role' }
+            examples:
+              system: { $ref: '../components/examples/admin.yaml#/RoleSalesMgr' }
+              custom: { $ref: '../components/examples/admin.yaml#/RoleArClerk' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Admin]
+    summary: Update a custom role
+    description: System roles are read-only (`409 INVALID_STATE`). Permission changes take effect on the users' next request.
+    operationId: updateRole
+    x-permission: admin.roles.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/admin.yaml#/RolePatch' }
+          examples:
+            addPermission: { summary: Allow submitting invoices, value: { expectedVersion: 1, permissions: [sales.invoice.view, sales.invoice.create, sales.invoice.edit, sales.invoice.submit, sales.receipt.view, sales.receipt.create, masters.customers.view] } }
+            scope: { summary: Widen data scope, value: { expectedVersion: 1, dataScope: company } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/Role' }
+            examples:
+              updated: { $ref: '../components/examples/admin.yaml#/RoleArClerk' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Admin]
+    summary: Delete a custom role (no users assigned)
+    operationId: deleteRole
+    x-permission: admin.roles.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/roles/{id}/duplicate:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Admin]
+    summary: Duplicate a role (system roles too) as a custom role
+    operationId: duplicateRole
+    x-permission: admin.roles.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [code, name], properties: { code: { type: string }, name: { type: string } } }
+          examples:
+            copy: { summary: Copy of Sales Manager, value: { code: SALES_MGR_SOUTH, name: Sales Manager (South) } }
+    responses:
+      '201':
+        description: New role
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/Role' }
+            examples:
+              copy: { summary: Copied, value: { id: role_salesmgr_south, companyId: co_acme, code: SALES_MGR_SOUTH, name: Sales Manager (South), description: Full sales cycle incl. posting and credit override, permissions: ['sales.*', 'crm.*', masters.customers.view, masters.customers.create, masters.customers.edit, masters.items.view, reports.sales.view], dataScope: company, isSystem: false, userCount: 0, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }

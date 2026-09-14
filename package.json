@@ -10,7 +10,9 @@
     "format": "oxfmt",
     "typecheck": "tsc --noEmit",
     "smoke": "node scripts/smoke.mjs http://localhost:5173",
-    "responsive": "node scripts/audit-responsive.mjs"
+    "responsive": "node scripts/audit-responsive.mjs",
+    "api:bundle": "node scripts/openapi-bundle.mjs --index",
+    "api:lint": "node scripts/openapi-bundle.mjs --check"
   },
   "dependencies": {
     "react": "^19.0.0",
@@ -26,6 +28,7 @@
     "playwright-core": "1.49.1",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.0",
-    "vite": "^8.0.5"
+    "vite": "^8.0.5",
+    "yaml": "^2.8.0"
   }
 }

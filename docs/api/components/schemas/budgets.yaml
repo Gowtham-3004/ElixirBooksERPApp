@@ -1,0 +1,293 @@
+# Budgets & expenses (src/modules/budgets/types.ts, compute.ts, control.ts, expenseActions.ts)
+
+BudgetLineInput:
+  type: object
+  required: [accountId, months]
+  properties:
+    accountId: { type: string, example: acc_5400 }
+    months: { type: array, minItems: 12, maxItems: 12, items: { type: number }, description: 12 monthly amounts starting at the FY start month., example: [40000, 40000, 40000, 40000, 40000, 40000, 40000, 40000, 40000, 40000, 40000, 40000] }
+
+BudgetLine:
+  allOf:
+    - $ref: '#/BudgetLineInput'
+    - type: object
+      required: [id, accountCode, accountName, accountType, total]
+      properties:
+        id: { type: string, readOnly: true }
+        accountCode: { type: string, readOnly: true, example: '5400' }
+        accountName: { type: string, readOnly: true, example: Marketing }
+        accountType: { type: string, readOnly: true, enum: [Income, Expense] }
+        groupId: { type: string, readOnly: true }
+        total: { type: number, readOnly: true, example: 480000 }
+
+BudgetScope:
+  type: object
+  properties:
+    branchId: { type: string }
+    departmentId: { type: string }
+    costCentreId: { type: string }
+    projectId: { type: string }
+
+BudgetInput:
+  type: object
+  properties:
+    code: { type: string, example: BUD-2026-27 }
+    name: { type: string, example: Operating budget FY 2026-27 }
+    fy: { type: string, example: '2026-27' }
+    scope: { $ref: '#/BudgetScope' }
+    lines: { type: array, items: { $ref: '#/BudgetLineInput' } }
+    notes: { type: string }
+
+BudgetCreate:
+  allOf:
+    - $ref: '#/BudgetInput'
+    - { required: [fy] }
+    - type: object
+      properties:
+        copyFromId: { type: string, description: Seed lines from another budget (e.g. last FY). }
+        fromActuals: { type: object, description: Seed lines from posted actuals of a prior FY with an uplift., properties: { fy: { type: string }, upliftPct: { type: number } } }
+
+BudgetPatch:
+  allOf:
+    - $ref: '#/BudgetInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+Budget:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/BudgetInput'
+    - type: object
+      required: [code, name, fy, fyStart, revision, status, scope, lines, totalIncome, totalExpense]
+      properties:
+        fyStart: { type: string, format: date, readOnly: true, example: '2026-04-01' }
+        revision: { type: integer, readOnly: true, example: 1 }
+        status: { type: string, enum: [Draft, Approved, Superseded, Rejected] }
+        lines: { type: array, items: { $ref: '#/BudgetLine' } }
+        totalIncome: { type: number, readOnly: true, example: 72000000 }
+        totalExpense: { type: number, readOnly: true, example: 61000000 }
+        approvedBy: { type: string, readOnly: true }
+        approvedAt: { type: string, format: date-time, readOnly: true }
+        supersededById: { type: string, readOnly: true }
+        revisionOfId: { type: string, readOnly: true }
+        approvalId: { type: string, readOnly: true }
+
+VarianceRow:
+  type: object
+  required: [accountId, code, name, type, groupName, budgetFy, budgetPeriod, actual, committed, available, variance, favorable, utilizationPct, kind]
+  properties:
+    accountId: { type: string }
+    code: { type: string, example: '5400' }
+    name: { type: string, example: Marketing }
+    type: { type: string, enum: [Income, Expense] }
+    groupId: { type: string }
+    groupName: { type: string, example: Operating expenses }
+    budgetFy: { type: number, example: 480000 }
+    budgetPeriod: { type: number, example: 240000 }
+    actual: { type: number, example: 262000 }
+    committed: { type: number, description: Open PO value (expense accounts)., example: 30000 }
+    available: { type: number, example: -52000 }
+    variance: { type: number, example: 22000 }
+    favorable: { type: boolean }
+    utilizationPct: { type: number, example: 121.7 }
+    kind: { type: string, enum: [account, group, calc] }
+
+VarianceReport:
+  type: object
+  required: [fy, from, to, rows, totals]
+  properties:
+    budgetId: { type: string }
+    budgetCode: { type: string }
+    fy: { type: string }
+    from: { type: string, format: date }
+    to: { type: string, format: date }
+    branchId: { type: string }
+    rows: { type: array, items: { $ref: '#/VarianceRow' } }
+    totals: { type: object, required: [income, expense, net], properties: { income: { $ref: '#/VarianceRow' }, expense: { $ref: '#/VarianceRow' }, net: { $ref: '#/VarianceRow' } } }
+    scope: { $ref: './common.yaml#/Scope' }
+
+ControlMode:
+  type: string
+  enum: [Warn, Block, Override]
+
+BudgetRuleInput:
+  type: object
+  properties:
+    groupId: { type: string, description: Account group the rule applies to., example: ag_opex }
+    mode: { $ref: '#/ControlMode' }
+    thresholdPct: { type: number, description: Utilisation % at which the rule fires., example: 100 }
+    includeCommitted: { type: boolean, default: true }
+    notes: { type: string }
+
+BudgetRuleCreate:
+  allOf:
+    - $ref: '#/BudgetRuleInput'
+    - { required: [groupId, mode, thresholdPct] }
+
+BudgetRulePatch:
+  allOf:
+    - $ref: '#/BudgetRuleInput'
+    - { type: object, properties: { status: { type: string, enum: [Active, Inactive] } } }
+    - $ref: './common.yaml#/ExpectedVersion'
+
+BudgetRule:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/BudgetRuleInput'
+    - type: object
+      required: [groupId, groupName, mode, thresholdPct, includeCommitted, status]
+      properties:
+        groupName: { type: string, readOnly: true, example: Operating expenses }
+        status: { type: string, enum: [Active, Inactive] }
+
+BudgetCheckRequest:
+  type: object
+  required: [accountId, amount, date]
+  properties:
+    accountId: { type: string, example: acc_5400 }
+    amount: { type: number, example: 50000 }
+    date: { type: string, format: date, example: '2026-09-13' }
+    scope: { type: string, enum: [period, ytd, fy], default: period }
+
+BudgetCheckResult:
+  type: object
+  description: Result of budget control (checkBudget) — also embedded in PO / expense submit responses.
+  required: [ok, mode, budget, actual, committed, available, utilizationPct]
+  properties:
+    ok: { type: boolean }
+    mode: { type: string, enum: [Warn, Block, Override, None] }
+    message: { type: string, example: 'Marketing would reach 131% of the September budget (₹2,40,000)' }
+    needsApproval: { type: boolean }
+    budget: { type: number }
+    actual: { type: number }
+    committed: { type: number }
+    available: { type: number }
+    utilizationPct: { type: number }
+    accountCode: { type: string }
+    ruleId: { type: string }
+
+ExpenseCategoryInput:
+  type: object
+  properties:
+    code: { type: string, example: TRV }
+    name: { type: string, example: Travel }
+    accountId: { type: string, example: acc_5410 }
+    receiptRequired: { type: boolean, default: true }
+    taxRateId: { type: string }
+    perDiem: { type: number, example: 750 }
+
+ExpenseCategoryCreate:
+  allOf:
+    - $ref: '#/ExpenseCategoryInput'
+    - { required: [code, name, accountId] }
+
+ExpenseCategoryPatch:
+  allOf:
+    - $ref: '#/ExpenseCategoryInput'
+    - { type: object, properties: { status: { type: string, enum: [Active, Inactive] } } }
+    - $ref: './common.yaml#/ExpectedVersion'
+
+ExpenseCategory:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/ExpenseCategoryInput'
+    - type: object
+      required: [code, name, accountId, receiptRequired, status]
+      properties:
+        accountName: { type: string, readOnly: true }
+        status: { type: string, enum: [Active, Inactive] }
+
+ExpenseLineInput:
+  type: object
+  required: [date, categoryId, description, amount]
+  properties:
+    date: { type: string, format: date, example: '2026-09-10' }
+    categoryId: { type: string, example: ec_trv }
+    description: { type: string, example: Cab to client site }
+    amount: { type: number, example: 850 }
+    taxRateId: { type: string, description: Claim input GST (needs a GST invoice)., example: tr_gst5 }
+    dimensions: { $ref: './common.yaml#/KeyValue' }
+    receiptAttachmentId: { type: string, description: Upload via `/attachments` first. }
+
+ExpenseLine:
+  allOf:
+    - $ref: '#/ExpenseLineInput'
+    - type: object
+      required: [id, categoryName, accountId, taxRate, tax, total]
+      properties:
+        id: { type: string, readOnly: true }
+        categoryName: { type: string, readOnly: true }
+        accountId: { type: string, readOnly: true }
+        taxRate: { type: number, readOnly: true }
+        tax: { type: number, readOnly: true }
+        total: { type: number, readOnly: true }
+        hasReceipt: { type: boolean, readOnly: true }
+
+ExpenseClaimInput:
+  type: object
+  properties:
+    date: { type: string, format: date, example: '2026-09-13' }
+    branchId: { type: string }
+    employeeId: { type: string, description: Defaults to the caller's employee record., example: emp_priya }
+    purpose: { type: string, example: "Client visit — Pune, 10–11 Sep" }
+    paymentMethod: { type: string, enum: [Personal, Corporate card], default: Personal }
+    lines: { type: array, minItems: 1, items: { $ref: '#/ExpenseLineInput' } }
+    dimensions: { $ref: './common.yaml#/KeyValue' }
+    attachmentIds: { type: array, items: { type: string } }
+    notes: { type: string }
+
+ExpenseClaimCreate:
+  allOf:
+    - $ref: '#/ExpenseClaimInput'
+    - { required: [date, purpose, lines] }
+
+ExpenseClaimPatch:
+  allOf:
+    - $ref: '#/ExpenseClaimInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+ExpenseClaim:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/ExpenseClaimInput'
+    - type: object
+      required: [number, docType, date, branchId, employeeId, employeeName, purpose, status, lines, totals, currency, paymentMethod, correlationId]
+      properties:
+        number: { type: string, readOnly: true, example: EXP/2026-27/00031 }
+        docType: { type: string, const: Expense Claim }
+        employeeName: { type: string, readOnly: true }
+        employeeCode: { type: string, readOnly: true }
+        department: { type: string, readOnly: true }
+        status: { type: string, enum: [Draft, Submitted, Approved, Rejected, Returned, Reimbursed] }
+        lines: { type: array, items: { $ref: '#/ExpenseLine' } }
+        totals: { type: object, readOnly: true, required: [amount, tax, total], properties: { amount: { type: number }, tax: { type: number }, total: { type: number } } }
+        currency: { type: string, readOnly: true, example: INR }
+        approvalId: { type: string, readOnly: true }
+        journalId: { type: string, readOnly: true }
+        journalNumber: { type: string, readOnly: true }
+        openItemId: { type: string, readOnly: true }
+        submittedAt: { type: string, format: date-time, readOnly: true }
+        submittedBy: { type: string, readOnly: true }
+        approvedAt: { type: string, format: date-time, readOnly: true }
+        approvedBy: { type: string, readOnly: true }
+        postedAt: { type: string, format: date-time, readOnly: true }
+        reimbursedAt: { type: string, format: date-time, readOnly: true }
+        reimbursementRef: { type: string, readOnly: true }
+        reimbursementMode: { type: string, readOnly: true, enum: [Bank, Payroll, Card settlement] }
+        reimbursementJournalId: { type: string, readOnly: true }
+        rejectionReason: { type: string, readOnly: true }
+        budgetWarnings: { type: array, readOnly: true, items: { $ref: '#/BudgetCheckResult' } }
+        correlationId: { type: string, readOnly: true }
+
+ExpenseSubmitOutcome:
+  type: string
+  description: "`routed-for-approval` → Submitted; `posted` → no workflow: auto-approved and posted (corporate card → Reimbursed)."
+  enum: [routed-for-approval, posted]
+
+ReimburseRequest:
+  type: object
+  required: [mode]
+  properties:
+    mode: { type: string, enum: [Bank, Payroll] }
+    date: { type: string, format: date, description: Bank mode., example: '2026-09-15' }
+    reference: { type: string, example: NEFT26091500821 }
+    bankAccountId: { type: string, example: acc_1310 }

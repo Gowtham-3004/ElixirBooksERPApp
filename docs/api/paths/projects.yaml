@@ -1,0 +1,766 @@
+# Projects & contracts — part 1 (tag: Projects). src/modules/projects/actions.ts: services, contracts, projects, resources, rate cards.
+
+# ── services ──────────────────────────────────────────────────────────────
+
+/projects/services:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Projects]
+    summary: Service catalog
+    operationId: listServices
+    x-permission: projects.project.view
+    x-frd: [FR-SRV-001]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/IncludeInactive'
+    responses:
+      '200':
+        description: Services
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/projects.yaml#/Service' } }
+            examples:
+              firstPage: { summary: Services, value: { data: [{ id: svc_cons, companyId: co_acme, itemId: item_consult, code: SVC-CONS, name: Consulting, sac: '998311', unit: Hr, defaultRate: 4500, taxRateId: tr_gst18, revenueAccountId: acc_4010, billableDefault: true, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: svc_supp, companyId: co_acme, itemId: item_support, code: SVC-SUPP, name: Managed support, sac: '998313', unit: Month, defaultRate: 150000, taxRateId: tr_gst18, revenueAccountId: acc_4010, billableDefault: true, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }], meta: { nextCursor: null, limit: 25, total: 2 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Projects]
+    summary: Create a service (mirrors an Item of type Service)
+    operationId: createService
+    x-permission: projects.catalog.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/projects.yaml#/ServiceCreate' }
+          examples:
+            hourly: { summary: Hourly, value: { code: SVC-ARCH, name: Solution architecture, sac: '998311', unit: Hr, defaultRate: 8000, taxRateId: tr_gst18 } }
+            fixed: { summary: Fixed deliverable, value: { name: Go-live support package, unit: Fixed, defaultRate: 250000, taxRateId: tr_gst18, billableDefault: true } }
+    responses:
+      '201':
+        description: Created
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Service' }
+            examples:
+              created: { summary: Created, value: { id: svc_arch, companyId: co_acme, itemId: item_arch, code: SVC-ARCH, name: Solution architecture, sac: '998311', unit: Hr, defaultRate: 8000, taxRateId: tr_gst18, revenueAccountId: acc_4010, billableDefault: true, status: Active, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/projects/services/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Projects]
+    summary: Get a service
+    operationId: getService
+    x-permission: projects.project.view
+    responses:
+      '200':
+        description: Service
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Service' }
+            examples:
+              consulting: { summary: Consulting, value: { id: svc_cons, companyId: co_acme, itemId: item_consult, code: SVC-CONS, name: Consulting, sac: '998311', unit: Hr, defaultRate: 4500, taxRateId: tr_gst18, revenueAccountId: acc_4010, billableDefault: true, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Projects]
+    summary: Update a service
+    operationId: updateService
+    x-permission: projects.catalog.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/projects.yaml#/ServicePatch' }
+          examples:
+            rate: { summary: New default rate, value: { expectedVersion: 1, defaultRate: 5000 } }
+            deactivate: { summary: Deactivate, value: { expectedVersion: 1, status: Inactive } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Service' }
+            examples:
+              updated: { summary: Updated, value: { id: svc_cons, companyId: co_acme, itemId: item_consult, code: SVC-CONS, name: Consulting, sac: '998311', unit: Hr, defaultRate: 5000, taxRateId: tr_gst18, revenueAccountId: acc_4010, billableDefault: true, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Projects]
+    summary: Delete an unused service
+    operationId: deleteService
+    x-permission: projects.catalog.edit
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── contracts ─────────────────────────────────────────────────────────────
+
+/projects/contracts:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Projects]
+    summary: Contracts / SOWs
+    description: "Tabs → All · Draft · Awaiting approval · Active · Completed · Cancelled. Query examples — `?billingMethod=Time & material` · `?customerId=cust_arlene` · `?projectId=prj_erp`."
+    operationId: listContracts
+    x-permission: projects.project.view
+    x-frd: [FR-SRV-002]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: billingMethod, in: query, schema: { $ref: '../components/schemas/projects.yaml#/BillingMethod' } }
+      - $ref: '../components/parameters.yaml#/CustomerId'
+      - $ref: '../components/parameters.yaml#/ProjectId'
+    responses:
+      '200':
+        description: Contracts
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/projects.yaml#/Contract' } }
+            examples:
+              firstPage: { summary: Contracts, value: { data: [{ $ref: '#/components/examples/ContractTmActive/value' }], meta: { nextCursor: null, limit: 25, total: 9, counts: { All: 9, Draft: 1, 'Awaiting approval': 1, Active: 6, Completed: 1, Cancelled: 0 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Projects]
+    summary: Create a contract (Draft) — six billing methods
+    operationId: createContract
+    x-permission: projects.contract.edit
+    x-events: [DocumentCreated]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/projects.yaml#/ContractCreate' }
+          examples:
+            fixedPrice: { summary: Fixed price with instalments, value: { customerId: cust_arlene, projectId: prj_erp, title: ERP implementation — phase 1, billingMethod: Fixed price, amount: 2400000, currency: INR, start: '2026-09-15', end: '2027-03-31', taxRateId: tr_gst18, serviceItemId: item_consult, revenueMethod: Percent complete, milestones: [{ kind: Instalment, order: 1, name: Advance 30%, amount: 720000, due: '2026-09-20' }, { kind: Instalment, order: 2, name: On UAT 40%, amount: 960000, due: '2027-01-15' }, { kind: Instalment, order: 3, name: On go-live 30%, amount: 720000, due: '2027-03-31' }] } }
+            timeAndMaterial: { summary: T&M with rate card and cap, value: { customerId: cust_metro, title: Data migration support, billingMethod: Time & material, amount: 900000, currency: INR, rateCardId: rc_std, rates: [{ role: Senior consultant, rate: 6500 }], capHours: 150, capAmount: 900000, start: '2026-10-01', taxRateId: tr_gst18, revenueMethod: Hours } }
+            milestone: { summary: Milestone-based, value: { customerId: cust_arlene, projectId: prj_erp, title: Reporting pack, billingMethod: Milestone, amount: 1200000, currency: INR, start: '2026-10-01', end: '2026-12-31', taxRateId: tr_gst18, revenueMethod: Milestone, milestones: [{ name: Design sign-off, amount: 400000, due: '2026-10-15', deliverable: Approved design }, { name: Build complete, amount: 500000, due: '2026-11-30' }, { name: UAT sign-off, amount: 300000, due: '2026-12-20' }] } }
+            recurring: { summary: Recurring monthly retainer, value: { customerId: cust_ustech, title: Managed support — Gold, billingMethod: Recurring, amount: 1800000, currency: USD, recurrence: { amount: 2000, frequency: Monthly, nextBillDate: '2026-10-01', endDate: '2027-09-30' }, start: '2026-10-01', end: '2027-09-30', serviceItemId: item_support, revenueMethod: Straight-line } }
+            usage: { summary: Usage with tiers, value: { customerId: cust_metro, title: API platform usage, billingMethod: Usage, amount: 0, currency: INR, usage: { metric: API calls, unit: '1k calls', unitRate: 1.5, tiers: [{ upTo: 10000, rate: 1.5 }, { upTo: 50000, rate: 1.2 }, { upTo: 999999999, rate: 1 }] }, start: '2026-09-01', taxRateId: tr_gst18, revenueMethod: Usage } }
+            costPlus: { summary: Cost plus 15%, value: { customerId: cust_arlene, projectId: prj_erp, title: Infrastructure procurement, billingMethod: Cost plus, amount: 0, currency: INR, markupPct: 15, start: '2026-09-15', taxRateId: tr_gst18, revenueMethod: Auto } }
+    responses:
+      '201':
+        description: Draft contract
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Contract' }
+            examples:
+              draft: { $ref: '../components/examples/projects.yaml#/ContractFixedDraft' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Validation (validateContract)
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              milestonesTotal: { summary: Milestones ≠ amount, value: { code: VALIDATION, message: 'Milestones total 1,100,000 does not equal contract amount 1,200,000', field: milestones, correlationId: corr_9f1c2e7a } }
+              recurrence: { summary: Recurring without schedule, value: { code: VALIDATION, message: "Recurring contracts need an amount, frequency and next bill date", field: recurrence, correlationId: corr_9f1c2e7a } }
+              dates: { summary: End before start, value: { code: VALIDATION, message: End date must be after the start, field: end, correlationId: corr_9f1c2e7a } }
+
+/projects/contracts/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Projects]
+    summary: Get a contract
+    operationId: getContract
+    x-permission: projects.project.view
+    responses:
+      '200':
+        description: Contract
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Contract' }
+            examples:
+              draft: { $ref: '../components/examples/projects.yaml#/ContractFixedDraft' }
+              active: { $ref: '../components/examples/projects.yaml#/ContractTmActive' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Projects]
+    summary: Edit (Draft / Returned / Rejected; limited fields when Approved / Active)
+    operationId: updateContract
+    x-permission: projects.contract.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/projects.yaml#/ContractPatch' }
+          examples:
+            milestones: { summary: Re-plan milestones, value: { expectedVersion: 1, milestones: [{ id: ms_1, name: Design sign-off, amount: 400000, due: '2026-10-22' }, { id: ms_2, name: Build complete, amount: 500000, due: '2026-12-05' }, { id: ms_3, name: UAT sign-off, amount: 300000, due: '2026-12-24' }] } }
+            cap: { summary: Raise the T&M cap, value: { expectedVersion: 3, capHours: 200, capAmount: 1200000, amount: 1200000 } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Contract' }
+            examples:
+              updated: { $ref: '../components/examples/projects.yaml#/ContractFixedDraft' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: State / version conflict
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              locked: { summary: Not editable, value: { code: INVALID_STATE, message: Contract is Completed and cannot be edited, correlationId: corr_9f1c2e7a } }
+              stale: { summary: Stale version, value: { code: CONFLICT, message: Record changed by Priya Sharma at 10:02 — reload and retry, details: { expectedVersion: 1, currentVersion: 2 }, correlationId: corr_9f1c2e7a } }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Projects]
+    summary: Delete a Draft contract
+    operationId: deleteContract
+    x-permission: projects.contract.edit
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/projects/contracts/{id}/submit:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Projects]
+    summary: Submit for approval ('Contract' workflow; auto-approves when `prjContractApproval` is off or no rule matches)
+    operationId: submitContract
+    x-permission: projects.contract.edit
+    x-idempotent: true
+    x-workflow-doc-type: Contract
+    x-events: [DocumentSubmitted, DocumentApproved]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Outcome
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/projects.yaml#/Contract' }
+                    outcome: { type: string, enum: [routed-for-approval, approved] }
+            examples:
+              routed: { summary: outcome = routed-for-approval, value: { document: { id: ctr_0012, companyId: co_acme, number: CTR/2026-27/00012, docType: Contract, date: '2026-09-13', branchId: br_ho, status: Submitted, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, customerId: cust_arlene, projectId: prj_erp, title: ERP implementation — phase 1, billingMethod: Fixed price, amount: 2400000, start: '2026-09-15', end: '2027-03-31', taxRateId: tr_gst18, serviceItemId: item_consult, revenueMethod: Percent complete, lines: [], totals: { subtotal: 2400000, discount: 0, taxable: 2400000, tax: 432000, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 2832000, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 2832000 }, approvalId: apr_ctr_12, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:30:00Z', version: 2 }, outcome: routed-for-approval, approval: { id: apr_ctr_12, companyId: co_acme, docType: Contract, collection: contracts, docId: ctr_0012, docNumber: CTR/2026-27/00012, amount: 2400000, currency: INR, branchId: br_ho, requesterId: usr_priya, requesterName: Priya Sharma, steps: [{ order: 1, name: Delivery head, approverType: Role, approverRef: role_delivery, approverLabel: Delivery Head, status: Pending, commentRequired: false }], currentStep: 0, status: Pending, submittedAt: '2026-09-13T09:30:00Z', history: [], createdAt: '2026-09-13T09:30:00Z', updatedAt: '2026-09-13T09:30:00Z', version: 1 }, warnings: [] } }
+              approved: { summary: outcome = approved (no rule), value: { document: { $ref: '#/components/examples/ContractFixedDraft/value' }, outcome: approved, warnings: ['No workflow applies — contract approved; activate to start billing'] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/projects/contracts/{id}/activate:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Projects]
+    summary: Activate an Approved contract (enables billing, timesheets, revenue)
+    operationId: activateContract
+    x-permission: projects.contract.approve
+    x-events: [DocumentApproved]
+    responses:
+      '200':
+        description: Active
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Contract' }
+            examples:
+              active: { $ref: '../components/examples/projects.yaml#/ContractTmActive' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Not approved
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              notApproved: { summary: Not approved, value: { code: INVALID_STATE, message: Contract must be Approved before activation (currently Submitted), correlationId: corr_9f1c2e7a } }
+
+/projects/contracts/{id}/complete:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Projects]
+    summary: Complete an Active contract
+    operationId: completeContract
+    x-permission: projects.contract.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Go-live signed off 28 Mar } }
+    responses:
+      '200':
+        description: Completed
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Contract' }
+            examples:
+              completed: { summary: Completed, value: { id: ctr_0012, companyId: co_acme, number: CTR/2026-27/00012, docType: Contract, date: '2026-09-13', branchId: br_ho, status: Completed, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, customerId: cust_arlene, projectId: prj_erp, title: ERP implementation — phase 1, billingMethod: Fixed price, amount: 2400000, start: '2026-09-15', end: '2027-03-31', revenueMethod: Percent complete, lines: [], totals: { subtotal: 2400000, discount: 0, taxable: 2400000, tax: 432000, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 2832000, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 2832000 }, activatedAt: '2026-09-14T09:00:00Z', completedAt: '2027-03-28T10:00:00Z', billedToDate: 2400000, recognizedToDate: 2400000, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2027-03-28T10:00:00Z', version: 9 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/projects/contracts/{id}/cancel:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Projects]
+    summary: Cancel (any state except Completed / Cancelled)
+    operationId: cancelContract
+    x-permission: projects.contract.edit
+    x-events: [DocumentCancelled]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { $ref: '../components/examples/common.yaml#/ReasonCancel' }
+    responses:
+      '200':
+        description: Cancelled
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Contract' }
+            examples:
+              cancelled: { summary: Cancelled, value: { id: ctr_0020, companyId: co_acme, number: CTR/2026-27/00020, docType: Contract, date: '2026-09-13', branchId: br_ho, status: Cancelled, currency: INR, rate: 1, partyType: Customer, partyId: cust_metro, partyName: Metro Retail, customerId: cust_metro, title: Data migration support, billingMethod: Time & material, amount: 900000, start: '2026-10-01', revenueMethod: Hours, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 0, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 0 }, cancelReason: Customer withdrew the order, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T12:00:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/projects/contracts/{id}/progress:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Projects]
+    summary: Record % complete for a period (Fixed price / Percent complete revenue)
+    operationId: updateContractProgress
+    x-permission: projects.contract.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/projects.yaml#/ProgressRequest' }
+          examples:
+            september: { summary: September, value: { period: '2026-09', pct: 35, note: "Design complete, build 20%" } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Contract' }
+            examples:
+              updated: { summary: Progress recorded, value: { id: ctr_0012, companyId: co_acme, number: CTR/2026-27/00012, docType: Contract, date: '2026-09-13', branchId: br_ho, status: Active, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, customerId: cust_arlene, projectId: prj_erp, title: ERP implementation — phase 1, billingMethod: Fixed price, amount: 2400000, start: '2026-09-15', end: '2027-03-31', revenueMethod: Percent complete, progress: [{ period: '2026-09', pct: 35, note: "Design complete, build 20%" }], lines: [], totals: { subtotal: 2400000, discount: 0, taxable: 2400000, tax: 432000, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 2832000, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 2832000 }, activatedAt: '2026-09-14T09:00:00Z', createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-30T10:00:00Z', version: 5 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+# ── projects ──────────────────────────────────────────────────────────────
+
+/projects/projects:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Projects]
+    summary: Projects
+    description: Tabs → Active · Planned · On hold · Completed · All.
+    operationId: listProjects
+    x-permission: projects.project.view
+    x-frd: [FR-SRV-002]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/CustomerId'
+      - { name: managerEmployeeId, in: query, schema: { type: string } }
+    responses:
+      '200':
+        description: Projects
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/projects.yaml#/Project' } }
+            examples:
+              firstPage: { summary: Projects, value: { data: [{ $ref: '#/components/examples/ProjectErp/value' }], meta: { nextCursor: null, limit: 25, total: 6, counts: { Active: 4, Planned: 1, 'On hold': 0, Completed: 1, All: 6 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Projects]
+    summary: Create a project (creates its Project dimension)
+    operationId: createProject
+    x-permission: projects.project.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/projects.yaml#/ProjectCreate' }
+          examples:
+            full: { summary: Full, value: { code: PRJ-ERP, name: Arlene ERP implementation, customerId: cust_arlene, contractId: ctr_0012, managerEmployeeId: emp_priya, start: '2026-09-15', end: '2027-03-31', budgetHours: 800, budgetAmount: 2400000, teamEmployeeIds: [emp_neha, emp_anil] } }
+            minimal: { summary: Minimal, value: { name: Metro data migration, customerId: cust_metro, start: '2026-10-01' } }
+    responses:
+      '201':
+        description: Created
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Project' }
+            examples:
+              created: { $ref: '../components/examples/projects.yaml#/ProjectErp' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/projects/projects/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Projects]
+    summary: Get a project
+    operationId: getProject
+    x-permission: projects.project.view
+    responses:
+      '200':
+        description: Project
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Project' }
+            examples:
+              active: { $ref: '../components/examples/projects.yaml#/ProjectErp' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Projects]
+    summary: Update a project
+    operationId: updateProject
+    x-permission: projects.project.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/projects.yaml#/ProjectPatch' }
+          examples:
+            team: { summary: Team and budget, value: { expectedVersion: 2, teamEmployeeIds: [emp_neha, emp_anil, emp_meena], budgetHours: 900 } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Project' }
+            examples:
+              updated: { $ref: '../components/examples/projects.yaml#/ProjectErp' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Projects]
+    summary: Delete a Planned project with no transactions
+    operationId: deleteProject
+    x-permission: projects.project.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/projects/projects/{id}/status:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Projects]
+    summary: Change status (history kept)
+    operationId: setProjectStatus
+    x-permission: projects.project.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/projects.yaml#/ProjectStatusRequest' }
+          examples:
+            hold: { summary: On hold, value: { status: On Hold, reason: Customer budget freeze until Nov } }
+            complete: { summary: Completed, value: { status: Completed, reason: Go-live signed off } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Project' }
+            examples:
+              onHold: { summary: On hold, value: { id: prj_erp, companyId: co_acme, code: PRJ-ERP, name: Arlene ERP implementation, customerId: cust_arlene, customerName: Arlene Traders, contractId: ctr_0012, managerEmployeeId: emp_priya, start: '2026-09-15', end: '2027-03-31', budgetHours: 800, budgetAmount: 2400000, status: On Hold, dimensionId: dim_prj_erp, teamEmployeeIds: [emp_neha, emp_anil], branchId: br_ho, statusHistory: [{ at: '2026-09-14T09:00:00Z', by: Priya Sharma, from: Planned, to: Active }, { at: '2026-10-20T09:00:00Z', by: Priya Sharma, from: Active, to: On Hold, reason: Customer budget freeze until Nov }], hoursLogged: 340, hoursBilled: 300, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-10-20T09:00:00Z', version: 4 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── resources & rate cards ────────────────────────────────────────────────
+
+/projects/resources:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Projects]
+    summary: Resources (billable people with cost / bill rates)
+    operationId: listResources
+    x-permission: projects.project.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/IncludeInactive'
+      - { name: role, in: query, schema: { type: string } }
+    responses:
+      '200':
+        description: Resources
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/projects.yaml#/Resource' } } } }
+            examples:
+              list: { summary: Resources, value: { data: [{ id: res_neha, companyId: co_acme, employeeId: emp_neha, employeeName: Neha Rao, role: Senior consultant, costRate: 2200, billRate: 6000, capacityHoursPerWeek: 40, status: Active, utilisationPct: 82, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: res_anil, companyId: co_acme, employeeId: emp_anil, employeeName: Anil Kumar, role: Engineer, costRate: 900, billRate: 2500, capacityHoursPerWeek: 40, status: Active, utilisationPct: 45, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Projects]
+    summary: Add a resource
+    operationId: createResource
+    x-permission: projects.resource.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/projects.yaml#/ResourceCreate' }
+          examples:
+            consultant: { summary: Consultant, value: { employeeId: emp_meena, role: Consultant, costRate: 1500, billRate: 4500, capacityHoursPerWeek: 40 } }
+    responses:
+      '201':
+        description: Created
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Resource' }
+            examples:
+              created: { summary: Created, value: { id: res_meena, companyId: co_acme, employeeId: emp_meena, employeeName: Meena Joshi, role: Consultant, costRate: 1500, billRate: 4500, capacityHoursPerWeek: 40, status: Active, utilisationPct: 0, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Duplicate
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              duplicate: { summary: Already a resource, value: { code: DUPLICATE, message: Neha Rao is already a resource (Senior consultant), field: employeeId, correlationId: corr_9f1c2e7a } }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/projects/resources/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  patch:
+    tags: [Projects]
+    summary: Update a resource
+    operationId: updateResource
+    x-permission: projects.resource.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/projects.yaml#/ResourcePatch' }
+          examples:
+            rates: { summary: New rates, value: { expectedVersion: 1, costRate: 2400, billRate: 6500 } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/Resource' }
+            examples:
+              updated: { summary: Updated, value: { id: res_neha, companyId: co_acme, employeeId: emp_neha, employeeName: Neha Rao, role: Senior consultant, costRate: 2400, billRate: 6500, capacityHoursPerWeek: 40, status: Active, utilisationPct: 82, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Projects]
+    summary: Remove a resource (no timesheets)
+    operationId: deleteResource
+    x-permission: projects.resource.edit
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/projects/rate-cards:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Projects]
+    summary: Rate cards
+    operationId: listRateCards
+    x-permission: projects.project.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/IncludeInactive'
+    responses:
+      '200':
+        description: Rate cards
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/projects.yaml#/RateCard' } } } }
+            examples:
+              list: { summary: Rate cards, value: { data: [{ id: rc_std, companyId: co_acme, code: RC-STD, name: Standard 2026, currency: INR, rows: [{ role: Project manager, rate: 7500 }, { role: Senior consultant, rate: 6000 }, { role: Consultant, rate: 4500 }, { role: Engineer, rate: 2500 }], validFrom: '2026-04-01', status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Projects]
+    summary: Create a rate card
+    operationId: createRateCard
+    x-permission: projects.resource.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/projects.yaml#/RateCardCreate' }
+          examples:
+            usd: { summary: USD card for overseas clients, value: { code: RC-USD, name: Overseas 2026, currency: USD, rows: [{ role: Senior consultant, rate: 90 }, { role: Consultant, rate: 65 }], validFrom: '2026-10-01' } }
+    responses:
+      '201':
+        description: Created
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/RateCard' }
+            examples:
+              created: { summary: Created, value: { id: rc_usd, companyId: co_acme, code: RC-USD, name: Overseas 2026, currency: USD, rows: [{ role: Senior consultant, rate: 90 }, { role: Consultant, rate: 65 }], validFrom: '2026-10-01', status: Active, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/projects/rate-cards/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  patch:
+    tags: [Projects]
+    summary: Update a rate card
+    operationId: updateRateCard
+    x-permission: projects.resource.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/projects.yaml#/RateCardPatch' }
+          examples:
+            rows: { summary: Replace rows, value: { expectedVersion: 1, rows: [{ role: Senior consultant, rate: 6500 }, { role: Consultant, rate: 4800 }] } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/projects.yaml#/RateCard' }
+            examples:
+              updated: { summary: Updated, value: { id: rc_std, companyId: co_acme, code: RC-STD, name: Standard 2026, currency: INR, rows: [{ role: Senior consultant, rate: 6500 }, { role: Consultant, rate: 4800 }], validFrom: '2026-04-01', status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Projects]
+    summary: Delete an unused rate card
+    operationId: deleteRateCard
+    x-permission: projects.resource.edit
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }

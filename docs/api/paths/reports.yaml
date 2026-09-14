@@ -1,0 +1,376 @@
+# Reports & CFO dashboard (tag: Reports). src/modules/reports/compute.ts, Dashboard.tsx, Saved.tsx.
+
+/reports/dashboard:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Reports]
+    summary: CFO dashboard (KPIs, 12-month trend, alerts)
+    operationId: getCfoDashboard
+    x-permission: reports.cfo.view
+    x-frd: [FR-RPT-001]
+    parameters:
+      - $ref: '../components/parameters.yaml#/PeriodCode'
+      - $ref: '../components/parameters.yaml#/BranchFilter'
+    responses:
+      '200':
+        description: Dashboard
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/CfoDashboard' }
+            examples:
+              september: { summary: September, value: { period: '2026-09', from: '2026-09-01', to: '2026-09-30', kpis: [{ key: revenue, label: Revenue, value: 6740000, compare: 6120000, deltaPct: 10.1, tone: good, link: reports/pl }, { key: grossMargin, label: Gross margin, value: 40.9, compare: 39.2, deltaPct: 1.7, tone: good, link: reports/margin }, { key: opex, label: Operating expense, value: 1640000, compare: 1590000, deltaPct: 3.1, tone: neutral, link: reports/pl }, { key: netProfit, label: Net profit, value: 720000, compare: 610000, deltaPct: 18, tone: good, link: reports/pl }, { key: ar, label: AR outstanding, value: 1980000, compare: 2240000, deltaPct: -11.6, tone: good, link: reports/ar-ageing }, { key: ap, label: AP outstanding, value: 1150000, compare: 980000, deltaPct: 17.3, tone: neutral, link: reports/ap-ageing }, { key: cash, label: Cash position, value: 2386550, tone: neutral, link: banking/accounts }, { key: workingCapital, label: Working capital, value: 3216550, tone: good }, { key: budgetVariance, label: Budget variance, value: -52000, tone: bad, link: budgets/variance }, { key: gst, label: GST liability (period), value: 264200, tone: neutral, link: taxation/returns/gstr3b }, { key: tds, label: TDS payable, value: 84500, tone: neutral, link: taxation/tds }, { key: ebitda, label: EBITDA, value: 940000, compare: 810000, deltaPct: 16, tone: good }], trend: [{ period: '2026-07', revenue: 5900000, expense: 5310000, netProfit: 590000, cash: 2010000 }, { period: '2026-08', revenue: 6120000, expense: 5510000, netProfit: 610000, cash: 2200450 }, { period: '2026-09', revenue: 6740000, expense: 6020000, netProfit: 720000, cash: 2386550 }], alerts: [{ key: overdueAr, label: Overdue receivables > 60 days, count: 3, tone: warning, link: 'reports/ar-ageing?bucket=d6190' }, { key: pendingApprovals, label: Approvals waiting on you, count: 4, tone: neutral, link: approvals }, { key: einvoice, label: e-Invoices rejected, count: 1, tone: critical, link: taxation/e-invoices }], scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/reports/{reportId}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - { name: reportId, in: path, required: true, schema: { $ref: '../components/schemas/reports.yaml#/ReportId' } }
+  get:
+    tags: [Reports]
+    summary: Run a report (one endpoint, 28 report ids; response shape depends on the report)
+    description: |
+      Shared filters — `preset` (MTD/QTD/YTD/FY) or `from`/`to`; `asOf` for point-in-time reports; `branchId`; `dimensionType`+`dimensionId`; `compare=prior-year|prior-period` for P&L / balance sheet.
+      Report-specific — ageing: `scope=control|advance|all`, `currency`, `expand=items`; analysis / margin: `dimension=customer|supplier|item|salesperson|branch|period|group`; stock reports: `warehouseId`, `itemId`; profitability: `groupBy=project|customer`; budget-variance: `budgetId`.
+      Query examples — `/reports/pl?preset=MTD&compare=prior-year` · `/reports/balance-sheet?asOf=2026-09-30` · `/reports/ar-ageing?asOf=2026-09-30&scope=control` · `/reports/sales-analysis?from=2026-04-01&to=2026-09-30&dimension=customer` · `/reports/stock-valuation?warehouseId=wh_main`.
+    operationId: runReport
+    x-permission: reports.view
+    x-frd: [FR-RPT-002, FR-RPT-003, FR-RPT-004, FR-RPT-005, FR-RPT-006]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Preset'
+      - $ref: '../components/parameters.yaml#/ReportFrom'
+      - $ref: '../components/parameters.yaml#/ReportTo'
+      - $ref: '../components/parameters.yaml#/AsOf'
+      - $ref: '../components/parameters.yaml#/BranchFilter'
+      - $ref: '../components/parameters.yaml#/DimensionType'
+      - $ref: '../components/parameters.yaml#/DimensionId'
+      - { name: compare, in: query, schema: { type: string, enum: [prior-year, prior-period, none], default: none } }
+      - { name: dimension, in: query, schema: { type: string, enum: [customer, supplier, item, salesperson, branch, period, group] } }
+      - { name: scope, in: query, schema: { type: string, enum: [control, advance, all] } }
+      - { name: currency, in: query, schema: { type: string } }
+      - { name: groupBy, in: query, schema: { type: string, enum: [project, customer] } }
+      - $ref: '../components/parameters.yaml#/WarehouseId'
+      - $ref: '../components/parameters.yaml#/ItemId'
+      - { name: budgetId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/Expand'
+    responses:
+      '200':
+        description: Report (shape by `reportId`)
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/ReportResult' }
+            examples:
+              pl: { summary: pl — MTD with prior-year compare, value: { meta: { reportId: pl, title: Profit & Loss, from: '2026-09-01', to: '2026-09-30', preset: MTD, compare: { from: '2025-09-01', to: '2025-09-30', label: Prior year }, generatedAt: '2026-09-13T09:12:04Z', scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } }, lines: [{ label: Revenue, amount: 6740000, compare: 6120000, level: 0, kind: group }, { accountId: acc_4010, code: '4010', label: Retail sales, amount: 1825000, compare: 1610000, level: 1, kind: account }, { accountId: acc_4020, code: '4020', label: Wholesale sales, amount: 4915000, compare: 4510000, level: 1, kind: account }, { label: Cost of goods sold, amount: 3984000, compare: 3720000, level: 0, kind: group }, { label: Gross profit, amount: 2756000, compare: 2400000, level: 0, kind: total }, { label: Operating expenses, amount: 1640000, compare: 1590000, level: 0, kind: group }, { label: EBITDA, amount: 940000, compare: 810000, level: 0, kind: total }, { label: Net profit, amount: 720000, compare: 610000, level: 0, kind: net }], revenue: 6740000, cogs: 3984000, grossProfit: 2756000, opex: 1640000, ebitda: 940000, depreciation: 184320, finance: 35680, otherIncome: 0, netProfit: 720000 } }
+              balanceSheet: { summary: balance-sheet — as of, value: { meta: { reportId: balance-sheet, title: Balance Sheet, from: '2026-04-01', to: '2026-09-30', asOf: '2026-09-30', generatedAt: '2026-09-13T09:12:04Z', scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } }, assets: [{ label: Current assets, amount: 27400000, level: 0, kind: group }, { accountId: acc_1100, code: '1100', label: Accounts Receivable, amount: 1980000, level: 1, kind: account }, { accountId: acc_1210, code: '1210', label: Inventory — Raw Material, amount: 1264000, level: 1, kind: account }, { label: Fixed assets, amount: 9205630, level: 0, kind: group }, { label: Total assets, amount: 48200000, level: 0, kind: total }], liabilities: [{ label: Current liabilities, amount: 14400000, level: 0, kind: group }, { accountId: acc_2100, code: '2100', label: Accounts Payable, amount: 1150000, level: 1, kind: account }, { label: Equity, amount: 22540000, level: 0, kind: group }, { label: Total liabilities & equity, amount: 48200000, level: 0, kind: total }], totalAssets: 48200000, totalLiabilities: 21400000, totalEquity: 22540000, retainedCurrent: 4260000, totalLE: 48200000, difference: 0 } }
+              arAgeing: { summary: ar-ageing — control scope, value: { meta: { reportId: ar-ageing, title: AR ageing, from: '2026-09-30', to: '2026-09-30', asOf: '2026-09-30', generatedAt: '2026-09-13T09:12:04Z', scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } }, partyType: Customer, scopeFilter: control, rows: [{ partyId: cust_arlene, partyName: Arlene Traders, currency: INR, current: 118000, d030: 200000, d3160: 0, d6190: 122000, d90p: 0, total: 440000, overdueDays: 78 }, { partyId: cust_ustech, partyName: US Tech Inc, currency: USD, current: 840000, d030: 0, d3160: 0, d6190: 0, d90p: 0, total: 840000, overdueDays: 0 }], totals: { current: 958000, d030: 200000, d3160: 0, d6190: 122000, d90p: 0, total: 1280000 } } }
+              salesAnalysis: { summary: sales-analysis — by customer, value: { meta: { reportId: sales-analysis, title: Sales analysis, from: '2026-04-01', to: '2026-09-30', generatedAt: '2026-09-13T09:12:04Z', scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } }, direction: sale, dimension: customer, rows: [{ key: cust_arlene, label: Arlene Traders, docs: 42, qty: 84000, taxable: 12400000, tax: 2232000, total: 14632000, cogs: 7440000, margin: 4960000, marginPct: 40 }, { key: cust_metro, label: Metro Retail, docs: 18, qty: 21000, taxable: 4100000, tax: 738000, total: 4838000, cogs: 2542000, margin: 1558000, marginPct: 38 }], totals: { key: total, label: Total, docs: 60, qty: 105000, taxable: 16500000, tax: 2970000, total: 19470000, cogs: 9982000, margin: 6518000, marginPct: 39.5 } } }
+              stockLedger: { summary: stock-ledger — generic table, value: { meta: { reportId: stock-ledger, title: Stock ledger, from: '2026-09-01', to: '2026-09-30', generatedAt: '2026-09-13T09:12:04Z', scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } }, columns: [{ key: date, label: Date, type: date }, { key: item, label: Item }, { key: warehouse, label: Warehouse }, { key: type, label: Type }, { key: reference, label: Reference }, { key: qty, label: Qty, type: number, align: right }, { key: rate, label: Rate, type: money, align: right }, { key: value, label: Value, type: money, align: right }, { key: balance, label: Balance, type: number, align: right }], rows: [{ date: '2026-09-12', item: STL-4 Steel Rod 4mm, warehouse: Main Warehouse, type: GRN, reference: GRN/2026-27/00077, qty: 2950, rate: 48, value: 141600, balance: 4190 }, { date: '2026-09-13', item: STL-4 Steel Rod 4mm, warehouse: Main Warehouse, type: Delivery, reference: INV/2026-27/00042, qty: -1000, rate: 49.8, value: -49800, balance: 3190 }], totals: { qty: 1950, value: 91800 } } }
+              empty: { summary: No data in range, value: { meta: { reportId: journal-register, title: Journal register, from: '2027-04-01', to: '2027-04-30', generatedAt: '2026-09-13T09:12:04Z', scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } }, columns: [{ key: date, label: Date, type: date }, { key: number, label: Number }, { key: narration, label: Narration }, { key: dr, label: Dr, type: money, align: right }, { key: cr, label: Cr, type: money, align: right }], rows: [], totals: { dr: 0, cr: 0 } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/reports/{reportId}/export:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - { name: reportId, in: path, required: true, schema: { $ref: '../components/schemas/reports.yaml#/ReportId' } }
+  post:
+    tags: [Reports]
+    summary: Export a report (CSV / XLSX / PDF) as a background job
+    operationId: exportReport
+    x-permission: reports.export
+    x-frd: [FR-RPT-010]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/system.yaml#/ExportRequest'
+              - { type: object, properties: { params: { type: object, additionalProperties: true, description: Same query filters as GET. } } }
+          examples:
+            pdf: { summary: PDF of MTD P&L, value: { format: pdf, params: { preset: MTD, compare: prior-year } } }
+            xlsx: { summary: XLSX ageing with items, value: { format: xlsx, params: { asOf: '2026-09-30', scope: control, expand: items } } }
+    responses:
+      '202':
+        description: Job queued
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/ExportJob' }
+            examples:
+              queued: { summary: Queued, value: { id: exp_403, companyId: co_acme, kind: report-pl, format: pdf, status: Queued, requestedBy: Priya Sharma, params: { preset: MTD, compare: prior-year }, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/reports/{reportId}/schedules:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - { name: reportId, in: path, required: true, schema: { $ref: '../components/schemas/reports.yaml#/ReportId' } }
+  get:
+    tags: [Reports]
+    summary: Schedules for a report
+    operationId: listReportSchedules
+    x-permission: reports.view
+    responses:
+      '200':
+        description: Schedules
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/reports.yaml#/ReportSchedule' } } } }
+            examples:
+              list: { summary: One schedule, value: { data: [{ id: rs_1, companyId: co_acme, reportId: pl, name: Monthly P&L to CFO, cron: '0 8 1 * *', format: pdf, recipients: [cfo@acme.example], params: { preset: MTD }, status: Active, nextRunAt: '2026-10-01T02:30:00Z', lastRunAt: '2026-09-01T02:30:00Z', lastJobId: exp_380, createdAt: '2026-05-01T09:00:00Z', updatedAt: '2026-09-01T02:30:00Z', version: 5 }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  post:
+    tags: [Reports]
+    summary: Schedule a report email
+    operationId: createReportSchedule
+    x-permission: reports.export
+    x-frd: [FR-RPT-011]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/reports.yaml#/ReportScheduleRequest' }
+          examples:
+            monthly: { summary: Monthly on the 1st, value: { name: Monthly P&L to CFO, cron: '0 8 1 * *', format: pdf, recipients: [cfo@acme.example], params: { preset: MTD } } }
+            weekly: { summary: Weekly ageing, value: { name: Weekly AR ageing, cron: '0 9 * * 1', format: xlsx, recipients: [ar@acme.example, sales@acme.example], params: { scope: control } } }
+    responses:
+      '201':
+        description: Scheduled
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/ReportSchedule' }
+            examples:
+              created: { summary: Created, value: { id: rs_2, companyId: co_acme, reportId: ar-ageing, name: Weekly AR ageing, cron: '0 9 * * 1', format: xlsx, recipients: [ar@acme.example, sales@acme.example], params: { scope: control }, status: Active, nextRunAt: '2026-09-14T03:30:00Z', createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '422':
+        description: Validation
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              cron: { summary: Bad cron, value: { code: VALIDATION, message: Cron must have 5 fields, field: cron, correlationId: corr_9f1c2e7a } }
+
+/report-schedules/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  patch:
+    tags: [Reports]
+    summary: Pause / resume / edit a schedule
+    operationId: updateReportSchedule
+    x-permission: reports.export
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/reports.yaml#/ReportScheduleRequest'
+              - { type: object, properties: { status: { type: string, enum: [Active, Paused] } } }
+              - $ref: '../components/schemas/common.yaml#/ExpectedVersion'
+          examples:
+            pause: { summary: Pause, value: { expectedVersion: 5, status: Paused } }
+            recipients: { summary: Add a recipient, value: { expectedVersion: 5, recipients: [cfo@acme.example, board@acme.example] } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/ReportSchedule' }
+            examples:
+              paused: { summary: Paused, value: { id: rs_1, companyId: co_acme, reportId: pl, name: Monthly P&L to CFO, cron: '0 8 1 * *', format: pdf, recipients: [cfo@acme.example], params: { preset: MTD }, status: Paused, nextRunAt: '2026-10-01T02:30:00Z', createdAt: '2026-05-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 6 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Reports]
+    summary: Delete a schedule
+    operationId: deleteReportSchedule
+    x-permission: reports.export
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── saved views ───────────────────────────────────────────────────────────
+
+/saved-views:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Reports]
+    summary: Saved views (mine + shared)
+    operationId: listSavedViews
+    x-permission: reports.view
+    x-frd: [FR-RPT-009]
+    parameters:
+      - { name: module, in: query, schema: { type: string }, example: reports }
+      - { name: register, in: query, schema: { type: string } }
+    responses:
+      '200':
+        description: Views
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/reports.yaml#/SavedView' } } } }
+            examples:
+              list: { summary: Views, value: { data: [{ $ref: '#/components/examples/SavedViewPl/value' }, { id: sv_2, companyId: co_acme, module: sales, register: invoices, name: Overdue > 60 d, filters: { status: Posted, overdueDays: 60 }, isDefault: false, shared: true, ownerId: usr_rahul, ownerName: Rahul Mehta, createdAt: '2026-06-01T09:00:00Z', updatedAt: '2026-06-01T09:00:00Z', version: 1 }] } }
+              none: { summary: None, value: { data: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Reports]
+    summary: Save a view
+    operationId: createSavedView
+    x-permission: reports.view
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/reports.yaml#/SavedViewCreate' }
+          examples:
+            report: { summary: Report view, value: { module: reports, register: pl, name: P&L — Andheri MTD, filters: { preset: MTD, branchId: br_andheri, compare: prior-year } } }
+            register: { summary: Register view with columns, value: { module: sales, register: invoices, name: Overdue > 60 d, filters: { status: Posted, overdueDays: 60 }, columns: [number, partyName, dueDate, due], shared: true } }
+    responses:
+      '201':
+        description: Saved
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/SavedView' }
+            examples:
+              saved: { $ref: '../components/examples/reports.yaml#/SavedViewPl' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/saved-views/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Reports]
+    summary: Get a view
+    operationId: getSavedView
+    x-permission: reports.view
+    responses:
+      '200':
+        description: View
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/SavedView' }
+            examples:
+              view: { $ref: '../components/examples/reports.yaml#/SavedViewPl' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Reports]
+    summary: Update a view (owner or tenant owner)
+    operationId: updateSavedView
+    x-permission: reports.view
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/reports.yaml#/SavedViewPatch' }
+          examples:
+            rename: { summary: Rename + filters, value: { expectedVersion: 1, name: P&L — Andheri YTD, filters: { preset: YTD, branchId: br_andheri } } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/SavedView' }
+            examples:
+              updated: { $ref: '../components/examples/reports.yaml#/SavedViewPl' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Reports]
+    summary: Delete a view (owner or tenant owner)
+    operationId: deleteSavedView
+    x-permission: reports.view
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/saved-views/{id}/share:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Reports]
+    summary: Share with the company / make private
+    operationId: shareSavedView
+    x-permission: reports.view
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [shared], properties: { shared: { type: boolean } } }
+          examples:
+            share: { summary: Share, value: { shared: true } }
+            private: { summary: Make private, value: { shared: false } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/SavedView' }
+            examples:
+              shared: { summary: Shared, value: { id: sv_1, companyId: co_acme, module: reports, register: pl, name: P&L — Andheri MTD, filters: { preset: MTD, branchId: br_andheri, compare: prior-year }, isDefault: true, shared: true, ownerId: usr_priya, ownerName: Priya Sharma, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T10:00:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/saved-views/{id}/set-default:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Reports]
+    summary: Set / clear as my default for the register
+    operationId: setDefaultSavedView
+    x-permission: reports.view
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [isDefault], properties: { isDefault: { type: boolean } } }
+          examples:
+            set: { summary: Set default, value: { isDefault: true } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/SavedView' }
+            examples:
+              updated: { $ref: '../components/examples/reports.yaml#/SavedViewPl' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }

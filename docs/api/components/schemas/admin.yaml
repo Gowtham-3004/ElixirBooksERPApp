@@ -1,0 +1,689 @@
+# Company administration (src/store/types.ts:54-241, 504-569, 1024-1107; src/modules/admin/*)
+
+# ── company ───────────────────────────────────────────────────────────────
+
+RegistrationInput:
+  type: object
+  required: [type, number]
+  properties:
+    id: { type: string, description: Present when updating an existing registration. }
+    type: { type: string, enum: [GSTIN, VAT, TRN, Other] }
+    number: { type: string, example: 27AAPCA1234F1Z5 }
+    state: { type: string, example: Maharashtra }
+    stateCode: { type: string, example: '27' }
+    branchId: { type: string, description: Branch this registration is mapped to., example: br_ho }
+    status: { type: string, enum: [Active, Inactive], default: Active }
+    isSez: { type: boolean, default: false }
+
+Registration:
+  allOf:
+    - $ref: '#/RegistrationInput'
+    - type: object
+      required: [id, status]
+      properties:
+        id: { type: string, readOnly: true, example: reg_gst_mh }
+
+TaxSettings:
+  type: object
+  properties:
+    eInvoiceThreshold: { type: number, example: 50000 }
+    eWayBillThreshold: { type: number, example: 50000 }
+    autoSubmitOnPost: { type: boolean, example: true }
+    provider: { type: string, example: NIC-IRP }
+    gstr1DueDay: { type: integer, example: 11 }
+    gstr3bDueDay: { type: integer, example: 20 }
+
+PayrollSettings:
+  type: object
+  properties:
+    pfEmployeePct: { type: number, example: 12 }
+    pfEmployerPct: { type: number, example: 12 }
+    pfWageCeiling: { type: number, example: 15000 }
+    esiEmployeePct: { type: number, example: 0.75 }
+    esiEmployerPct: { type: number, example: 3.25 }
+    esiWageCeiling: { type: number, example: 21000 }
+    ptSlabs: { type: array, items: { type: object, properties: { upTo: { type: number }, amount: { type: number } } }, example: [{ upTo: 7500, amount: 0 }, { upTo: 10000, amount: 175 }, { upTo: 999999999, amount: 200 }] }
+    payrollDay: { type: integer, example: 28 }
+    rounding: { type: string, enum: [Nearest, Down, None] }
+    workingDaysPerMonth: { type: integer, example: 26 }
+
+ExpenseSettings:
+  type: object
+  properties:
+    receiptRequiredAbove: { type: number, example: 500 }
+    perDiemDomestic: { type: number, example: 1500 }
+    perDiemInternational: { type: number, example: 6000 }
+    corporateCardAccountId: { type: string, example: acc_2350 }
+    employeePayableAccountId: { type: string, example: acc_2340 }
+
+CompanyDefaults:
+  type: object
+  description: Company-wide defaults and control accounts (Admin › Defaults) plus additive per-module settings.
+  properties:
+    warehouseId: { type: string, example: wh_main }
+    salesAccountId: { type: string, example: acc_4000 }
+    purchaseAccountId: { type: string, example: acc_5010 }
+    receivableAccountId: { type: string, example: acc_1100 }
+    payableAccountId: { type: string, example: acc_2100 }
+    bankAccountId: { type: string, example: acc_1310 }
+    cashAccountId: { type: string, example: acc_1300 }
+    roundOffAccountId: { type: string, example: acc_4900 }
+    fxGainAccountId: { type: string, example: acc_4910 }
+    fxLossAccountId: { type: string, example: acc_5600 }
+    taxRateId: { type: string, example: tax_gst18 }
+    paymentTerms: { type: string, example: Net 30 }
+    priceListId: { type: string, example: pl_wholesale }
+    templateId: { type: string, example: tpl_taxinv_v3 }
+    allowNegativeStock: { type: boolean, example: false }
+    valuationMethod: { type: string, enum: [AVCO, FIFO, Standard] }
+    matchingMode: { type: string, enum: [2-way, 3-way, 4-way] }
+    matchTolerancePct: { type: number, example: 2 }
+    matchToleranceAmt: { type: number, example: 500 }
+    creditPolicy: { type: string, enum: [Warn, Block, Override] }
+    directInvoiceStock: { type: boolean, description: Direct invoices (no delivery) move stock., example: true }
+    overReceiptTolerancePct: { type: number, example: 5 }
+    blockOnException: { type: boolean }
+    duplicateInvoiceScope: { type: string, enum: [Supplier, Supplier+FY, Company] }
+    negativeStockPolicy: { type: string, enum: [Block, Warn, Allow] }
+    transitWarehouseId: { type: string, example: wh_transit }
+    scrapWarehouseId: { type: string, example: wh_scrap }
+    countTolerancePct: { type: number, example: 1 }
+    reconToleranceDays: { type: integer, example: 3 }
+    reconToleranceAmt: { type: number, example: 1 }
+    reconAutoSuggestThreshold: { type: number, example: 0.8 }
+    tax: { $ref: '#/TaxSettings' }
+    payroll: { $ref: '#/PayrollSettings' }
+    expense: { $ref: '#/ExpenseSettings' }
+
+CompanyInput:
+  type: object
+  properties:
+    legalName: { type: string, example: Acme Trading Pvt Ltd }
+    tradeName: { type: string, example: Acme Trading }
+    pan: { type: string, example: AAPCA1234F }
+    cin: { type: string, example: U51909MH2015PTC262001 }
+    businessType: { type: string, example: Private Limited }
+    address: { $ref: './common.yaml#/Address' }
+    phone: { type: string }
+    email: { type: string, format: email }
+    website: { type: string }
+    baseCurrency: { type: string, description: Locked once any journal is posted (`409 INVALID_STATE`)., example: INR }
+    reportingCurrency: { type: string, example: USD }
+    permittedCurrencies: { type: array, items: { type: string }, example: [INR, USD, AED] }
+    timeZone: { type: string, example: Asia/Kolkata }
+    locale: { type: string, example: en-IN }
+    language: { type: string, example: en }
+    fiscalYearStartMonth: { type: integer, minimum: 1, maximum: 12, example: 4 }
+    booksFrom: { type: string, format: date, example: '2026-04-01' }
+    openingBalanceDate: { type: string, format: date, example: '2026-03-31' }
+    logoText: { type: string, example: A }
+    brandColor: { type: string, example: '#325CFF' }
+    registrations: { type: array, items: { $ref: '#/RegistrationInput' } }
+
+CompanyPatch:
+  allOf:
+    - $ref: '#/CompanyInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+Company:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/CompanyInput'
+    - type: object
+      required: [tenantId, code, legalName, country, baseCurrency, permittedCurrencies, timeZone, locale, fiscalYearStartMonth, nature, profiles, localizationPack, registrations, defaults, status, onboarding]
+      properties:
+        tenantId: { type: string, readOnly: true, example: tnt_acme }
+        code: { type: string, readOnly: true, example: ACME }
+        country: { type: string, readOnly: true, example: IN }
+        nature: { type: string, enum: [Trading, Services, Manufacturing, Hybrid], readOnly: true }
+        profiles: { type: array, items: { type: string, enum: [Trading, Services, Manufacturing] }, readOnly: true, example: [Trading] }
+        profileHistory:
+          type: array
+          readOnly: true
+          items:
+            type: object
+            properties:
+              at: { type: string, format: date-time }
+              by: { type: string }
+              from: { type: array, items: { type: string } }
+              to: { type: array, items: { type: string } }
+              reason: { type: string }
+        characteristics: { type: array, items: { type: string }, readOnly: true }
+        localizationPack: { type: string, readOnly: true, example: IN }
+        localizationVersion: { type: string, readOnly: true, example: '1.4' }
+        registrations: { type: array, items: { $ref: '#/Registration' } }
+        defaults: { $ref: '#/CompanyDefaults', readOnly: true }
+        status: { type: string, enum: [Active, Inactive], readOnly: true }
+        onboarding: { type: object, additionalProperties: { type: string, enum: [Done, Pending, Blocked] }, readOnly: true }
+        baseCurrencyLocked: { type: boolean, readOnly: true, description: True once postings exist. }
+
+CompanyCreate:
+  type: object
+  description: Add another legal entity to the tenant (plan limit enforced).
+  required: [legalName, country, fiscalYearStartMonth, nature]
+  properties:
+    legalName: { type: string, example: Acme Gulf Trading LLC }
+    country: { type: string, enum: [IN, AE, GB, SG, US] }
+    fiscalYearStartMonth: { type: integer, minimum: 1, maximum: 12, example: 1 }
+    nature: { type: string, enum: [Trading, Services, Manufacturing, Hybrid] }
+    baseCurrency: { type: string, description: Defaults from the country pack., example: AED }
+
+# ── branches ──────────────────────────────────────────────────────────────
+
+BranchInput:
+  type: object
+  properties:
+    code: { type: string, example: BR-002 }
+    name: { type: string, example: Andheri Store }
+    type: { type: string, enum: [Office, Warehouse, Store, Factory] }
+    address: { $ref: './common.yaml#/Address' }
+    registrationId: { type: string, example: reg_gst_mh }
+    gstin: { type: string, example: 27AAPCA1234F1Z5 }
+    defaultWarehouseId: { type: string, example: wh_andheri }
+    isDefault: { type: boolean, description: Default branch for new documents. }
+
+BranchPatch:
+  allOf:
+    - $ref: '#/BranchInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+Branch:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/BranchInput'
+    - type: object
+      required: [code, name, type, address, status, isDefault]
+      properties:
+        status: { type: string, enum: [Active, Inactive], readOnly: true }
+
+# ── periods ───────────────────────────────────────────────────────────────
+
+PeriodHistoryEntry:
+  type: object
+  required: [at, by, action]
+  properties:
+    at: { type: string, format: date-time }
+    by: { type: string, example: Rahul Mehta }
+    action: { type: string, enum: [Opened, Soft closed, Locked, Reopen requested, Reopened, Re-locked], example: Locked }
+    reason: { type: string }
+
+Period:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [fy, code, label, start, end, status, history]
+      properties:
+        fy: { type: string, example: '2026-27' }
+        code: { type: string, example: '2026-09' }
+        label: { type: string, example: Sep 2026 }
+        start: { type: string, format: date, example: '2026-09-01' }
+        end: { type: string, format: date, example: '2026-09-30' }
+        status: { type: string, enum: [Future, Open, Soft Closed, Locked, Reopened] }
+        lockedAt: { type: string, format: date-time }
+        lockedBy: { type: string }
+        history: { type: array, items: { $ref: '#/PeriodHistoryEntry' } }
+
+CloseChecklistItem:
+  type: object
+  required: [key, label, status, count]
+  properties:
+    key: { type: string, example: draftJournals }
+    label: { type: string, example: Draft journals dated in period }
+    status: { type: string, enum: [Ok, Warning, Blocker] }
+    count: { type: integer, example: 4 }
+    link: { type: string, example: 'accounting/journals?status=Draft&period=2026-09' }
+
+CloseChecklist:
+  type: object
+  required: [period, canSoftClose, canLock, items]
+  properties:
+    period: { type: string, example: '2026-09' }
+    canSoftClose: { type: boolean }
+    canLock: { type: boolean }
+    blockers: { type: integer, example: 3 }
+    warnings: { type: integer, example: 1 }
+    items: { type: array, items: { $ref: '#/CloseChecklistItem' } }
+
+PeriodReopenRequest:
+  type: object
+  required: [reason]
+  properties:
+    reason: { type: string, minLength: 10, example: Late supplier invoice for Aug freight must be booked in the period }
+    until: { type: string, format: date, description: Auto re-lock date., example: '2026-09-20' }
+
+PeriodReopenResult:
+  type: object
+  required: [outcome]
+  properties:
+    outcome: { type: string, enum: [routed-for-approval, reopened] }
+    period: { $ref: '#/Period' }
+    approval: { $ref: './approvals.yaml#/ApprovalRequest' }
+
+GenerateFyResult:
+  type: object
+  required: [fy, created, periods]
+  properties:
+    fy: { type: string, example: '2027-28' }
+    created: { type: integer, example: 12 }
+    periods: { type: array, items: { $ref: '#/Period' } }
+
+# ── business profile ──────────────────────────────────────────────────────
+
+OperatingProfileTemplate:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [code, name, nature, templateVersion, modules, coaTemplate, dimensions, roles, workflows, numbering, dashboards, reports, terminology, secondaryCharacteristics]
+      properties:
+        code: { type: string, example: TPL-TRADING }
+        name: { type: string, example: Trading company }
+        nature: { type: string, enum: [Trading, Services, Manufacturing, Hybrid] }
+        templateVersion: { type: integer, example: 3 }
+        modules: { type: array, items: { type: string } }
+        coaTemplate: { type: string, example: IN-TRADING-COA-v3 }
+        dimensions: { type: array, items: { type: string } }
+        roles: { type: array, items: { type: string } }
+        workflows: { type: array, items: { type: string } }
+        numbering: { type: array, items: { type: string } }
+        dashboards: { type: array, items: { type: string } }
+        reports: { type: array, items: { type: string } }
+        terminology: { type: object, additionalProperties: { type: string } }
+        secondaryCharacteristics: { type: array, items: { type: string } }
+
+ProfileChangeRequest:
+  type: object
+  required: [profiles, reason]
+  properties:
+    profiles: { type: array, minItems: 1, items: { type: string, enum: [Trading, Services, Manufacturing] }, example: [Trading, Manufacturing] }
+    reason: { type: string, minLength: 10, example: Starting in-house assembly of steel brackets from Oct 2026 }
+    dryRun: { type: boolean, default: false, description: Return the impact review only — nothing is written. }
+
+ProfileChangeImpact:
+  type: object
+  required: [from, to, modulesAdded, modulesRemoved, blockers, warnings]
+  properties:
+    from: { type: array, items: { type: string } }
+    to: { type: array, items: { type: string } }
+    modulesAdded: { type: array, items: { type: string }, example: [production] }
+    modulesRemoved: { type: array, items: { type: string }, example: [] }
+    blockers: { type: array, items: { type: string }, example: [] }
+    warnings: { type: array, items: { type: string }, example: ['Production is not in the Lite plan — upgrade required before activation'] }
+    requiresApproval: { type: boolean }
+
+ProfileChangeResult:
+  type: object
+  required: [outcome, impact]
+  properties:
+    outcome: { type: string, enum: [preview, routed-for-approval, applied] }
+    impact: { $ref: '#/ProfileChangeImpact' }
+    approval: { $ref: './approvals.yaml#/ApprovalRequest' }
+    company: { $ref: '#/Company' }
+
+# ── users & roles ─────────────────────────────────────────────────────────
+
+User:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [tenantId, name, email, roleIds, companyIds, branchIds, status, mfaEnabled, passwordSet]
+      properties:
+        tenantId: { type: string, readOnly: true, example: tnt_acme }
+        name: { type: string, example: Priya Sharma }
+        email: { type: string, format: email, example: priya@acme.example }
+        phone: { type: string }
+        roleIds: { type: array, items: { type: string }, example: [role_salesmgr] }
+        companyIds: { type: array, items: { type: string }, example: [co_acme] }
+        branchIds: { type: array, items: { type: string }, description: Empty = all branches., example: [] }
+        status: { type: string, enum: [Invited, Active, Suspended, Deactivated], readOnly: true }
+        mfaEnabled: { type: boolean }
+        lastLoginAt: { type: string, format: date-time, readOnly: true }
+        isPlatformAdmin: { type: boolean, readOnly: true }
+        isTenantOwner: { type: boolean, readOnly: true }
+        invitedAt: { type: string, format: date-time, readOnly: true }
+        passwordSet: { type: boolean, readOnly: true }
+        sessions: { type: array, readOnly: true, items: { $ref: './auth.yaml#/UserSession' } }
+        sodWarnings: { type: array, readOnly: true, items: { type: string }, description: Segregation-of-duties conflicts across the assigned roles., example: ['Sales User + Finance Admin: can create and post invoices'] }
+
+UserInvite:
+  type: object
+  required: [name, email, roleIds, companyIds]
+  properties:
+    name: { type: string, example: Anil Kumar }
+    email: { type: string, format: email, example: anil@acme.example }
+    roleIds: { type: array, minItems: 1, items: { type: string }, example: [role_accountant] }
+    companyIds: { type: array, minItems: 1, items: { type: string }, example: [co_acme] }
+    branchIds: { type: array, items: { type: string } }
+    message: { type: string, description: Personal note in the invitation e-mail. }
+
+UserInviteResult:
+  type: object
+  required: [user, inviteLink, expiresAt]
+  properties:
+    user: { $ref: '#/User' }
+    inviteLink: { type: string, example: 'https://app.elixirbooks.example/#/invite?token=inv_tok_8f2a' }
+    expiresAt: { type: string, format: date-time }
+    emailQueued: { type: boolean }
+
+UserPatch:
+  type: object
+  required: [expectedVersion]
+  properties:
+    expectedVersion: { type: integer }
+    name: { type: string }
+    phone: { type: string }
+    roleIds: { type: array, items: { type: string } }
+    companyIds: { type: array, items: { type: string } }
+    branchIds: { type: array, items: { type: string } }
+    mfaEnabled: { type: boolean, description: Admin may disable MFA (audited); enabling is done by the user. }
+
+Role:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/RoleInput'
+    - type: object
+      required: [code, name, permissions, dataScope, isSystem]
+      properties:
+        isSystem: { type: boolean, readOnly: true, description: System roles are read-only. }
+        userCount: { type: integer, readOnly: true, example: 4 }
+
+RoleInput:
+  type: object
+  properties:
+    code: { type: string, example: ROLE_AR_CLERK }
+    name: { type: string, example: AR Clerk }
+    description: { type: string, example: Creates invoices and receipts; cannot post }
+    permissions: { type: array, items: { type: string }, description: '`<module>.<resource>.<action>`, `<module>.*`, `*.*.view` or `*`.', example: [sales.invoice.view, sales.invoice.create, sales.invoice.edit, sales.receipt.view, sales.receipt.create, masters.customers.view] }
+    dataScope: { type: string, enum: [company, branch, own], default: company }
+    color: { type: string, example: '#0ea5e9' }
+
+RolePatch:
+  allOf:
+    - $ref: '#/RoleInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+PermissionMatrix:
+  type: object
+  required: [actions, modules]
+  properties:
+    actions: { type: array, items: { type: string }, example: [view, create, edit, submit, approve, post, reverse, export, delete] }
+    modules:
+      type: array
+      items:
+        type: object
+        required: [module, label, resources]
+        properties:
+          module: { type: string, example: sales }
+          label: { type: string, example: Sales }
+          resources: { type: array, items: { type: object, properties: { id: { type: string, example: invoice }, label: { type: string, example: Invoices } } } }
+
+# ── number series ─────────────────────────────────────────────────────────
+
+NumberSeriesInput:
+  type: object
+  properties:
+    docType: { type: string, example: Sales Invoice }
+    branchId: { type: string, description: Omit for a company-wide series. }
+    fy: { type: string, example: '2026-27' }
+    prefix: { type: string, example: INV/2026-27/ }
+    suffix: { type: string, example: '' }
+    padding: { type: integer, minimum: 1, maximum: 10, example: 5 }
+    next: { type: integer, minimum: 1, example: 43 }
+    resetRule: { type: string, enum: [FY, Never, Monthly] }
+    allocation: { type: string, enum: [On save, On post] }
+    status: { type: string, enum: [Active, Inactive] }
+
+NumberSeriesPatch:
+  allOf:
+    - $ref: '#/NumberSeriesInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+NumberSeries:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/NumberSeriesInput'
+    - type: object
+      required: [docType, fy, prefix, suffix, padding, next, resetRule, allocation, status, voids]
+      properties:
+        voids:
+          type: array
+          readOnly: true
+          items:
+            type: object
+            properties:
+              number: { type: string, example: INV/2026-27/00040 }
+              reason: { type: string }
+              at: { type: string, format: date-time }
+              by: { type: string }
+        preview: { type: string, readOnly: true, example: INV/2026-27/00043 }
+
+VoidNumberRequest:
+  type: object
+  required: [number, reason]
+  properties:
+    number: { type: string, example: INV/2026-27/00040 }
+    reason: { type: string, minLength: 10, example: Number was consumed by a cancelled draft during migration }
+
+# ── templates ─────────────────────────────────────────────────────────────
+
+DocumentTemplateInput:
+  type: object
+  properties:
+    code: { type: string, example: TPL-TAXINV }
+    name: { type: string, example: Tax invoice (standard) }
+    docType: { type: string, example: Sales Invoice }
+    header: { type: string, example: '{{company.legalName}} · GSTIN {{company.gstin}}' }
+    declaration: { type: string, example: We declare that this invoice shows the actual price of the goods described. }
+    footer: { type: string, example: 'Subject to {{company.city}} jurisdiction' }
+    showBankDetails: { type: boolean }
+    showSignatory: { type: boolean }
+    status: { type: string, enum: [Active, Inactive] }
+
+DocumentTemplatePatch:
+  allOf:
+    - $ref: '#/DocumentTemplateInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+DocumentTemplate:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/DocumentTemplateInput'
+    - type: object
+      required: [code, name, docType, templateVersion, header, footer, declaration, showBankDetails, showSignatory, variables, status, isDefault]
+      properties:
+        templateVersion: { type: integer, readOnly: true, example: 3 }
+        variables: { type: array, readOnly: true, items: { type: string }, example: ['{{company.legalName}}', '{{doc.number}}', '{{party.name}}'] }
+        isDefault: { type: boolean, readOnly: true }
+
+# ── localization / plan ───────────────────────────────────────────────────
+
+LocalizationPack:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [code, name, country, packVersion, status, capabilities, compatibleFrom, releaseNotes]
+      properties:
+        code: { type: string, example: IN }
+        name: { type: string, example: India (GST) }
+        country: { type: string, example: IN }
+        packVersion: { type: string, example: '1.5' }
+        status: { type: string, enum: [Approved, Beta, Deprecated] }
+        capabilities: { type: array, items: { type: string }, example: [gst, einvoice, ewaybill, tds, hsn] }
+        compatibleFrom: { type: string, example: '1.2' }
+        releaseNotes: { type: string }
+
+LocalizationState:
+  type: object
+  required: [active, activeVersion, available, upgradeAvailable]
+  properties:
+    active: { $ref: '#/LocalizationPack' }
+    activeVersion: { type: string, example: '1.4' }
+    available: { type: array, items: { $ref: '#/LocalizationPack' } }
+    upgradeAvailable: { type: boolean }
+    compatibility: { type: array, items: { type: string }, example: ['Tax rate GST 28% cess rule changes in 1.5'] }
+
+PlanUsage:
+  type: object
+  required: [plan, subscriptionState, usage, limits, entitledModules]
+  properties:
+    plan: { $ref: './platform.yaml#/Plan' }
+    subscriptionState: { type: string, enum: [Trial, Active, Grace, Suspended, Expired, Cancelled] }
+    trialEndsAt: { type: string, format: date }
+    renewsAt: { type: string, format: date }
+    usage: { type: object, additionalProperties: { type: number }, example: { users: 7, companies: 2, invoicesPerMonth: 412, storageMb: 1830 } }
+    limits: { type: object, additionalProperties: { type: number }, example: { users: 25, companies: 3, invoicesPerMonth: 5000, storageMb: 20480 } }
+    entitledModules: { type: array, items: { type: string } }
+    availablePlans: { type: array, items: { $ref: './platform.yaml#/Plan' } }
+
+PlanSwitchRequest:
+  type: object
+  required: [planId]
+  properties:
+    planId: { type: string, example: plan_ent }
+
+# ── integrations ──────────────────────────────────────────────────────────
+
+ProviderCredentialInput:
+  type: object
+  properties:
+    provider: { type: string, enum: [IRP, EWB, GSTN, Bank, RateProvider, Email, SMS] }
+    registrationId: { type: string, description: Scope (GSTIN) for statutory providers., example: reg_gst_mh }
+    label: { type: string, example: NIC IRP — Maharashtra }
+    username: { type: string, example: acme_mh_api }
+    secret: { type: string, format: password, writeOnly: true, description: Never returned; shown masked as `secretMasked`. }
+    expiresAt: { type: string, format: date }
+
+ProviderCredential:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/ProviderCredentialInput'
+    - type: object
+      required: [provider, label, username, secretMasked, rotatedAt, status, accessLog]
+      properties:
+        secretMasked: { type: string, readOnly: true, example: '••••••••7f2a' }
+        rotatedAt: { type: string, format: date-time, readOnly: true }
+        status: { type: string, enum: [Active, Expired, Revoked], readOnly: true }
+        accessLog: { type: array, readOnly: true, items: { type: object, properties: { at: { type: string, format: date-time }, by: { type: string }, action: { type: string } } } }
+
+RotateSecretRequest:
+  type: object
+  required: [secret]
+  properties:
+    secret: { type: string, format: password, writeOnly: true }
+    expiresAt: { type: string, format: date }
+
+ApiKeyInput:
+  type: object
+  required: [name, scopes]
+  properties:
+    name: { type: string, example: Warehouse WMS sync }
+    scopes: { type: array, minItems: 1, items: { type: string, enum: ['sales.*', sales.invoice.view, sales.invoice.create, sales.order.create, sales.receipt.view, 'purchase.*', purchase.order.view, inventory.stock.view, masters.customers.view, masters.items.view, accounting.journal.view, 'reports.*', webhooks.manage] }, example: [inventory.stock.view, purchase.order.view] }
+    expiresAt: { type: string, format: date, example: '2027-03-31' }
+
+ApiKey:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [name, prefix, keyMasked, scopes, status]
+      properties:
+        name: { type: string, example: Warehouse WMS sync }
+        prefix: { type: string, example: ebk_live_7a2f }
+        keyMasked: { type: string, example: 'ebk_live_7a2f••••••••••••••••' }
+        scopes: { type: array, items: { type: string } }
+        status: { type: string, enum: [Active, Revoked] }
+        lastUsedAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date }
+        revokedAt: { type: string, format: date-time }
+        revokedReason: { type: string }
+
+ApiKeyCreated:
+  allOf:
+    - $ref: '#/ApiKey'
+    - type: object
+      required: [key]
+      properties:
+        key: { type: string, description: The full key — shown **once**. Store it now., example: ebk_live_7a2fK9mQ3xL8vN2pR5tY1wZ4bC6dE0fG }
+
+WebhookInput:
+  type: object
+  properties:
+    url: { type: string, format: uri, example: 'https://wms.example.com/hooks/elixir' }
+    description: { type: string, example: Push stock movements and PO status to WMS }
+    events: { type: array, minItems: 1, items: { type: string }, example: [StockMoved, PurchaseReceived, DocumentPosted] }
+    secret: { type: string, writeOnly: true, description: HMAC secret for `X-Elixir-Signature`; generated when omitted. }
+
+WebhookPatch:
+  allOf:
+    - $ref: '#/WebhookInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+Webhook:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/WebhookInput'
+    - type: object
+      required: [url, events, secretMasked, status, failures]
+      properties:
+        secretMasked: { type: string, readOnly: true, example: 'whsec_••••••3f9a' }
+        status: { type: string, enum: [Active, Paused, Disabled], readOnly: true }
+        lastDeliveryAt: { type: string, format: date-time, readOnly: true }
+        lastStatus: { type: string, enum: [Success, Failed], readOnly: true }
+        failures: { type: integer, readOnly: true, description: Consecutive failures; auto-paused at 10. }
+
+WebhookDelivery:
+  type: object
+  required: [id, event, attempt, status, at]
+  properties:
+    id: { type: string, example: whd_9c1e }
+    event: { type: string, example: StockMoved }
+    eventId: { type: string, example: evt_01j8k6 }
+    attempt: { type: integer, example: 2 }
+    status: { type: string, enum: [Pending, Success, Failed] }
+    responseStatus: { type: integer, example: 500 }
+    durationMs: { type: integer, example: 812 }
+    at: { type: string, format: date-time }
+    nextRetryAt: { type: string, format: date-time }
+    error: { type: string, example: 'HTTP 500: upstream timeout' }
+
+NotificationSettingInput:
+  type: object
+  properties:
+    label: { type: string, example: Approval requested }
+    template: { type: string, example: 'Approval needed — {{doc.number}} ({{doc.party}} · {{doc.amount}})' }
+    channels:
+      type: object
+      properties:
+        inApp: { type: boolean }
+        email: { type: boolean }
+        sms: { type: boolean }
+    enabled: { type: boolean }
+
+NotificationSetting:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/NotificationSettingInput'
+    - type: object
+      required: [event, label, category, template, channels, enabled]
+      properties:
+        event: { type: string, readOnly: true, example: approval.requested }
+        category: { type: string, enum: [approval, integration, import, export, due, system, security], readOnly: true }
+
+NotificationDelivery:
+  type: object
+  required: [id, event, channel, to, status, at]
+  properties:
+    id: { type: string, example: ndl_4a1 }
+    event: { type: string, example: approval.requested }
+    channel: { type: string, enum: [in-app, email, sms] }
+    to: { type: string, example: rahul@acme.example }
+    status: { type: string, enum: [queued, sent, delivered, failed] }
+    at: { type: string, format: date-time }
+    error: { type: string }
+
+DataStats:
+  type: object
+  required: [collections, storageMb, seedVersion]
+  properties:
+    collections: { type: object, additionalProperties: { type: integer }, example: { customers: 12, salesInvoices: 142, journals: 611 } }
+    storageMb: { type: number, example: 1830 }
+    seedVersion: { type: string, example: v2 }
+    isDemo: { type: boolean }

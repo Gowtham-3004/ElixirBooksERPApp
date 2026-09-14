@@ -1,0 +1,915 @@
+# Budgets & expenses (tag: Budgets). src/modules/budgets/{compute,control,expenseActions}.ts, Budgets.tsx.
+
+# ── budgets ───────────────────────────────────────────────────────────────
+
+/budgets/budgets:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Budgets]
+    summary: Budgets (versions per FY)
+    description: Tabs → All · Draft · Approved · Superseded. Query examples — `?fy=2026-27` · `?status=Approved`.
+    operationId: listBudgets
+    x-permission: budgets.budget.view
+    x-frd: [FR-BUD-001]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/FiscalYear'
+      - $ref: '../components/parameters.yaml#/Status'
+    responses:
+      '200':
+        description: Budgets
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/budgets.yaml#/Budget' } }
+            examples:
+              firstPage: { summary: Budgets (lines omitted), value: { data: [{ id: bud_2627_1, companyId: co_acme, code: BUD-2026-27, name: Operating budget FY 2026-27, fy: '2026-27', fyStart: '2026-04-01', revision: 1, status: Approved, scope: {}, lines: [], totalIncome: 72000000, totalExpense: 61000000, approvedBy: Rahul Mehta, approvedAt: '2026-03-28T10:00:00Z', createdAt: '2026-03-20T10:00:00Z', updatedAt: '2026-03-28T10:00:00Z', version: 4 }, { id: bud_2627_2, companyId: co_acme, code: BUD-2026-27, name: Operating budget FY 2026-27, fy: '2026-27', fyStart: '2026-04-01', revision: 2, status: Draft, scope: {}, lines: [], totalIncome: 75000000, totalExpense: 62500000, revisionOfId: bud_2627_1, createdAt: '2026-09-10T10:00:00Z', updatedAt: '2026-09-12T10:00:00Z', version: 2 }], meta: { nextCursor: null, limit: 25, total: 2, counts: { All: 3, Draft: 1, Approved: 1, Superseded: 1 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Budgets]
+    summary: Create a budget (Draft; blank, copied, or seeded from actuals)
+    operationId: createBudget
+    x-permission: budgets.budget.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/budgets.yaml#/BudgetCreate' }
+          examples:
+            blank: { summary: Blank for the FY, value: { fy: '2027-28', name: Operating budget FY 2027-28 } }
+            withLines: { summary: With lines, value: { fy: '2026-27', name: Marketing budget, scope: { departmentId: dim_mkt }, lines: [{ accountId: acc_5400, months: [40000, 40000, 40000, 40000, 40000, 40000, 40000, 40000, 40000, 40000, 40000, 40000] }] } }
+            fromActuals: { summary: Seed from last FY actuals +8%, value: { fy: '2027-28', name: Operating budget FY 2027-28, fromActuals: { fy: '2026-27', upliftPct: 8 } } }
+            copy: { summary: Copy from an existing budget, value: { fy: '2027-28', name: Operating budget FY 2027-28, copyFromId: bud_2627_1 } }
+    responses:
+      '201':
+        description: Draft budget
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/budgets.yaml#/Budget' }
+            examples:
+              draft: { $ref: '../components/examples/budgets.yaml#/BudgetDraft' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/budgets/budgets/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Budgets]
+    summary: Get a budget (with lines)
+    operationId: getBudget
+    x-permission: budgets.budget.view
+    responses:
+      '200':
+        description: Budget
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/budgets.yaml#/Budget' }
+            examples:
+              draft: { $ref: '../components/examples/budgets.yaml#/BudgetDraft' }
+              approved: { $ref: '../components/examples/budgets.yaml#/BudgetApproved' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Budgets]
+    summary: Edit a Draft budget (lines are replaced)
+    operationId: updateBudget
+    x-permission: budgets.budget.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/budgets.yaml#/BudgetPatch' }
+          examples:
+            lines: { summary: Replace lines, value: { expectedVersion: 2, lines: [{ accountId: acc_5400, months: [45000, 45000, 45000, 45000, 45000, 45000, 45000, 45000, 45000, 45000, 45000, 45000] }, { accountId: acc_4010, months: [6000000, 6000000, 6000000, 6000000, 6000000, 6000000, 6000000, 6000000, 6000000, 6000000, 6000000, 6000000] }] } }
+            rename: { summary: Rename, value: { expectedVersion: 2, name: Operating budget FY 2026-27 (H2 reforecast) } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/budgets.yaml#/Budget' }
+            examples:
+              updated: { $ref: '../components/examples/budgets.yaml#/BudgetDraft' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Budgets]
+    summary: Delete a Draft budget
+    operationId: deleteBudget
+    x-permission: budgets.budget.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/budgets/budgets/{id}/approve:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Budgets]
+    summary: Approve (supersedes the currently approved budget for the FY)
+    operationId: approveBudget
+    x-permission: budgets.budget.approve
+    x-idempotent: true
+    x-events: [DocumentApproved]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Comment' }
+          examples:
+            comment: { summary: Comment, value: { comment: Board-approved 12 Sep } }
+    responses:
+      '200':
+        description: Approved
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/budgets.yaml#/Budget' }
+            examples:
+              approved: { summary: Approved; previous revision superseded, value: { document: { $ref: '#/components/examples/BudgetApproved/value' }, outcome: approved, warnings: ['BUD-2026-27 rev 1 superseded — budget control now uses rev 2'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Business rule
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              empty: { summary: No lines, value: { code: EMPTY, message: Budget has no lines, correlationId: corr_9f1c2e7a } }
+
+/budgets/budgets/{id}/revise:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Budgets]
+    summary: Create the next revision as a Draft copy
+    operationId: reviseBudget
+    x-permission: budgets.budget.create
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { type: object, properties: { name: { type: string }, notes: { type: string } } }
+          examples:
+            reforecast: { summary: H2 reforecast, value: { name: Operating budget FY 2026-27 (H2 reforecast), notes: Reforecast after Q2 } }
+    responses:
+      '201':
+        description: New Draft revision
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/budgets.yaml#/Budget' }
+            examples:
+              revision: { $ref: '../components/examples/budgets.yaml#/BudgetDraft' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/budgets/budgets/import:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Budgets]
+    summary: Import budget lines from CSV (account code + 12 months) into a new Draft
+    operationId: importBudget
+    x-permission: budgets.budget.create
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [file, fy]
+            properties:
+              file: { type: string, format: binary }
+              fy: { type: string, example: '2026-27' }
+              name: { type: string }
+              dryRun: { type: boolean, default: true }
+          examples:
+            dryRun: { summary: Validate only, value: { fy: '2026-27', dryRun: true } }
+            commit: { summary: Create the draft, value: { fy: '2026-27', name: Imported budget FY 2026-27, dryRun: false } }
+    responses:
+      '200':
+        description: Dry-run result
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/ImportJob' }
+            examples:
+              dryRun: { $ref: '../components/examples/masters.yaml#/ImportDryRun' }
+      '201':
+        description: Draft created
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/budgets.yaml#/Budget' }
+            examples:
+              created: { $ref: '../components/examples/budgets.yaml#/BudgetDraft' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '413': { $ref: '../components/responses.yaml#/PayloadTooLarge' }
+      '422':
+        description: Row errors
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              unknownAccount: { summary: Unknown account code, value: { code: VALIDATION, message: 'Row 4: account code 5499 not found', details: { row: 4, field: accountCode }, correlationId: corr_9f1c2e7a } }
+
+/budgets/variance:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Budgets]
+    summary: Budget vs actual (with committed POs and utilisation)
+    description: Query examples — `?fy=2026-27&preset=YTD` · `?from=2026-09-01&to=2026-09-30` · `?branchId=br_andheri` · `?budgetId=bud_2627_1` (default = approved budget of the FY).
+    operationId: getBudgetVariance
+    x-permission: budgets.budget.view
+    x-frd: [FR-BUD-002]
+    parameters:
+      - $ref: '../components/parameters.yaml#/FiscalYear'
+      - $ref: '../components/parameters.yaml#/Preset'
+      - $ref: '../components/parameters.yaml#/ReportFrom'
+      - $ref: '../components/parameters.yaml#/ReportTo'
+      - $ref: '../components/parameters.yaml#/BranchFilter'
+      - { name: budgetId, in: query, schema: { type: string } }
+    responses:
+      '200':
+        description: Variance
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/budgets.yaml#/VarianceReport' }
+            examples:
+              ytd: { summary: YTD, value: { budgetId: bud_2627_1, budgetCode: BUD-2026-27, fy: '2026-27', from: '2026-04-01', to: '2026-09-30', rows: [{ accountId: g_opex, code: '', name: Operating expenses, type: Expense, groupId: ag_opex, groupName: Operating expenses, budgetFy: 6100000, budgetPeriod: 3050000, actual: 3180000, committed: 120000, available: -250000, variance: 130000, favorable: false, utilizationPct: 108.2, kind: group }, { accountId: acc_5400, code: '5400', name: Marketing, type: Expense, groupId: ag_opex, groupName: Operating expenses, budgetFy: 480000, budgetPeriod: 240000, actual: 262000, committed: 30000, available: -52000, variance: 22000, favorable: false, utilizationPct: 121.7, kind: account }], totals: { income: { accountId: '', code: '', name: Total income, type: Income, groupName: '', budgetFy: 72000000, budgetPeriod: 36000000, actual: 37400000, committed: 0, available: 0, variance: 1400000, favorable: true, utilizationPct: 103.9, kind: calc }, expense: { accountId: '', code: '', name: Total expenses, type: Expense, groupName: '', budgetFy: 61000000, budgetPeriod: 30500000, actual: 31800000, committed: 1200000, available: -2500000, variance: 1300000, favorable: false, utilizationPct: 108.2, kind: calc }, net: { accountId: '', code: '', name: Net result, type: Income, groupName: '', budgetFy: 11000000, budgetPeriod: 5500000, actual: 5600000, committed: 1200000, available: 0, variance: 100000, favorable: true, utilizationPct: 0, kind: calc } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              noBudget: { summary: No approved budget, value: { fy: '2027-28', from: '2027-04-01', to: '2027-04-30', rows: [], totals: { income: { accountId: '', code: '', name: Total income, type: Income, groupName: '', budgetFy: 0, budgetPeriod: 0, actual: 0, committed: 0, available: 0, variance: 0, favorable: true, utilizationPct: 0, kind: calc }, expense: { accountId: '', code: '', name: Total expenses, type: Expense, groupName: '', budgetFy: 0, budgetPeriod: 0, actual: 0, committed: 0, available: 0, variance: 0, favorable: true, utilizationPct: 0, kind: calc }, net: { accountId: '', code: '', name: Net result, type: Income, groupName: '', budgetFy: 0, budgetPeriod: 0, actual: 0, committed: 0, available: 0, variance: 0, favorable: true, utilizationPct: 0, kind: calc } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+# ── control rules ─────────────────────────────────────────────────────────
+
+/budgets/rules:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Budgets]
+    summary: Budget control rules
+    operationId: listBudgetRules
+    x-permission: budgets.budget.view
+    x-frd: [FR-BUD-003]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IncludeInactive'
+    responses:
+      '200':
+        description: Rules
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/budgets.yaml#/BudgetRule' } } } }
+            examples:
+              rules: { summary: Two rules, value: { data: [{ id: br_1, companyId: co_acme, groupId: ag_opex, groupName: Operating expenses, mode: Warn, thresholdPct: 90, includeCommitted: true, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: br_2, companyId: co_acme, groupId: ag_capex, groupName: Capital expenditure, mode: Block, thresholdPct: 100, includeCommitted: true, status: Active, notes: CFO override via approval, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }] } }
+              none: { summary: None, value: { data: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Budgets]
+    summary: Create a rule
+    operationId: createBudgetRule
+    x-permission: budgets.budget.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/budgets.yaml#/BudgetRuleCreate' }
+          examples:
+            warn: { summary: Warn at 90%, value: { groupId: ag_opex, mode: Warn, thresholdPct: 90, includeCommitted: true } }
+            block: { summary: Block at 100%, value: { groupId: ag_capex, mode: Block, thresholdPct: 100 } }
+            override: { summary: Override (route to approval), value: { groupId: ag_opex, mode: Override, thresholdPct: 100, notes: Over-budget spend needs CFO approval } }
+    responses:
+      '201':
+        description: Created
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/budgets.yaml#/BudgetRule' }
+            examples:
+              created: { summary: Created, value: { id: br_3, companyId: co_acme, groupId: ag_opex, groupName: Operating expenses, mode: Override, thresholdPct: 100, includeCommitted: true, status: Active, notes: Over-budget spend needs CFO approval, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/budgets/rules/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  patch:
+    tags: [Budgets]
+    summary: Update a rule
+    operationId: updateBudgetRule
+    x-permission: budgets.budget.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/budgets.yaml#/BudgetRulePatch' }
+          examples:
+            threshold: { summary: Threshold, value: { expectedVersion: 1, thresholdPct: 95 } }
+            deactivate: { summary: Deactivate, value: { expectedVersion: 1, status: Inactive } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/budgets.yaml#/BudgetRule' }
+            examples:
+              updated: { summary: Updated, value: { id: br_1, companyId: co_acme, groupId: ag_opex, groupName: Operating expenses, mode: Warn, thresholdPct: 95, includeCommitted: true, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Budgets]
+    summary: Delete a rule
+    operationId: deleteBudgetRule
+    x-permission: budgets.budget.edit
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/budgets/rules/test:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Budgets]
+    summary: Test budget control for an account / amount / date (checkBudget)
+    operationId: testBudgetRule
+    x-permission: budgets.budget.view
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/budgets.yaml#/BudgetCheckRequest' }
+          examples:
+            marketing: { summary: Marketing spend, value: { accountId: acc_5400, amount: 50000, date: '2026-09-13' } }
+            ytd: { summary: YTD scope, value: { accountId: acc_5400, amount: 50000, date: '2026-09-13', scope: ytd } }
+    responses:
+      '200':
+        description: Result
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/budgets.yaml#/BudgetCheckResult' }
+            examples:
+              warn: { summary: Warn, value: { ok: true, mode: Warn, message: 'Marketing would reach 131% of the September budget (₹2,40,000)', budget: 240000, actual: 262000, committed: 30000, available: -52000, utilizationPct: 131.7, accountCode: '5400', ruleId: br_1 } }
+              block: { summary: Block, value: { ok: false, mode: Block, message: 'Capital expenditure is over budget — ₹12,00,000 of ₹10,00,000 used', budget: 1000000, actual: 1100000, committed: 100000, available: -200000, utilizationPct: 120, accountCode: '1650', ruleId: br_2 } }
+              override: { summary: Override (needs approval), value: { ok: true, mode: Override, needsApproval: true, message: Over budget — routed for CFO approval, budget: 240000, actual: 262000, committed: 30000, available: -52000, utilizationPct: 131.7, accountCode: '5400', ruleId: br_3 } }
+              none: { summary: No rule, value: { ok: true, mode: None, budget: 0, actual: 12000, committed: 0, available: 0, utilizationPct: 0, accountCode: '5450' } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── expense categories ────────────────────────────────────────────────────
+
+/budgets/expense-categories:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Budgets]
+    summary: Expense categories
+    operationId: listExpenseCategories
+    x-permission: budgets.expenses.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/IncludeInactive'
+    responses:
+      '200':
+        description: Categories
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/budgets.yaml#/ExpenseCategory' } } } }
+            examples:
+              list: { summary: Categories, value: { data: [{ id: ec_trv, companyId: co_acme, code: TRV, name: Travel, accountId: acc_5410, accountName: Travel & conveyance, receiptRequired: true, taxRateId: tr_gst5, perDiem: 750, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: ec_meal, companyId: co_acme, code: MEAL, name: Meals, accountId: acc_5420, accountName: Staff welfare, receiptRequired: false, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Budgets]
+    summary: Create a category
+    operationId: createExpenseCategory
+    x-permission: budgets.expenses.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/budgets.yaml#/ExpenseCategoryCreate' }
+          examples:
+            hotel: { summary: Hotel, value: { code: HTL, name: Hotel, accountId: acc_5410, receiptRequired: true, taxRateId: tr_gst12 } }
+    responses:
+      '201':
+        description: Created
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/budgets.yaml#/ExpenseCategory' }
+            examples:
+              created: { summary: Created, value: { id: ec_htl, companyId: co_acme, code: HTL, name: Hotel, accountId: acc_5410, accountName: Travel & conveyance, receiptRequired: true, taxRateId: tr_gst12, status: Active, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/budgets/expense-categories/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  patch:
+    tags: [Budgets]
+    summary: Update a category
+    operationId: updateExpenseCategory
+    x-permission: budgets.expenses.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/budgets.yaml#/ExpenseCategoryPatch' }
+          examples:
+            perDiem: { summary: Per-diem, value: { expectedVersion: 1, perDiem: 900 } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/budgets.yaml#/ExpenseCategory' }
+            examples:
+              updated: { summary: Updated, value: { id: ec_trv, companyId: co_acme, code: TRV, name: Travel, accountId: acc_5410, accountName: Travel & conveyance, receiptRequired: true, taxRateId: tr_gst5, perDiem: 900, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Budgets]
+    summary: Delete an unused category
+    operationId: deleteExpenseCategory
+    x-permission: budgets.expenses.edit
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── expense claims ────────────────────────────────────────────────────────
+
+/budgets/expense-claims:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Budgets]
+    summary: Expense claims
+    description: "Tabs → My claims (`mine=true`) · Awaiting approval · Approved (to reimburse) · Reimbursed · All. Query examples — `?employeeId=emp_priya` · `?paymentMethod=Corporate card`."
+    operationId: listExpenseClaims
+    x-permission: budgets.expenses.view
+    x-frd: [FR-EXP-001]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: mine, in: query, schema: { type: boolean } }
+      - $ref: '../components/parameters.yaml#/EmployeeId'
+      - { name: paymentMethod, in: query, schema: { type: string, enum: [Personal, Corporate card] } }
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Claims
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/budgets.yaml#/ExpenseClaim' } }
+            examples:
+              firstPage: { summary: Claims, value: { data: [{ $ref: '#/components/examples/ExpenseClaimApproved/value' }], meta: { nextCursor: null, limit: 25, total: 1, counts: { 'My claims': 3, 'Awaiting approval': 2, Approved: 1, Reimbursed: 27, All: 33 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Budgets]
+    summary: Create a claim (Draft)
+    operationId: createExpenseClaim
+    x-permission: budgets.expenses.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/budgets.yaml#/ExpenseClaimCreate' }
+          examples:
+            personal: { summary: Personal spend with receipts, value: { date: '2026-09-13', purpose: "Client visit — Pune, 10–11 Sep", paymentMethod: Personal, lines: [{ date: '2026-09-10', categoryId: ec_trv, description: Cab to client site, amount: 850, taxRateId: tr_gst5, receiptAttachmentId: att_901 }, { date: '2026-09-10', categoryId: ec_htl, description: Hotel 1 night, amount: 4200, taxRateId: tr_gst12, receiptAttachmentId: att_902 }, { date: '2026-09-11', categoryId: ec_meal, description: Team lunch, amount: 1250 }] } }
+            corporateCard: { summary: Corporate card, value: { date: '2026-09-13', purpose: SaaS subscription — September, paymentMethod: Corporate card, lines: [{ date: '2026-09-01', categoryId: ec_soft, description: Figma team plan, amount: 6600, taxRateId: tr_gst18, receiptAttachmentId: att_903 }] } }
+            perDiem: { summary: Per-diem (no receipt needed), value: { date: '2026-09-13', purpose: Site audit — Nashik, lines: [{ date: '2026-09-12', categoryId: ec_trv, description: Per-diem 1 day, amount: 750 }] } }
+    responses:
+      '201':
+        description: Draft claim
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/budgets.yaml#/ExpenseClaim' }
+            examples:
+              draft: { $ref: '../components/examples/budgets.yaml#/ExpenseClaimDraft' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/budgets/expense-claims/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Budgets]
+    summary: Get a claim
+    operationId: getExpenseClaim
+    x-permission: budgets.expenses.view
+    responses:
+      '200':
+        description: Claim
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/budgets.yaml#/ExpenseClaim' }
+            examples:
+              draft: { $ref: '../components/examples/budgets.yaml#/ExpenseClaimDraft' }
+              approved: { $ref: '../components/examples/budgets.yaml#/ExpenseClaimApproved' }
+              reimbursed: { $ref: '../components/examples/budgets.yaml#/ExpenseClaimReimbursed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Budgets]
+    summary: Edit a Draft / Returned claim
+    operationId: updateExpenseClaim
+    x-permission: budgets.expenses.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/budgets.yaml#/ExpenseClaimPatch' }
+          examples:
+            addReceipt: { summary: Attach a missing receipt, value: { expectedVersion: 1, lines: [{ date: '2026-09-10', categoryId: ec_trv, description: Cab to client site, amount: 850, taxRateId: tr_gst5, receiptAttachmentId: att_901 }] } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/budgets.yaml#/ExpenseClaim' }
+            examples:
+              updated: { $ref: '../components/examples/budgets.yaml#/ExpenseClaimDraft' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Budgets]
+    summary: Delete a Draft claim
+    operationId: deleteExpenseClaim
+    x-permission: budgets.expenses.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/budgets/expense-claims/{id}/submit:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Budgets]
+    summary: Submit (receipt / per-diem validation, budget warnings, 'Expense Claim' workflow)
+    description: "No matching workflow rule → auto-approved and posted in the same call (corporate card claims end up Reimbursed). Budget control only warns at submission."
+    operationId: submitExpenseClaim
+    x-permission: budgets.expenses.submit
+    x-frd: [FR-EXP-001, FR-BUD-003]
+    x-idempotent: true
+    x-workflow-doc-type: Expense Claim
+    x-events: [DocumentSubmitted, DocumentApproved, DocumentPosted, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Outcome
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/budgets.yaml#/ExpenseClaim' }
+                    outcome: { $ref: '../components/schemas/budgets.yaml#/ExpenseSubmitOutcome' }
+            examples:
+              routed: { summary: "outcome = routed-for-approval (> ₹5,000)", value: { document: { id: exp_00031, companyId: co_acme, number: EXP/2026-27/00031, docType: Expense Claim, date: '2026-09-13', branchId: br_ho, employeeId: emp_priya, employeeName: Priya Sharma, employeeCode: E-0007, department: Finance, purpose: "Client visit — Pune, 10–11 Sep", status: Submitted, lines: [], totals: { amount: 6300, tax: 546.5, total: 6846.5 }, currency: INR, paymentMethod: Personal, approvalId: apr_exp_31, submittedAt: '2026-09-13T09:20:00Z', submittedBy: Priya Sharma, budgetWarnings: [{ ok: true, mode: Warn, message: 'Travel & conveyance would reach 92% of the September budget', budget: 60000, actual: 50200, committed: 0, available: 4750, utilizationPct: 92.1, accountCode: '5410', ruleId: br_1 }], correlationId: corr_exp31, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:20:00Z', version: 2 }, outcome: routed-for-approval, approval: { id: apr_exp_31, companyId: co_acme, docType: Expense Claim, collection: expenseClaims, docId: exp_00031, docNumber: EXP/2026-27/00031, amount: 6846.5, currency: INR, branchId: br_ho, requesterId: usr_priya, requesterName: Priya Sharma, steps: [{ order: 1, name: Manager, approverType: Role, approverRef: role_finmgr, approverLabel: Finance Manager, status: Pending, commentRequired: false }], currentStep: 0, status: Pending, submittedAt: '2026-09-13T09:20:00Z', history: [], createdAt: '2026-09-13T09:20:00Z', updatedAt: '2026-09-13T09:20:00Z', version: 1 }, warnings: ['Travel & conveyance would reach 92% of the September budget'] } }
+              autoPosted: { summary: "outcome = posted (no rule; ≤ ₹5,000)", value: { document: { $ref: '#/components/examples/ExpenseClaimApproved/value' }, outcome: posted, journal: { $ref: '#/components/examples/ExpenseJournal/value' }, openItems: [{ id: oi_exp_31, companyId: co_acme, partyType: Employee, partyId: emp_priya, partyName: Priya Sharma, docType: Expense Claim, docId: exp_00031, docNumber: EXP/2026-27/00031, date: '2026-09-13', dueDate: '2026-09-13', currency: INR, rate: 1, amount: 6846.5, baseAmount: 6846.5, settled: 0, balance: 6846.5, baseBalance: 6846.5, status: Open, settlements: [], createdAt: '2026-09-13T09:20:00Z', updatedAt: '2026-09-13T09:20:00Z', version: 1 }], warnings: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Validation
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              receipt: { summary: Receipt missing above threshold, value: { code: VALIDATION, message: 'Line 2 (Hotel 1 night): receipt required for amounts above ₹500', field: 'lines[1].receiptAttachmentId', correlationId: corr_9f1c2e7a } }
+              perDiem: { summary: Per-diem exceeded, value: { code: VALIDATION, message: 'Line 1: per-diem for Travel is ₹750/day', field: 'lines[0].amount', correlationId: corr_9f1c2e7a } }
+              future: { summary: Future-dated line, value: { code: VALIDATION, message: 'Line 1: expense date cannot be in the future', field: 'lines[0].date', correlationId: corr_9f1c2e7a } }
+
+/budgets/expense-claims/{id}/approve:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Budgets]
+    summary: Approve (acts on the approval request; posts the journal)
+    operationId: approveExpenseClaim
+    x-permission: budgets.expenses.approve
+    x-idempotent: true
+    x-events: [DocumentApproved, DocumentPosted, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Comment' }
+          examples:
+            comment: { summary: Comment, value: { comment: Receipts verified } }
+    responses:
+      '200':
+        description: Approved & posted
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/budgets.yaml#/ExpenseClaim' }
+            examples:
+              personal: { summary: Personal → Approved (employee payable open item), value: { document: { $ref: '#/components/examples/ExpenseClaimApproved/value' }, outcome: posted, journal: { $ref: '#/components/examples/ExpenseJournal/value' }, warnings: [] } }
+              card: { summary: Corporate card → Reimbursed (card liability), value: { document: { id: exp_00032, companyId: co_acme, number: EXP/2026-27/00032, docType: Expense Claim, date: '2026-09-13', branchId: br_ho, employeeId: emp_neha, employeeName: Neha Rao, purpose: SaaS subscription — September, status: Reimbursed, lines: [], totals: { amount: 6600, tax: 1188, total: 7788 }, currency: INR, paymentMethod: Corporate card, journalId: jnl_exp_32, journalNumber: JV/2026-27/00409, postedAt: '2026-09-13T11:00:00Z', reimbursedAt: '2026-09-13T11:00:00Z', reimbursementMode: Card settlement, approvedAt: '2026-09-13T11:00:00Z', approvedBy: Rahul Mehta, correlationId: corr_exp32, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T11:00:00Z', version: 4 }, outcome: posted, warnings: ['Corporate-card spend credited to card payable 2350 — settled with the card statement'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/budgets/expense-claims/{id}/reject:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Budgets]
+    summary: Reject
+    operationId: rejectExpenseClaim
+    x-permission: budgets.expenses.approve
+    x-events: [DocumentRejected]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Hotel bill is for a personal stay } }
+    responses:
+      '200':
+        description: Rejected
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/budgets.yaml#/ExpenseClaim' }
+            examples:
+              rejected: { summary: Rejected, value: { id: exp_00031, companyId: co_acme, number: EXP/2026-27/00031, docType: Expense Claim, date: '2026-09-13', branchId: br_ho, employeeId: emp_priya, employeeName: Priya Sharma, purpose: "Client visit — Pune, 10–11 Sep", status: Rejected, lines: [], totals: { amount: 6300, tax: 546.5, total: 6846.5 }, currency: INR, paymentMethod: Personal, approvalId: apr_exp_31, rejectionReason: Hotel bill is for a personal stay, correlationId: corr_exp31, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T11:30:00Z', version: 3 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/budgets/expense-claims/{id}/return-to-draft:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Budgets]
+    summary: Return to Draft (approver → requester, or requester recall)
+    operationId: returnExpenseClaimToDraft
+    x-permission: budgets.expenses.edit
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Comment' }
+          examples:
+            comment: { summary: Comment, value: { comment: Please attach the hotel GST invoice } }
+    responses:
+      '200':
+        description: Draft
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/budgets.yaml#/ExpenseClaim' }
+            examples:
+              draft: { $ref: '../components/examples/budgets.yaml#/ExpenseClaimDraft' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/budgets/expense-claims/{id}/post:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Budgets]
+    summary: Post an Approved claim that has no journal yet (e.g. period was closed at approval)
+    operationId: postExpenseClaim
+    x-permission: budgets.expenses.post
+    x-idempotent: true
+    x-events: [DocumentPosted, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Posted
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/budgets.yaml#/ExpenseClaim' }
+            examples:
+              posted: { summary: Posted, value: { document: { $ref: '#/components/examples/ExpenseClaimApproved/value' }, outcome: posted, journal: { $ref: '#/components/examples/ExpenseJournal/value' }, warnings: [] } }
+              alreadyPosted: { summary: Idempotent — already had a journal, value: { document: { $ref: '#/components/examples/ExpenseClaimApproved/value' }, outcome: posted, warnings: ['Already posted as JV/2026-27/00408'] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Not approved
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              notApproved: { summary: Not approved, value: { code: INVALID_STATE, message: Only approved claims can be posted, correlationId: corr_9f1c2e7a } }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/budgets/expense-claims/{id}/reimburse:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Budgets]
+    summary: Reimburse (bank payment now, or queue into payroll inputs)
+    operationId: reimburseExpenseClaim
+    x-permission: budgets.expenses.post
+    x-frd: [FR-EXP-002]
+    x-idempotent: true
+    x-events: [JournalPosted, PaymentCompleted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/budgets.yaml#/ReimburseRequest' }
+          examples:
+            bank: { summary: Bank transfer, value: { mode: Bank, date: '2026-09-15', reference: NEFT26091500821, bankAccountId: acc_1310 } }
+            payroll: { summary: Via next payroll, value: { mode: Payroll } }
+    responses:
+      '200':
+        description: Result
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/budgets.yaml#/ExpenseClaim' }
+                    outcome: { type: string, enum: [reimbursed, queued-for-payroll] }
+            examples:
+              bank: { summary: outcome = reimbursed (journal + open item settled), value: { document: { $ref: '#/components/examples/ExpenseClaimReimbursed/value' }, outcome: reimbursed, journal: { id: jnl_exp_31r, companyId: co_acme, number: JV/2026-27/00410, date: '2026-09-15', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Reimbursement, sourceId: exp_00031, sourceNumber: EXP/2026-27/00031, narration: 'Reimbursement of EXP/2026-27/00031 to Priya Sharma · NEFT26091500821', lines: [{ id: j1, accountId: acc_2340, accountCode: '2340', accountName: Employee reimbursements payable, dr: 6846.5, cr: 0, drBase: 6846.5, crBase: 0, partyType: Employee, partyId: emp_priya, partyName: Priya Sharma, dimensions: {} }, { id: j2, accountId: acc_1310, accountCode: '1310', accountName: HDFC Bank — CA 0042, dr: 0, cr: 6846.5, drBase: 0, crBase: 6846.5, dimensions: {} }], totalDr: 6846.5, totalCr: 6846.5, postedAt: '2026-09-15T10:00:00Z', postedBy: Priya Sharma, correlationId: corr_exp31, createdAt: '2026-09-15T10:00:00Z', updatedAt: '2026-09-15T10:00:00Z', version: 1 }, openItems: [{ id: oi_exp_31, companyId: co_acme, partyType: Employee, partyId: emp_priya, partyName: Priya Sharma, docType: Expense Claim, docId: exp_00031, docNumber: EXP/2026-27/00031, date: '2026-09-13', dueDate: '2026-09-13', currency: INR, rate: 1, amount: 6846.5, baseAmount: 6846.5, settled: 6846.5, balance: 0, baseBalance: 0, status: Settled, settlements: [{ id: st_1, date: '2026-09-15', docType: Reimbursement, docId: jnl_exp_31r, docNumber: JV/2026-27/00410, amount: 6846.5, baseAmount: 6846.5, rate: 1, fxGainLoss: 0 }], createdAt: '2026-09-13T09:20:00Z', updatedAt: '2026-09-15T10:00:00Z', version: 2 }], warnings: [] } }
+              payroll: { summary: outcome = queued-for-payroll, value: { document: { id: exp_00031, companyId: co_acme, number: EXP/2026-27/00031, docType: Expense Claim, date: '2026-09-13', branchId: br_ho, employeeId: emp_priya, employeeName: Priya Sharma, purpose: "Client visit — Pune, 10–11 Sep", status: Approved, lines: [], totals: { amount: 6300, tax: 546.5, total: 6846.5 }, currency: INR, paymentMethod: Personal, journalId: jnl_exp_31, journalNumber: JV/2026-27/00408, openItemId: oi_exp_31, reimbursementMode: Payroll, reimbursementRef: Payroll 2026-09, notes: Queued for payroll 2026-09, correlationId: corr_exp31, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T12:00:00Z', version: 5 }, outcome: queued-for-payroll, warnings: ['Added to payroll inputs 2026-09 — settles when the run posts'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: State conflict
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              notPosted: { summary: Not approved/posted, value: { code: INVALID_STATE, message: Claim must be approved and posted before reimbursement, correlationId: corr_9f1c2e7a } }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+# ── settings ──────────────────────────────────────────────────────────────
+
+/budgets/settings:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Budgets]
+    summary: Expense settings (receipt threshold, per-diems, control accounts)
+    operationId: getExpenseSettings
+    x-permission: budgets.expenses.view
+    responses:
+      '200':
+        description: Settings
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/ExpenseSettings' }
+            examples:
+              current: { summary: Current, value: { receiptRequiredAbove: 500, perDiemDomestic: 750, perDiemInternational: 3500, corporateCardAccountId: acc_2350, employeePayableAccountId: acc_2340 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  put:
+    tags: [Budgets]
+    summary: Update expense settings
+    operationId: updateExpenseSettings
+    x-permission: budgets.settings.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/admin.yaml#/ExpenseSettings' }
+          examples:
+            thresholds: { summary: Thresholds, value: { receiptRequiredAbove: 1000, perDiemDomestic: 900 } }
+    responses:
+      '200':
+        description: Saved
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/ExpenseSettings' }
+            examples:
+              saved: { summary: Saved, value: { receiptRequiredAbove: 1000, perDiemDomestic: 900, perDiemInternational: 3500, corporateCardAccountId: acc_2350, employeePayableAccountId: acc_2340 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }

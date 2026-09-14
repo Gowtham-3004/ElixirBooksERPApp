@@ -1,0 +1,24 @@
+XCorrelationId:
+  description: Correlation id for this request (echoed from `X-Correlation-Id` or generated). Propagated to DB transactions, queues, workers and provider calls.
+  schema: { type: string, example: corr_9f1c2e7a }
+Location:
+  description: URL of the created resource.
+  schema: { type: string, format: uri-reference, example: /v1/sales/invoices/inv_01j8k3 }
+ETag:
+  description: Weak entity tag equal to the record `version` (also usable with `If-Match`).
+  schema: { type: string, example: 'W/"3"' }
+RateLimitLimit:
+  description: Requests allowed in the current window.
+  schema: { type: integer, example: 600 }
+RateLimitRemaining:
+  description: Requests remaining in the current window.
+  schema: { type: integer, example: 0 }
+RetryAfter:
+  description: Seconds to wait before retrying.
+  schema: { type: integer, example: 30 }
+ContentDisposition:
+  description: Attachment file name for downloads.
+  schema: { type: string, example: attachment; filename="INV-2026-27-00042.pdf" }
+IdempotentReplayed:
+  description: "`true` when this response was served from the stored result of an earlier request with the same `Idempotency-Key` (no side effects were repeated)."
+  schema: { type: boolean, example: true }

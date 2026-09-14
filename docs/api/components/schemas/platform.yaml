@@ -1,0 +1,79 @@
+# Platform administration (src/store/types.ts:26-52, src/store/plans.ts, src/modules/platform/*)
+
+PlanInput:
+  type: object
+  properties:
+    code: { type: string, example: GROWTH }
+    name: { type: string, example: Growth }
+    tier: { type: string, enum: [Lite, Growth, Enterprise] }
+    modules: { type: array, items: { type: string }, example: [home, approvals, crm, sales, purchase, inventory, pos, accounting, banking, taxation, reports, masters, admin] }
+    limits: { type: object, additionalProperties: { type: number }, example: { users: 25, companies: 3, invoicesPerMonth: 5000, storageMb: 20480 } }
+    priceMonthly: { type: number, example: 4999 }
+    currency: { type: string, example: INR }
+
+PlanPatch:
+  allOf:
+    - $ref: '#/PlanInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+Plan:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/PlanInput'
+    - type: object
+      required: [code, name, tier, planVersion, status, modules, limits, priceMonthly, currency]
+      properties:
+        tier: { type: string, enum: [Lite, Growth, Enterprise, Pro], description: '`Pro` is a retired legacy tier kept readable.' }
+        planVersion: { type: integer, readOnly: true, example: 3 }
+        status: { type: string, enum: [Draft, Active, Retired], readOnly: true }
+        tenantCount: { type: integer, readOnly: true, example: 41 }
+
+Tenant:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [name, planId, subscriptionState, ownerUserId, usage, country]
+      properties:
+        name: { type: string, example: Acme Group }
+        planId: { type: string, example: plan_std }
+        planCode: { type: string, readOnly: true, example: GROWTH }
+        subscriptionState: { type: string, enum: [Trial, Active, Grace, Suspended, Expired, Cancelled] }
+        trialEndsAt: { type: string, format: date }
+        renewsAt: { type: string, format: date }
+        graceUntil: { type: string, format: date }
+        ownerUserId: { type: string, example: usr_rahul }
+        ownerName: { type: string, readOnly: true, example: Rahul Mehta }
+        usage: { type: object, additionalProperties: { type: number }, example: { users: 7, companies: 2, invoicesPerMonth: 412, storageMb: 1830 } }
+        limits: { type: object, readOnly: true, additionalProperties: { type: number } }
+        country: { type: string, example: IN }
+        suspendedReason: { type: string, readOnly: true }
+        mrr: { type: number, readOnly: true, example: 4999 }
+
+TenantChangePlanRequest:
+  type: object
+  required: [planId]
+  properties:
+    planId: { type: string, example: plan_ent }
+    effectiveAt: { type: string, format: date, description: Default immediately. }
+    reason: { type: string }
+
+TenantExtendTrialRequest:
+  type: object
+  required: [days, reason]
+  properties:
+    days: { type: integer, minimum: 1, maximum: 60, example: 14 }
+    reason: { type: string, example: Customer requested more time to import history }
+
+TenantStateChangeRequest:
+  type: object
+  required: [reason]
+  properties:
+    reason: { type: string, minLength: 10, example: Invoice 2026-08 unpaid for 45 days }
+
+PlatformUsage:
+  type: object
+  required: [tenantsByState, mrrByPlan, totals]
+  properties:
+    tenantsByState: { type: object, additionalProperties: { type: integer }, example: { Trial: 12, Active: 41, Grace: 3, Suspended: 2, Expired: 5, Cancelled: 4 } }
+    mrrByPlan: { type: object, additionalProperties: { type: number }, example: { LITE: 29970, GROWTH: 204959, ENTERPRISE: 149970 } }
+    totals: { type: object, properties: { tenants: { type: integer, example: 67 }, activeUsers: { type: integer, example: 412 }, mrr: { type: number, example: 384899 } } }

@@ -1,0 +1,131 @@
+openapi: 3.1.0
+info:
+  title: Elixir Books ERP API
+  version: 1.0.0
+  summary: REST contract for the Elixir Books ERP (all 19 modules)
+  description: |
+    Versioned REST API for **Elixir Books** — multi-tenant, multi-company ERP covering CRM, Sales,
+    Purchase, Inventory, POS, Projects & Contracts, Production, Accounting, Banking, Taxation
+    (India GST / e-Invoice / e-Way bill / TDS), Payroll, Fixed Assets, Budgets & Expenses,
+    Reports & Consolidation, Masters, Company Administration and Platform Administration.
+
+    The contract is derived 1:1 from the front-end domain model (`src/store/types.ts`,
+    `src/modules/<module>/types.ts`) and the business engine / action functions
+    (`src/store/engine.ts`, `src/modules/<module>/*actions*.ts`). FRD §20–21 conventions apply.
+
+    ## Conventions
+
+    | Concern | Rule |
+    |---|---|
+    | Base path | `/v1` (see `servers`) |
+    | Tenant | Derived from the bearer token / API key. Never sent explicitly. |
+    | Company scope | Header `X-Company-Id` is **required** on every company-scoped operation (everything except `/auth/*`, `/me*`, `/onboarding*`, `/companies`, `/platform/*`, `/health`, `/enums`). Optional `X-Branch-Id` selects the branch used for numbering / defaults. |
+    | Auth | `bearerAuth` (JWT from `/auth/login`) by default. `apiKeyAuth` (`X-API-Key`) is accepted on operations whose `x-permission` is covered by an API-key scope. |
+    | Permission | Every operation declares `x-permission` = `<module>.<resource>.<action>`; roles may hold wildcards (`sales.*`, `*.*.view`, `*`). Tenant owners and platform admins bypass. |
+    | Entitlement | Module must be in the tenant plan; otherwise `403 ENTITLEMENT_DENIED`. |
+    | Pagination | Cursor-based: `cursor`, `limit` (default 25, max 200), `sort=field:asc|desc` (deterministic id tie-break). Lists return `{ data, meta, scope }`. |
+    | Filters | Register filters map to query params: `q` (search keys), `status` (comma list), `dateFrom/dateTo`, `amountMin/amountMax`, `partyId`, `branchId`, `warehouseId`, plus resource-specific params. |
+    | Concurrency | Every record carries `version`. Draft/master edits send `expectedVersion`; mismatch → `409 CONFLICT`. |
+    | Idempotency | Operations marked `x-idempotent: true` require `Idempotency-Key`. Same key + same payload → original result replayed; same key + different payload → `409 IDEMPOTENCY_CONFLICT`. |
+    | Correlation | `X-Correlation-Id` accepted in, always returned, and echoed in every error body. |
+    | Errors | Single `Error` shape: `{ code, message, field?, path?, details?, correlationId }` with a stable `code` (see `ErrorCode`). Validation failures never leave partial journals, stock moves or jobs. |
+    | Periods | Any date-bound posting into a Soft Closed / Locked period → `423 PERIOD_LOCKED`. |
+    | Posted documents | Never edited or deleted — `reverse` (reason required) or `cancel` instead. |
+    | Money / dates | Money is a JSON number with 2 dp in document currency (`baseTotal` / `*Base` fields for company base currency); dates are `YYYY-MM-DD`, timestamps ISO-8601 UTC. |
+    | Workflow | `submit` on a document resolves the active `WorkflowRule` for its `x-workflow-doc-type`. No rule ⇒ approved/posted directly; rule ⇒ `ApprovalRequest` created and the document goes `Submitted`. Approvers act through `/approvals`. |
+    | Side effects | State-changing actions return an `ActionResult` (`document` + `journal`, `stockMovements`, `openItems`, `approval`, `reservations`, `warnings`) so consequences are visible to the caller. |
+    | Events | `x-events` on an operation lists the domain events published (delivered to registered webhooks — see **Webhooks**). |
+    | Generic sub-resources | Attachments, PDF, e-mail, posted/projected journal and activity are exposed once for every document type under `/documents/{collection}/{id}/…` (tag System) instead of being repeated per document. |
+    | Extensions | `x-permission`, `x-frd` (requirement ids), `x-idempotent`, `x-events`, `x-workflow-doc-type`, `x-platform-only`, `x-company-scoped`. |
+
+    ## HTTP status ↔ error code
+
+    | Status | Codes |
+    |---|---|
+    | 400 | `VALIDATION` (required / format / bad cursor / bad filter) |
+    | 401 | `UNAUTHENTICATED`, `MFA_REQUIRED`, `AUTH_SUSPENDED`, `AUTH_DEACTIVATED`, `INVITE_PENDING` |
+    | 403 | `PERMISSION_DENIED`, `ENTITLEMENT_DENIED`, `TENANT_SUSPENDED`, `DENIED`, `SELF_APPROVAL`, `PLATFORM_ONLY` |
+    | 404 | `NOT_FOUND` (also for ids belonging to another tenant/company — no existence leakage) |
+    | 409 | `CONFLICT` (stale `expectedVersion`), `IDEMPOTENCY_CONFLICT`, `INVALID_STATE`, `ALREADY_REVERSED`, `DUPLICATE`, `REFERENCED`, `IN_USE`, `PENDING_APPROVAL`, `BLOCKED`, `INCOMPLETE`, `PLAN_LIMIT` |
+    | 410 | `EXPIRED` (invite / reset / export link) |
+    | 413 | `PAYLOAD_TOO_LARGE` |
+    | 422 | Business rules: `UNBALANCED`, `EMPTY`, `INVALID_ACCOUNT`, `POSTING_NOT_ALLOWED`, `CONTROL_ACCOUNT`, `DIMENSION_REQUIRED`, `DIMENSION_PROHIBITED`, `NEGATIVE_STOCK`, `INSUFFICIENT_AVAILABLE`, `SERIAL_REQUIRED`, `SERVICE_ITEM`, `OVER_ALLOCATION`, `CREDIT_BLOCK`, `DUPLICATE_REFERENCE`, `WORKFLOW_REQUIRED`, `APPROVAL_REQUIRED`, `PARTY_BLOCKED`, `RATE_MISSING`, `SERIAL_DUP`, `BATCH_REQUIRED`, `NO_BOM`, `BOM_SUPERSEDED`, `HAS_ISSUES`, `HAS_RECEIPTS`, `HAS_OUTPUT`, `SUBCONTRACT_OPEN`, `PENDING_ELIMINATIONS`, `COMMENT_REQUIRED`, `EINV_NOT_READY`, `EINV_WINDOW`, `EWB_NOT_REQUIRED`, `MATCH_EXCEPTION`, `CHECKLIST_BLOCKED`, `MAKER_CHECKER`, `SCAN_BLOCKED`, `AMOUNT_MISMATCH`, `BOOKS_CHANGED`, `DUPLICATE_PERIOD`, `OVER_CONSUMPTION`, `OVER_QTY`, `QC_HOLD`, `SHORTFALL`, `ORDER`, `SAME_COMPANY` |
+    | 423 | `PERIOD_LOCKED`, `ACCOUNT_LOCKED` (MFA attempts exhausted) |
+    | 429 | `RATE_LIMITED` |
+    | 502 | `PROVIDER_UNAVAILABLE` (IRP / EWB / GSTN / Bank / RateProvider / Email / SMS) |
+  contact:
+    name: Elixir Books platform team
+    email: api@elixirbooks.example
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+
+servers:
+  - url: https://api.elixirbooks.example/v1
+    description: Production
+  - url: https://api.sandbox.elixirbooks.example/v1
+    description: Sandbox (statutory providers stubbed)
+  - url: http://localhost:8443/api/v1
+    description: Local mock
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+    description: Login, MFA, password reset, invitations, self-service registration, current user and onboarding.
+  - name: Platform
+    description: Platform-administrator only — plans, tenants, usage, platform audit.
+  - name: Admin
+    description: Company administration — profile, branches, periods, defaults, users, roles, numbering, workflows, templates, integrations, audit, jobs, notifications, data.
+  - name: Approvals
+    description: Generic approval inbox and actions for all workflow document types.
+  - name: Masters
+    description: Parties, items, warehouses, price lists, chart of accounts, dimensions, tax, currencies, reference data and imports.
+  - name: CRM
+    description: Leads, pipeline, activities and customer 360.
+  - name: Sales
+    description: Quotations, orders, deliveries, invoices, credit notes / returns, receipts; AR ageing, collections, statements.
+  - name: Purchase
+    description: Requisitions, RFQs, purchase orders, GRN/QC, vendor invoices & matching exceptions, debit notes, payments, payment batches; AP ageing.
+  - name: Inventory
+    description: Stock positions, ledger, batches/serials, reservations, adjustments, transfers, counts, replenishment, landed cost, valuation.
+  - name: POS
+    description: Terminals, shifts, held carts, bills (checkout) and returns.
+  - name: Projects
+    description: Service catalog, contracts, projects, resources, timesheets, billable expenses, milestones/usage, billing runs, retainers, revenue recognition, profitability.
+  - name: Production
+    description: BOMs, routings, work centres, MRP, production orders, material issues, receipts, quality, subcontracting, WIP, genealogy.
+  - name: Accounting
+    description: Journals, recurring journals, books, sub-ledgers, opening balances, FX & revaluation, intercompany, period close.
+  - name: Banking
+    description: Bank & cash accounts, vouchers, statement import, reconciliation.
+  - name: Taxation
+    description: GST registers, e-Invoices, e-Way bills, GSTR-1/3B, TDS/TCS, filings.
+  - name: Payroll
+    description: Payroll employee data, salary structures, inputs, runs, payslips, loans, statutory.
+  - name: Fixed Assets
+    description: Asset register, capitalisation, depreciation, transfers, revaluation, disposals.
+  - name: Budgets
+    description: Budgets, variance, budget control rules, expense claims.
+  - name: Reports
+    description: Financial, AR/AP, inventory, analysis, tax/FX reports, saved views, CFO dashboard and group consolidation.
+  - name: Webhooks
+    description: Outbound deliveries (OpenAPI `webhooks`) - one entry per domain event; subscriptions are managed under Admin > Integrations.
+  - name: System
+    description: Cross-cutting — global search, notifications, attachments, generic document sub-resources, enums, health.
+
+x-tagGroups:
+  - name: Identity & Platform
+    tags: [Auth, Platform, Admin, Approvals]
+  - name: Operations
+    tags: [CRM, Sales, Purchase, Inventory, POS, Projects, Production]
+  - name: Finance
+    tags: [Accounting, Banking, Taxation, Payroll, Fixed Assets, Budgets]
+  - name: Insight & Setup
+    tags: [Reports, Masters, System, Webhooks]
+
+# paths, components and webhooks are assembled from paths/*.yaml, components/** and webhooks.yaml
+# by scripts/openapi-bundle.mjs (see docs/api/README.md).
+paths: {}
+components: {}

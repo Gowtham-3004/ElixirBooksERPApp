@@ -1,0 +1,16 @@
+# Redocly CLI config for the bundled contract:
+#   npx @redocly/cli lint public/api/openapi.json --config docs/api/redocly.yaml
+# The in-house lint (pnpm api:lint) is the gate; this is an optional second opinion.
+extends:
+  - recommended
+rules:
+  # examples are deliberately trimmed (lines: [], readOnly fields omitted) — keep as warnings
+  no-invalid-media-type-examples:
+    severity: warn
+    allowAdditionalProperties: true
+  no-invalid-schema-examples: warn
+  # servers use the reserved .example TLD on purpose (no real host yet)
+  no-server-example.com: off
+  # component names must stay unique; unused ones are fine (shared building blocks)
+  no-unused-components: off
+  operation-4xx-response: off

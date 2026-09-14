@@ -1,0 +1,208 @@
+# Shared parameters. Reference as '../components/parameters.yaml#/Name'.
+
+# ── scope headers ─────────────────────────────────────────────────────────
+CompanyId:
+  name: X-Company-Id
+  in: header
+  required: true
+  description: Active company (legal entity) for this request. Must be one of the caller's `companyIds`; otherwise `403`.
+  schema: { type: string, example: co_acme }
+BranchId:
+  name: X-Branch-Id
+  in: header
+  required: false
+  description: "Branch used for number series and document defaults. Defaults to the user's default branch. Users with `dataScope: branch` may only pass their own branches."
+  schema: { type: string, example: br_ho }
+IdempotencyKey:
+  name: Idempotency-Key
+  in: header
+  required: true
+  description: Client-generated unique key (UUID recommended). Same key + same payload replays the original response; same key + different payload → `409 IDEMPOTENCY_CONFLICT`. Keys are retained 24 h.
+  schema: { type: string, maxLength: 128, example: 6f1a2c3e-9d4b-4a7e-8c11-0f2e5a7b9c3d }
+CorrelationId:
+  name: X-Correlation-Id
+  in: header
+  required: false
+  description: Optional caller correlation id; generated when absent and always echoed back.
+  schema: { type: string, maxLength: 64, example: corr_9f1c2e7a }
+
+# ── path ids ──────────────────────────────────────────────────────────────
+Id:
+  name: id
+  in: path
+  required: true
+  description: Record id.
+  schema: { type: string, example: inv_01j8k3 }
+LineId:
+  name: lineId
+  in: path
+  required: true
+  schema: { type: string, example: ln_7a2f }
+Code:
+  name: code
+  in: path
+  required: true
+  description: Human-readable code (e.g. period `2026-09`, currency `USD`).
+  schema: { type: string, example: 2026-09 }
+Collection:
+  name: collection
+  in: path
+  required: true
+  description: Document collection name (see `GET /enums` → `documentCollections`).
+  schema:
+    type: string
+    enum: [quotations, salesOrders, deliveries, salesInvoices, creditNotes, salesReturns, receipts, requisitions, rfqs, purchaseOrders, grns, vendorInvoices, debitNotes, purchaseReturns, payments, paymentBatches, journals, bankVouchers, stockAdjustments, stockTransfers, stockCounts, landedCosts, posBills, posReturns, expenseClaims, payrollRuns, assets, contracts, projects, timesheets, boms, productionOrders, materialIssues, productionReceipts, qualityInspections, subcontractOrders, budgets, revaluationRuns, consolidationRuns]
+    example: salesInvoices
+
+# ── pagination / sorting / search ─────────────────────────────────────────
+Cursor:
+  name: cursor
+  in: query
+  description: Opaque cursor from `meta.nextCursor`. Omit for the first page. Invalid or expired cursor → `400 VALIDATION` (field `cursor`).
+  schema: { type: string, example: eyJkIjoiMjAyNi0wOS0xMCIsImlkIjoiaW52XzAxajhrMyJ9 }
+Limit:
+  name: limit
+  in: query
+  description: Page size.
+  schema: { type: integer, minimum: 1, maximum: 200, default: 25 }
+Sort:
+  name: sort
+  in: query
+  description: '`field:asc` or `field:desc`. Sortable fields are the register columns; ties are broken by `id` so pages are stable.'
+  schema: { type: string, example: 'date:desc' }
+Q:
+  name: q
+  in: query
+  description: Free-text search over the register search keys (number, party name, reference, GSTIN, code, email …). Case-insensitive, prefix + contains.
+  schema: { type: string, maxLength: 120, example: arlene }
+Status:
+  name: status
+  in: query
+  description: Comma-separated list of statuses (register tab). Values are the resource status enum.
+  schema: { type: string, example: 'Posted,Settled' }
+  style: form
+  explode: false
+DateFrom:
+  name: dateFrom
+  in: query
+  description: Inclusive lower bound on the document date.
+  schema: { type: string, format: date, example: '2026-09-01' }
+DateTo:
+  name: dateTo
+  in: query
+  description: Inclusive upper bound on the document date.
+  schema: { type: string, format: date, example: '2026-09-30' }
+AmountMin:
+  name: amountMin
+  in: query
+  description: Minimum document total (document currency).
+  schema: { type: number, example: 10000 }
+AmountMax:
+  name: amountMax
+  in: query
+  schema: { type: number, example: 500000 }
+PartyId:
+  name: partyId
+  in: query
+  description: Customer / supplier / employee id depending on the resource.
+  schema: { type: string, example: cust_arlene }
+CustomerId:
+  name: customerId
+  in: query
+  schema: { type: string, example: cust_arlene }
+SupplierId:
+  name: supplierId
+  in: query
+  schema: { type: string, example: sup_bharatsteel }
+EmployeeId:
+  name: employeeId
+  in: query
+  schema: { type: string, example: emp_003 }
+ItemId:
+  name: itemId
+  in: query
+  schema: { type: string, example: item_stl4 }
+BranchFilter:
+  name: branchId
+  in: query
+  description: "Restrict to one branch (users with `dataScope: branch` are always restricted)."
+  schema: { type: string, example: br_ho }
+WarehouseId:
+  name: warehouseId
+  in: query
+  schema: { type: string, example: wh_main }
+ProjectId:
+  name: projectId
+  in: query
+  schema: { type: string, example: prj_erp_rollout }
+AccountId:
+  name: accountId
+  in: query
+  schema: { type: string, example: acc_1100 }
+UpdatedSince:
+  name: updatedSince
+  in: query
+  description: Only records updated at or after this timestamp (for incremental sync).
+  schema: { type: string, format: date-time, example: '2026-09-13T00:00:00Z' }
+IncludeInactive:
+  name: includeInactive
+  in: query
+  description: Include `Inactive` / `Blocked` master records (default false).
+  schema: { type: boolean, default: false }
+Expand:
+  name: expand
+  in: query
+  description: Comma-separated related objects to embed (resource-specific, e.g. `journal,openItems,approval,attachments`).
+  schema: { type: string, example: 'journal,attachments' }
+  style: form
+  explode: false
+
+# ── period / date scope ───────────────────────────────────────────────────
+PeriodCode:
+  name: period
+  in: query
+  description: Financial period code `YYYY-MM`.
+  schema: { type: string, pattern: '^\d{4}-\d{2}$', example: '2026-09' }
+FiscalYear:
+  name: fy
+  in: query
+  description: Fiscal year label as configured (e.g. `2026-27`).
+  schema: { type: string, example: '2026-27' }
+AsAt:
+  name: asAt
+  in: query
+  description: Ageing / balance date (default today).
+  schema: { type: string, format: date, example: '2026-09-13' }
+AsOf:
+  name: asOf
+  in: query
+  description: Stock / valuation date (default today).
+  schema: { type: string, format: date, example: '2026-09-13' }
+ReportFrom:
+  name: from
+  in: query
+  description: Report range start (inclusive). Ignored when `preset` is given.
+  schema: { type: string, format: date, example: '2026-04-01' }
+ReportTo:
+  name: to
+  in: query
+  description: Report range end (inclusive).
+  schema: { type: string, format: date, example: '2026-09-30' }
+Preset:
+  name: preset
+  in: query
+  description: Period preset relative to the active period.
+  schema: { type: string, enum: [MTD, QTD, YTD, FY, Custom], default: Custom }
+DimensionType:
+  name: dimensionType
+  in: query
+  schema: { type: string, enum: [Branch, Department, CostCentre, ProfitCentre, Project, Employee, ProductLine, Customer, Supplier], example: Department }
+DimensionId:
+  name: dimensionId
+  in: query
+  schema: { type: string, example: dim_dept_sales }
+Format:
+  name: format
+  in: query
+  description: Export format.
+  schema: { type: string, enum: [csv, xlsx, pdf, json], default: csv }

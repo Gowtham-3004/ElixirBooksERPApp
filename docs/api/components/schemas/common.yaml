@@ -1,0 +1,321 @@
+# Cross-cutting schemas. Reference as '../components/schemas/common.yaml#/Name' from paths,
+# or './common.yaml#/Name' from sibling schema files.
+
+ID:
+  type: string
+  description: Opaque record id (prefix indicates the collection, e.g. `cust_`, `inv_`, `jnl_`).
+  example: inv_01j8k3
+
+Money:
+  type: number
+  description: Amount in the document currency, 2 decimal places (currency minor units).
+  example: 118000
+
+Quantity:
+  type: number
+  description: Quantity in the line UOM (up to 3 decimals).
+  example: 10
+
+CurrencyCode:
+  type: string
+  description: ISO 4217 code.
+  pattern: '^[A-Z]{3}$'
+  example: INR
+
+DateOnly:
+  type: string
+  format: date
+  example: '2026-09-13'
+
+Timestamp:
+  type: string
+  format: date-time
+  example: '2026-09-13T09:12:04Z'
+
+BaseRecord:
+  type: object
+  description: Fields stamped by the server on every record.
+  required: [id, createdAt, updatedAt, version]
+  properties:
+    id: { $ref: '#/ID', readOnly: true }
+    companyId: { type: string, readOnly: true, description: Owning company (from `X-Company-Id`). Absent on tenant-level records., example: co_acme }
+    createdAt: { $ref: '#/Timestamp', readOnly: true }
+    updatedAt: { $ref: '#/Timestamp', readOnly: true }
+    createdBy: { type: string, readOnly: true, example: Priya Sharma }
+    updatedBy: { type: string, readOnly: true, example: Priya Sharma }
+    version: { type: integer, readOnly: true, minimum: 1, description: "Optimistic-concurrency token, incremented on every update.", example: 3 }
+
+ExpectedVersion:
+  type: object
+  description: Optimistic-concurrency token for edits. Send the `version` you last read.
+  required: [expectedVersion]
+  properties:
+    expectedVersion: { type: integer, minimum: 1, example: 3 }
+
+DocStatus:
+  type: string
+  description: Shared document lifecycle statuses (module documents narrow this list).
+  enum: [Draft, Submitted, Approved, Returned, Rejected, Posted, Settled, Reversed, Cancelled, Closed]
+
+ErrorCode:
+  type: string
+  description: Stable machine-readable error code (see the root description for the HTTP mapping).
+  enum:
+    - VALIDATION
+    - UNAUTHENTICATED
+    - MFA_REQUIRED
+    - AUTH_SUSPENDED
+    - AUTH_DEACTIVATED
+    - INVITE_PENDING
+    - PERMISSION_DENIED
+    - ENTITLEMENT_DENIED
+    - TENANT_SUSPENDED
+    - PLATFORM_ONLY
+    - DENIED
+    - SELF_APPROVAL
+    - NOT_FOUND
+    - CONFLICT
+    - IDEMPOTENCY_CONFLICT
+    - INVALID_STATE
+    - ALREADY_REVERSED
+    - DUPLICATE
+    - REFERENCED
+    - PLAN_LIMIT
+    - EXPIRED
+    - PAYLOAD_TOO_LARGE
+    - EMPTY
+    - UNBALANCED
+    - INVALID_ACCOUNT
+    - POSTING_NOT_ALLOWED
+    - CONTROL_ACCOUNT
+    - DIMENSION_REQUIRED
+    - DIMENSION_PROHIBITED
+    - NEGATIVE_STOCK
+    - INSUFFICIENT_AVAILABLE
+    - SERIAL_REQUIRED
+    - SERVICE_ITEM
+    - OVER_ALLOCATION
+    - CREDIT_BLOCK
+    - DUPLICATE_REFERENCE
+    - WORKFLOW_REQUIRED
+    - APPROVAL_REQUIRED
+    - PENDING_APPROVAL
+    - PARTY_BLOCKED
+    - BLOCKED
+    - IN_USE
+    - INCOMPLETE
+    - RATE_MISSING
+    - SERIAL_DUP
+    - BATCH_REQUIRED
+    - SHORT
+    - NO_BOM
+    - BOM_SUPERSEDED
+    - HAS_ISSUES
+    - HAS_RECEIPTS
+    - HAS_OUTPUT
+    - SUBCONTRACT_OPEN
+    - SUBCONTRACT
+    - PENDING_ELIMINATIONS
+    - COMMENT_REQUIRED
+    - EINV_NOT_READY
+    - EINV_WINDOW
+    - EWB_NOT_REQUIRED
+    - MATCH_EXCEPTION
+    - CHECKLIST_BLOCKED
+    - MAKER_CHECKER
+    - SCAN_BLOCKED
+    - AMOUNT_MISMATCH
+    - BOOKS_CHANGED
+    - DUPLICATE_PERIOD
+    - OVER_CONSUMPTION
+    - OVER_QTY
+    - QC_HOLD
+    - SHORTFALL
+    - ORDER
+    - SAME_COMPANY
+    - PERIOD_LOCKED
+    - ACCOUNT_LOCKED
+    - RATE_LIMITED
+    - PROVIDER_UNAVAILABLE
+
+Error:
+  type: object
+  description: Standard error body (FRD §20) — stable code, safe message, field/path where applicable, correlation id.
+  required: [code, message, correlationId]
+  properties:
+    code: { $ref: '#/ErrorCode' }
+    message: { type: string, description: "Human-readable, safe to display.", example: Customer is required }
+    field: { type: string, description: Offending request field (JSON path relative to the body)., example: partyId }
+    path: { type: string, description: Request path when the error concerns a parameter rather than the body., example: /v1/sales/invoices }
+    details:
+      type: object
+      additionalProperties: true
+      description: Structured context (per-field errors, current status, limits, provider codes …).
+    correlationId: { type: string, example: corr_9f1c2e7a }
+
+FieldError:
+  type: object
+  required: [field, code, message]
+  properties:
+    field: { type: string, example: 'lines[0].qty' }
+    code: { type: string, example: MIN }
+    message: { type: string, example: Quantity must be greater than 0 }
+
+ListMeta:
+  type: object
+  description: Pagination metadata.
+  required: [limit]
+  properties:
+    nextCursor: { type: [string, 'null'], description: Cursor for the next page; `null` on the last page., example: eyJkIjoiMjAyNi0wOS0xMCIsImlkIjoiaW52XzAxajhrMyJ9 }
+    limit: { type: integer, example: 25 }
+    total: { type: integer, description: Total matching rows (omitted when it would be expensive to compute)., example: 142 }
+    sort: { type: string, example: 'date:desc' }
+    counts:
+      type: object
+      additionalProperties: { type: integer }
+      description: Row counts per register tab/status (drives the tab badges).
+      example: { All: 142, Draft: 6, 'Awaiting approval': 3, Posted: 120, Overdue: 11, Cancelled: 2 }
+
+Scope:
+  type: object
+  description: Scope line shown on every register/report — company · branch · period · currency · freshness.
+  required: [companyId, currency, asOf]
+  properties:
+    companyId: { type: string, example: co_acme }
+    companyName: { type: string, example: Acme Trading Pvt Ltd }
+    branchId: { type: [string, 'null'], example: br_ho }
+    period: { type: string, example: '2026-09' }
+    fy: { type: string, example: '2026-27' }
+    currency: { $ref: '#/CurrencyCode' }
+    asOf: { $ref: '#/Timestamp' }
+    masked: { type: boolean, description: Sensitive columns masked for this caller., example: false }
+
+ListEnvelope:
+  type: object
+  description: Base list envelope; each list response adds a typed `data` array.
+  required: [data, meta, scope]
+  properties:
+    meta: { $ref: '#/ListMeta' }
+    scope: { $ref: '#/Scope' }
+
+BulkRequest:
+  type: object
+  required: [ids, action]
+  properties:
+    ids: { type: array, minItems: 1, maxItems: 500, items: { $ref: '#/ID' } }
+    action: { type: string, description: "Resource-specific bulk action (e.g. `activate`, `deactivate`, `block`, `submit`, `approve`, `cancel`, `release`).", example: deactivate }
+    reason: { type: string, description: "Required for `block`, `cancel`, `reject`.", example: Repeated payment defaults }
+    comment: { type: string, description: Approval comment (bulk approve). }
+
+BulkResult:
+  type: object
+  description: Per-id outcome of a bulk action. Partial success is normal — inspect `results`.
+  required: [requested, succeeded, failed, results]
+  properties:
+    requested: { type: integer, example: 3 }
+    succeeded: { type: integer, example: 2 }
+    failed: { type: integer, example: 1 }
+    results:
+      type: array
+      items:
+        type: object
+        required: [id, ok]
+        properties:
+          id: { $ref: '#/ID' }
+          ok: { type: boolean }
+          code: { $ref: '#/ErrorCode' }
+          message: { type: string }
+          status: { type: string, description: Resulting status when ok., example: Inactive }
+
+Address:
+  type: object
+  required: [line1, city, state, country]
+  properties:
+    line1: { type: string, example: 14 Marine Drive }
+    line2: { type: string, example: Nariman Point }
+    city: { type: string, example: Mumbai }
+    state: { type: string, example: Maharashtra }
+    stateCode: { type: string, description: GST state code., example: '27' }
+    pin: { type: string, example: '400021' }
+    country: { type: string, description: ISO 3166-1 alpha-2., example: IN }
+
+PartyAddress:
+  type: object
+  required: [purpose, isDefault, address]
+  properties:
+    id: { $ref: '#/ID' }
+    purpose: { type: string, enum: [Billing, Shipping, Both] }
+    label: { type: string, example: Head office }
+    isDefault: { type: boolean }
+    address: { $ref: '#/Address' }
+    gstin: { type: string, description: Registration for this address when it differs from the party GSTIN., example: 27AAPFU0939F1ZV }
+
+Contact:
+  type: object
+  required: [name, isDefault]
+  properties:
+    id: { $ref: '#/ID' }
+    name: { type: string, example: Arlene D'Souza }
+    email: { type: string, format: email, example: accounts@arlenetraders.in }
+    phone: { type: string, example: '+91 98200 12345' }
+    designation: { type: string, example: Accounts Manager }
+    isDefault: { type: boolean }
+    purpose: { type: string, enum: [General, Billing, Delivery, Escalation] }
+
+BankDetail:
+  type: object
+  required: [bankName, accountNumber, ifsc, accountName]
+  properties:
+    id: { $ref: '#/ID', readOnly: true }
+    bankName: { type: string, example: HDFC Bank }
+    accountNumber: { type: string, description: Masked on read except for callers with reveal permission., example: 'XXXXXXXX4412' }
+    ifsc: { type: string, pattern: '^[A-Z]{4}0[A-Z0-9]{6}$', example: HDFC0000240 }
+    accountName: { type: string, example: Bharat Steel Industries }
+    status: { type: string, enum: [Pending Approval, Approved, Rejected], readOnly: true }
+    approvedBy: { type: string, readOnly: true }
+    approvedAt: { $ref: '#/Timestamp', readOnly: true }
+
+Reason:
+  type: object
+  description: Reason payload for reverse / cancel / reject / lock actions.
+  required: [reason]
+  properties:
+    reason: { type: string, minLength: 10, maxLength: 500, example: Customer returned the full consignment on 12 Sep (RMA-118) }
+    reasonCodeId: { type: string, description: Optional reason-code master id., example: rc_return_damaged }
+    date: { $ref: '#/DateOnly', description: Effective date for the reversal document (default today; must be in an open period). }
+
+Comment:
+  type: object
+  properties:
+    comment: { type: string, maxLength: 1000, example: Checked against PO and GRN — ok to proceed }
+
+EmailRequest:
+  type: object
+  required: [to, subject]
+  properties:
+    to: { type: array, minItems: 1, items: { type: string, format: email }, example: [accounts@arlenetraders.in] }
+    cc: { type: array, items: { type: string, format: email } }
+    subject: { type: string, example: Tax invoice INV/2026-27/00042 from Acme Trading }
+    message: { type: string, example: Please find attached our invoice. Payment is due by 13 Oct 2026. }
+    templateId: { type: string, description: Document template used for the PDF (default company template). }
+
+EmailResult:
+  type: object
+  required: [integrationLogId, status]
+  properties:
+    integrationLogId: { type: string, example: ilog_email_88a1 }
+    status: { type: string, enum: [Queued, Submitted, Accepted, Failed] }
+    notificationId: { type: string, example: ntf_2f8d }
+    to: { type: array, items: { type: string } }
+    sentAt: { $ref: '#/Timestamp' }
+
+KeyValue:
+  type: object
+  additionalProperties: { type: string }
+  description: Dimension map keyed by dimension type (`Department`, `CostCentre`, `Project` …) → dimension id.
+  example: { Department: dim_dept_sales, CostCentre: dim_cc_mum }
+
+Settings:
+  type: object
+  description: Free-form module settings object (keys documented per module).
+  additionalProperties: true

@@ -1,0 +1,786 @@
+# OpenAPI 3.1 `webhooks` - one entry per DOMAIN_EVENT (FRD 21.2, src/modules/admin/shared.tsx).
+# Refs are relative to docs/api/. Subscriptions are managed via /integrations/webhooks (tag Admin).
+
+DocumentCreated:
+  post:
+    tags: [Webhooks]
+    summary: A document was created (Draft)
+    operationId: webhookDocumentCreated
+    description: "Delivered for every `x-events: [DocumentCreated]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: DocumentCreated } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            documentCreated: { summary: "A document was created (Draft)", value: {"id": "evt_01j8k6", "event": "DocumentCreated", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "salesInvoices", "docType": "Sales Invoice", "docId": "inv_01j8k3", "docNumber": "DRAFT-INV-42", "status": "Draft", "link": "/v1/sales/invoices/inv_01j8k3"}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+DocumentSubmitted:
+  post:
+    tags: [Webhooks]
+    summary: A document was submitted for approval
+    operationId: webhookDocumentSubmitted
+    description: "Delivered for every `x-events: [DocumentSubmitted]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: DocumentSubmitted } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            documentSubmitted: { summary: "A document was submitted for approval", value: {"id": "evt_01j8k6", "event": "DocumentSubmitted", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "salesInvoices", "docType": "Sales Invoice", "docId": "inv_01j8k3", "docNumber": "INV/2026-27/00042", "status": "Submitted", "previousStatus": "Draft", "link": "/v1/sales/invoices/inv_01j8k3", "approvalId": "apr_01j8k4", "amount": 118000, "currency": "INR"}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+DocumentApproved:
+  post:
+    tags: [Webhooks]
+    summary: An approval step (or the whole request) was approved
+    operationId: webhookDocumentApproved
+    description: "Delivered for every `x-events: [DocumentApproved]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: DocumentApproved } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            documentApproved: { summary: "An approval step (or the whole request) was approved", value: {"id": "evt_01j8k6", "event": "DocumentApproved", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "salesInvoices", "docType": "Sales Invoice", "docId": "inv_01j8k3", "docNumber": "INV/2026-27/00042", "status": "Approved", "previousStatus": "Submitted", "link": "/v1/sales/invoices/inv_01j8k3", "approvalId": "apr_01j8k4", "step": {"order": 1, "name": "Finance manager", "actorName": "Rahul Mehta", "comment": "OK"}}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+DocumentRejected:
+  post:
+    tags: [Webhooks]
+    summary: An approval request was rejected
+    operationId: webhookDocumentRejected
+    description: "Delivered for every `x-events: [DocumentRejected]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: DocumentRejected } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            documentRejected: { summary: "An approval request was rejected", value: {"id": "evt_01j8k6", "event": "DocumentRejected", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "purchaseOrders", "docType": "Purchase Order", "docId": "po_00125", "docNumber": "PO/2026-27/00125", "status": "Rejected", "previousStatus": "Submitted", "link": "/v1/purchase/orders/po_00125", "approvalId": "apr_po_125", "reason": "Quote expired - re-request", "step": {"order": 1, "name": "Purchase head", "actorName": "Rahul Mehta", "comment": "Quote expired - re-request"}}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+DocumentPosted:
+  post:
+    tags: [Webhooks]
+    summary: A document was posted (ledger, stock and open items updated)
+    operationId: webhookDocumentPosted
+    description: "Delivered for every `x-events: [DocumentPosted]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: DocumentPosted } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            documentPosted: { summary: "A document was posted (ledger, stock and open items updated)", value: {"id": "evt_01j8k6", "event": "DocumentPosted", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "salesInvoices", "docType": "Sales Invoice", "docId": "inv_01j8k3", "docNumber": "INV/2026-27/00042", "status": "Posted", "previousStatus": "Approved", "link": "/v1/sales/invoices/inv_01j8k3", "partyType": "Customer", "partyId": "cust_arlene", "amount": 118000, "currency": "INR", "journalId": "jnl_01j8k5", "journalNumber": "JV/2026-27/00311"}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+DocumentReversed:
+  post:
+    tags: [Webhooks]
+    summary: A posted document was reversed
+    operationId: webhookDocumentReversed
+    description: "Delivered for every `x-events: [DocumentReversed]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: DocumentReversed } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            documentReversed: { summary: "A posted document was reversed", value: {"id": "evt_01j8k6", "event": "DocumentReversed", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "salesInvoices", "docType": "Sales Invoice", "docId": "inv_01j8k3", "docNumber": "INV/2026-27/00042", "status": "Reversed", "previousStatus": "Posted", "link": "/v1/sales/invoices/inv_01j8k3", "reason": "Wrong customer", "journalId": "jnl_01j8k9", "journalNumber": "JV/2026-27/00320"}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+DocumentCancelled:
+  post:
+    tags: [Webhooks]
+    summary: A draft / open document was cancelled
+    operationId: webhookDocumentCancelled
+    description: "Delivered for every `x-events: [DocumentCancelled]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: DocumentCancelled } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            documentCancelled: { summary: "A draft / open document was cancelled", value: {"id": "evt_01j8k6", "event": "DocumentCancelled", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "salesOrders", "docType": "Sales Order", "docId": "so_00090", "docNumber": "SO/2026-27/00090", "status": "Cancelled", "previousStatus": "Confirmed", "link": "/v1/sales/orders/so_00090", "reason": "Customer withdrew the order"}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+JournalPosted:
+  post:
+    tags: [Webhooks]
+    summary: A journal was posted to the general ledger
+    operationId: webhookJournalPosted
+    description: "Delivered for every `x-events: [JournalPosted]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: JournalPosted } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            journalPosted: { summary: "A journal was posted to the general ledger", value: {"id": "evt_01j8k6", "event": "JournalPosted", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "journals", "docType": "Journal", "docId": "jnl_01j8k5", "docNumber": "JV/2026-27/00311", "status": "Posted", "link": "/v1/accounting/journals/jnl_01j8k5", "amount": 118000, "currency": "INR", "journalId": "jnl_01j8k5", "journalNumber": "JV/2026-27/00311"}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+JournalReversed:
+  post:
+    tags: [Webhooks]
+    summary: A journal was reversed by a mirror journal
+    operationId: webhookJournalReversed
+    description: "Delivered for every `x-events: [JournalReversed]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: JournalReversed } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            journalReversed: { summary: "A journal was reversed by a mirror journal", value: {"id": "evt_01j8k6", "event": "JournalReversed", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "journals", "docType": "Journal", "docId": "jnl_01j8k5", "docNumber": "JV/2026-27/00311", "status": "Reversed", "previousStatus": "Posted", "link": "/v1/accounting/journals/jnl_01j8k5", "reason": "Posted twice", "journalId": "jnl_01j8k9", "journalNumber": "JV/2026-27/00320"}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+StockReserved:
+  post:
+    tags: [Webhooks]
+    summary: Stock was reserved for an order
+    operationId: webhookStockReserved
+    description: "Delivered for every `x-events: [StockReserved]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: StockReserved } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            stockReserved: { summary: "Stock was reserved for an order", value: {"id": "evt_01j8k6", "event": "StockReserved", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "salesOrders", "docType": "Sales Order", "docId": "so_00090", "docNumber": "SO/2026-27/00090", "status": "Confirmed", "link": "/v1/sales/orders/so_00090", "reservation": {"id": "rsv_1", "itemId": "item_stl4", "warehouseId": "wh_main", "qty": 500, "expiresAt": "2026-09-27T00:00:00Z"}}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+StockReleased:
+  post:
+    tags: [Webhooks]
+    summary: A reservation was released / expired / cancelled
+    operationId: webhookStockReleased
+    description: "Delivered for every `x-events: [StockReleased]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: StockReleased } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            stockReleased: { summary: "A reservation was released / expired / cancelled", value: {"id": "evt_01j8k6", "event": "StockReleased", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "salesOrders", "docType": "Sales Order", "docId": "so_00090", "docNumber": "SO/2026-27/00090", "status": "Confirmed", "link": "/v1/sales/orders/so_00090", "reason": "Customer postponed delivery", "reservation": {"id": "rsv_1", "itemId": "item_stl4", "warehouseId": "wh_main", "qty": 500}}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+StockMoved:
+  post:
+    tags: [Webhooks]
+    summary: Stock moved (receipt, issue, delivery, transfer, adjustment)
+    operationId: webhookStockMoved
+    description: "Delivered for every `x-events: [StockMoved]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: StockMoved } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            stockMoved: { summary: "Stock moved (receipt, issue, delivery, transfer, adjustment)", value: {"id": "evt_01j8k6", "event": "StockMoved", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "grns", "docType": "GRN", "docId": "grn_00077", "docNumber": "GRN/2026-27/00077", "status": "Posted", "link": "/v1/purchase/grns/grn_00077", "movements": [{"itemId": "item_stl4", "warehouseId": "wh_main", "qty": 2950, "batch": "B-2609-11", "type": "GRN"}]}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+StockReversed:
+  post:
+    tags: [Webhooks]
+    summary: Stock movements were reversed
+    operationId: webhookStockReversed
+    description: "Delivered for every `x-events: [StockReversed]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: StockReversed } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            stockReversed: { summary: "Stock movements were reversed", value: {"id": "evt_01j8k6", "event": "StockReversed", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "grns", "docType": "GRN", "docId": "grn_00077", "docNumber": "GRN/2026-27/00077", "status": "Reversed", "previousStatus": "Posted", "link": "/v1/purchase/grns/grn_00077", "reason": "Wrong quantity keyed", "movements": [{"itemId": "item_stl4", "warehouseId": "wh_main", "qty": -2950, "batch": "B-2609-11", "type": "GRN"}]}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+InvoicePosted:
+  post:
+    tags: [Webhooks]
+    summary: A sales invoice was posted (AR open item created)
+    operationId: webhookInvoicePosted
+    description: "Delivered for every `x-events: [InvoicePosted]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: InvoicePosted } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            invoicePosted: { summary: "A sales invoice was posted (AR open item created)", value: {"id": "evt_01j8k6", "event": "InvoicePosted", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "salesInvoices", "docType": "Sales Invoice", "docId": "inv_01j8k3", "docNumber": "INV/2026-27/00042", "status": "Posted", "previousStatus": "Approved", "link": "/v1/sales/invoices/inv_01j8k3", "partyType": "Customer", "partyId": "cust_arlene", "amount": 118000, "currency": "INR", "journalId": "jnl_01j8k5", "journalNumber": "JV/2026-27/00311"}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+InvoiceCredited:
+  post:
+    tags: [Webhooks]
+    summary: A credit note was posted against an invoice
+    operationId: webhookInvoiceCredited
+    description: "Delivered for every `x-events: [InvoiceCredited]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: InvoiceCredited } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            invoiceCredited: { summary: "A credit note was posted against an invoice", value: {"id": "evt_01j8k6", "event": "InvoiceCredited", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "creditNotes", "docType": "Credit Note", "docId": "cn_00012", "docNumber": "CN/2026-27/00012", "status": "Posted", "previousStatus": "Approved", "link": "/v1/sales/credit-notes/cn_00012", "partyType": "Customer", "partyId": "cust_arlene", "amount": 11800, "currency": "INR", "allocations": [{"openItemId": "oi_42", "docNumber": "INV/2026-27/00042", "amount": 11800}]}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+ReceiptAllocated:
+  post:
+    tags: [Webhooks]
+    summary: A receipt was posted and allocated to open items
+    operationId: webhookReceiptAllocated
+    description: "Delivered for every `x-events: [ReceiptAllocated]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: ReceiptAllocated } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            receiptAllocated: { summary: "A receipt was posted and allocated to open items", value: {"id": "evt_01j8k6", "event": "ReceiptAllocated", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "receipts", "docType": "Receipt", "docId": "rcp_00215", "docNumber": "RCP/2026-27/00215", "status": "Posted", "link": "/v1/sales/receipts/rcp_00215", "partyType": "Customer", "partyId": "cust_ustech", "amount": 10000, "currency": "USD", "allocations": [{"openItemId": "oi_44", "docNumber": "INV/2026-27/00044", "amount": 10000, "fxGainLoss": 8000}]}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+ReceiptReversed:
+  post:
+    tags: [Webhooks]
+    summary: A receipt was reversed (allocations undone)
+    operationId: webhookReceiptReversed
+    description: "Delivered for every `x-events: [ReceiptReversed]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: ReceiptReversed } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            receiptReversed: { summary: "A receipt was reversed (allocations undone)", value: {"id": "evt_01j8k6", "event": "ReceiptReversed", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "receipts", "docType": "Receipt", "docId": "rcp_00215", "docNumber": "RCP/2026-27/00215", "status": "Reversed", "previousStatus": "Posted", "link": "/v1/sales/receipts/rcp_00215", "reason": "Cheque bounced", "allocations": [{"openItemId": "oi_44", "docNumber": "INV/2026-27/00044", "amount": -10000}]}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+PurchaseReceived:
+  post:
+    tags: [Webhooks]
+    summary: Goods were received against a purchase order (GRN posted)
+    operationId: webhookPurchaseReceived
+    description: "Delivered for every `x-events: [PurchaseReceived]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: PurchaseReceived } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            purchaseReceived: { summary: "Goods were received against a purchase order (GRN posted)", value: {"id": "evt_01j8k6", "event": "PurchaseReceived", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "grns", "docType": "GRN", "docId": "grn_00077", "docNumber": "GRN/2026-27/00077", "status": "Posted", "link": "/v1/purchase/grns/grn_00077", "partyType": "Supplier", "partyId": "sup_bharat", "amount": 141600, "currency": "INR", "movements": [{"itemId": "item_stl4", "warehouseId": "wh_main", "qty": 2950, "batch": "B-2609-11", "type": "GRN"}]}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+PurchaseInvoiced:
+  post:
+    tags: [Webhooks]
+    summary: A vendor invoice was posted (AP open item created)
+    operationId: webhookPurchaseInvoiced
+    description: "Delivered for every `x-events: [PurchaseInvoiced]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: PurchaseInvoiced } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            purchaseInvoiced: { summary: "A vendor invoice was posted (AP open item created)", value: {"id": "evt_01j8k6", "event": "PurchaseInvoiced", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "vendorInvoices", "docType": "Vendor Invoice", "docId": "vi_00210", "docNumber": "VI/2026-27/00210", "status": "Posted", "previousStatus": "Approved", "link": "/v1/purchase/vendor-invoices/vi_00210", "partyType": "Supplier", "partyId": "sup_bharat", "amount": 167088, "currency": "INR", "journalId": "jnl_vi_210", "journalNumber": "JV/2026-27/00330"}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+PurchaseMatched:
+  post:
+    tags: [Webhooks]
+    summary: Three-way match completed (or raised exceptions)
+    operationId: webhookPurchaseMatched
+    description: "Delivered for every `x-events: [PurchaseMatched]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: PurchaseMatched } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            purchaseMatched: { summary: "Three-way match completed (or raised exceptions)", value: {"id": "evt_01j8k6", "event": "PurchaseMatched", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "vendorInvoices", "docType": "Vendor Invoice", "docId": "vi_00210", "docNumber": "VI/2026-27/00210", "status": "Exception", "previousStatus": "Draft", "link": "/v1/purchase/vendor-invoices/vi_00210", "matchStatus": "Exception", "exceptions": [{"type": "Price variance", "lineId": "ln_vi_210_1", "difference": 1200}]}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+PaymentApproved:
+  post:
+    tags: [Webhooks]
+    summary: A payment / payment batch was approved (maker-checker)
+    operationId: webhookPaymentApproved
+    description: "Delivered for every `x-events: [PaymentApproved]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: PaymentApproved } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            paymentApproved: { summary: "A payment / payment batch was approved (maker-checker)", value: {"id": "evt_01j8k6", "event": "PaymentApproved", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "paymentBatches", "docType": "Payment Batch", "docId": "pb_0007", "docNumber": "PB/2026-27/00007", "status": "Approved", "previousStatus": "Submitted", "link": "/v1/purchase/batches/pb_0007", "amount": 842000, "currency": "INR", "approvalId": "apr_pb_7", "step": {"order": 1, "name": "Checker", "actorName": "Rahul Mehta"}}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+PaymentCompleted:
+  post:
+    tags: [Webhooks]
+    summary: A payment completed (bank confirmed)
+    operationId: webhookPaymentCompleted
+    description: "Delivered for every `x-events: [PaymentCompleted]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: PaymentCompleted } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            paymentCompleted: { summary: "A payment completed (bank confirmed)", value: {"id": "evt_01j8k6", "event": "PaymentCompleted", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "payments", "docType": "Payment", "docId": "pay_00131", "docNumber": "PAY/2026-27/00131", "status": "Completed", "previousStatus": "Sent", "link": "/v1/purchase/payments/pay_00131", "partyType": "Supplier", "partyId": "sup_bharat", "amount": 295000, "currency": "INR", "payment": {"method": "NEFT", "reference": "UTR26091300112", "bankAccountId": "acc_1310", "batchId": "pb_0007"}}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+PaymentFailed:
+  post:
+    tags: [Webhooks]
+    summary: A payment failed / was returned by the bank
+    operationId: webhookPaymentFailed
+    description: "Delivered for every `x-events: [PaymentFailed]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: PaymentFailed } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            paymentFailed: { summary: "A payment failed / was returned by the bank", value: {"id": "evt_01j8k6", "event": "PaymentFailed", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "payments", "docType": "Payment", "docId": "pay_00132", "docNumber": "PAY/2026-27/00132", "status": "Failed", "previousStatus": "Sent", "link": "/v1/purchase/payments/pay_00132", "partyType": "Supplier", "partyId": "sup_consult", "amount": 45000, "currency": "INR", "payment": {"method": "NEFT", "bankAccountId": "acc_1310", "batchId": "pb_0007", "failureReason": "Beneficiary account closed"}}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+PeriodLocked:
+  post:
+    tags: [Webhooks]
+    summary: An accounting period was locked
+    operationId: webhookPeriodLocked
+    description: "Delivered for every `x-events: [PeriodLocked]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: PeriodLocked } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            periodLocked: { summary: "An accounting period was locked", value: {"id": "evt_01j8k6", "event": "PeriodLocked", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "periods", "docType": "Period", "docId": "per_2026_08", "docNumber": "2026-08", "status": "Locked", "previousStatus": "Soft Closed", "link": "/v1/periods/2026-08", "period": {"code": "2026-08", "status": "Locked", "by": "Rahul Mehta"}}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+PeriodReopened:
+  post:
+    tags: [Webhooks]
+    summary: A locked period was reopened (approved)
+    operationId: webhookPeriodReopened
+    description: "Delivered for every `x-events: [PeriodReopened]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: PeriodReopened } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            periodReopened: { summary: "A locked period was reopened (approved)", value: {"id": "evt_01j8k6", "event": "PeriodReopened", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "periods", "docType": "Period", "docId": "per_2026_08", "docNumber": "2026-08", "status": "Reopened", "previousStatus": "Locked", "link": "/v1/periods/2026-08", "reason": "Late vendor invoice for August", "approvalId": "apr_per_08", "period": {"code": "2026-08", "status": "Reopened", "by": "Rahul Mehta"}}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+StatutorySubmissionAccepted:
+  post:
+    tags: [Webhooks]
+    summary: IRP / EWB / GST portal accepted a submission
+    operationId: webhookStatutorySubmissionAccepted
+    description: "Delivered for every `x-events: [StatutorySubmissionAccepted]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: StatutorySubmissionAccepted } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            statutorySubmissionAccepted: { summary: "IRP / EWB / GST portal accepted a submission", value: {"id": "evt_01j8k6", "event": "StatutorySubmissionAccepted", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "salesInvoices", "docType": "Sales Invoice", "docId": "inv_01j8k3", "docNumber": "INV/2026-27/00042", "status": "Posted", "link": "/v1/sales/invoices/inv_01j8k3", "statutory": {"kind": "e-invoice", "provider": "IRP", "providerRef": "112010036563789", "irn": "35054cc24d97033afc24f49ec4444dbab81f542c999a4f3f4e7a6f6a4a5b1c2d"}}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+StatutorySubmissionRejected:
+  post:
+    tags: [Webhooks]
+    summary: A statutory submission was rejected by the provider
+    operationId: webhookStatutorySubmissionRejected
+    description: "Delivered for every `x-events: [StatutorySubmissionRejected]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: StatutorySubmissionRejected } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            statutorySubmissionRejected: { summary: "A statutory submission was rejected by the provider", value: {"id": "evt_01j8k6", "event": "StatutorySubmissionRejected", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "salesInvoices", "docType": "Sales Invoice", "docId": "inv_01j8k9", "docNumber": "INV/2026-27/00047", "status": "Posted", "link": "/v1/sales/invoices/inv_01j8k9", "statutory": {"kind": "e-invoice", "provider": "IRP", "errorCode": "2172", "errorMessage": "Buyer GSTIN is inactive on the GST portal"}}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+StatutorySubmissionCancelled:
+  post:
+    tags: [Webhooks]
+    summary: An IRN / e-way bill was cancelled
+    operationId: webhookStatutorySubmissionCancelled
+    description: "Delivered for every `x-events: [StatutorySubmissionCancelled]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: StatutorySubmissionCancelled } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            statutorySubmissionCancelled: { summary: "An IRN / e-way bill was cancelled", value: {"id": "evt_01j8k6", "event": "StatutorySubmissionCancelled", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "branchId": "br_ho", "correlationId": "corr_9f1c2e7a", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "salesInvoices", "docType": "Sales Invoice", "docId": "inv_01j8k3", "docNumber": "INV/2026-27/00042", "status": "Posted", "link": "/v1/sales/invoices/inv_01j8k3", "reason": "Wrong buyer GSTIN - re-issuing", "statutory": {"kind": "e-invoice", "provider": "IRP", "irn": "35054cc24d97033afc24f49ec4444dbab81f542c999a4f3f4e7a6f6a4a5b1c2d"}}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+
+test:
+  post:
+    tags: [Webhooks]
+    summary: "Test ping sent by POST /integrations/webhooks/{id}/test"
+    operationId: webhooktest
+    description: "Delivered for every `x-events: [test]` operation. Verify `X-Elixir-Signature` before trusting the body; respond 2xx within 10 s."
+    parameters:
+      - { name: X-Elixir-Event, in: header, required: true, schema: { type: string, const: test } }
+      - { name: X-Elixir-Delivery, in: header, required: true, schema: { type: string, example: whd_9c1e } }
+      - { name: X-Elixir-Signature, in: header, required: true, schema: { type: string, example: 't=1789290724,v1=5d41402abc4b2a76b9719d911017c592e3b0c44298fc1c149afbf4c8996fb924' } }
+      - $ref: './components/parameters.yaml#/CorrelationId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './components/schemas/webhooks.yaml#/WebhookEnvelope' }
+          examples:
+            test: { summary: "Test ping sent by POST /integrations/webhooks/{id}/test", value: {"id": "evt_test_01", "event": "test", "occurredAt": "2026-09-13T09:12:04Z", "tenantId": "ten_acme", "companyId": "co_acme", "correlationId": "corr_test", "actor": {"userId": "usr_priya", "name": "Priya Sharma"}, "data": {"collection": "webhooks", "docId": "wh_wms", "docNumber": "WMS sync", "status": "Active", "link": "/v1/integrations/webhooks/wh_wms"}} }
+    responses:
+      '200':
+        description: Acknowledged (any 2xx)
+        content:
+          application/json:
+            schema: { $ref: './components/schemas/webhooks.yaml#/WebhookAck' }
+            examples:
+              ok: { summary: Received, value: { received: true } }
+

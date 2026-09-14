@@ -1,0 +1,190 @@
+# POS (src/modules/pos/types.ts, actions.ts)
+
+TenderType:
+  type: string
+  enum: [Cash, Card, UPI, Credit]
+
+Tender:
+  type: object
+  required: [type, amount]
+  properties:
+    type: { $ref: '#/TenderType' }
+    amount: { type: number, example: 1500 }
+    reference: { type: string, description: Card auth / UPI txn ref., example: UPI-9182736455 }
+    last4: { type: string, example: '4412' }
+
+PosSettings:
+  type: object
+  properties:
+    posVarianceTolerance: { type: number, description: Cash variance tolerance at shift close (base currency)., example: 100 }
+    posNoReceiptReturns: { type: string, enum: [Deny, Manager approval, Allow] }
+    posNoReceiptApprovalThreshold: { type: number, example: 2000 }
+    posDefaultCustomerId: { type: string, example: cust_walkin }
+    posDefaultWarehouseId: { type: string, example: wh_andheri }
+    posCashAccountId: { type: string, example: acc_1300 }
+    posCardAccountId: { type: string, example: acc_1310 }
+    posUpiAccountId: { type: string, example: acc_1310 }
+    posPriceListId: { type: string, example: pl_retail }
+    posAllowCredit: { type: boolean, example: true }
+
+PosTerminalInput:
+  type: object
+  properties:
+    code: { type: string, example: AND-T1 }
+    name: { type: string, example: Andheri till 1 }
+    branchId: { type: string, example: br_andheri }
+    warehouseId: { type: string, example: wh_andheri }
+    cashAccountId: { type: string, example: acc_1300 }
+    location: { type: string, example: Ground floor }
+
+PosTerminal:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/PosTerminalInput'
+    - type: object
+      required: [code, name, branchId, warehouseId, status]
+      properties:
+        status: { type: string, enum: [Active, Inactive], readOnly: true }
+        openShiftId: { type: string, readOnly: true }
+
+PosShift:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [number, terminalId, terminalName, cashierId, cashierName, branchId, openedAt, openingFloat, status]
+      properties:
+        number: { type: string, example: SH/AND-T1/0091 }
+        terminalId: { type: string }
+        terminalName: { type: string }
+        cashierId: { type: string }
+        cashierName: { type: string, example: Meena Joshi }
+        branchId: { type: string }
+        openedAt: { type: string, format: date-time }
+        closedAt: { type: string, format: date-time }
+        openingFloat: { type: number, example: 5000 }
+        status: { type: string, enum: [Open, Closed, Pending Approval] }
+        expected: { type: object, additionalProperties: { type: number }, example: { Cash: 23150, Card: 41200, UPI: 18900 } }
+        counted: { type: object, additionalProperties: { type: number }, example: { Cash: 23000, Card: 41200, UPI: 18900 } }
+        variance: { type: object, additionalProperties: { type: number }, example: { Cash: -150, Card: 0, UPI: 0 } }
+        varianceTotal: { type: number, example: -150 }
+        bills: { type: integer, example: 64 }
+        sales: { type: number, example: 83250 }
+        refunds: { type: number, example: 1200 }
+        journalId: { type: string }
+        journalNumber: { type: string }
+        approvalId: { type: string }
+        closeNotes: { type: string }
+        closedBy: { type: string }
+
+OpenShiftRequest:
+  type: object
+  required: [terminalId, openingFloat]
+  properties:
+    terminalId: { type: string, example: term_and_t1 }
+    openingFloat: { type: number, example: 5000 }
+    cashierId: { type: string, description: Defaults to the caller. }
+
+CloseShiftRequest:
+  type: object
+  required: [counted]
+  properties:
+    counted: { type: object, additionalProperties: { type: number }, example: { Cash: 23000, Card: 41200, UPI: 18900 } }
+    closeNotes: { type: string, example: ₹150 short — likely change error on bill 0042 }
+
+PosBillLineInput:
+  type: object
+  required: [itemId, qty]
+  properties:
+    itemId: { type: string, example: item_chai }
+    qty: { type: number, example: 2 }
+    rate: { type: number, description: Override (manager) — default from the POS price list (tax inclusive). }
+    discountPct: { type: number }
+    batch: { type: string }
+    serials: { type: array, items: { type: string } }
+
+PosCheckoutRequest:
+  type: object
+  description: One call = one completed sale. Must carry an `Idempotency-Key` (cart id) — a retry returns the same bill.
+  required: [shiftId, lines, tenders]
+  properties:
+    shiftId: { type: string, example: shift_0091 }
+    customerId: { type: string, description: Defaults to the walk-in customer; required for Credit tender., example: cust_walkin }
+    lines: { type: array, minItems: 1, items: { $ref: '#/PosBillLineInput' } }
+    tenders: { type: array, minItems: 1, items: { $ref: '#/Tender' } }
+    heldCartId: { type: string, description: Held cart being checked out (deleted on success). }
+    notes: { type: string }
+
+PosBill:
+  allOf:
+    - $ref: './document.yaml#/DocHeader'
+    - type: object
+      required: [shiftId, terminalId, cashierName, tenders, tendered, change]
+      properties:
+        docType: { type: string, const: POS Bill }
+        status: { type: string, enum: [Posted, Reversed] }
+        shiftId: { type: string }
+        terminalId: { type: string }
+        cashierName: { type: string }
+        tenders: { type: array, items: { $ref: '#/Tender' } }
+        tendered: { type: number, example: 2000 }
+        change: { type: number, example: 500 }
+        onCredit: { type: boolean }
+        openItemId: { type: string, readOnly: true }
+        returnedTotal: { type: number, readOnly: true }
+        reprints: { type: integer, readOnly: true }
+
+PosReturnCreate:
+  type: object
+  required: [shiftId, reasonCode, lines, refund]
+  properties:
+    shiftId: { type: string, example: shift_0091 }
+    billId: { type: string, description: Original bill (omit for no-receipt returns)., example: bill_0042 }
+    noReceipt: { type: boolean, default: false }
+    reasonCode: { type: string, example: RET-DMG }
+    reasonText: { type: string }
+    lines: { type: array, minItems: 1, items: { $ref: '#/PosBillLineInput' } }
+    refund: { $ref: '#/Tender' }
+
+PosReturn:
+  allOf:
+    - $ref: './document.yaml#/DocHeader'
+    - type: object
+      required: [shiftId, terminalId, cashierName, reasonCode, noReceipt, refund]
+      properties:
+        docType: { type: string, const: POS Return }
+        status: { type: string, enum: [Draft, Submitted, Approved, Rejected, Posted, Reversed] }
+        billId: { type: string }
+        billNumber: { type: string, readOnly: true }
+        shiftId: { type: string }
+        terminalId: { type: string }
+        cashierName: { type: string }
+        reasonCode: { type: string }
+        reasonText: { type: string }
+        noReceipt: { type: boolean }
+        refund: { $ref: '#/Tender' }
+        approvalRequired: { type: boolean, readOnly: true }
+
+PosHeldCartInput:
+  type: object
+  required: [shiftId, lines]
+  properties:
+    shiftId: { type: string }
+    cartId: { type: string, description: Client cart id (used as the checkout idempotency key)., example: cart_7f2a }
+    label: { type: string, example: Blue jacket — Mrs Rao }
+    customerId: { type: string }
+    lines: { type: array, minItems: 1, items: { $ref: '#/PosBillLineInput' } }
+
+PosHeldCart:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [shiftId, cartId, label, lines, heldAt, total]
+      properties:
+        shiftId: { type: string }
+        cartId: { type: string }
+        label: { type: string }
+        lines: { type: array, items: { $ref: './document.yaml#/DocLine' } }
+        customerId: { type: string }
+        customerName: { type: string }
+        heldAt: { type: string, format: date-time }
+        total: { type: number, example: 1230 }

@@ -1,0 +1,25 @@
+# Accounting shared examples
+
+JournalDraft:
+  summary: Manual journal, Draft
+  value: { id: jnl_411, companyId: co_acme, number: DRAFT-JV-411, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Draft, type: Manual, sourceType: Manual Journal, sourceNumber: RENT-SEP-26, narration: Office rent for September 2026, lines: [{ id: jl_1, accountId: acc_5100, accountCode: '5100', accountName: Rent, dr: 25000, cr: 0, drBase: 25000, crBase: 0, narration: Sept office rent, dimensions: { Branch: br_ho } }, { id: jl_2, accountId: acc_2100, accountCode: '2100', accountName: Accounts Payable, dr: 0, cr: 25000, drBase: 0, crBase: 25000, partyType: Supplier, partyId: sup_landlord, partyName: Skyline Estates, dimensions: { Branch: br_ho } }], totalDr: 25000, totalCr: 25000, idempotencyKey: 'manual:draft_7f2a', correlationId: corr_jnl411, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+
+JournalPosted:
+  summary: Manual journal, Posted
+  value: { id: jnl_411, companyId: co_acme, number: JV/2026-27/00411, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Manual, sourceType: Manual Journal, sourceNumber: RENT-SEP-26, narration: Office rent for September 2026, lines: [{ id: jl_1, accountId: acc_5100, accountCode: '5100', accountName: Rent, dr: 25000, cr: 0, drBase: 25000, crBase: 0, narration: Sept office rent, dimensions: { Branch: br_ho } }, { id: jl_2, accountId: acc_2100, accountCode: '2100', accountName: Accounts Payable, dr: 0, cr: 25000, drBase: 0, crBase: 25000, partyType: Supplier, partyId: sup_landlord, partyName: Skyline Estates, dimensions: { Branch: br_ho } }], totalDr: 25000, totalCr: 25000, idempotencyKey: 'manual:draft_7f2a', postedAt: '2026-09-13T10:00:00Z', postedBy: Priya Sharma, correlationId: corr_jnl411, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T10:00:00Z', version: 3 }
+
+JournalReversed:
+  summary: Manual journal after reversal
+  value: { id: jnl_411, companyId: co_acme, number: JV/2026-27/00411, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Reversed, type: Manual, sourceType: Manual Journal, sourceNumber: RENT-SEP-26, narration: Office rent for September 2026, lines: [{ id: jl_1, accountId: acc_5100, accountCode: '5100', accountName: Rent, dr: 25000, cr: 0, drBase: 25000, crBase: 0, dimensions: { Branch: br_ho } }, { id: jl_2, accountId: acc_2100, accountCode: '2100', accountName: Accounts Payable, dr: 0, cr: 25000, drBase: 0, crBase: 25000, partyType: Supplier, partyId: sup_landlord, partyName: Skyline Estates, dimensions: { Branch: br_ho } }], totalDr: 25000, totalCr: 25000, reversedById: jnl_412, reversalReason: Posted twice, postedAt: '2026-09-13T10:00:00Z', postedBy: Priya Sharma, correlationId: corr_jnl411, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T15:00:00Z', version: 4 }
+
+RecurringRent:
+  summary: Monthly rent accrual, Active
+  value: { id: rj_004, companyId: co_acme, code: RJ-004, name: Office rent accrual, frequency: Monthly, startDate: '2026-04-01', nextRun: '2026-09-30', mode: Draft, narration: 'Office rent accrual {period}', lines: [{ id: rjl_1, accountId: acc_5100, dr: 25000, cr: 0 }, { id: rjl_2, accountId: acc_2100, dr: 0, cr: 25000, partyType: Supplier, partyId: sup_landlord, partyName: Skyline Estates }], status: Active, lastRunAt: '2026-08-31T00:05:00Z', runCount: 5, generatedIds: [jnl_301, jnl_322, jnl_345, jnl_367, jnl_389], createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-08-31T00:05:00Z', version: 7 }
+
+RevaluationRunPosted:
+  summary: USD revaluation, Posted
+  value: { id: rv_0003, companyId: co_acme, number: RV/2026-27/00003, asOf: '2026-09-30', period: '2026-09', currency: USD, closingRate: 84, rateId: xr_usd_sep_me, scope: [AR, AP], items: [{ id: oi_44, kind: AR, ref: INV/2026-27/00044, partyName: US Tech Inc, accountId: acc_1100, partyType: Customer, partyId: cust_ustech, currency: USD, amount: 10000, bookRate: 83.2, bookBase: 832000, closingBase: 840000, difference: 8000 }], gain: 8000, loss: 0, net: 8000, journalId: jnl_rv_3, journalNumber: JV/2026-27/00399, autoReverse: true, status: Posted, reason: September close, createdAt: '2026-09-30T18:00:00Z', updatedAt: '2026-09-30T18:00:00Z', version: 1 }
+
+IntercompanyInvoice:
+  summary: IC invoice to the Gulf company, Matched
+  value: { id: ic_0017, companyId: co_acme, type: Invoice, number: IC/2026-27/00017, fromCompanyId: co_acme, toCompanyId: co_gulf, date: '2026-09-13', currency: USD, amount: 5000, baseCurrencyFrom: INR, baseCurrencyTo: AED, rateFrom: 83.2, rateTo: 3.67, baseAmountFrom: 416000, baseAmountTo: 18350, counterpartyRef: IC-INV-0017, narration: Shared-services fee Q2, matchStatus: Matched, matchedAt: '2026-09-13T09:12:04Z', matchedBy: Priya Sharma, dueFromAccount: acc_1180, dueToAccount: acc_2180, sourceJournalIds: { from: jnl_ic_17a, to: jnl_ic_17b }, sourceJournalNumbers: { from: JV/2026-27/00400, to: GJV/2026-27/00088 }, postBothSides: true, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }

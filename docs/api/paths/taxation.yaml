@@ -1,0 +1,954 @@
+# Taxation (tag: Taxation). src/modules/taxation/derive.ts + pages; engine.ts submitEInvoice / cancelEInvoice / generateEwayBill / cancelEwayBill.
+
+/taxation/overview:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Taxation]
+    summary: Tax overview (liability, ITC, TDS, e-invoice / EWB health, filing calendar)
+    operationId: getTaxOverview
+    x-permission: taxation.returns.view
+    x-frd: [FR-CMP-001]
+    parameters:
+      - $ref: '../components/parameters.yaml#/PeriodCode'
+      - { name: registrationId, in: query, schema: { type: string } }
+    responses:
+      '200':
+        description: Overview
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/taxation.yaml#/TaxOverview' }
+            examples:
+              september: { summary: September, value: { period: '2026-09', output: { cgst: 412000, sgst: 412000, igst: 98000, cess: 0, total: 922000 }, itc: { cgst: 310000, sgst: 310000, igst: 45000, cess: 0, total: 665000 }, netPayable: 257000, ledgerReconciliation: { registerOutput: 922000, ledgerOutput: 922000, difference: 0 }, tdsPayable: 84500, eInvoice: { pending: 2, accepted: 38, rejected: 1 }, ewb: { pending: 1, generated: 12, expiringToday: 0 }, calendar: [{ id: 'gstr1:2026-08', label: GSTR-1 August 2026, type: GSTR-1, period: '2026-08', due: '2026-09-11', status: Filed, filedAt: '2026-09-09T14:00:00Z', arn: AA270826123456K }, { id: 'gstr3b:2026-08', label: GSTR-3B August 2026, type: GSTR-3B, period: '2026-08', due: '2026-09-20', status: Pending }, { id: 'tds:2026-27:Q2', label: TDS 26Q Q2 2026-27, type: 26Q, period: '2026-27 Q2', due: '2026-10-31', status: Pending }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/taxation/registers/{register}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - { name: register, in: path, required: true, schema: { type: string, enum: [b2b, b2c, purchase, cdn] }, description: b2b — registered outward; b2c — unregistered outward; purchase — inward / ITC; cdn — credit & debit notes. }
+  get:
+    tags: [Taxation]
+    summary: GST register (live from posted documents)
+    description: Query examples — `?period=2026-09` · `?dateFrom=2026-04-01&dateTo=2026-06-30` · `?registrationId=reg_mh` · `?branchId=br_andheri` · `?hsnMissing=true` · `?eInvoiceStatus=Pending`.
+    operationId: getGstRegister
+    x-permission: taxation.returns.view
+    x-frd: [FR-CMP-006]
+    parameters:
+      - $ref: '../components/parameters.yaml#/PeriodCode'
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+      - { name: registrationId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/BranchFilter'
+      - { name: hsnMissing, in: query, schema: { type: boolean } }
+      - { name: eInvoiceStatus, in: query, schema: { type: string } }
+      - { name: itcEligible, in: query, schema: { type: boolean }, description: purchase register only }
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+    responses:
+      '200':
+        description: Rows
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/taxation.yaml#/GstRegisterRow' } }
+                    totals: { $ref: '../components/schemas/taxation.yaml#/GstRegisterTotals' }
+            examples:
+              b2b: { summary: B2B rows, value: { data: [{ id: 'salesInvoices:inv_01j8k3', collection: salesInvoices, docId: inv_01j8k3, docType: Sales Invoice, number: INV/2026-27/00042, date: '2026-09-13', period: '2026-09', party: Arlene Traders, gstin: 27AABCA1234F1Z5, treatment: Registered, pos: Maharashtra, posCode: '27', taxable: 100000, cgst: 9000, sgst: 9000, igst: 0, cess: 0, tax: 18000, total: 118000, reverseCharge: false, eInvoiceStatus: Accepted, ewbStatus: Generated, ewbNo: '271000123456', ewbValidUpto: '2026-09-14T23:59:59Z', hsnMissing: false, sign: 1, link: sales/invoices/inv_01j8k3, registrationId: reg_mh, branchId: br_ho, hsnRows: [{ hsn: '7214', taxable: 100000, tax: 18000, qty: 2000, rate: 18 }] }], totals: { count: 1, taxable: 100000, cgst: 9000, sgst: 9000, igst: 0, cess: 0, tax: 18000, total: 118000 }, meta: { nextCursor: null, limit: 25, total: 1 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              purchaseIneligible: { summary: Purchase register with blocked ITC, value: { data: [{ id: 'vendorInvoices:vi_00210', collection: vendorInvoices, docId: vi_00210, docType: Vendor Invoice, number: VI/2026-27/00210, date: '2026-09-08', period: '2026-09', party: Metro Motors, gstin: 27AABCM4321F1Z2, treatment: Registered, pos: Maharashtra, posCode: '27', taxable: 850000, cgst: 119000, sgst: 119000, igst: 0, cess: 0, tax: 238000, total: 1088000, reverseCharge: false, eInvoiceStatus: Not Applicable, hsnMissing: false, itcEligible: false, itcIneligibleReason: 'Blocked u/s 17(5) — motor vehicle', sign: 1, link: purchase/vendor-invoices/vi_00210, hsnRows: [] }], totals: { count: 1, taxable: 850000, cgst: 119000, sgst: 119000, igst: 0, cess: 0, tax: 238000, total: 1088000 }, meta: { nextCursor: null, limit: 25, total: 1 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/taxation/registers/{register}/export:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - { name: register, in: path, required: true, schema: { type: string, enum: [b2b, b2c, purchase, cdn] } }
+  post:
+    tags: [Taxation]
+    summary: Export a register (CSV / XLSX / GST offline-tool JSON)
+    operationId: exportGstRegister
+    x-permission: taxation.returns.export
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/system.yaml#/ExportRequest'
+              - { type: object, properties: { period: { type: string }, registrationId: { type: string } } }
+          examples:
+            xlsx: { summary: XLSX for the month, value: { format: xlsx, period: '2026-09' } }
+            json: { summary: Offline tool JSON, value: { format: json, period: '2026-09', registrationId: reg_mh } }
+    responses:
+      '202':
+        description: Export job queued
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/ExportJob' }
+            examples:
+              queued: { summary: Queued, value: { id: exp_401, companyId: co_acme, kind: gst-register-b2b, format: xlsx, status: Queued, requestedBy: Priya Sharma, params: { period: '2026-09' }, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── e-invoices ────────────────────────────────────────────────────────────
+
+/taxation/e-invoices:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Taxation]
+    summary: e-Invoice queue (applicable documents with readiness + IRP status)
+    description: "Tabs → Pending · Not ready (`ready=false`) · Accepted · Rejected · Cancelled · All."
+    operationId: listEInvoices
+    x-permission: taxation.einvoice.view
+    x-frd: [FR-CMP-002, FR-CMP-003]
+    parameters:
+      - $ref: '../components/parameters.yaml#/PeriodCode'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: ready, in: query, schema: { type: boolean } }
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+    responses:
+      '200':
+        description: Rows
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/taxation.yaml#/EInvoiceRow' } }
+            examples:
+              queue: { summary: "Pending, not ready, accepted", value: { data: [{ id: 'salesInvoices:inv_01j8k3', collection: salesInvoices, docId: inv_01j8k3, docType: Sales Invoice, number: INV/2026-27/00042, date: '2026-09-13', party: Arlene Traders, gstin: 27AABCA1234F1Z5, total: 118000, status: Pending, applicable: true, ready: true, issues: [], link: sales/invoices/inv_01j8k3 }, { id: 'salesInvoices:inv_01j8k9', collection: salesInvoices, docId: inv_01j8k9, docType: Sales Invoice, number: INV/2026-27/00047, date: '2026-09-13', party: Metro Retail, gstin: 27AABCM9876F1Z1, total: 59000, status: Pending, applicable: true, ready: false, issues: ['HSN missing on line 2', 'Buyer pincode missing'], link: sales/invoices/inv_01j8k9 }, { id: 'salesInvoices:inv_01j8k1', collection: salesInvoices, docId: inv_01j8k1, docType: Sales Invoice, number: INV/2026-27/00040, date: '2026-09-11', party: Arlene Traders, gstin: 27AABCA1234F1Z5, total: 236000, status: Accepted, applicable: true, ready: true, issues: [], statutory: { irn: 35054cc24d97033afc24f49ec4444dbab81f542c999a4f3f4e7a6f6a4a5b1c2d, ackNo: '112010036563789', ackDate: '2026-09-11T10:20:00Z', eInvoiceStatus: Accepted, eInvoiceSubmittedAt: '2026-09-11T10:20:00Z' }, link: sales/invoices/inv_01j8k1 }], meta: { nextCursor: null, limit: 25, total: 3, counts: { Pending: 2, 'Not ready': 1, Accepted: 38, Rejected: 1, Cancelled: 0, All: 41 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/taxation/e-invoices/{collection}/{docId}/submit:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Collection'
+    - { name: docId, in: path, required: true, schema: { type: string }, example: inv_01j8k3 }
+  post:
+    tags: [Taxation]
+    summary: Submit to the IRP (generate IRN)
+    description: "Idempotent per document (`einv:{docId}`). A rejected submission stores the IRP error on the document and can be retried after fixing the data. Same behaviour as `POST /sales/invoices/{id}/e-invoice`."
+    operationId: submitEInvoiceByDoc
+    x-permission: taxation.einvoice.submit
+    x-idempotent: true
+    x-events: [StatutorySubmissionAccepted, StatutorySubmissionRejected]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: IRP result
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/StatutoryResult' }
+            examples:
+              accepted: { summary: Accepted (IRN), value: { document: { id: inv_01j8k3, number: INV/2026-27/00042, status: Posted }, statutory: { irn: 35054cc24d97033afc24f49ec4444dbab81f542c999a4f3f4e7a6f6a4a5b1c2d, ackNo: '112010036563789', ackDate: '2026-09-13T09:12:04Z', signedQr: 'QR:35054cc24d97033afc24f49ec', eInvoiceStatus: Accepted, eInvoiceSubmittedAt: '2026-09-13T09:12:04Z' }, integrationLog: { id: il_901, companyId: co_acme, provider: IRP, action: GenerateIRN, objectType: Sales Invoice, objectId: inv_01j8k3, objectNumber: INV/2026-27/00042, status: Accepted, providerRef: '112010036563789', request: { DocNo: INV/2026-27/00042, DocDt: '2026-09-13', SellerGstin: 27AAACA1234A1Z5, BuyerGstin: 27AABCA1234F1Z5, TotInvVal: 118000 }, response: { Irn: 35054cc24d97033afc24f49ec4444dbab81f542c999a4f3f4e7a6f6a4a5b1c2d, AckNo: '112010036563789', Status: ACT }, at: '2026-09-13T09:12:04Z', correlationId: corr_einv42, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } } }
+              rejected: { summary: Rejected by IRP (2172), value: { document: { id: inv_01j8k9, number: INV/2026-27/00047, status: Posted }, statutory: { eInvoiceStatus: Rejected, eInvoiceError: '2172: Buyer GSTIN is inactive on the GST portal', eInvoiceSubmittedAt: '2026-09-13T09:12:04Z' }, integrationLog: { id: il_902, companyId: co_acme, provider: IRP, action: GenerateIRN, objectType: Sales Invoice, objectId: inv_01j8k9, objectNumber: INV/2026-27/00047, status: Rejected, errorCode: '2172', errorMessage: Buyer GSTIN is inactive on the GST portal, request: { DocNo: INV/2026-27/00047 }, response: { ErrorCode: '2172', ErrorMessage: Buyer GSTIN is inactive on the GST portal }, at: '2026-09-13T09:12:04Z', correlationId: corr_einv47, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Not ready
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              notReady: { summary: Readiness issues, value: { code: EINV_NOT_READY, message: 'Not ready for e-invoice: HSN missing on line 2; Buyer pincode missing', details: { issues: ['HSN missing on line 2', 'Buyer pincode missing'] }, correlationId: corr_9f1c2e7a } }
+              notApplicable: { summary: Below threshold / B2C, value: { code: EINV_NOT_READY, message: e-Invoice not applicable to unregistered buyer, correlationId: corr_9f1c2e7a } }
+      '502': { $ref: '../components/responses.yaml#/ProviderError' }
+
+/taxation/e-invoices/{collection}/{docId}/cancel:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Collection'
+    - { name: docId, in: path, required: true, schema: { type: string }, example: inv_01j8k3 }
+  post:
+    tags: [Taxation]
+    summary: Cancel the IRN (within 24 h)
+    operationId: cancelEInvoiceByDoc
+    x-permission: taxation.einvoice.reverse
+    x-idempotent: true
+    x-events: [StatutorySubmissionCancelled]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason (≥5 chars), value: { reason: Wrong buyer GSTIN — re-issuing } }
+    responses:
+      '200':
+        description: Cancelled
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/StatutoryResult' }
+            examples:
+              cancelled: { summary: Cancelled, value: { document: { id: inv_01j8k3, number: INV/2026-27/00042, status: Posted }, statutory: { irn: 35054cc24d97033afc24f49ec4444dbab81f542c999a4f3f4e7a6f6a4a5b1c2d, ackNo: '112010036563789', eInvoiceStatus: Cancelled, eInvoiceCancelledAt: '2026-09-13T15:00:00Z' }, integrationLog: { id: il_903, companyId: co_acme, provider: IRP, action: CancelIRN, objectType: Sales Invoice, objectId: inv_01j8k3, objectNumber: INV/2026-27/00042, status: Cancelled, request: { Irn: 35054cc24d97033afc24f49ec4444dbab81f542c999a4f3f4e7a6f6a4a5b1c2d, CnlRsn: '1', CnlRem: Wrong buyer GSTIN — re-issuing }, response: { CancelDate: '2026-09-13T15:00:00Z' }, at: '2026-09-13T15:00:00Z', correlationId: corr_einv42, createdAt: '2026-09-13T15:00:00Z', updatedAt: '2026-09-13T15:00:00Z', version: 1 } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: No IRN
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              noIrn: { summary: Nothing to cancel, value: { code: INVALID_STATE, message: No IRN to cancel, correlationId: corr_9f1c2e7a } }
+      '422':
+        description: Window elapsed
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              window: { summary: After 24 h, value: { code: EINV_WINDOW, message: IRN cannot be cancelled after 24 hours — issue a credit note instead, details: { ackDate: '2026-09-11T10:20:00Z', hoursElapsed: 52 }, correlationId: corr_9f1c2e7a } }
+      '502': { $ref: '../components/responses.yaml#/ProviderError' }
+
+/taxation/e-invoices/bulk-submit:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Taxation]
+    summary: Submit all ready + pending documents (or a selection)
+    operationId: bulkSubmitEInvoices
+    x-permission: taxation.einvoice.submit
+    x-idempotent: true
+    x-events: [StatutorySubmissionAccepted, StatutorySubmissionRejected]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/taxation.yaml#/EInvoiceBulkRequest' }
+          examples:
+            period: { summary: Everything ready in the month, value: { period: '2026-09' } }
+            selected: { summary: Selected rows, value: { ids: ['salesInvoices:inv_01j8k3', 'creditNotes:cn_00012'] } }
+    responses:
+      '200':
+        description: Per-document results
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/taxation.yaml#/EInvoiceBulkResult' }
+            examples:
+              mixed: { summary: "2 accepted, 1 rejected, 1 skipped", value: { submitted: 3, accepted: 2, rejected: 1, skipped: 1, results: [{ id: 'salesInvoices:inv_01j8k3', number: INV/2026-27/00042, status: Accepted, irn: 35054cc24d97033afc24f49ec4444dbab81f542c999a4f3f4e7a6f6a4a5b1c2d }, { id: 'creditNotes:cn_00012', number: CN/2026-27/00012, status: Accepted, irn: 9c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d }, { id: 'salesInvoices:inv_01j8k8', number: INV/2026-27/00046, status: Rejected, error: '2172: Buyer GSTIN is inactive on the GST portal' }, { id: 'salesInvoices:inv_01j8k9', number: INV/2026-27/00047, status: Skipped, error: Not ready — HSN missing on line 2 }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '502': { $ref: '../components/responses.yaml#/ProviderError' }
+
+/taxation/e-invoices/sync:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Taxation]
+    summary: Re-query the IRP for Submitted / Queued documents
+    operationId: syncEInvoices
+    x-permission: taxation.einvoice.submit
+    responses:
+      '200':
+        description: Sync summary
+        content:
+          application/json:
+            schema: { type: object, required: [checked, updated, syncedAt], properties: { checked: { type: integer }, updated: { type: integer }, syncedAt: { type: string, format: date-time } } }
+            examples:
+              synced: { summary: Synced, value: { checked: 3, updated: 1, syncedAt: '2026-09-13T09:12:04Z' } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '502': { $ref: '../components/responses.yaml#/ProviderError' }
+
+# ── e-way bills ───────────────────────────────────────────────────────────
+
+/taxation/eway-bills:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Taxation]
+    summary: e-Way bill queue (consignments ≥ threshold)
+    description: Tabs → Pending · Generated · Expiring today · Cancelled · All.
+    operationId: listEwayBills
+    x-permission: taxation.einvoice.view
+    x-frd: [FR-CMP-004]
+    parameters:
+      - $ref: '../components/parameters.yaml#/PeriodCode'
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+    responses:
+      '200':
+        description: Rows
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/taxation.yaml#/EwayBillRow' } }
+            examples:
+              queue: { summary: Pending + generated, value: { data: [{ id: 'deliveries:dc_00031', collection: deliveries, docId: dc_00031, docType: Delivery, number: DC/2026-27/00031, date: '2026-09-13', party: Arlene Traders, total: 118000, status: Pending, link: sales/deliveries/dc_00031 }, { id: 'salesInvoices:inv_01j8k1', collection: salesInvoices, docId: inv_01j8k1, docType: Sales Invoice, number: INV/2026-27/00040, date: '2026-09-11', party: Arlene Traders, total: 236000, status: Generated, ewbNo: '271000123456', ewbValidUpto: '2026-09-14T23:59:59Z', vehicleNo: MH02AB1234, link: sales/invoices/inv_01j8k1 }], meta: { nextCursor: null, limit: 25, total: 2, counts: { Pending: 1, Generated: 12, 'Expiring today': 0, Cancelled: 1, All: 14 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/taxation/eway-bills/{collection}/{docId}/generate:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Collection'
+    - { name: docId, in: path, required: true, schema: { type: string }, example: dc_00031 }
+  post:
+    tags: [Taxation]
+    summary: Generate an e-way bill (Part A + B)
+    description: "Validity = 1 day per 200 km. Same behaviour as `POST /sales/invoices/{id}/eway-bill` / `POST /sales/deliveries/{id}/eway-bill`."
+    operationId: generateEwayBillByDoc
+    x-permission: taxation.einvoice.submit
+    x-idempotent: true
+    x-events: [StatutorySubmissionAccepted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/sales.yaml#/EwayBillRequest' }
+          examples:
+            ownVehicle: { summary: Own vehicle, value: { vehicleNo: MH02AB1234, distanceKm: 120, mode: Road } }
+            transporter: { summary: Transporter (Part A), value: { transporterId: 27AABCT1332L1ZU, distanceKm: 540, mode: Road } }
+    responses:
+      '200':
+        description: Generated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/StatutoryResult' }
+            examples:
+              generated: { summary: EWB generated, value: { document: { id: dc_00031, number: DC/2026-27/00031, status: Posted }, statutory: { ewbNo: '271000123457', ewbStatus: Generated, ewbValidUpto: '2026-09-14T23:59:59Z', vehicleNo: MH02AB1234, distanceKm: 120 }, integrationLog: { id: il_910, companyId: co_acme, provider: EWB, action: GenerateEWB, objectType: Delivery, objectId: dc_00031, objectNumber: DC/2026-27/00031, status: Accepted, providerRef: '271000123457', request: { DocNo: DC/2026-27/00031, VehicleNo: MH02AB1234, Distance: 120 }, response: { EwbNo: '271000123457', EwbValidTill: '2026-09-14T23:59:59Z' }, at: '2026-09-13T09:12:04Z', correlationId: corr_ewb31, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Business rule
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              notRequired: { summary: "Below ₹50,000", value: { code: EWB_NOT_REQUIRED, message: 'e-Way bill is required only for consignments of ₹50,000 or more', correlationId: corr_9f1c2e7a } }
+              vehicle: { summary: No vehicle / transporter, value: { code: VALIDATION, message: Vehicle number or transporter ID is required, field: vehicleNo, correlationId: corr_9f1c2e7a } }
+      '502': { $ref: '../components/responses.yaml#/ProviderError' }
+
+/taxation/eway-bills/{collection}/{docId}/cancel:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Collection'
+    - { name: docId, in: path, required: true, schema: { type: string }, example: dc_00031 }
+  post:
+    tags: [Taxation]
+    summary: Cancel an e-way bill
+    operationId: cancelEwayBillByDoc
+    x-permission: taxation.einvoice.submit
+    x-idempotent: true
+    x-events: [StatutorySubmissionCancelled]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Goods not moved — order held } }
+    responses:
+      '200':
+        description: Cancelled
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/StatutoryResult' }
+            examples:
+              cancelled: { summary: Cancelled, value: { document: { id: dc_00031, number: DC/2026-27/00031, status: Posted }, statutory: { ewbNo: '271000123457', ewbStatus: Cancelled }, integrationLog: { id: il_911, companyId: co_acme, provider: EWB, action: CancelEWB, objectType: Delivery, objectId: dc_00031, objectNumber: DC/2026-27/00031, status: Cancelled, request: { EwbNo: '271000123457', Reason: Goods not moved — order held }, response: { Status: Cancelled }, at: '2026-09-13T11:00:00Z', correlationId: corr_ewb31, createdAt: '2026-09-13T11:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 1 } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '502': { $ref: '../components/responses.yaml#/ProviderError' }
+
+/taxation/eway-bills/{collection}/{docId}/extend:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Collection'
+    - { name: docId, in: path, required: true, schema: { type: string }, example: inv_01j8k1 }
+  post:
+    tags: [Taxation]
+    summary: Extend validity (Part-B update)
+    operationId: extendEwayBillByDoc
+    x-permission: taxation.einvoice.submit
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/taxation.yaml#/EwayBillExtendRequest' }
+          examples:
+            breakdown: { summary: Vehicle change, value: { reason: Vehicle breakdown at Lonavala, vehicleNo: MH12CD9876, remainingDistanceKm: 60 } }
+    responses:
+      '200':
+        description: Extended
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/StatutoryResult' }
+            examples:
+              extended: { summary: Extended one day, value: { document: { id: inv_01j8k1, number: INV/2026-27/00040, status: Posted }, statutory: { ewbNo: '271000123456', ewbStatus: Generated, ewbValidUpto: '2026-09-15T23:59:59Z', vehicleNo: MH12CD9876, distanceKm: 120 }, integrationLog: { id: il_912, companyId: co_acme, provider: EWB, action: ExtendEWB, objectType: Sales Invoice, objectId: inv_01j8k1, objectNumber: INV/2026-27/00040, status: Accepted, providerRef: '271000123456', request: { EwbNo: '271000123456', Reason: Vehicle breakdown at Lonavala, VehicleNo: MH12CD9876 }, response: { EwbValidTill: '2026-09-15T23:59:59Z' }, at: '2026-09-13T11:00:00Z', correlationId: corr_ewb40, createdAt: '2026-09-13T11:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 1 } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '502': { $ref: '../components/responses.yaml#/ProviderError' }
+
+# ── GST returns ───────────────────────────────────────────────────────────
+
+/taxation/returns/{type}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - { name: type, in: path, required: true, schema: { type: string, enum: [gstr1, gstr3b] } }
+  get:
+    tags: [Taxation]
+    summary: Live return preview for a period (sections, HSN summary, set-off, ledger reconciliation)
+    operationId: getReturnPreview
+    x-permission: taxation.returns.view
+    x-frd: [FR-CMP-007]
+    parameters:
+      - { name: period, in: query, required: true, schema: { type: string }, example: '2026-09' }
+      - { name: registrationId, in: query, schema: { type: string } }
+    responses:
+      '200':
+        description: Preview
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/taxation.yaml#/ReturnPreview' }
+            examples:
+              gstr1: { summary: GSTR-1, value: { type: GSTR-1, period: '2026-09', registrationId: reg_mh, gstin: 27AAACA1234A1Z5, sections: [{ code: 4A, desc: B2B supplies to registered persons, count: 38, taxable: 4120000, cgst: 370800, sgst: 370800, igst: 0, cess: 0, tax: 741600 }, { code: 5A, desc: 'B2C Large (inter-state, invoice > ₹2.5 L)', count: 1, taxable: 300000, cgst: 0, sgst: 0, igst: 54000, cess: 0, tax: 54000 }, { code: 6A, desc: Exports / SEZ supplies (zero-rated), count: 1, taxable: 840000, cgst: 0, sgst: 0, igst: 0, cess: 0, tax: 0 }, { code: '7', desc: B2C Small (unregistered), count: 412, taxable: 1546000, cgst: 41200, sgst: 41200, igst: 44000, cess: 0, tax: 126400 }, { code: '8', desc: 'Nil-rated, exempt and non-GST supplies', count: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, tax: 0 }, { code: 9B, desc: Credit / debit notes — registered, count: 2, taxable: -60000, cgst: -5400, sgst: -5400, igst: 0, cess: 0, tax: -10800 }, { code: '12', desc: HSN-wise summary of outward supplies, count: 9, taxable: 6746000, cgst: 0, sgst: 0, igst: 0, cess: 0, tax: 911200 }, { code: '13', desc: Documents issued, count: 454, taxable: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, tax: 0 }], hsn: [{ hsn: '7214', description: Bars and rods of iron or non-alloy steel, qty: 82000, taxable: 4080000, tax: 734400, rate: 18 }], docsIssued: 454, totals: { taxable: 6746000, cgst: 406600, sgst: 406600, igst: 98000, cess: 0, tax: 911200 }, reconciliation: { registerTax: 911200, ledgerTax: 911200, difference: 0 }, dueDate: '2026-10-11', latestVersion: { $ref: '#/components/examples/Gstr1Filed/value' } } }
+              gstr3b: { summary: GSTR-3B with set-off, value: { type: GSTR-3B, period: '2026-09', registrationId: reg_mh, gstin: 27AAACA1234A1Z5, sections: [{ code: 3.1(a), desc: 'Outward taxable supplies (other than zero-rated, nil-rated, exempted)', count: 453, taxable: 5906000, cgst: 412000, sgst: 412000, igst: 98000, cess: 0, tax: 922000 }, { code: 3.1(b), desc: Outward taxable supplies (zero rated), count: 1, taxable: 840000, cgst: 0, sgst: 0, igst: 0, cess: 0, tax: 0 }, { code: 3.1(d), desc: Inward supplies liable to reverse charge, count: 1, taxable: 40000, cgst: 3600, sgst: 3600, igst: 0, cess: 0, tax: 7200 }, { code: 4(A)(5), desc: ITC available — all other ITC, count: 61, taxable: 3690000, cgst: 310000, sgst: 310000, igst: 45000, cess: 0, tax: 665000 }, { code: 4(D)(1), desc: 'Ineligible ITC (blocked u/s 17(5), unregistered)', count: 1, taxable: 850000, cgst: 119000, sgst: 119000, igst: 0, cess: 0, tax: 238000 }], totals: { taxable: 5906000, cgst: 415600, sgst: 415600, igst: 98000, cess: 0, tax: 929200, itc: 665000, netPayable: 264200 }, setOff: { steps: [{ label: IGST credit → IGST liability, amount: 45000 }, { label: CGST credit → CGST liability, amount: 310000 }, { label: SGST credit → SGST liability, amount: 310000 }], payable: { igst: 53000, cgst: 105600, sgst: 105600, cess: 0, total: 264200 }, carried: { igst: 0, cgst: 0, sgst: 0, cess: 0 } }, reconciliation: { registerTax: 929200, ledgerTax: 929200, difference: 0 }, dueDate: '2026-10-20' } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/taxation/returns/{type}/generate:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - { name: type, in: path, required: true, schema: { type: string, enum: [gstr1, gstr3b] } }
+  post:
+    tags: [Taxation]
+    summary: Generate a versioned return snapshot (+ portal JSON)
+    description: Earlier non-filed versions for the same period become Superseded. A Filed version locks the period's tax data (`409` on regenerate).
+    operationId: generateReturn
+    x-permission: taxation.returns.create
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/taxation.yaml#/ReturnGenerateRequest' }
+          examples:
+            month: { summary: September, value: { period: '2026-09', registrationId: reg_mh } }
+    responses:
+      '201':
+        description: Generated
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/taxation.yaml#/StatutoryReturn' }
+            examples:
+              generated: { summary: v2 generated, value: { id: ret_g1_0909_2, companyId: co_acme, type: GSTR-1, period: '2026-09', fy: '2026-27', registrationId: reg_mh, gstin: 27AAACA1234A1Z5, status: Generated, sections: [{ code: 4A, desc: B2B supplies to registered persons, count: 38, taxable: 4120000, cgst: 370800, sgst: 370800, igst: 0, cess: 0, tax: 741600 }], totals: { taxable: 6746000, cgst: 406600, sgst: 406600, igst: 98000, cess: 0, tax: 911200 }, reconciliation: { registerTax: 911200, ledgerTax: 911200, difference: 0 }, generatedAt: '2026-10-05T10:00:00Z', generatedBy: Priya Sharma, dueDate: '2026-10-11', hasJson: true, createdAt: '2026-10-05T10:00:00Z', updatedAt: '2026-10-05T10:00:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Period already filed
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              filed: { summary: Filed version exists, value: { code: INVALID_STATE, message: GSTR-1 2026-09 is already filed (ARN AA270926123456K) — amendments go into the next period, details: { returnId: ret_g1_0909_1 }, correlationId: corr_9f1c2e7a } }
+      '422':
+        description: Data issues
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              hsnMissing: { summary: HSN missing on documents, value: { code: INCOMPLETE, message: 3 documents have lines without HSN — fix before generating, details: { documents: [INV/2026-27/00047, INV/2026-27/00051, CN/2026-27/00014] }, correlationId: corr_9f1c2e7a } }
+              unreconciled: { summary: Register ≠ ledger, value: { code: UNBALANCED, message: Output tax per register 911200 differs from ledger 909400 by 1800, details: { registerTax: 911200, ledgerTax: 909400 }, correlationId: corr_9f1c2e7a } }
+
+/taxation/returns/{type}/challan:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - { name: type, in: path, required: true, schema: { type: string, enum: [gstr3b] } }
+  post:
+    tags: [Taxation]
+    summary: Create the GST payment journal (Draft) for the net payable
+    operationId: createGstChallanJournal
+    x-permission: taxation.returns.create
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+      - { name: period, in: query, required: true, schema: { type: string }, example: '2026-09' }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/taxation.yaml#/ChallanJournalRequest' }
+          examples:
+            bank: { summary: Paid from HDFC, value: { date: '2026-10-18', bankAccountId: acc_1310, cpin: '26092700123456' } }
+    responses:
+      '201':
+        description: Draft journal
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/document.yaml#/Journal' }
+            examples:
+              draft: { summary: GST payment draft, value: { id: jnl_gst_09, companyId: co_acme, number: DRAFT-JV-420, date: '2026-10-18', period: '2026-10', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Draft, type: Manual, sourceType: GST Payment, sourceNumber: GSTR-3B 2026-09, narration: 'GST liability September 2026 · CPIN 26092700123456', lines: [{ id: jl_1, accountId: acc_2310, accountCode: '2310', accountName: CGST payable, dr: 105600, cr: 0, drBase: 105600, crBase: 0, dimensions: {} }, { id: jl_2, accountId: acc_2320, accountCode: '2320', accountName: SGST payable, dr: 105600, cr: 0, drBase: 105600, crBase: 0, dimensions: {} }, { id: jl_3, accountId: acc_2330, accountCode: '2330', accountName: IGST payable, dr: 53000, cr: 0, drBase: 53000, crBase: 0, dimensions: {} }, { id: jl_4, accountId: acc_1310, accountCode: '1310', accountName: HDFC Bank — CA 0042, dr: 0, cr: 264200, drBase: 0, crBase: 264200, dimensions: {} }], totalDr: 264200, totalCr: 264200, correlationId: corr_gst09, createdAt: '2026-10-18T09:00:00Z', updatedAt: '2026-10-18T09:00:00Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/taxation/returns/{id}/mark-filed:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Taxation]
+    summary: Mark a generated return as Filed (ARN) — locks the period's tax data
+    operationId: markReturnFiled
+    x-permission: taxation.return.file
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/taxation.yaml#/MarkFiledRequest' }
+          examples:
+            arn: { summary: ARN from the portal, value: { arn: AA270926123456K, filedAt: '2026-10-09T14:00:00Z' } }
+    responses:
+      '200':
+        description: Filed
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/taxation.yaml#/StatutoryReturn' }
+            examples:
+              filed: { $ref: '../components/examples/taxation.yaml#/Gstr1Filed' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/taxation/returns/{id}/lock:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Taxation]
+    summary: Lock the tax period without an ARN (e.g. nil return)
+    operationId: lockReturnPeriod
+    x-permission: taxation.return.file
+    responses:
+      '200':
+        description: Locked
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/taxation.yaml#/StatutoryReturn' }
+            examples:
+              locked: { $ref: '../components/examples/taxation.yaml#/Gstr1Filed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── TDS / TCS ─────────────────────────────────────────────────────────────
+
+/taxation/tds/register:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Taxation]
+    summary: TDS / TCS register (live from payments, vendor invoices, receipts, payroll)
+    description: "Tabs → Deducted · Deposited · Certified · Exempt · All. Query examples — `?fy=2026-27&quarter=Q2` · `?kind=TCS` · `?section=194C` · `?partyId=sup_bharat`."
+    operationId: getTdsRegister
+    x-permission: taxation.tds.view
+    x-frd: [FR-TDS-001]
+    parameters:
+      - $ref: '../components/parameters.yaml#/FiscalYear'
+      - { name: quarter, in: query, schema: { type: string, enum: [Q1, Q2, Q3, Q4] } }
+      - { name: kind, in: query, schema: { type: string, enum: [TDS, TCS] } }
+      - { name: section, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/PartyId'
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+    responses:
+      '200':
+        description: Rows
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/taxation.yaml#/TdsRegisterRow' } }
+                    totals: { type: object, properties: { base: { type: number }, amount: { type: number }, deposited: { type: number }, pending: { type: number } } }
+            examples:
+              q2: { summary: Q2 rows, value: { data: [{ id: 'pay_00131:tds', sourceType: Payment, sourceId: pay_00131, sourceNumber: PAY/2026-27/00131, date: '2026-09-12', partyType: Supplier, partyId: sup_bharat, partyName: Bharat Steel Ltd, pan: AABCB1234C, section: 194C, sectionId: tds_194c, kindOfTax: TDS, rate: 2, base: 295000, threshold: 30000, amount: 5900, quarter: Q2, fy: '2026-27', status: Deducted, link: purchase/payments/pay_00131 }, { id: 'vi_00198:tds', sourceType: Vendor Invoice, sourceId: vi_00198, sourceNumber: VI/2026-27/00198, date: '2026-08-20', partyType: Supplier, partyId: sup_consult, partyName: Sharma & Associates, pan: AAKPS4321F, section: 194J, sectionId: tds_194j, kindOfTax: TDS, rate: 10, base: 50000, threshold: 30000, amount: 5000, quarter: Q2, fy: '2026-27', challanNo: '0510123456789012', status: Deposited, link: purchase/vendor-invoices/vi_00198, overlayId: tde_31 }], totals: { base: 345000, amount: 10900, deposited: 5000, pending: 5900 }, meta: { nextCursor: null, limit: 25, total: 2, counts: { Deducted: 9, Deposited: 14, Certified: 6, Exempt: 2, All: 31 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/taxation/tds/summary:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Taxation]
+    summary: Section-wise TDS summary with deposit status
+    operationId: getTdsSummary
+    x-permission: taxation.tds.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/FiscalYear'
+      - { name: quarter, in: query, schema: { type: string, enum: [Q1, Q2, Q3, Q4] } }
+    responses:
+      '200':
+        description: Summary
+        content:
+          application/json:
+            schema: { type: object, required: [fy, quarter, rows, payableBalance], properties: { fy: { type: string }, quarter: { type: string }, rows: { type: array, items: { $ref: '../components/schemas/taxation.yaml#/TdsSummaryRow' } }, payableBalance: { type: number, description: TDS payable control account balance. }, nextDueDate: { type: string, format: date } } }
+            examples:
+              q2: { summary: Q2, value: { fy: '2026-27', quarter: Q2, rows: [{ section: 194C, kindOfTax: TDS, deductees: 4, base: 1240000, amount: 24800, deposited: 18900, pending: 5900, dueDate: '2026-10-07' }, { section: 194J, kindOfTax: TDS, deductees: 3, base: 210000, amount: 21000, deposited: 21000, pending: 0, dueDate: '2026-10-07' }, { section: 206C(1H), kindOfTax: TCS, deductees: 1, base: 5200000, amount: 5200, deposited: 0, pending: 5200, dueDate: '2026-10-07' }], payableBalance: 84500, nextDueDate: '2026-10-07' } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/taxation/tds/challans:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Taxation]
+    summary: Deposit challans
+    operationId: listTdsChallans
+    x-permission: taxation.tds.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/FiscalYear'
+      - { name: quarter, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+    responses:
+      '200':
+        description: Challans
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/taxation.yaml#/TdsEntry' } }
+            examples:
+              list: { summary: Challans, value: { data: [{ $ref: '#/components/examples/TdsChallan/value' }], meta: { nextCursor: null, limit: 25, total: 1 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Taxation]
+    summary: Record a deposit challan (Draft journal + mark deductions Deposited)
+    operationId: createTdsChallan
+    x-permission: taxation.tds.manage
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/taxation.yaml#/TdsChallanCreate' }
+          examples:
+            withCin: { summary: With CIN, value: { date: '2026-10-05', section: 194C, amount: 5900, challanNo: '0510123456789012', bsrCode: '0510123', bankAccountId: acc_1310, deductionIds: ['pay_00131:tds'] } }
+            cinPending: { summary: CIN to follow, value: { date: '2026-10-05', section: 194J, amount: 5000, bankAccountId: acc_1310, deductionIds: ['vi_00198:tds'], note: Paid via net banking; CIN pending } }
+    responses:
+      '201':
+        description: Challan recorded
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/taxation.yaml#/TdsEntry' }
+            examples:
+              recorded: { summary: Recorded with draft journal, value: { document: { $ref: '#/components/examples/TdsChallan/value' }, outcome: created, journal: { id: jnl_tds_q2, companyId: co_acme, number: DRAFT-JV-421, date: '2026-10-05', period: '2026-10', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Draft, type: Manual, sourceType: TDS Challan, sourceNumber: '0510123456789012', narration: 'TDS deposit 194C · Q2 2026-27', lines: [{ id: jl_1, accountId: acc_2400, accountCode: '2400', accountName: TDS payable, dr: 5900, cr: 0, drBase: 5900, crBase: 0, dimensions: {} }, { id: jl_2, accountId: acc_1310, accountCode: '1310', accountName: HDFC Bank — CA 0042, dr: 0, cr: 5900, drBase: 0, crBase: 5900, dimensions: {} }], totalDr: 5900, totalCr: 5900, correlationId: corr_tds1, createdAt: '2026-10-05T10:00:00Z', updatedAt: '2026-10-05T10:00:00Z', version: 1 }, warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Business rule
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              amountMismatch: { summary: Amount ≠ selected deductions, value: { code: AMOUNT_MISMATCH, message: Challan 5000 does not equal selected deductions 5900, details: { challan: 5000, deductions: 5900 }, correlationId: corr_9f1c2e7a } }
+              alreadyDeposited: { summary: Deduction already deposited, value: { code: INVALID_STATE, message: 'vi_00198:tds is already Deposited (challan 0510123456789012)', correlationId: corr_9f1c2e7a } }
+
+/taxation/tds/entries/{id}/certificate:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - { name: id, in: path, required: true, schema: { type: string }, description: TdsRegisterRow id., example: 'pay_00131:tds' }
+  post:
+    tags: [Taxation]
+    summary: Issue a TDS certificate (Form 16A) for a deduction
+    operationId: issueTdsCertificate
+    x-permission: taxation.tds.manage
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/taxation.yaml#/TdsCertificateRequest' }
+          examples:
+            auto: { summary: Auto-numbered, value: {} }
+            emailed: { summary: Email to deductee, value: { certificateNo: TDS/2026-27/Q2/0007, email: true } }
+    responses:
+      '201':
+        description: Certified
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/taxation.yaml#/TdsEntry' }
+            examples:
+              certified: { summary: Certified, value: { id: tde_40, companyId: co_acme, kind: Deduction, sourceType: Payment, sourceId: pay_00131, sourceNumber: PAY/2026-27/00131, date: '2026-09-12', partyType: Supplier, partyId: sup_bharat, partyName: Bharat Steel Ltd, pan: AABCB1234C, sectionId: tds_194c, section: 194C, kindOfTax: TDS, rate: 2, base: 295000, amount: 5900, quarter: Q2, fy: '2026-27', certificateNo: TDS/2026-27/Q2/0007, certificateIssuedAt: '2026-10-20T10:00:00Z', challanNo: '0510123456789012', challanDate: '2026-10-05', status: Certified, createdAt: '2026-10-05T10:00:00Z', updatedAt: '2026-10-20T10:00:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Not deposited
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              notDeposited: { summary: Deposit first, value: { code: INVALID_STATE, message: Certificate needs a deposited challan — record the challan first, correlationId: corr_9f1c2e7a } }
+
+/taxation/tds/24q:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Taxation]
+    summary: Form 24Q data (salary TDS from payroll)
+    operationId: getForm24q
+    x-permission: taxation.tds.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/FiscalYear'
+      - { name: quarter, in: query, required: true, schema: { type: string, enum: [Q1, Q2, Q3, Q4] } }
+    responses:
+      '200':
+        description: Rows
+        content:
+          application/json:
+            schema: { type: object, required: [fy, quarter, rows, totals], properties: { fy: { type: string }, quarter: { type: string }, rows: { type: array, items: { $ref: '../components/schemas/taxation.yaml#/Form24qRow' } }, totals: { type: object, properties: { grossSalary: { type: number }, tdsDeducted: { type: number }, tdsDeposited: { type: number } } } } }
+            examples:
+              q2: { summary: Q2, value: { fy: '2026-27', quarter: Q2, rows: [{ employeeId: emp_priya, employeeName: Priya Sharma, pan: BNZPS1234K, quarter: Q2, grossSalary: 540000, tdsDeducted: 31500, tdsDeposited: 31500, regime: New }, { employeeId: emp_anil, employeeName: Anil Kumar, pan: AKLPK9876J, quarter: Q2, grossSalary: 240000, tdsDeducted: 0, tdsDeposited: 0, regime: New }], totals: { grossSalary: 780000, tdsDeducted: 31500, tdsDeposited: 31500 } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/taxation/tds/returns/generate:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Taxation]
+    summary: Generate a quarterly TDS/TCS return (26Q / 27EQ)
+    operationId: generateTdsReturn
+    x-permission: taxation.returns.create
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/taxation.yaml#/TdsReturnGenerateRequest' }
+          examples:
+            q2: { summary: 26Q Q2, value: { fy: '2026-27', quarter: Q2 } }
+            tcs: { summary: 27EQ Q2, value: { fy: '2026-27', quarter: Q2, kindOfTax: TCS } }
+    responses:
+      '201':
+        description: Generated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/taxation.yaml#/StatutoryReturn' }
+            examples:
+              generated: { summary: 26Q generated, value: { id: ret_26q_q2, companyId: co_acme, type: 26Q, period: 2026-27 Q2, fy: '2026-27', status: Generated, sections: [{ code: 194C, desc: Contractors, count: 4, taxable: 1240000, cgst: 0, sgst: 0, igst: 0, cess: 0, tax: 24800 }, { code: 194J, desc: Professional fees, count: 3, taxable: 210000, cgst: 0, sgst: 0, igst: 0, cess: 0, tax: 21000 }], totals: { taxable: 1450000, cgst: 0, sgst: 0, igst: 0, cess: 0, tax: 45800, tds: 45800 }, generatedAt: '2026-10-20T10:00:00Z', generatedBy: Priya Sharma, dueDate: '2026-10-31', hasJson: true, createdAt: '2026-10-20T10:00:00Z', updatedAt: '2026-10-20T10:00:00Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+# ── filings archive ───────────────────────────────────────────────────────
+
+/taxation/filings:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Taxation]
+    summary: Generated / filed returns archive (all types)
+    description: Tabs → All · Filed · Generated · Superseded. Query examples — `?type=GSTR-1` · `?fy=2026-27`.
+    operationId: listFilings
+    x-permission: taxation.returns.view
+    x-frd: [FR-CMP-007]
+    parameters:
+      - { name: type, in: query, schema: { $ref: '../components/schemas/taxation.yaml#/ReturnType' } }
+      - $ref: '../components/parameters.yaml#/FiscalYear'
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+    responses:
+      '200':
+        description: Returns
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/taxation.yaml#/StatutoryReturn' } }
+            examples:
+              firstPage: { summary: Archive, value: { data: [{ $ref: '#/components/examples/Gstr1Filed/value' }], meta: { nextCursor: null, limit: 25, total: 11, counts: { All: 11, Filed: 8, Generated: 1, Superseded: 2 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/taxation/filings/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Taxation]
+    summary: Get a return version
+    operationId: getFiling
+    x-permission: taxation.returns.view
+    responses:
+      '200':
+        description: Return
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/taxation.yaml#/StatutoryReturn' }
+            examples:
+              filed: { $ref: '../components/examples/taxation.yaml#/Gstr1Filed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/taxation/filings/{id}/json:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Taxation]
+    summary: Download the portal JSON for a return version
+    operationId: downloadFilingJson
+    x-permission: taxation.returns.export
+    responses:
+      '200':
+        description: GST portal / TRACES JSON
+        headers:
+          Content-Disposition: { $ref: '../components/headers.yaml#/ContentDisposition' }
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+            examples:
+              gstr1: { summary: GSTR-1 JSON (excerpt), value: { gstin: 27AAACA1234A1Z5, fp: '092026', version: GST3.0.4, hash: hash, b2b: [{ ctin: 27AABCA1234F1Z5, inv: [{ inum: INV/2026-27/00042, idt: 13-09-2026, val: 118000, pos: '27', rchrg: N, inv_typ: R, itms: [{ num: 1, itm_det: { txval: 100000, rt: 18, camt: 9000, samt: 9000 } }] }] }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── settings ──────────────────────────────────────────────────────────────
+
+/taxation/settings:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Taxation]
+    summary: Tax settings (thresholds, provider, due days)
+    operationId: getTaxSettings
+    x-permission: taxation.returns.view
+    responses:
+      '200':
+        description: Settings
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/TaxSettings' }
+            examples:
+              current: { summary: Current, value: { eInvoiceThreshold: 0, eWayBillThreshold: 50000, autoSubmitOnPost: false, provider: NIC IRP (sandbox), gstr1DueDay: 11, gstr3bDueDay: 20 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  put:
+    tags: [Taxation]
+    summary: Update tax settings
+    operationId: updateTaxSettings
+    x-permission: taxation.settings.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/admin.yaml#/TaxSettings' }
+          examples:
+            autoSubmit: { summary: Auto-submit on post, value: { autoSubmitOnPost: true, provider: NIC IRP (production) } }
+    responses:
+      '200':
+        description: Saved
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/TaxSettings' }
+            examples:
+              saved: { summary: Saved, value: { eInvoiceThreshold: 0, eWayBillThreshold: 50000, autoSubmitOnPost: true, provider: NIC IRP (production), gstr1DueDay: 11, gstr3bDueDay: 20 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }

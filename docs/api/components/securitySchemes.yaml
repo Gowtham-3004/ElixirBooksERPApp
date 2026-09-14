@@ -1,0 +1,18 @@
+bearerAuth:
+  type: http
+  scheme: bearer
+  bearerFormat: JWT
+  description: |
+    Access token issued by `POST /auth/login` (or `/auth/mfa/verify`, `/auth/invitations/{token}/accept`,
+    `/auth/register`). Carries `tenantId`, `userId`, role ids and the default company. Expires in 15 min;
+    refresh with `POST /auth/refresh`.
+apiKeyAuth:
+  type: apiKey
+  in: header
+  name: X-API-Key
+  description: |
+    Integration key created under **Admin › Integrations › API keys** (`POST /integrations/api-keys`).
+    The key is shown once at creation. Keys carry scopes (`sales.*`, `sales.invoice.view`,
+    `sales.invoice.create`, `sales.order.create`, `sales.receipt.view`, `purchase.*`, `purchase.order.view`,
+    `inventory.stock.view`, `masters.customers.view`, `masters.items.view`, `accounting.journal.view`,
+    `reports.*`, `webhooks.manage`) and are accepted only on operations whose `x-permission` is covered by a scope.

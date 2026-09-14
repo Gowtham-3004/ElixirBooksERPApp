@@ -1,0 +1,319 @@
+# Fixed assets (src/modules/fixed-assets/types.ts, actions.ts, calc.ts)
+
+DepMethod:
+  type: string
+  enum: [WDV, SLM]
+
+AssetStatus:
+  type: string
+  enum: [Draft, New, Active, Fully Depreciated, Disposed]
+
+AssetCategoryInput:
+  type: object
+  properties:
+    code: { type: string, example: PM }
+    name: { type: string, example: Plant & machinery }
+    method: { $ref: '#/DepMethod' }
+    ratePct: { type: number, example: 15 }
+    usefulLifeYears: { type: number, example: 15 }
+    assetAccountId: { type: string, example: acc_1610 }
+    depreciationAccountId: { type: string, example: acc_5700 }
+    accumulatedAccountId: { type: string, example: acc_1690 }
+
+AssetCategoryCreate:
+  allOf:
+    - $ref: '#/AssetCategoryInput'
+    - { required: [code, name, method, ratePct, usefulLifeYears, assetAccountId, depreciationAccountId, accumulatedAccountId] }
+
+AssetCategoryPatch:
+  allOf:
+    - $ref: '#/AssetCategoryInput'
+    - { type: object, properties: { status: { type: string, enum: [Active, Inactive] } } }
+    - $ref: './common.yaml#/ExpectedVersion'
+
+AssetCategory:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/AssetCategoryInput'
+    - type: object
+      required: [code, name, method, ratePct, usefulLifeYears, assetAccountId, depreciationAccountId, accumulatedAccountId, status]
+      properties:
+        status: { type: string, enum: [Active, Inactive] }
+        assetCount: { type: integer, readOnly: true, example: 12 }
+
+CapitalizeInput:
+  type: object
+  description: "Manual capitalisation, or from a posted vendor-invoice line (`sourceType: Vendor Invoice`, `sourceId`, `lineId`). `postJournal` moves the cost from the credit account (bank / CWIP / AP / GRNI) to the asset account."
+  properties:
+    name: { type: string, example: CNC lathe LX-200 }
+    description: { type: string }
+    categoryId: { type: string, example: cat_pm }
+    location: { type: string, example: Pune plant — Bay 3 }
+    branchId: { type: string, example: br_pune }
+    custodianId: { type: string, example: emp_suresh }
+    acquisitionDate: { type: string, format: date, example: '2026-09-01' }
+    capitalizationDate: { type: string, format: date, example: '2026-09-10' }
+    inServiceDate: { type: string, format: date, example: '2026-09-12' }
+    cost: { type: number, example: 1850000 }
+    residual: { type: number, example: 92500 }
+    usefulLifeYears: { type: number, description: Defaults from the category. }
+    method: { $ref: '#/DepMethod' }
+    ratePct: { type: number, description: Defaults from the category. }
+    dimensions: { $ref: './common.yaml#/KeyValue' }
+    quantity: { type: integer, default: 1 }
+    serialNo: { type: string, example: LX200-2026-0417 }
+    warrantyUntil: { type: string, format: date, example: '2028-09-01' }
+    notes: { type: string }
+    sourceType: { type: string, enum: [Vendor Invoice, GRN, Manual], default: Manual }
+    sourceId: { type: string, example: vi_00204 }
+    lineId: { type: string, description: Vendor-invoice line being capitalised., example: ln_vi_204_1 }
+    supplierId: { type: string }
+    creditAccountId: { type: string, description: Manual only — bank / CWIP / AP account credited., example: acc_1650 }
+    postJournal: { type: boolean, default: true }
+
+CapitalizeRequest:
+  allOf:
+    - $ref: '#/CapitalizeInput'
+    - { required: [name, categoryId, location, acquisitionDate, capitalizationDate, inServiceDate, cost, residual, postJournal] }
+
+CapitalizableLine:
+  type: object
+  required: [docId, docNumber, docDate, supplierName, lineId, itemName, amount, capital]
+  properties:
+    docId: { type: string, example: vi_00204 }
+    docNumber: { type: string, example: VI/2026-27/00204 }
+    docDate: { type: string, format: date }
+    supplierId: { type: string }
+    supplierName: { type: string, example: Precision Tools Ltd }
+    lineId: { type: string, example: ln_vi_204_1 }
+    itemId: { type: string }
+    itemName: { type: string, example: CNC lathe LX-200 }
+    description: { type: string }
+    accountId: { type: string }
+    qty: { type: number }
+    amount: { type: number, example: 1850000 }
+    capital: { type: boolean, description: Heuristic — item type Asset / PPE account / capital keyword. }
+
+AssetDisposalInfo:
+  type: object
+  required: [date, proceeds, reason, nbvAtDisposal, accumulatedAtDisposal, gainLoss]
+  properties:
+    date: { type: string, format: date }
+    proceeds: { type: number }
+    buyer: { type: string }
+    reason: { type: string }
+    nbvAtDisposal: { type: number }
+    accumulatedAtDisposal: { type: number }
+    gainLoss: { type: number, description: proceeds − NBV (+ gain / − loss). }
+    journalId: { type: string }
+    journalNumber: { type: string }
+    receiptAccountId: { type: string }
+
+Asset:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [number, name, categoryId, categoryName, location, acquisitionDate, capitalizationDate, inServiceDate, cost, residual, usefulLifeYears, method, ratePct, openingAccumulated, postedDepreciation, revaluation, impairment, assetAccountId, depreciationAccountId, accumulatedAccountId, dimensions, status]
+      properties:
+        number: { type: string, example: FA/2026-27/00031 }
+        name: { type: string }
+        description: { type: string }
+        categoryId: { type: string }
+        categoryName: { type: string }
+        location: { type: string }
+        branchId: { type: string }
+        custodianId: { type: string }
+        custodianName: { type: string }
+        acquisitionDate: { type: string, format: date }
+        capitalizationDate: { type: string, format: date }
+        inServiceDate: { type: string, format: date }
+        cost: { type: number }
+        residual: { type: number }
+        usefulLifeYears: { type: number }
+        method: { $ref: '#/DepMethod' }
+        ratePct: { type: number }
+        openingAccumulated: { type: number, description: Accumulated depreciation before books opened. }
+        postedDepreciation: { type: number, description: Accumulated depreciation posted through runs. }
+        revaluation: { type: number }
+        impairment: { type: number }
+        accumulated: { type: number, readOnly: true, description: openingAccumulated + postedDepreciation. }
+        nbv: { type: number, readOnly: true, description: cost + revaluation − impairment − accumulated. }
+        assetAccountId: { type: string }
+        depreciationAccountId: { type: string }
+        accumulatedAccountId: { type: string }
+        dimensions: { $ref: './common.yaml#/KeyValue' }
+        supplierId: { type: string }
+        supplierName: { type: string }
+        sourceType: { type: string }
+        sourceId: { type: string }
+        sourceNumber: { type: string }
+        journalId: { type: string }
+        journalNumber: { type: string }
+        status: { $ref: '#/AssetStatus' }
+        disposal: { $ref: '#/AssetDisposalInfo' }
+        quantity: { type: integer }
+        serialNo: { type: string }
+        warrantyUntil: { type: string, format: date }
+        notes: { type: string }
+        correlationId: { type: string }
+        approvalId: { type: string }
+
+AssetPatch:
+  type: object
+  description: Non-financial fields only; financial changes go through transfer / revalue / impair / dispose.
+  properties:
+    name: { type: string }
+    description: { type: string }
+    serialNo: { type: string }
+    warrantyUntil: { type: string, format: date }
+    notes: { type: string }
+    dimensions: { $ref: './common.yaml#/KeyValue' }
+    expectedVersion: { type: integer }
+
+AssetScheduleRow:
+  type: object
+  required: [period, openingNbv, depreciation, closingNbv, status]
+  properties:
+    period: { type: string, example: '2026-10' }
+    openingNbv: { type: number }
+    depreciation: { type: number }
+    closingNbv: { type: number }
+    status: { type: string, enum: [Posted, Projected] }
+    runId: { type: string }
+    runNumber: { type: string }
+
+AssetTransferRequest:
+  type: object
+  required: [date, reason]
+  properties:
+    date: { type: string, format: date }
+    location: { type: string, example: Andheri store — Basement }
+    branchId: { type: string, example: br_andheri }
+    custodianId: { type: string, example: emp_meena }
+    reason: { type: string, example: Bay 3 refit }
+    requireApproval: { type: boolean, default: false, description: Route through the 'Asset Transfer' workflow instead of applying immediately. }
+
+AssetRevalueRequest:
+  type: object
+  required: [kind, amount, date, reason]
+  properties:
+    kind: { type: string, enum: [Revaluation, Impairment] }
+    amount: { type: number, minimum: 0.01, example: 150000 }
+    date: { type: string, format: date }
+    reason: { type: string, example: Independent valuation Sep 2026 }
+
+AssetDisposeRequest:
+  type: object
+  required: [date, proceeds, reason, receiptAccountId]
+  properties:
+    date: { type: string, format: date, example: '2026-09-30' }
+    proceeds: { type: number, example: 120000 }
+    buyer: { type: string, example: Scrap Traders Co }
+    reason: { type: string, example: Obsolete — replaced by LX-300 }
+    receiptAccountId: { type: string, description: Bank / cash / AR account for the proceeds., example: acc_1310 }
+
+AssetEvent:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [assetId, assetNumber, assetName, type, date, detail, by]
+      properties:
+        assetId: { type: string }
+        assetNumber: { type: string }
+        assetName: { type: string }
+        type: { type: string, enum: [Created, Capitalized, Depreciated, Transferred, Revalued, Impaired, Disposed, Reversed] }
+        date: { type: string, format: date }
+        detail: { type: string, example: 'Pune plant — Bay 3 → Andheri store — Basement' }
+        amount: { type: number }
+        from: { type: string }
+        to: { type: string }
+        reason: { type: string }
+        journalId: { type: string }
+        journalNumber: { type: string }
+        by: { type: string }
+        approvalId: { type: string }
+        status: { type: string, enum: [Pending, Approved, Posted, Rejected] }
+        meta: { type: object, additionalProperties: true }
+
+DepreciationLine:
+  type: object
+  required: [assetId, assetNumber, assetName, categoryName, method, ratePct, openingNbv, depreciation, closingNbv, daysInService, daysInPeriod, dimensions, depreciationAccountId, accumulatedAccountId]
+  properties:
+    assetId: { type: string }
+    assetNumber: { type: string }
+    assetName: { type: string }
+    categoryName: { type: string }
+    method: { $ref: '#/DepMethod' }
+    ratePct: { type: number }
+    openingNbv: { type: number }
+    depreciation: { type: number }
+    closingNbv: { type: number }
+    daysInService: { type: number }
+    daysInPeriod: { type: number }
+    dimensions: { $ref: './common.yaml#/KeyValue' }
+    depreciationAccountId: { type: string }
+    accumulatedAccountId: { type: string }
+    note: { type: string, example: Pro-rated — in service from 12 Sep }
+
+DepreciationRun:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [number, period, fy, status, lines, total, assetCount]
+      properties:
+        number: { type: string, example: DEP/2026-27/00006 }
+        period: { type: string, example: '2026-09' }
+        fy: { type: string, example: '2026-27' }
+        status: { type: string, enum: [Draft, Posted, Reversed] }
+        lines: { type: array, items: { $ref: '#/DepreciationLine' } }
+        total: { type: number, example: 184320 }
+        assetCount: { type: integer, example: 31 }
+        journalId: { type: string }
+        journalNumber: { type: string }
+        postedAt: { type: string, format: date-time }
+        postedBy: { type: string }
+        reversedById: { type: string }
+        reversalOfId: { type: string }
+        reversalReason: { type: string }
+        branchId: { type: string }
+        correlationId: { type: string }
+
+DepreciationRunRequest:
+  type: object
+  required: [period]
+  properties:
+    period: { type: string, example: '2026-09' }
+    branchId: { type: string }
+    dryRun: { type: boolean, default: false, description: Preview lines without posting. }
+
+AssetRegisterRow:
+  type: object
+  required: [assetId, number, name, category, location, capitalizationDate, cost, accumulated, nbv, status]
+  properties:
+    assetId: { type: string }
+    number: { type: string }
+    name: { type: string }
+    category: { type: string }
+    location: { type: string }
+    branchId: { type: string }
+    custodianName: { type: string }
+    capitalizationDate: { type: string, format: date }
+    cost: { type: number }
+    additions: { type: number }
+    revaluation: { type: number }
+    impairment: { type: number }
+    accumulated: { type: number }
+    depreciationFy: { type: number }
+    nbv: { type: number }
+    status: { $ref: '#/AssetStatus' }
+
+AssetReport:
+  type: object
+  required: [report, asOf, rows, totals]
+  properties:
+    report: { type: string, enum: [register, schedule, disposals] }
+    asOf: { type: string, format: date }
+    fy: { type: string }
+    rows: { type: array, items: { $ref: '#/AssetRegisterRow' } }
+    totals: { type: object, additionalProperties: { type: number }, example: { cost: 12400000, accumulated: 3180000, nbv: 9220000 } }
+    scope: { $ref: './common.yaml#/Scope' }

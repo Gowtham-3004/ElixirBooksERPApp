@@ -358,7 +358,7 @@ export function DocDetailsTab({ doc, header, extra, showCharges = true, showTax 
   const s = useSession();
   const posted = doc.status === 'Posted' || doc.status === 'Settled' || doc.status === 'Reversed';
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1040 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <section>
         <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>Header {posted && <SnapshotTag />}</div>
         <Card padding={20}><KV items={header} columns={2} /></Card>

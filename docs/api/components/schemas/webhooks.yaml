@@ -1,0 +1,59 @@
+# Webhook delivery envelope (FRD §21.2; DOMAIN_EVENTS in src/modules/admin/shared.tsx)
+
+DomainEvent:
+  type: string
+  description: The 28 domain events a webhook can subscribe to (plus `test`).
+  enum: [DocumentCreated, DocumentSubmitted, DocumentApproved, DocumentRejected, DocumentPosted, DocumentReversed, DocumentCancelled, JournalPosted, JournalReversed, StockReserved, StockReleased, StockMoved, StockReversed, InvoicePosted, InvoiceCredited, ReceiptAllocated, ReceiptReversed, PurchaseReceived, PurchaseInvoiced, PurchaseMatched, PaymentApproved, PaymentCompleted, PaymentFailed, PeriodLocked, PeriodReopened, StatutorySubmissionAccepted, StatutorySubmissionRejected, StatutorySubmissionCancelled, test]
+
+WebhookEnvelope:
+  type: object
+  description: |
+    Every delivery is a `POST` to the subscription URL with this JSON body. Headers — `X-Elixir-Event` (event name), `X-Elixir-Delivery` (delivery id), `X-Elixir-Signature` (`t=<unix>,v1=<hex HMAC-SHA256 of "<t>.<raw body>" with the webhook secret>`), `X-Correlation-Id`.
+    Retries: exponential back-off (1 m, 5 m, 30 m, 2 h, 12 h) on non-2xx / timeout (10 s); after 10 consecutive failures the subscription is auto-paused. Deliveries are at-least-once — dedupe on `id`.
+  required: [id, event, occurredAt, tenantId, companyId, correlationId, data]
+  properties:
+    id: { type: string, description: Event id (stable across retries)., example: evt_01j8k6 }
+    event: { $ref: '#/DomainEvent' }
+    occurredAt: { type: string, format: date-time, example: '2026-09-13T09:12:04Z' }
+    tenantId: { type: string, example: ten_acme }
+    companyId: { type: string, example: co_acme }
+    branchId: { type: string, example: br_ho }
+    correlationId: { type: string, example: corr_9f1c2e7a }
+    actor: { type: object, properties: { userId: { type: string, example: usr_priya }, name: { type: string, example: Priya Sharma }, apiKeyId: { type: string } } }
+    data: { $ref: '#/WebhookData' }
+
+WebhookData:
+  type: object
+  description: Event payload — the affected document reference plus event-specific fields. Full records are fetched via the API (`link`).
+  required: [collection, docId, docNumber]
+  properties:
+    collection: { type: string, example: salesInvoices }
+    docType: { type: string, example: Sales Invoice }
+    docId: { type: string, example: inv_01j8k3 }
+    docNumber: { type: string, example: INV/2026-27/00042 }
+    status: { type: string, example: Posted }
+    previousStatus: { type: string, example: Approved }
+    link: { type: string, format: uri-reference, example: /v1/sales/invoices/inv_01j8k3 }
+    partyType: { type: string, example: Customer }
+    partyId: { type: string, example: cust_arlene }
+    amount: { type: number, example: 118000 }
+    currency: { type: string, example: INR }
+    journalId: { type: string }
+    journalNumber: { type: string }
+    reason: { type: string, description: Reversal / rejection / cancellation reason. }
+    approvalId: { type: string }
+    step: { type: object, properties: { order: { type: integer }, name: { type: string }, actorName: { type: string }, comment: { type: string } } }
+    movements: { type: array, items: { type: object, properties: { itemId: { type: string }, warehouseId: { type: string }, qty: { type: number }, batch: { type: string }, type: { type: string } } } }
+    reservation: { type: object, properties: { id: { type: string }, itemId: { type: string }, warehouseId: { type: string }, qty: { type: number }, expiresAt: { type: string, format: date-time } } }
+    allocations: { type: array, items: { type: object, properties: { openItemId: { type: string }, docNumber: { type: string }, amount: { type: number }, fxGainLoss: { type: number } } } }
+    matchStatus: { type: string, enum: [Matched, Exception, Not Required] }
+    exceptions: { type: array, items: { type: object, properties: { type: { type: string }, lineId: { type: string }, difference: { type: number } } } }
+    period: { type: object, properties: { code: { type: string }, status: { type: string }, by: { type: string } } }
+    statutory: { type: object, properties: { kind: { type: string, enum: [e-invoice, e-way-bill, gst-return, tds-return] }, provider: { type: string }, providerRef: { type: string }, irn: { type: string }, ewbNo: { type: string }, errorCode: { type: string }, errorMessage: { type: string } } }
+    payment: { type: object, properties: { method: { type: string }, reference: { type: string }, bankAccountId: { type: string }, batchId: { type: string }, failureReason: { type: string } } }
+
+WebhookAck:
+  type: object
+  description: Optional receiver body; any 2xx acknowledges the delivery.
+  properties:
+    received: { type: boolean, example: true }

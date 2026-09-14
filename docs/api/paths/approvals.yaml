@@ -1,0 +1,251 @@
+# Approvals inbox + activity feed (tag: Approvals). engine.ts:818-944, modules/approvals/*
+
+/approvals:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Approvals]
+    summary: Approval inbox
+    description: |
+      Generic inbox over every workflow document type. `tab` mirrors the UI: `awaiting-me` (steps I can act on),
+      `my-requests` (submitted by me), `all-pending`, `completed`. Each row includes `canAct` / `cannotActReason`
+      for the caller, ageing and SLA breach.
+
+      Query examples — `?tab=awaiting-me` · `?tab=all-pending&docType=Vendor Invoice` · `?tab=completed&dateFrom=2026-09-01` · `?slaBreached=true`.
+    operationId: listApprovals
+    x-permission: approvals.act.view
+    x-frd: [FR-WFL-002, FR-WFL-003]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - { name: tab, in: query, schema: { type: string, enum: [awaiting-me, my-requests, all-pending, completed], default: awaiting-me } }
+      - { name: docType, in: query, schema: { $ref: '../components/schemas/approvals.yaml#/WorkflowDocType' } }
+      - { name: status, in: query, schema: { type: string }, style: form, explode: false, example: 'Pending' }
+      - { name: requesterId, in: query, schema: { type: string } }
+      - { name: slaBreached, in: query, schema: { type: boolean } }
+      - $ref: '../components/parameters.yaml#/BranchFilter'
+      - $ref: '../components/parameters.yaml#/AmountMin'
+      - $ref: '../components/parameters.yaml#/AmountMax'
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Requests
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/approvals.yaml#/ApprovalRequest' } }
+            examples:
+              awaitingMe:
+                summary: tab = awaiting-me
+                value:
+                  data:
+                    - { id: apr_6c1d, companyId: co_acme, docType: Sales Invoice, collection: salesInvoices, docId: inv_01j8k3, docNumber: DRAFT-8821, amount: 118000, currency: INR, branchId: br_ho, requesterId: usr_priya, requesterName: Priya Sharma, ruleId: wf_si_100k, ruleName: Sales invoices above ₹1 lakh, ruleVersion: 2, steps: [{ order: 1, name: Finance review, approverType: Role, approverRef: role_finadmin, approverLabel: Finance Admin, status: Pending, commentRequired: false, dueAt: '2026-09-13T15:10:00Z' }], currentStep: 0, status: Pending, submittedAt: '2026-09-12T15:10:00Z', history: [{ at: '2026-09-12T15:10:00Z', by: Priya Sharma, action: Submitted }], summary: 'Arlene Traders · 3 lines · ₹1,18,000', canAct: true, ageingHours: 18, slaBreached: false, createdAt: '2026-09-12T15:10:00Z', updatedAt: '2026-09-12T15:10:00Z', version: 1 }
+                    - { id: apr_7e2f, companyId: co_acme, docType: Payment Batch, collection: paymentBatches, docId: pb_00012, docNumber: PB/2026-27/00012, amount: 1264000, currency: INR, branchId: br_ho, requesterId: usr_anita, requesterName: Anita Rao, ruleId: wf_pay_batch, ruleName: Payment batches (maker-checker), ruleVersion: 1, steps: [{ order: 1, name: Treasury approval, approverType: Role, approverRef: role_treasury, approverLabel: Treasury, status: Pending, commentRequired: true, dueAt: '2026-09-13T17:00:00Z' }], currentStep: 0, status: Pending, submittedAt: '2026-09-13T09:00:00Z', history: [{ at: '2026-09-13T09:00:00Z', by: Anita Rao, action: Submitted }], summary: '6 suppliers · ₹12,64,000', canAct: true, ageingHours: 0.2, slaBreached: false, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T09:00:00Z', version: 1 }
+                  meta: { nextCursor: null, limit: 25, total: 2, counts: { 'Awaiting me': 2, 'My requests': 1, 'All pending': 5, Completed: 212 } }
+                  scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' }
+              myRequests:
+                summary: tab = my-requests (cannot self-approve)
+                value:
+                  data:
+                    - { id: apr_8a0b, companyId: co_acme, docType: Expense Claim, collection: expenseClaims, docId: exp_00071, docNumber: EXP/2026-27/00071, amount: 8400, currency: INR, branchId: br_ho, requesterId: usr_rahul, requesterName: Rahul Mehta, ruleId: wf_exp_5k, ruleName: Expense claims above ₹5,000, ruleVersion: 1, steps: [{ order: 1, name: Line manager, approverType: Manager, approverRef: usr_owner, approverLabel: Reporting manager, status: Pending, commentRequired: false }], currentStep: 0, status: Pending, submittedAt: '2026-09-11T12:00:00Z', history: [], summary: Client dinner · 2 receipts, canAct: false, cannotActReason: You submitted this request (self-approval is not allowed), ageingHours: 45, slaBreached: false, createdAt: '2026-09-11T12:00:00Z', updatedAt: '2026-09-11T12:00:00Z', version: 1 }
+                  meta: { nextCursor: null, limit: 25, total: 1 }
+                  scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/approvals/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Approvals]
+    summary: Get an approval request (steps, comments, history)
+    operationId: getApproval
+    x-permission: approvals.act.view
+    responses:
+      '200':
+        description: Request
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/approvals.yaml#/ApprovalRequest' }
+            examples:
+              pending: { summary: Pending at step 1, value: { id: apr_6c1d, companyId: co_acme, docType: Sales Invoice, collection: salesInvoices, docId: inv_01j8k3, docNumber: DRAFT-8821, amount: 118000, currency: INR, branchId: br_ho, requesterId: usr_priya, requesterName: Priya Sharma, ruleId: wf_si_100k, ruleName: Sales invoices above ₹1 lakh, ruleVersion: 2, steps: [{ order: 1, name: Finance review, approverType: Role, approverRef: role_finadmin, approverLabel: Finance Admin, status: Pending, commentRequired: false, dueAt: '2026-09-13T15:10:00Z' }], currentStep: 0, status: Pending, submittedAt: '2026-09-12T15:10:00Z', history: [{ at: '2026-09-12T15:10:00Z', by: Priya Sharma, action: Submitted }], summary: 'Arlene Traders · 3 lines · ₹1,18,000', canAct: true, ageingHours: 18, slaBreached: false, createdAt: '2026-09-12T15:10:00Z', updatedAt: '2026-09-12T15:10:00Z', version: 1 } }
+              approved: { summary: Approved (completed), value: { id: apr_6c1d, companyId: co_acme, docType: Sales Invoice, collection: salesInvoices, docId: inv_01j8k3, docNumber: INV/2026-27/00042, amount: 118000, currency: INR, branchId: br_ho, requesterId: usr_priya, requesterName: Priya Sharma, ruleId: wf_si_100k, ruleName: Sales invoices above ₹1 lakh, ruleVersion: 2, steps: [{ order: 1, name: Finance review, approverType: Role, approverRef: role_finadmin, approverLabel: Finance Admin, status: Approved, actedBy: Rahul Mehta, actedById: usr_rahul, actedAt: '2026-09-13T09:11:00Z', comment: ok, commentRequired: false }], currentStep: 1, status: Approved, submittedAt: '2026-09-12T15:10:00Z', completedAt: '2026-09-13T09:11:00Z', history: [{ at: '2026-09-12T15:10:00Z', by: Priya Sharma, action: Submitted }, { at: '2026-09-13T09:11:00Z', by: Rahul Mehta, action: Approved, comment: ok, step: 1 }], canAct: false, cannotActReason: Request is complete, ageingHours: 18, slaBreached: false, createdAt: '2026-09-12T15:10:00Z', updatedAt: '2026-09-13T09:11:00Z', version: 2 } }
+              escalated: { summary: SLA breached and escalated, value: { id: apr_9d3e, companyId: co_acme, docType: Purchase Order, collection: purchaseOrders, docId: po_00118, docNumber: PO/SRT/0118/26-27, amount: 640000, currency: INR, branchId: br_surat, requesterId: usr_suresh, requesterName: Suresh Patel, ruleId: wf_po_50k, ruleName: Purchase orders above ₹50k, ruleVersion: 1, steps: [{ order: 1, name: Purchase manager, approverType: Role, approverRef: role_purchmgr, approverLabel: Purchase Manager, status: Escalated, commentRequired: false, dueAt: '2026-09-11T09:00:00Z' }], currentStep: 0, status: Pending, submittedAt: '2026-09-10T09:00:00Z', history: [{ at: '2026-09-10T09:00:00Z', by: Suresh Patel, action: Submitted }, { at: '2026-09-12T09:00:00Z', by: system, action: Escalated to Tenant Owner, step: 1 }], canAct: true, ageingHours: 72, slaBreached: true, createdAt: '2026-09-10T09:00:00Z', updatedAt: '2026-09-12T09:00:00Z', version: 2 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/approvals/{id}/act:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Approvals]
+    summary: Approve / reject / return / delegate / recall
+    description: |
+      - **Approve** → next step becomes Pending, or the request completes and the document goes `Approved`
+        (admin doc types apply their post-approval effect: Period Reopen, Profile Change, Exchange Rate, Supplier Bank Detail).
+      - **Reject** → document `Rejected` (comment required).
+      - **Return** → document `Returned` to the requester for edits (comment required).
+      - **Delegate** → step reassigned to `delegateToUserId` (step must allow delegation).
+      - **Recall** → requester withdraws; document back to `Draft`.
+
+      The caller must be an approver of the current step (`403 DENIED`); requesters cannot approve their own
+      request unless the rule allows self-approval (`403 SELF_APPROVAL`).
+    operationId: actOnApproval
+    x-permission: approvals.act.approve
+    x-idempotent: true
+    x-events: [DocumentApproved, DocumentRejected]
+    x-frd: [FR-WFL-002, FR-WFL-004]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/approvals.yaml#/ApprovalAction' }
+          examples:
+            approve: { summary: Approve with a comment, value: { action: Approve, comment: Checked against PO and GRN — ok to proceed } }
+            reject: { summary: Reject, value: { action: Reject, comment: Rate on line 2 is 8% below the approved price list without an override reason } }
+            return: { summary: Return for edits, value: { action: Return, comment: Please attach the customer PO before resubmitting } }
+            delegate: { summary: Delegate to a colleague, value: { action: Delegate, delegateToUserId: usr_anita, comment: On leave until 20 Sep } }
+            recall: { summary: Requester recalls, value: { action: Recall, comment: Found an error in the lines — will resubmit } }
+    responses:
+      '200':
+        description: Updated request + the affected document
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approval, document]
+              properties:
+                approval: { $ref: '../components/schemas/approvals.yaml#/ApprovalRequest' }
+                document:
+                  type: object
+                  additionalProperties: true
+                  description: The target document after the action (status updated).
+                nextStep: { $ref: '../components/schemas/approvals.yaml#/ApprovalStepState' }
+                completed: { type: boolean }
+            examples:
+              approvedFinal:
+                summary: Approve — last step, document Approved
+                value:
+                  approval: { id: apr_6c1d, companyId: co_acme, docType: Sales Invoice, collection: salesInvoices, docId: inv_01j8k3, docNumber: DRAFT-8821, amount: 118000, currency: INR, branchId: br_ho, requesterId: usr_priya, requesterName: Priya Sharma, ruleId: wf_si_100k, ruleName: Sales invoices above ₹1 lakh, ruleVersion: 2, steps: [{ order: 1, name: Finance review, approverType: Role, approverRef: role_finadmin, approverLabel: Finance Admin, status: Approved, actedBy: Rahul Mehta, actedById: usr_rahul, actedAt: '2026-09-13T09:11:00Z', comment: Checked against PO and GRN — ok to proceed, commentRequired: false }], currentStep: 1, status: Approved, submittedAt: '2026-09-12T15:10:00Z', completedAt: '2026-09-13T09:11:00Z', history: [{ at: '2026-09-12T15:10:00Z', by: Priya Sharma, action: Submitted }, { at: '2026-09-13T09:11:00Z', by: Rahul Mehta, action: Approved, step: 1 }], createdAt: '2026-09-12T15:10:00Z', updatedAt: '2026-09-13T09:11:00Z', version: 2 }
+                  document: { id: inv_01j8k3, number: DRAFT-8821, docType: Sales Invoice, status: Approved, partyName: Arlene Traders, totals: { total: 118000 }, version: 5 }
+                  completed: true
+              approvedNextStep:
+                summary: Approve — moves to step 2
+                value:
+                  approval: { id: apr_9d3e, companyId: co_acme, docType: Purchase Order, collection: purchaseOrders, docId: po_00118, docNumber: PO/SRT/0118/26-27, amount: 640000, currency: INR, branchId: br_surat, requesterId: usr_suresh, requesterName: Suresh Patel, ruleId: wf_po_2step, ruleName: POs above ₹5 lakh (2 steps), ruleVersion: 1, steps: [{ order: 1, name: Purchase manager, approverType: Role, approverRef: role_purchmgr, approverLabel: Purchase Manager, status: Approved, actedBy: Meena Joshi, actedAt: '2026-09-13T09:11:00Z', commentRequired: false }, { order: 2, name: CFO sign-off, approverType: User, approverRef: usr_rahul, approverLabel: Rahul Mehta, status: Pending, commentRequired: true, dueAt: '2026-09-14T09:11:00Z' }], currentStep: 1, status: Pending, submittedAt: '2026-09-10T09:00:00Z', history: [], createdAt: '2026-09-10T09:00:00Z', updatedAt: '2026-09-13T09:11:00Z', version: 2 }
+                  document: { id: po_00118, number: PO/SRT/0118/26-27, docType: Purchase Order, status: Submitted, version: 3 }
+                  nextStep: { order: 2, name: CFO sign-off, approverType: User, approverRef: usr_rahul, approverLabel: Rahul Mehta, status: Pending, commentRequired: true, dueAt: '2026-09-14T09:11:00Z' }
+                  completed: false
+              rejected:
+                summary: Reject — document Rejected
+                value:
+                  approval: { id: apr_6c1d, companyId: co_acme, docType: Sales Invoice, collection: salesInvoices, docId: inv_01j8k3, docNumber: DRAFT-8821, amount: 118000, currency: INR, branchId: br_ho, requesterId: usr_priya, requesterName: Priya Sharma, steps: [{ order: 1, name: Finance review, approverType: Role, approverRef: role_finadmin, approverLabel: Finance Admin, status: Rejected, actedBy: Rahul Mehta, actedAt: '2026-09-13T09:11:00Z', comment: Rate on line 2 is 8% below the approved price list without an override reason, commentRequired: false }], currentStep: 0, status: Rejected, submittedAt: '2026-09-12T15:10:00Z', completedAt: '2026-09-13T09:11:00Z', history: [], createdAt: '2026-09-12T15:10:00Z', updatedAt: '2026-09-13T09:11:00Z', version: 2 }
+                  document: { id: inv_01j8k3, number: DRAFT-8821, docType: Sales Invoice, status: Rejected, version: 5 }
+                  completed: true
+              delegated:
+                summary: Delegate — still Pending, new approver
+                value:
+                  approval: { id: apr_6c1d, companyId: co_acme, docType: Sales Invoice, collection: salesInvoices, docId: inv_01j8k3, docNumber: DRAFT-8821, amount: 118000, currency: INR, branchId: br_ho, requesterId: usr_priya, requesterName: Priya Sharma, steps: [{ order: 1, name: Finance review, approverType: User, approverRef: usr_anita, approverLabel: Anita Rao (delegated), status: Delegated, delegatedTo: Anita Rao, commentRequired: false }], currentStep: 0, status: Pending, submittedAt: '2026-09-12T15:10:00Z', history: [{ at: '2026-09-13T09:11:00Z', by: Rahul Mehta, action: Delegated to Anita Rao, comment: On leave until 20 Sep, step: 1 }], createdAt: '2026-09-12T15:10:00Z', updatedAt: '2026-09-13T09:11:00Z', version: 2 }
+                  document: { id: inv_01j8k3, number: DRAFT-8821, docType: Sales Invoice, status: Submitted, version: 4 }
+                  completed: false
+              recalled:
+                summary: Recall — document back to Draft
+                value:
+                  approval: { id: apr_6c1d, companyId: co_acme, docType: Sales Invoice, collection: salesInvoices, docId: inv_01j8k3, docNumber: DRAFT-8821, amount: 118000, currency: INR, branchId: br_ho, requesterId: usr_priya, requesterName: Priya Sharma, steps: [{ order: 1, name: Finance review, approverType: Role, approverRef: role_finadmin, approverLabel: Finance Admin, status: Skipped, commentRequired: false }], currentStep: 0, status: Recalled, submittedAt: '2026-09-12T15:10:00Z', completedAt: '2026-09-13T09:11:00Z', history: [{ at: '2026-09-13T09:11:00Z', by: Priya Sharma, action: Recalled, comment: Found an error in the lines — will resubmit }], createdAt: '2026-09-12T15:10:00Z', updatedAt: '2026-09-13T09:11:00Z', version: 2 }
+                  document: { id: inv_01j8k3, number: DRAFT-8821, docType: Sales Invoice, status: Draft, version: 5 }
+                  completed: true
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403':
+        description: Not an approver of the current step, or self-approval
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              notApprover: { summary: Not your step, value: { code: DENIED, message: Only Finance Admin can act on step 1 (Finance review), details: { step: 1, approverLabel: Finance Admin }, correlationId: corr_9f1c2e7a } }
+              selfApproval: { summary: Own request, value: { code: SELF_APPROVAL, message: You submitted this request — self-approval is not allowed by rule WF-SI-100K, correlationId: corr_9f1c2e7a } }
+              cannotDelegate: { summary: Step does not allow delegation, value: { code: DENIED, message: Step Treasury approval cannot be delegated, correlationId: corr_9f1c2e7a } }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/approvals/bulk-act:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Approvals]
+    summary: Approve or reject several requests
+    description: Each id is processed independently — partial success is reported per id.
+    operationId: bulkActOnApprovals
+    x-permission: approvals.act.approve
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/approvals.yaml#/BulkApprovalAction' }
+          examples:
+            approveSelected: { summary: Approve three, value: { ids: [apr_6c1d, apr_7e2f, apr_8a0b], action: Approve, comment: Batch approved after review } }
+            rejectSelected: { summary: Reject two, value: { ids: [apr_1, apr_2], action: Reject, comment: Missing supporting documents } }
+    responses:
+      '200':
+        description: Per-id results
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/BulkResult' }
+            examples:
+              allSucceeded: { summary: All approved, value: { requested: 2, succeeded: 2, failed: 0, results: [{ id: apr_6c1d, ok: true, status: Approved }, { id: apr_7e2f, ok: true, status: Approved }] } }
+              partialFailure: { summary: One self-approval refused, value: { requested: 3, succeeded: 2, failed: 1, results: [{ id: apr_6c1d, ok: true, status: Approved }, { id: apr_7e2f, ok: true, status: Approved }, { id: apr_8a0b, ok: false, code: SELF_APPROVAL, message: You submitted this request — self-approval is not allowed }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/activity:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Approvals]
+    summary: Company-wide activity feed (audit events)
+    description: The Approvals › Activity feed — same data as `/audit` with a simplified filter set. Query examples — `?actorId=usr_priya` · `?objectType=Sales Invoice` · `?action=approval.*`.
+    operationId: listActivityFeed
+    x-permission: approvals.act.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: actorId, in: query, schema: { type: string } }
+      - { name: objectType, in: query, schema: { type: string } }
+      - { name: action, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Events
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/system.yaml#/AuditEvent' } }
+            examples:
+              firstPage: { summary: Recent events, value: { data: [{ id: aud_4, companyId: co_acme, at: '2026-09-13T09:12:04Z', actor: Rahul Mehta, actorId: usr_rahul, action: invoice.posted, objectType: Sales Invoice, objectId: inv_01j8k3, objectNumber: INV/2026-27/00042, result: Success, detail: 'Posted ₹1,18,000', correlationId: corr_9f1c2e7a, channel: api, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }, { id: aud_3, companyId: co_acme, at: '2026-09-13T09:11:00Z', actor: Rahul Mehta, actorId: usr_rahul, action: approval.approved, objectType: Sales Invoice, objectId: inv_01j8k3, result: Success, detail: Step 1 Finance review, correlationId: corr_3, channel: web, createdAt: '2026-09-13T09:11:00Z', updatedAt: '2026-09-13T09:11:00Z', version: 1 }], meta: { nextCursor: eyJhdCI6IjIwMjYtMDktMTNUMDk6MTE6MDBaIn0, limit: 25, total: 4120 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }

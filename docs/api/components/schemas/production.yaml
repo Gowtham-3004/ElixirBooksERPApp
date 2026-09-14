@@ -1,0 +1,971 @@
+# Production / manufacturing (src/modules/production/types.ts + actions, masterActions, planning, issueActions, receiptActions, qualityActions, subcontractActions, core)
+
+MfgSettings:
+  type: object
+  properties:
+    mode: { type: string, enum: [discrete, process] }
+    planning: { type: string, enum: [MTS, MTO] }
+    overIssueTolerancePct: { type: number, example: 5 }
+    backflushDefault: { type: boolean, example: false }
+    qcRequiredForFG: { type: boolean, example: true }
+    costingMethod: { type: string, enum: [Standard, Actual] }
+    autoReleaseThreshold: { type: number, description: Auto-release MRP production suggestions below this standard value (0 = never)., example: 0 }
+    wipWarehouseId: { type: string, example: wh_wip }
+    scrapWarehouseId: { type: string, example: wh_scrap }
+    subcontractWarehouseId: { type: string, example: wh_subcon }
+    fgWarehouseId: { type: string, example: wh_main }
+    rmWarehouseId: { type: string, example: wh_rm }
+    labourAbsorbedAccountId: { type: string, example: acc_5810 }
+    overheadAbsorbedAccountId: { type: string, example: acc_5820 }
+
+# ── BOM ───────────────────────────────────────────────────────────────────
+
+BomComponentInput:
+  type: object
+  required: [itemId, qty]
+  properties:
+    id: { type: string }
+    itemId: { type: string, example: item_stl4 }
+    qty: { type: number, description: Per BOM output quantity., example: 12 }
+    uom: { type: string, example: KG }
+    scrapPct: { type: number, default: 0, example: 2 }
+    substitutes: { type: array, items: { type: string } }
+    isPhantom: { type: boolean, default: false }
+
+BomComponent:
+  allOf:
+    - $ref: '#/BomComponentInput'
+    - type: object
+      required: [id, itemCode, itemName, uom, scrapPct, substitutes, isPhantom]
+      properties:
+        itemCode: { type: string, readOnly: true }
+        itemName: { type: string, readOnly: true }
+
+BomByProductInput:
+  type: object
+  required: [itemId, qty, costSharePct]
+  properties:
+    id: { type: string }
+    itemId: { type: string, example: item_offcut }
+    qty: { type: number, example: 0.5 }
+    uom: { type: string, example: KG }
+    costSharePct: { type: number, example: 2 }
+
+BomByProduct:
+  allOf:
+    - $ref: '#/BomByProductInput'
+    - type: object
+      properties:
+        itemName: { type: string, readOnly: true }
+
+BomInput:
+  type: object
+  properties:
+    itemId: { type: string, example: item_frame }
+    effectiveFrom: { type: string, format: date, example: '2026-10-01' }
+    effectiveTo: { type: string, format: date }
+    mode: { type: string, enum: [discrete, process] }
+    outputQty: { type: number, example: 1 }
+    components: { type: array, minItems: 1, items: { $ref: '#/BomComponentInput' } }
+    byProducts: { type: array, items: { $ref: '#/BomByProductInput' } }
+    routingId: { type: string, example: rt_frame }
+    notes: { type: string }
+    status: { type: string, enum: [Draft, Active], default: Draft, description: "`Active` activates on create (supersedes the current active BOM from effectiveFrom)." }
+
+BomCreate:
+  allOf:
+    - $ref: '#/BomInput'
+    - { required: [itemId, effectiveFrom, mode, outputQty, components] }
+
+BomPatch:
+  allOf:
+    - $ref: '#/BomInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+Bom:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/BomInput'
+    - type: object
+      required: [code, itemId, itemCode, itemName, bomVersion, effectiveFrom, status, mode, outputQty, uom, components, byProducts]
+      properties:
+        code: { type: string, readOnly: true, example: BOM-FRAME-A1 }
+        itemCode: { type: string, readOnly: true, example: FRM-A1 }
+        itemName: { type: string, readOnly: true, example: Steel Frame A1 }
+        bomVersion: { type: integer, readOnly: true, description: BOM revision (the record `version` is optimistic-concurrency)., example: 2 }
+        status: { type: string, enum: [Draft, Active, Superseded] }
+        uom: { type: string, readOnly: true, example: NOS }
+        components: { type: array, items: { $ref: '#/BomComponent' } }
+        byProducts: { type: array, items: { $ref: '#/BomByProduct' } }
+        supersedesId: { type: string, readOnly: true }
+        supersededById: { type: string, readOnly: true }
+        stdCost: { type: number, readOnly: true, description: Last roll-up per output unit., example: 2380 }
+        rolledUpAt: { type: string, format: date-time, readOnly: true }
+
+CostRollup:
+  type: object
+  required: [material, labour, machine, overhead, subcontract, byProductCredit, total, perUnit, lines, ops]
+  properties:
+    material: { type: number, example: 1960 }
+    labour: { type: number, example: 240 }
+    machine: { type: number, example: 150 }
+    overhead: { type: number, example: 80 }
+    subcontract: { type: number, example: 0 }
+    byProductCredit: { type: number, example: 50 }
+    total: { type: number, example: 2380 }
+    perUnit: { type: number, example: 2380 }
+    lines: { type: array, items: { type: object, properties: { itemId: { type: string }, itemName: { type: string }, qty: { type: number }, unitCost: { type: number }, scrapPct: { type: number }, extended: { type: number }, source: { type: string, example: AVCO } } } }
+    ops: { type: array, items: { type: object, properties: { name: { type: string }, minutes: { type: number }, labour: { type: number }, machine: { type: number }, overhead: { type: number }, subcontract: { type: number } } } }
+
+BomCompare:
+  type: object
+  required: [a, b, added, removed, changed]
+  properties:
+    a: { type: object, properties: { id: { type: string }, code: { type: string }, bomVersion: { type: integer } } }
+    b: { type: object, properties: { id: { type: string }, code: { type: string }, bomVersion: { type: integer } } }
+    added: { type: array, items: { $ref: '#/BomComponent' } }
+    removed: { type: array, items: { $ref: '#/BomComponent' } }
+    changed: { type: array, items: { type: object, properties: { itemId: { type: string }, itemName: { type: string }, from: { type: object, additionalProperties: true }, to: { type: object, additionalProperties: true } } } }
+    stdCostA: { type: number }
+    stdCostB: { type: number }
+
+# ── routing & work centres ────────────────────────────────────────────────
+
+RoutingOperationInput:
+  type: object
+  required: [seq, name, workCentreId, setupMin, runMinPerUnit]
+  properties:
+    id: { type: string }
+    seq: { type: integer, example: 10 }
+    name: { type: string, example: Cutting }
+    workCentreId: { type: string, example: wc_cut }
+    setupMin: { type: number, example: 15 }
+    runMinPerUnit: { type: number, example: 4 }
+    labourRate: { type: number, description: Per hour; defaults from the work centre., example: 300 }
+    machineRate: { type: number, example: 500 }
+    yieldPct: { type: number, default: 100 }
+    parallel: { type: boolean, default: false }
+    subcontract: { type: boolean, default: false }
+    supplierId: { type: string }
+    serviceItemId: { type: string }
+    subcontractRate: { type: number }
+
+RoutingInput:
+  type: object
+  properties:
+    code: { type: string, example: RT-FRAME }
+    name: { type: string, example: Frame A1 standard route }
+    itemId: { type: string, example: item_frame }
+    operations: { type: array, minItems: 1, items: { $ref: '#/RoutingOperationInput' } }
+    notes: { type: string }
+
+RoutingCreate:
+  allOf:
+    - $ref: '#/RoutingInput'
+    - { required: [name, operations] }
+
+RoutingPatch:
+  allOf:
+    - $ref: '#/RoutingInput'
+    - { type: object, properties: { status: { type: string, enum: [Active, Inactive] } } }
+    - $ref: './common.yaml#/ExpectedVersion'
+
+Routing:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/RoutingInput'
+    - type: object
+      required: [code, name, operations, status]
+      properties:
+        itemName: { type: string, readOnly: true }
+        status: { type: string, enum: [Active, Inactive] }
+        totalMinutesPerUnit: { type: number, readOnly: true, example: 11 }
+
+WorkCentreInput:
+  type: object
+  properties:
+    code: { type: string, example: WC-CUT }
+    name: { type: string, example: Cutting bay }
+    workingDays: { type: array, items: { type: integer, minimum: 0, maximum: 6 }, description: 0 = Sunday … 6 = Saturday., example: [1, 2, 3, 4, 5, 6] }
+    hoursPerDay: { type: number, example: 8 }
+    capacityHrsPerDay: { type: number, example: 16 }
+    efficiencyPct: { type: number, example: 85 }
+    costRateLabour: { type: number, example: 300 }
+    costRateMachine: { type: number, example: 500 }
+    overheadRate: { type: number, example: 120 }
+    warehouseId: { type: string, example: wh_wip }
+    branchId: { type: string }
+    permittedOperations: { type: array, items: { type: string }, example: [Cutting, Bending] }
+
+WorkCentreCreate:
+  allOf:
+    - $ref: '#/WorkCentreInput'
+    - { required: [code, name, workingDays, hoursPerDay, capacityHrsPerDay, warehouseId] }
+
+WorkCentrePatch:
+  allOf:
+    - $ref: '#/WorkCentreInput'
+    - { type: object, properties: { status: { type: string, enum: [Active, Inactive] } } }
+    - $ref: './common.yaml#/ExpectedVersion'
+
+WorkCentre:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/WorkCentreInput'
+    - type: object
+      required: [code, name, workingDays, hoursPerDay, capacityHrsPerDay, efficiencyPct, costRateLabour, costRateMachine, overheadRate, warehouseId, permittedOperations, status]
+      properties:
+        status: { type: string, enum: [Active, Inactive] }
+
+WeekLoad:
+  type: object
+  required: [weekStart, weekEnd, label, capacity, load, orders]
+  properties:
+    weekStart: { type: string, format: date }
+    weekEnd: { type: string, format: date }
+    label: { type: string, example: 'Wk 38 · 14–20 Sep' }
+    capacity: { type: number, example: 96 }
+    load: { type: number, example: 74 }
+    orders: { type: array, items: { type: object, properties: { id: { type: string }, number: { type: string }, hours: { type: number } } } }
+
+# ── MRP ───────────────────────────────────────────────────────────────────
+
+MrpParams:
+  type: object
+  required: [horizonDays]
+  properties:
+    horizonDays: { type: integer, example: 30 }
+    includeSafetyStock: { type: boolean, default: true }
+    lotSizing: { type: string, enum: [Lot-for-lot, Fixed qty, Min order], default: Lot-for-lot }
+    warehouseId: { type: string }
+    includeDrafts: { type: boolean, default: false, description: Count draft sales orders as demand. }
+
+DemandRef:
+  type: object
+  required: [type, id, number, qty, date]
+  properties:
+    type: { type: string, example: Sales Order }
+    id: { type: string }
+    number: { type: string, example: SO/2026-27/00090 }
+    qty: { type: number }
+    date: { type: string, format: date }
+
+MrpSuggestion:
+  type: object
+  required: [id, type, itemId, itemCode, itemName, qty, uom, needBy, orderBy, reason, demandRefs, estValue, status]
+  properties:
+    id: { type: string }
+    type: { type: string, enum: [Purchase, Production, Transfer] }
+    itemId: { type: string }
+    itemCode: { type: string }
+    itemName: { type: string }
+    qty: { type: number }
+    uom: { type: string }
+    needBy: { type: string, format: date }
+    orderBy: { type: string, format: date }
+    reason: { type: string, example: 'Net requirement 120 for SO/2026-27/00090 (lead time 7 d)' }
+    demandRefs: { type: array, items: { $ref: '#/DemandRef' } }
+    supplierId: { type: string }
+    supplierName: { type: string }
+    fromWarehouseId: { type: string }
+    toWarehouseId: { type: string }
+    bomId: { type: string }
+    estValue: { type: number }
+    status: { type: string, enum: [Suggested, Accepted, Rejected, Converted] }
+    convertedDocId: { type: string }
+    convertedDocNumber: { type: string }
+    convertedDocType: { type: string }
+
+MrpItemDetail:
+  type: object
+  required: [itemId, itemCode, itemName, uom, onHand, reserved, openPo, plannedReceipts, safetyStock, independentDemand, dependentDemand, netRequirement, shortfall, hasBom]
+  properties:
+    itemId: { type: string }
+    itemCode: { type: string }
+    itemName: { type: string }
+    uom: { type: string }
+    onHand: { type: number }
+    reserved: { type: number }
+    openPo: { type: number }
+    plannedReceipts: { type: number }
+    safetyStock: { type: number }
+    independentDemand: { type: number }
+    dependentDemand: { type: number }
+    netRequirement: { type: number }
+    shortfall: { type: number }
+    hasBom: { type: boolean }
+
+MrpRun:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [number, date, branchId, params, suggestions, details, status, runBy, summary]
+      properties:
+        number: { type: string, example: MRP/2026-27/00009 }
+        date: { type: string, format: date }
+        branchId: { type: string }
+        params: { $ref: '#/MrpParams' }
+        suggestions: { type: array, items: { $ref: '#/MrpSuggestion' } }
+        details: { type: array, items: { $ref: '#/MrpItemDetail' } }
+        status: { type: string, enum: [Completed, Partially Converted, Converted] }
+        runBy: { type: string }
+        summary: { type: object, properties: { itemsPlanned: { type: integer }, shortfalls: { type: integer }, purchase: { type: integer }, production: { type: integer }, transfer: { type: integer }, value: { type: number } } }
+
+MrpConvertResult:
+  type: object
+  required: [purchaseOrders, productionOrders, skipped]
+  properties:
+    purchaseOrders: { type: array, items: { type: object, properties: { id: { type: string }, number: { type: string }, supplierName: { type: string }, total: { type: number } } } }
+    productionOrders: { type: array, items: { type: object, properties: { id: { type: string }, number: { type: string }, itemName: { type: string }, qty: { type: number }, status: { type: string } } } }
+    skipped: { type: array, items: { type: string }, example: ['Tea Crate: no preferred supplier'] }
+
+# ── production order ──────────────────────────────────────────────────────
+
+ProductionOrderStatus:
+  type: string
+  enum: [Draft, Planned, Submitted, Approved, Rejected, Returned, Released, In Progress, Partially Completed, Completed, Closed, Cancelled]
+
+OrderComponent:
+  type: object
+  required: [id, itemId, itemCode, itemName, uom, qtyPer, scrapPct, plannedQty, issuedQty, returnedQty, consumedQty, isPhantom, substitutes, tracking]
+  properties:
+    id: { type: string }
+    bomComponentId: { type: string }
+    itemId: { type: string }
+    itemCode: { type: string }
+    itemName: { type: string }
+    uom: { type: string }
+    qtyPer: { type: number }
+    scrapPct: { type: number }
+    plannedQty: { type: number }
+    issuedQty: { type: number }
+    returnedQty: { type: number }
+    consumedQty: { type: number }
+    isPhantom: { type: boolean }
+    substitutes: { type: array, items: { type: string } }
+    tracking: { type: string, enum: [None, Batch, Serial] }
+    warehouseId: { type: string }
+
+OrderOperation:
+  type: object
+  required: [id, seq, name, workCentreId, workCentreName, setupMin, runMinPerUnit, labourRate, machineRate, overheadRate, yieldPct, parallel, subcontract, status, actualSetupMin, actualRunMin, labourCost, machineCost, overheadCost, subcontractCost, completedQty, scrapQty]
+  properties:
+    id: { type: string }
+    seq: { type: integer }
+    name: { type: string }
+    workCentreId: { type: string }
+    workCentreName: { type: string }
+    setupMin: { type: number }
+    runMinPerUnit: { type: number }
+    labourRate: { type: number }
+    machineRate: { type: number }
+    overheadRate: { type: number }
+    yieldPct: { type: number }
+    parallel: { type: boolean }
+    subcontract: { type: boolean }
+    supplierId: { type: string }
+    serviceItemId: { type: string }
+    subcontractRate: { type: number }
+    status: { type: string, enum: [Pending, In Progress, Done, Skipped] }
+    startedAt: { type: string, format: date-time }
+    stoppedAt: { type: string, format: date-time }
+    actualSetupMin: { type: number }
+    actualRunMin: { type: number }
+    labourCost: { type: number }
+    machineCost: { type: number }
+    overheadCost: { type: number }
+    subcontractCost: { type: number }
+    completedQty: { type: number }
+    scrapQty: { type: number }
+    scrapReason: { type: string }
+    subcontractOrderId: { type: string }
+    isRework: { type: boolean }
+    journalId: { type: string }
+    completedBy: { type: string }
+    completedAt: { type: string, format: date-time }
+
+ProductionCosts:
+  type: object
+  properties:
+    materialStd: { type: number }
+    materialActual: { type: number }
+    labourStd: { type: number }
+    labourActual: { type: number }
+    machineStd: { type: number }
+    machineActual: { type: number }
+    overheadStd: { type: number }
+    overheadActual: { type: number }
+    subcontractStd: { type: number }
+    subcontractActual: { type: number }
+    scrap: { type: number }
+    byProductCredit: { type: number }
+    outputValue: { type: number }
+    totalStd: { type: number }
+    totalActual: { type: number }
+    variance: { type: number }
+    variancePct: { type: number }
+    wipBalance: { type: number }
+    closeVariance: { type: number }
+
+SourceDemand:
+  type: object
+  required: [type, id, number]
+  properties:
+    type: { type: string, example: Sales Order }
+    id: { type: string }
+    number: { type: string, example: SO/2026-27/00090 }
+    lineId: { type: string }
+    customerName: { type: string }
+
+ProductionOrderInput:
+  type: object
+  properties:
+    itemId: { type: string, example: item_frame }
+    bomId: { type: string, description: Defaults to the active BOM as of plannedStart., example: bom_frame_2 }
+    routingId: { type: string, description: Defaults to the BOM routing. }
+    qty: { type: number, example: 50 }
+    plannedStart: { type: string, format: date, example: '2026-09-15' }
+    plannedEnd: { type: string, format: date, description: Computed from the routing when omitted. }
+    warehouseId: { type: string, description: FG receipt warehouse., example: wh_main }
+    wipWarehouseId: { type: string }
+    rmWarehouseId: { type: string }
+    serialPrefix: { type: string, example: SN-FRM }
+    sourceDemand: { $ref: '#/SourceDemand' }
+    mrpRunId: { type: string }
+    priority: { type: string, enum: [Normal, High, Low], default: Normal }
+    dimensions: { $ref: './common.yaml#/KeyValue' }
+    notes: { type: string }
+    status: { type: string, enum: [Draft, Planned], default: Draft }
+    date: { type: string, format: date }
+
+ProductionOrderCreate:
+  allOf:
+    - $ref: '#/ProductionOrderInput'
+    - { required: [itemId, qty, plannedStart] }
+
+ProductionOrderPatch:
+  allOf:
+    - $ref: '#/ProductionOrderInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+ProductionOrder:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/ProductionOrderInput'
+    - type: object
+      required: [number, docType, date, branchId, status, itemId, itemCode, itemName, uom, tracking, bomId, bomCode, bomVersion, qty, plannedStart, plannedEnd, warehouseId, wipWarehouseId, rmWarehouseId, scrapWarehouseId, components, operations, costs, costingMethod, stdUnitCost, receivedQty, scrapQty, byProductsReceived, journalIds, priority, correlationId]
+      properties:
+        number: { type: string, readOnly: true, example: PO-MFG/2026-27/00041 }
+        docType: { type: string, const: Production Order }
+        branchId: { type: string, readOnly: true }
+        status: { $ref: '#/ProductionOrderStatus' }
+        itemCode: { type: string, readOnly: true, example: FRM-A1 }
+        itemName: { type: string, readOnly: true, example: Steel Frame A1 }
+        uom: { type: string, readOnly: true, example: NOS }
+        tracking: { type: string, readOnly: true, enum: [None, Batch, Serial] }
+        bomCode: { type: string, readOnly: true }
+        bomVersion: { type: integer, readOnly: true }
+        routingCode: { type: string, readOnly: true }
+        actualStart: { type: string, format: date, readOnly: true }
+        actualEnd: { type: string, format: date, readOnly: true }
+        scrapWarehouseId: { type: string, readOnly: true }
+        lotNumber: { type: string, readOnly: true, example: LOT-FRM-0041 }
+        components: { type: array, readOnly: true, items: { $ref: '#/OrderComponent' } }
+        operations: { type: array, readOnly: true, items: { $ref: '#/OrderOperation' } }
+        costs: { $ref: '#/ProductionCosts' }
+        costingMethod: { type: string, readOnly: true, enum: [Standard, Actual] }
+        stdUnitCost: { type: number, readOnly: true, example: 2380 }
+        receivedQty: { type: number, readOnly: true }
+        scrapQty: { type: number, readOnly: true }
+        byProductsReceived: { type: array, readOnly: true, items: { type: object, properties: { itemId: { type: string }, itemName: { type: string }, qty: { type: number }, value: { type: number } } } }
+        journalIds: { type: array, readOnly: true, items: { type: string } }
+        closeJournalId: { type: string, readOnly: true }
+        approvalId: { type: string, readOnly: true }
+        reasonForCancel: { type: string, readOnly: true }
+        reopenReason: { type: string, readOnly: true }
+        shortCloseReason: { type: string, readOnly: true }
+        correlationId: { type: string, readOnly: true }
+        releasedAt: { type: string, format: date-time, readOnly: true }
+        releasedBy: { type: string, readOnly: true }
+        startedAt: { type: string, format: date-time, readOnly: true }
+        completedAt: { type: string, format: date-time, readOnly: true }
+        closedAt: { type: string, format: date-time, readOnly: true }
+        closedBy: { type: string, readOnly: true }
+        submittedAt: { type: string, format: date-time, readOnly: true }
+        submittedBy: { type: string, readOnly: true }
+        cancelledAt: { type: string, format: date-time, readOnly: true }
+        autoReleased: { type: boolean, readOnly: true }
+        fy: { type: string, readOnly: true }
+        period: { type: string, readOnly: true }
+        late: { type: boolean, readOnly: true }
+
+AvailabilityLine:
+  type: object
+  required: [componentId, itemName, required, available, shortfall, uom, warehouse]
+  properties:
+    componentId: { type: string }
+    itemName: { type: string }
+    required: { type: number }
+    available: { type: number }
+    shortfall: { type: number }
+    uom: { type: string }
+    warehouse: { type: string }
+
+ReleaseRequest:
+  type: object
+  properties:
+    acknowledgeShortfall: { type: boolean, default: false, description: Release even if components are short (warning recorded). }
+
+OperationRecordRequest:
+  type: object
+  properties:
+    actualSetupMin: { type: number, example: 20 }
+    actualRunMin: { type: number, example: 210 }
+    addMinutes: { type: number, description: Increment run minutes instead of setting them. }
+    completedQty: { type: number, example: 50 }
+    scrapQty: { type: number, example: 1 }
+    scrapReason: { type: string, example: Weld crack }
+
+ReworkOperationRequest:
+  type: object
+  required: [name, workCentreId, reason]
+  properties:
+    name: { type: string, example: Re-weld }
+    workCentreId: { type: string, example: wc_weld }
+    reason: { type: string, example: 3 frames failed QC — porous welds }
+
+# ── material issues ───────────────────────────────────────────────────────
+
+IssueLineInput:
+  type: object
+  required: [itemId, qty]
+  properties:
+    componentId: { type: string, example: oc_1 }
+    itemId: { type: string, example: item_stl4 }
+    qty: { type: number, example: 612 }
+    batch: { type: string, example: B-2609-11 }
+    serials: { type: array, items: { type: string } }
+    warehouseId: { type: string, example: wh_rm }
+
+IssueLine:
+  allOf:
+    - $ref: '#/IssueLineInput'
+    - type: object
+      required: [id, itemCode, itemName, uom, rate, value]
+      properties:
+        id: { type: string }
+        itemCode: { type: string }
+        itemName: { type: string }
+        uom: { type: string }
+        rate: { type: number }
+        value: { type: number }
+
+MaterialIssueCreate:
+  type: object
+  required: [orderId, lines]
+  properties:
+    orderId: { type: string, example: mo_0041 }
+    type: { type: string, enum: [Issue, Return], default: Issue, description: Backflush issues are created by receipts. }
+    date: { type: string, format: date }
+    lines: { type: array, minItems: 1, items: { $ref: '#/IssueLineInput' } }
+    notes: { type: string }
+
+MaterialIssue:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [number, docType, date, branchId, orderId, orderNumber, type, lines, status, totalValue, movementIds, idempotencyKey, postedAt, postedBy, correlationId]
+      properties:
+        number: { type: string, example: MI/2026-27/00112 }
+        docType: { type: string, const: Material Issue }
+        date: { type: string, format: date }
+        branchId: { type: string }
+        orderId: { type: string }
+        orderNumber: { type: string }
+        type: { type: string, enum: [Issue, Return, Backflush] }
+        lines: { type: array, items: { $ref: '#/IssueLine' } }
+        status: { type: string, enum: [Posted, Reversed] }
+        totalValue: { type: number }
+        journalId: { type: string }
+        journalNumber: { type: string }
+        movementIds: { type: array, items: { type: string } }
+        idempotencyKey: { type: string }
+        reversalOfId: { type: string }
+        reversedById: { type: string }
+        reversalReason: { type: string }
+        postedAt: { type: string, format: date-time }
+        postedBy: { type: string }
+        notes: { type: string }
+        receiptId: { type: string }
+        correlationId: { type: string }
+
+# ── receipts ──────────────────────────────────────────────────────────────
+
+ProductionReceiptCreate:
+  type: object
+  required: [orderId, qty]
+  properties:
+    orderId: { type: string, example: mo_0041 }
+    qty: { type: number, description: Good quantity (may be 0 when only scrap)., example: 48 }
+    batch: { type: string, description: Defaults to the order lot number. }
+    serials: { type: array, items: { type: string } }
+    warehouseId: { type: string }
+    byProducts: { type: array, items: { type: object, required: [itemId, qty], properties: { itemId: { type: string }, qty: { type: number } } } }
+    scrapQty: { type: number, example: 2 }
+    scrapReason: { type: string, example: Weld crack }
+    qcRequired: { type: boolean, description: Defaults from `qcRequiredForFG`. }
+    backflush: { type: boolean, description: Auto-issue components pro rata. }
+    date: { type: string, format: date }
+    notes: { type: string }
+
+ProductionReceipt:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [number, docType, date, branchId, orderId, orderNumber, itemId, itemCode, itemName, qty, uom, warehouseId, byProducts, scrapQty, scrapValue, qcRequired, status, unitCost, costBasis, value, backflush, movementIds, correlationId, idempotencyKey]
+      properties:
+        number: { type: string, example: PR/2026-27/00088 }
+        docType: { type: string, const: Production Receipt }
+        date: { type: string, format: date }
+        branchId: { type: string }
+        orderId: { type: string }
+        orderNumber: { type: string }
+        itemId: { type: string }
+        itemCode: { type: string }
+        itemName: { type: string }
+        qty: { type: number }
+        uom: { type: string }
+        batch: { type: string }
+        serials: { type: array, items: { type: string } }
+        warehouseId: { type: string }
+        byProducts: { type: array, items: { type: object, properties: { itemId: { type: string }, itemName: { type: string }, qty: { type: number }, uom: { type: string }, value: { type: number } } } }
+        scrapQty: { type: number }
+        scrapReason: { type: string }
+        scrapValue: { type: number }
+        qcRequired: { type: boolean }
+        inspectionId: { type: string }
+        inspectionNumber: { type: string }
+        status: { type: string, enum: [Hold, Posted, Reversed, Rejected] }
+        unitCost: { type: number }
+        costBasis: { type: string, enum: [Standard, Actual] }
+        value: { type: number }
+        backflush: { type: boolean }
+        backflushIssueId: { type: string }
+        journalId: { type: string }
+        journalNumber: { type: string }
+        scrapJournalId: { type: string }
+        movementIds: { type: array, items: { type: string } }
+        reversalOfId: { type: string }
+        reversedById: { type: string }
+        reversalReason: { type: string }
+        postedAt: { type: string, format: date-time }
+        postedBy: { type: string }
+        notes: { type: string }
+        correlationId: { type: string }
+        idempotencyKey: { type: string }
+
+ResolveHoldRequest:
+  type: object
+  required: [acceptedQty, rejectedQty]
+  properties:
+    acceptedQty: { type: number, example: 47 }
+    rejectedQty: { type: number, example: 1 }
+    reason: { type: string }
+
+# ── quality ───────────────────────────────────────────────────────────────
+
+InspectionType:
+  type: string
+  enum: [Incoming, In-process, Finished goods]
+
+InspectionCheck:
+  type: object
+  required: [name, spec, method, kind]
+  properties:
+    id: { type: string }
+    name: { type: string, example: Weld integrity }
+    spec: { type: string, example: No visible cracks }
+    method: { type: string, example: Visual + dye penetrant }
+    kind: { type: string, enum: [Pass/Fail, Measurement] }
+    min: { type: number }
+    max: { type: number }
+    unit: { type: string }
+
+InspectionPlanInput:
+  type: object
+  properties:
+    code: { type: string, example: QP-FG-FRAME }
+    name: { type: string, example: Frame finished-goods check }
+    type: { $ref: '#/InspectionType' }
+    itemId: { type: string }
+    checks: { type: array, minItems: 1, items: { $ref: '#/InspectionCheck' } }
+    samplePct: { type: number, example: 10 }
+
+InspectionPlanCreate:
+  allOf:
+    - $ref: '#/InspectionPlanInput'
+    - { required: [name, type, checks] }
+
+InspectionPlanPatch:
+  allOf:
+    - $ref: '#/InspectionPlanInput'
+    - { type: object, properties: { status: { type: string, enum: [Active, Inactive] } } }
+    - $ref: './common.yaml#/ExpectedVersion'
+
+InspectionPlan:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/InspectionPlanInput'
+    - type: object
+      required: [code, name, type, checks, samplePct, status]
+      properties:
+        itemName: { type: string, readOnly: true }
+        status: { type: string, enum: [Active, Inactive] }
+
+InspectionResult:
+  type: object
+  required: [checkId, pass]
+  properties:
+    checkId: { type: string }
+    check: { type: string, readOnly: true }
+    spec: { type: string, readOnly: true }
+    value: { type: string, example: '2.1' }
+    pass: { type: [boolean, 'null'] }
+    note: { type: string }
+
+Disposition:
+  type: string
+  enum: [Accept, Reject, Rework, Scrap, Return, Hold]
+
+InspectionCreate:
+  type: object
+  required: [type, itemId, refType, refId, lotQty]
+  properties:
+    type: { $ref: '#/InspectionType' }
+    itemId: { type: string, example: item_frame }
+    refType: { type: string, enum: [GRN, Purchase Order, Production Order, Production Receipt, Subcontract Order] }
+    refId: { type: string, example: pr_0088 }
+    refLineId: { type: string }
+    operationId: { type: string }
+    lotQty: { type: number, example: 48 }
+    sampleQty: { type: number, description: Defaults from the plan samplePct. }
+    batch: { type: string }
+    serials: { type: array, items: { type: string } }
+    planId: { type: string, description: Defaults to the active plan for type + item. }
+    date: { type: string, format: date }
+    notes: { type: string }
+
+InspectionResultsPatch:
+  type: object
+  properties:
+    results: { type: array, items: { $ref: '#/InspectionResult' } }
+    sampleQty: { type: number }
+    inspectorName: { type: string }
+    notes: { type: string }
+
+InspectionComplete:
+  type: object
+  required: [acceptedQty, rejectedQty, disposition]
+  properties:
+    acceptedQty: { type: number, example: 47 }
+    rejectedQty: { type: number, example: 1 }
+    heldQty: { type: number, default: 0 }
+    disposition: { $ref: '#/Disposition' }
+    inspectorName: { type: string, example: Suresh Patel }
+    notes: { type: string }
+    results: { type: array, items: { $ref: '#/InspectionResult' } }
+    reworkWorkCentreId: { type: string, description: Rework disposition — adds a rework operation on the production order. }
+
+QualityInspection:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [number, docType, date, branchId, type, itemId, itemCode, itemName, refType, refId, refNumber, lotQty, sampleQty, results, acceptedQty, rejectedQty, heldQty, status, correlationId]
+      properties:
+        number: { type: string, example: QI/2026-27/00027 }
+        docType: { type: string, const: Quality Inspection }
+        date: { type: string, format: date }
+        branchId: { type: string }
+        type: { $ref: '#/InspectionType' }
+        planId: { type: string }
+        planName: { type: string }
+        itemId: { type: string }
+        itemCode: { type: string }
+        itemName: { type: string }
+        refType: { type: string }
+        refId: { type: string }
+        refNumber: { type: string }
+        refLineId: { type: string }
+        operationId: { type: string }
+        operationName: { type: string }
+        lotQty: { type: number }
+        sampleQty: { type: number }
+        batch: { type: string }
+        serials: { type: array, items: { type: string } }
+        results: { type: array, items: { $ref: '#/InspectionResult' } }
+        acceptedQty: { type: number }
+        rejectedQty: { type: number }
+        heldQty: { type: number }
+        disposition: { $ref: '#/Disposition' }
+        outcome: { type: string, enum: [Pass, Fail, Partial] }
+        status: { type: string, enum: [Open, In Progress, Completed, Cancelled] }
+        inspectorName: { type: string }
+        completedAt: { type: string, format: date-time }
+        completedBy: { type: string }
+        notes: { type: string }
+        correlationId: { type: string }
+
+# ── subcontracting ────────────────────────────────────────────────────────
+
+SubcontractCreate:
+  type: object
+  required: [supplierId, operationName, serviceItemId, rate, qty, items]
+  properties:
+    supplierId: { type: string, example: sup_powdercoat }
+    orderId: { type: string, example: mo_0041 }
+    operationId: { type: string, example: op_30 }
+    operationName: { type: string, example: Powder coating }
+    serviceItemId: { type: string, example: item_svc_coat }
+    rate: { type: number, description: Per unit processed., example: 180 }
+    qty: { type: number, example: 50 }
+    expectedDate: { type: string, format: date, example: '2026-09-22' }
+    sendWarehouseId: { type: string, example: wh_wip }
+    items: { type: array, minItems: 1, items: { type: object, required: [itemId, qty], properties: { itemId: { type: string }, qty: { type: number }, batch: { type: string } } } }
+    notes: { type: string }
+    date: { type: string, format: date }
+
+SentItem:
+  type: object
+  required: [id, itemId, itemCode, itemName, qty, uom, rate, warehouseId]
+  properties:
+    id: { type: string }
+    itemId: { type: string }
+    itemCode: { type: string }
+    itemName: { type: string }
+    qty: { type: number }
+    uom: { type: string }
+    batch: { type: string }
+    rate: { type: number }
+    movementId: { type: string }
+    sentAt: { type: string, format: date-time }
+    warehouseId: { type: string }
+
+SubReceipt:
+  type: object
+  required: [id, date, qty, consumed, returned, charge, movementIds, by]
+  properties:
+    id: { type: string }
+    date: { type: string, format: date }
+    qty: { type: number }
+    consumed: { type: array, items: { type: object, properties: { itemId: { type: string }, qty: { type: number } } } }
+    returned: { type: array, items: { type: object, properties: { itemId: { type: string }, qty: { type: number } } } }
+    charge: { type: number }
+    journalId: { type: string }
+    movementIds: { type: array, items: { type: string } }
+    by: { type: string }
+
+SubReceiveRequest:
+  type: object
+  required: [qty, consumed, returned]
+  properties:
+    qty: { type: number, description: Processed quantity received., example: 50 }
+    consumed: { type: array, items: { type: object, required: [itemId, qty], properties: { itemId: { type: string }, qty: { type: number } } } }
+    returned: { type: array, items: { type: object, required: [itemId, qty], properties: { itemId: { type: string }, qty: { type: number } } } }
+    date: { type: string, format: date }
+    postCharges: { type: boolean, default: true, description: Accrue the subcontract charge (Dr WIP / Cr GRNI) now; the service PO / vendor invoice settles it. }
+
+SubcontractOrder:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [number, docType, date, branchId, supplierId, supplierName, operationName, serviceItemId, serviceItemName, rate, qty, expectedDate, sendWarehouseId, subWarehouseId, itemsSent, received, receivedQty, charges, consumptionVariance, status, journalIds, correlationId]
+      properties:
+        number: { type: string, example: SC/2026-27/00007 }
+        docType: { type: string, const: Subcontract Order }
+        date: { type: string, format: date }
+        branchId: { type: string }
+        supplierId: { type: string }
+        supplierName: { type: string }
+        orderId: { type: string }
+        orderNumber: { type: string }
+        operationId: { type: string }
+        operationName: { type: string }
+        serviceItemId: { type: string }
+        serviceItemName: { type: string }
+        rate: { type: number }
+        qty: { type: number }
+        expectedDate: { type: string, format: date }
+        sendWarehouseId: { type: string }
+        subWarehouseId: { type: string }
+        itemsSent: { type: array, items: { $ref: '#/SentItem' } }
+        received: { type: array, items: { $ref: '#/SubReceipt' } }
+        receivedQty: { type: number }
+        charges: { type: number }
+        consumptionVariance: { type: array, items: { type: object, properties: { itemId: { type: string }, itemName: { type: string }, sent: { type: number }, consumed: { type: number }, returned: { type: number }, variance: { type: number }, value: { type: number } } } }
+        poId: { type: string }
+        poNumber: { type: string }
+        grnId: { type: string }
+        status: { type: string, enum: [Draft, Sent, Partially Received, Received, Closed, Cancelled] }
+        journalIds: { type: array, items: { type: string } }
+        openItemId: { type: string }
+        notes: { type: string }
+        sentAt: { type: string, format: date-time }
+        closedAt: { type: string, format: date-time }
+        cancelReason: { type: string }
+        correlationId: { type: string }
+
+# ── WIP & genealogy ───────────────────────────────────────────────────────
+
+WipEntry:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [orderId, orderNumber, date, type, amount, sourceType, sourceId, sourceNumber]
+      properties:
+        orderId: { type: string }
+        orderNumber: { type: string }
+        date: { type: string, format: date }
+        type: { type: string, enum: [Material In, Material Return, Conversion, Subcontract, Output, By-product, Scrap, Variance, Reversal] }
+        amount: { type: number, description: "Signed — + into WIP, − out of WIP." }
+        journalId: { type: string }
+        journalNumber: { type: string }
+        sourceType: { type: string }
+        sourceId: { type: string }
+        sourceNumber: { type: string }
+        description: { type: string }
+
+WipReport:
+  type: object
+  required: [period, orders, totals, glBalance, difference]
+  properties:
+    period: { type: string }
+    orders: { type: array, items: { type: object, properties: { orderId: { type: string }, orderNumber: { type: string }, itemName: { type: string }, status: { type: string }, opening: { type: number }, materialIn: { type: number }, conversion: { type: number }, subcontract: { type: number }, output: { type: number }, scrap: { type: number }, variance: { type: number }, closing: { type: number } } } }
+    totals: { type: object, additionalProperties: { type: number } }
+    glBalance: { type: number, description: WIP control account balance. }
+    difference: { type: number }
+    scope: { $ref: './common.yaml#/Scope' }
+
+GenealogyNode:
+  type: object
+  required: [itemId, itemName, qty, movementType, date, sourceType, sourceNumber, children]
+  properties:
+    itemId: { type: string }
+    itemName: { type: string }
+    batch: { type: string }
+    serial: { type: string }
+    qty: { type: number }
+    movementType: { type: string, example: Production Receipt }
+    date: { type: string, format: date }
+    sourceType: { type: string }
+    sourceId: { type: string }
+    sourceNumber: { type: string }
+    warehouseName: { type: string }
+    partyName: { type: string, description: Customer / supplier at the edge of the chain. }
+    children: { type: array, items: { $ref: '#/GenealogyNode' } }
+
+Genealogy:
+  type: object
+  required: [direction, root]
+  properties:
+    direction: { type: string, enum: [upstream, downstream] }
+    root: { $ref: '#/GenealogyNode' }

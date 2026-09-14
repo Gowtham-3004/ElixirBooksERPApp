@@ -1,0 +1,606 @@
+# Reports, CFO dashboard, saved views, consolidation (src/modules/reports/compute.ts, Dashboard.tsx, Saved.tsx, consolidation/types.ts + lib.ts)
+
+ReportId:
+  type: string
+  description: One id per report page under Reports (src/modules/reports/index.tsx).
+  enum: [pl, balance-sheet, cash-flow, trial-balance, journal-register, ar-ageing, customer-outstanding, collections, ap-ageing, supplier-outstanding, due-schedule, stock-ledger, stock-onhand, stock-valuation, stock-movement, stock-ageing, reorder, count-variance, sales-analysis, purchase-analysis, margin, gst-summary, tds, fx-exposure, fx-gainloss, fx-rates, budget-variance, profitability]
+
+ReportMeta:
+  type: object
+  required: [reportId, title, from, to, generatedAt]
+  properties:
+    reportId: { $ref: '#/ReportId' }
+    title: { type: string, example: Profit & Loss }
+    from: { type: string, format: date }
+    to: { type: string, format: date }
+    asOf: { type: string, format: date, description: "Point-in-time reports (balance sheet, ageing, valuation)." }
+    preset: { type: string, enum: [MTD, QTD, YTD, FY, Custom] }
+    branchId: { type: string }
+    dimension: { type: object, properties: { type: { type: string }, id: { type: string }, name: { type: string } } }
+    compare: { type: object, properties: { from: { type: string, format: date }, to: { type: string, format: date }, label: { type: string, example: Prior year } } }
+    generatedAt: { type: string, format: date-time }
+    scope: { $ref: './common.yaml#/Scope' }
+
+PlLine:
+  type: object
+  required: [label, amount, level, kind]
+  properties:
+    accountId: { type: string }
+    code: { type: string }
+    label: { type: string, example: Revenue }
+    amount: { type: number }
+    compare: { type: number }
+    level: { type: integer, enum: [0, 1, 2] }
+    kind: { type: string, enum: [group, account, total, net] }
+
+ProfitLossReport:
+  type: object
+  required: [meta, lines, revenue, cogs, grossProfit, opex, ebitda, depreciation, finance, otherIncome, netProfit]
+  properties:
+    meta: { $ref: '#/ReportMeta' }
+    lines: { type: array, items: { $ref: '#/PlLine' } }
+    revenue: { type: number, example: 37400000 }
+    cogs: { type: number, example: 22100000 }
+    grossProfit: { type: number, example: 15300000 }
+    opex: { type: number, example: 9700000 }
+    ebitda: { type: number, example: 5600000 }
+    depreciation: { type: number, example: 1100000 }
+    finance: { type: number, example: 420000 }
+    otherIncome: { type: number, example: 180000 }
+    netProfit: { type: number, example: 4260000 }
+    compare: { type: object, additionalProperties: true, description: Same figures for the comparison range. }
+
+BsLine:
+  type: object
+  required: [label, amount, level, kind]
+  properties:
+    accountId: { type: string }
+    code: { type: string }
+    label: { type: string }
+    amount: { type: number }
+    compare: { type: number }
+    level: { type: integer, enum: [0, 1] }
+    kind: { type: string, enum: [group, account, total] }
+
+BalanceSheetReport:
+  type: object
+  required: [meta, assets, liabilities, totalAssets, totalLiabilities, totalEquity, retainedCurrent, totalLE, difference]
+  properties:
+    meta: { $ref: '#/ReportMeta' }
+    assets: { type: array, items: { $ref: '#/BsLine' } }
+    liabilities: { type: array, items: { $ref: '#/BsLine' } }
+    totalAssets: { type: number, example: 48200000 }
+    totalLiabilities: { type: number, example: 21400000 }
+    totalEquity: { type: number, example: 22540000 }
+    retainedCurrent: { type: number, description: Current-year profit not yet transferred., example: 4260000 }
+    totalLE: { type: number, example: 48200000 }
+    difference: { type: number, example: 0 }
+    compare: { type: object, properties: { totalAssets: { type: number }, totalLE: { type: number } } }
+
+CfLine:
+  type: object
+  required: [label, amount, level, kind]
+  properties:
+    label: { type: string, example: Net profit }
+    amount: { type: number }
+    level: { type: integer, enum: [0, 1] }
+    kind: { type: string, enum: [item, total] }
+
+CashFlowReport:
+  type: object
+  required: [meta, operating, investing, financing, netOperating, netInvesting, netFinancing, netChange, openingCash, closingCash, actualChange, difference]
+  properties:
+    meta: { $ref: '#/ReportMeta' }
+    operating: { type: array, items: { $ref: '#/CfLine' } }
+    investing: { type: array, items: { $ref: '#/CfLine' } }
+    financing: { type: array, items: { $ref: '#/CfLine' } }
+    netOperating: { type: number }
+    netInvesting: { type: number }
+    netFinancing: { type: number }
+    netChange: { type: number }
+    openingCash: { type: number }
+    closingCash: { type: number }
+    actualChange: { type: number }
+    difference: { type: number }
+
+TbReportRow:
+  type: object
+  required: [accountId, code, name, type, group, openingDr, openingCr, dr, cr, closingDr, closingCr]
+  properties:
+    accountId: { type: string }
+    code: { type: string }
+    name: { type: string }
+    type: { type: string }
+    group: { type: string }
+    openingDr: { type: number }
+    openingCr: { type: number }
+    dr: { type: number }
+    cr: { type: number }
+    closingDr: { type: number }
+    closingCr: { type: number }
+
+TrialBalanceReport:
+  type: object
+  required: [meta, rows, totalDr, totalCr, difference]
+  properties:
+    meta: { $ref: '#/ReportMeta' }
+    rows: { type: array, items: { $ref: '#/TbReportRow' } }
+    totalDr: { type: number }
+    totalCr: { type: number }
+    difference: { type: number }
+
+AgeingReportRow:
+  type: object
+  required: [partyId, partyName, currency, current, d030, d3160, d6190, d90p, total, overdueDays]
+  properties:
+    partyId: { type: string }
+    partyName: { type: string }
+    currency: { type: string }
+    current: { type: number }
+    d030: { type: number }
+    d3160: { type: number }
+    d6190: { type: number }
+    d90p: { type: number }
+    total: { type: number }
+    overdueDays: { type: integer, description: Oldest overdue item. }
+    items: { type: array, items: { $ref: './document.yaml#/OpenItem' }, description: With `expand=items`. }
+
+AgeingReportResult:
+  type: object
+  required: [meta, partyType, rows, totals]
+  properties:
+    meta: { $ref: '#/ReportMeta' }
+    partyType: { type: string, enum: [Customer, Supplier] }
+    scopeFilter: { type: string, enum: [control, advance, all] }
+    rows: { type: array, items: { $ref: '#/AgeingReportRow' } }
+    totals: { type: object, properties: { current: { type: number }, d030: { type: number }, d3160: { type: number }, d6190: { type: number }, d90p: { type: number }, total: { type: number } } }
+
+AnalysisRow:
+  type: object
+  required: [key, label, docs, qty, taxable, tax, total, cogs, margin, marginPct]
+  properties:
+    key: { type: string }
+    label: { type: string, example: Arlene Traders }
+    sub: { type: string }
+    docs: { type: integer }
+    qty: { type: number }
+    taxable: { type: number }
+    tax: { type: number }
+    total: { type: number }
+    cogs: { type: number }
+    margin: { type: number }
+    marginPct: { type: number }
+
+AnalysisReport:
+  type: object
+  required: [meta, dimension, rows, totals]
+  properties:
+    meta: { $ref: '#/ReportMeta' }
+    direction: { type: string, enum: [sale, purchase] }
+    dimension: { type: string, enum: [customer, supplier, item, salesperson, branch, period, group] }
+    rows: { type: array, items: { $ref: '#/AnalysisRow' } }
+    totals: { $ref: '#/AnalysisRow' }
+
+GenericReport:
+  type: object
+  description: Tabular reports (journal register, stock ledger / on-hand / movement / ageing / reorder / count variance, GST summary, TDS, FX rates) — columns declared per report.
+  required: [meta, columns, rows]
+  properties:
+    meta: { $ref: '#/ReportMeta' }
+    columns: { type: array, items: { type: object, required: [key, label], properties: { key: { type: string }, label: { type: string }, type: { type: string, enum: [string, number, money, date, pct] }, align: { type: string, enum: [left, right] } } } }
+    rows: { type: array, items: { type: object, additionalProperties: true } }
+    totals: { type: object, additionalProperties: { type: number } }
+
+ReportResult:
+  oneOf:
+    - $ref: '#/ProfitLossReport'
+    - $ref: '#/BalanceSheetReport'
+    - $ref: '#/CashFlowReport'
+    - $ref: '#/TrialBalanceReport'
+    - $ref: '#/AgeingReportResult'
+    - $ref: '#/AnalysisReport'
+    - $ref: './inventory.yaml#/ValuationReport'
+    - $ref: './budgets.yaml#/VarianceReport'
+    - $ref: './accounting.yaml#/FxExposure'
+    - $ref: '#/GenericReport'
+
+ReportScheduleRequest:
+  type: object
+  required: [cron, format, recipients]
+  properties:
+    cron: { type: string, description: 5-field cron in the company timezone., example: '0 8 1 * *' }
+    format: { type: string, enum: [pdf, xlsx, csv] }
+    recipients: { type: array, minItems: 1, items: { type: string, format: email }, example: [cfo@acme.example] }
+    params: { type: object, additionalProperties: true, description: Report filters; `preset` is re-evaluated at run time., example: { preset: MTD, branchId: br_ho } }
+    name: { type: string, example: Monthly P&L to CFO }
+
+ReportSchedule:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/ReportScheduleRequest'
+    - type: object
+      required: [reportId, status, nextRunAt]
+      properties:
+        reportId: { $ref: '#/ReportId' }
+        status: { type: string, enum: [Active, Paused] }
+        nextRunAt: { type: string, format: date-time }
+        lastRunAt: { type: string, format: date-time }
+        lastJobId: { type: string }
+
+CfoDashboard:
+  type: object
+  required: [period, from, to, kpis, alerts]
+  properties:
+    period: { type: string, example: '2026-09' }
+    from: { type: string, format: date }
+    to: { type: string, format: date }
+    kpis: { type: array, items: { type: object, required: [key, label, value], properties: { key: { type: string, example: revenue }, label: { type: string, example: Revenue }, value: { type: number }, compare: { type: number }, deltaPct: { type: number }, tone: { type: string, enum: [good, bad, neutral] }, link: { type: string } } } }
+    trend: { type: array, items: { type: object, properties: { period: { type: string }, revenue: { type: number }, expense: { type: number }, netProfit: { type: number }, cash: { type: number } } } }
+    alerts: { type: array, items: { type: object, properties: { key: { type: string }, label: { type: string }, count: { type: integer }, tone: { type: string, enum: [good, warning, critical] }, link: { type: string } } } }
+    scope: { $ref: './common.yaml#/Scope' }
+
+SavedViewInput:
+  type: object
+  properties:
+    module: { type: string, example: reports }
+    register: { type: string, description: Report id or register route., example: pl }
+    name: { type: string, example: P&L — Andheri MTD }
+    filters: { type: object, additionalProperties: true, example: { preset: MTD, branchId: br_andheri } }
+    columns: { type: array, items: { type: string } }
+    isDefault: { type: boolean, default: false }
+    shared: { type: boolean, default: false, description: Shared views never widen data scope. }
+
+SavedViewCreate:
+  allOf:
+    - $ref: '#/SavedViewInput'
+    - { required: [module, register, name, filters] }
+
+SavedViewPatch:
+  allOf:
+    - $ref: '#/SavedViewInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+SavedView:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/SavedViewInput'
+    - type: object
+      required: [module, register, name, filters, isDefault, shared]
+      properties:
+        ownerId: { type: string, readOnly: true }
+        ownerName: { type: string, readOnly: true }
+
+# ── consolidation ─────────────────────────────────────────────────────────
+
+ConsolidationMethod:
+  type: string
+  enum: [Full, Proportional, Equity]
+
+RateType:
+  type: string
+  enum: [Average, Closing, Historical]
+
+GroupMember:
+  type: object
+  required: [companyId, ownershipPct, from, method]
+  properties:
+    companyId: { type: string, example: co_gulf }
+    ownershipPct: { type: number, example: 100 }
+    from: { type: string, format: date, example: '2024-04-01' }
+    to: { type: string, format: date }
+    method: { $ref: '#/ConsolidationMethod' }
+
+RatePolicy:
+  type: object
+  required: [income, balance, equity]
+  properties:
+    income: { $ref: '#/RateType' }
+    balance: { $ref: '#/RateType' }
+    equity: { $ref: '#/RateType' }
+    accountOverrides: { type: object, additionalProperties: { $ref: '#/RateType' }, example: { '1610': Historical } }
+
+GroupInput:
+  type: object
+  properties:
+    code: { type: string, example: ACME-GRP }
+    name: { type: string, example: Acme Group }
+    consolidationCurrency: { type: string, example: INR }
+    parentCompanyId: { type: string, example: co_acme }
+    members: { type: array, minItems: 1, items: { $ref: '#/GroupMember' } }
+    accountingStandard: { type: string, enum: [Ind AS, IFRS] }
+    ratePolicy: { $ref: '#/RatePolicy' }
+    notes: { type: string }
+
+GroupCreate:
+  allOf:
+    - $ref: '#/GroupInput'
+    - { required: [code, name, consolidationCurrency, parentCompanyId, members, accountingStandard, ratePolicy] }
+
+GroupPatch:
+  allOf:
+    - $ref: '#/GroupInput'
+    - { type: object, properties: { status: { type: string, enum: [Active, Inactive] } } }
+    - $ref: './common.yaml#/ExpectedVersion'
+
+Group:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/GroupInput'
+    - type: object
+      required: [code, name, tenantId, consolidationCurrency, parentCompanyId, members, accountingStandard, ratePolicy, status]
+      properties:
+        tenantId: { type: string, readOnly: true }
+        status: { type: string, enum: [Active, Inactive] }
+
+RateInfo:
+  type: object
+  required: [rate, type, source, at]
+  properties:
+    rate: { type: number, example: 22.9 }
+    type: { type: string, example: Closing }
+    source: { type: string, example: Approved month-end }
+    at: { type: string, format: date-time }
+    note: { type: string }
+    overridden: { type: object, properties: { original: { type: number }, reason: { type: string }, by: { type: string }, at: { type: string, format: date-time } } }
+
+RunCompany:
+  type: object
+  required: [companyId, companyName, baseCurrency, ownershipPct, method, ownershipFrom, included, rateClosing, rateAverage, rateHistorical, ratesSource]
+  properties:
+    companyId: { type: string }
+    companyName: { type: string }
+    baseCurrency: { type: string }
+    ownershipPct: { type: number }
+    method: { $ref: '#/ConsolidationMethod' }
+    ownershipFrom: { type: string, format: date }
+    ownershipTo: { type: string, format: date }
+    included: { type: boolean }
+    rateClosing: { $ref: '#/RateInfo' }
+    rateAverage: { $ref: '#/RateInfo' }
+    rateHistorical: { $ref: '#/RateInfo' }
+    ratesSource: { type: string }
+    booksCheck: { type: object, properties: { balanced: { type: boolean }, difference: { type: number }, journals: { type: integer } } }
+
+TranslatedLine:
+  type: object
+  required: [id, companyId, accountCode, accountName, type, groupCode, groupName, sourceCurrency, sourceAmount, ownershipFactor, rateType, rate, translatedAmount]
+  properties:
+    id: { type: string }
+    companyId: { type: string }
+    accountId: { type: string }
+    accountCode: { type: string }
+    accountName: { type: string }
+    type: { type: string, enum: [Asset, Liability, Equity, Income, Expense] }
+    groupCode: { type: string }
+    groupName: { type: string }
+    sourceCurrency: { type: string }
+    sourceAmount: { type: number }
+    ownershipFactor: { type: number }
+    rateType: { type: string, enum: [Average, Closing, Historical, Same] }
+    rate: { type: number }
+    translatedAmount: { type: number }
+    note: { type: string }
+
+Elimination:
+  type: object
+  required: [id, pairRef, kind, description, drAccountCode, drAccountName, drAmount, crAccountCode, crAccountName, crAmount, fxDifference, differenceAccountCode, amount, sourceDocs, status, reversible]
+  properties:
+    id: { type: string }
+    pairRef: { type: string, example: 'co_acme↔co_gulf' }
+    kind: { type: string, enum: [Intercompany balance, Intercompany trading, Unrealised profit, Manual] }
+    description: { type: string }
+    drCompanyId: { type: string }
+    drAccountCode: { type: string }
+    drAccountName: { type: string }
+    drAmount: { type: number }
+    crCompanyId: { type: string }
+    crAccountCode: { type: string }
+    crAccountName: { type: string }
+    crAmount: { type: number }
+    fxDifference: { type: number }
+    differenceAccountCode: { type: string }
+    amount: { type: number }
+    sourceDocs: { type: array, items: { type: object, properties: { id: { type: string }, number: { type: string }, type: { type: string }, date: { type: string, format: date }, amount: { type: number }, currency: { type: string }, matchStatus: { type: string } } } }
+    status: { type: string, enum: [Proposed, Accepted, Rejected, Reversed] }
+    reversible: { type: boolean, const: true }
+    reason: { type: string }
+    warning: { type: string }
+    actedBy: { type: string }
+    actedAt: { type: string, format: date-time }
+
+ManualEliminationRequest:
+  type: object
+  required: [kind, description, drAccountCode, crAccountCode, amount, reason]
+  properties:
+    kind: { type: string, enum: [Intercompany balance, Intercompany trading, Unrealised profit, Manual] }
+    description: { type: string, example: Unrealised profit on stock sold to Gulf }
+    drAccountCode: { type: string, example: '4020' }
+    crAccountCode: { type: string, example: '1200' }
+    amount: { type: number, example: 42000 }
+    reason: { type: string, minLength: 10 }
+
+EliminationDecision:
+  type: object
+  required: [status]
+  properties:
+    status: { type: string, enum: [Accepted, Rejected, Reversed] }
+    reason: { type: string, description: Required (≥10 chars) for Rejected / Reversed. }
+
+ConsolidationJournalLine:
+  type: object
+  required: [accountCode, dr, cr]
+  properties:
+    id: { type: string, readOnly: true }
+    accountCode: { type: string, example: '5590' }
+    accountName: { type: string, readOnly: true }
+    dr: { type: number }
+    cr: { type: number }
+    narration: { type: string }
+
+ConsolidationJournalCreate:
+  type: object
+  required: [date, reason, lines]
+  properties:
+    date: { type: string, format: date }
+    reason: { type: string, minLength: 10, example: Group management fee accrual not in legal books }
+    lines: { type: array, minItems: 2, items: { $ref: '#/ConsolidationJournalLine' } }
+
+ConsolidationJournal:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [runId, groupId, number, date, period, currency, reason, lines, totalDr, totalCr, status]
+      properties:
+        runId: { type: string }
+        groupId: { type: string }
+        number: { type: string, example: CJ/2026-27/00003 }
+        date: { type: string, format: date }
+        period: { type: string }
+        currency: { type: string }
+        reason: { type: string }
+        lines: { type: array, items: { $ref: '#/ConsolidationJournalLine' } }
+        totalDr: { type: number }
+        totalCr: { type: number }
+        status: { type: string, enum: [Draft, Submitted, Approved, Rejected, Returned, Posted, Reversed] }
+        approvalId: { type: string }
+        workflowNote: { type: string }
+        postedAt: { type: string, format: date-time }
+        postedBy: { type: string }
+        reversedById: { type: string }
+        reversalOfId: { type: string }
+        reversalReason: { type: string }
+
+BooksSnapshot:
+  type: object
+  required: [companyId, journals, totalDr, totalCr, at]
+  properties:
+    companyId: { type: string }
+    journals: { type: integer }
+    totalDr: { type: number }
+    totalCr: { type: number }
+    lastPostedAt: { type: string, format: date-time }
+    at: { type: string, format: date-time }
+
+ConsolidationRunCreate:
+  type: object
+  required: [groupId, from, to, plBasis]
+  properties:
+    groupId: { type: string, example: grp_acme }
+    period: { type: string, example: '2026-09' }
+    from: { type: string, format: date, example: '2026-09-01' }
+    to: { type: string, format: date, example: '2026-09-30' }
+    plBasis: { type: string, enum: [YTD, Period] }
+    companyIds: { type: array, items: { type: string }, description: Subset of members to include (default all active in range). }
+    translateNow: { type: boolean, default: true }
+    supersedesId: { type: string, description: Create as a new version of an earlier run. }
+
+ConsolidationRun:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [groupId, number, from, to, plBasis, currency, accountingStandard, status, runVersion, companies, translatedLines, cta, ctaByCompany, adjustments, eliminations, totals, booksAtTranslate, log]
+      properties:
+        groupId: { type: string }
+        number: { type: string, example: CR/2026-09/01 }
+        period: { type: string }
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        plBasis: { type: string, enum: [YTD, Period] }
+        currency: { type: string }
+        accountingStandard: { type: string, enum: [Ind AS, IFRS] }
+        status: { type: string, enum: [Draft, Translated, Adjusted, Final, Reversed] }
+        runVersion: { type: integer }
+        supersedesId: { type: string }
+        supersededById: { type: string }
+        companies: { type: array, items: { $ref: '#/RunCompany' } }
+        translatedLines: { type: array, items: { $ref: '#/TranslatedLine' } }
+        cta: { type: number, description: Currency translation adjustment. }
+        ctaByCompany: { type: object, additionalProperties: { type: number } }
+        adjustments: { type: array, items: { type: string } }
+        eliminations: { type: array, items: { $ref: '#/Elimination' } }
+        totals: { type: object, additionalProperties: { type: number }, example: { CA: 61200000, FA: 18400000, CL: 24100000, EQ: 41000000, REV: 52300000, COGS: 30100000, OPEX: 13800000 } }
+        approvalId: { type: string }
+        createdBy: { type: string }
+        translatedAt: { type: string, format: date-time }
+        finalizedAt: { type: string, format: date-time }
+        finalizedBy: { type: string }
+        reversedAt: { type: string, format: date-time }
+        reversalReason: { type: string }
+        booksAtTranslate: { type: array, items: { $ref: '#/BooksSnapshot' } }
+        booksAtFinal: { type: array, items: { $ref: '#/BooksSnapshot' } }
+        log: { type: array, items: { type: object, properties: { at: { type: string, format: date-time }, by: { type: string }, action: { type: string }, detail: { type: string } } } }
+
+RateOverrideRequest:
+  type: object
+  required: [companyId, which, rate, reason]
+  properties:
+    companyId: { type: string, example: co_gulf }
+    which: { type: string, enum: [rateClosing, rateAverage, rateHistorical] }
+    rate: { type: number, example: 22.95 }
+    reason: { type: string, minLength: 10, example: RBI reference rate published after month-end }
+
+StmtRow:
+  type: object
+  required: [code, name, type, groupCode, groupName, byCompany, eliminations, adjustments, consolidated]
+  properties:
+    code: { type: string, example: '1100' }
+    name: { type: string, example: Trade receivables }
+    type: { type: string, enum: [Asset, Liability, Equity, Income, Expense] }
+    groupCode: { type: string, example: CA }
+    groupName: { type: string, example: Current assets }
+    byCompany: { type: object, additionalProperties: { type: number }, example: { co_acme: 1980000, co_gulf: 612000 } }
+    eliminations: { type: number, example: -416000 }
+    adjustments: { type: number, example: 0 }
+    consolidated: { type: number, example: 2176000 }
+
+ConsolidatedStatements:
+  type: object
+  required: [runId, runNumber, currency, from, to, rows, totals, cta]
+  properties:
+    runId: { type: string }
+    runNumber: { type: string }
+    currency: { type: string }
+    from: { type: string, format: date }
+    to: { type: string, format: date }
+    rows: { type: array, items: { $ref: '#/StmtRow' } }
+    totals: { type: object, additionalProperties: { type: number } }
+    cta: { type: number }
+    balanced: { type: boolean }
+
+DrilldownResult:
+  type: object
+  required: [runId, accountCode, companyId, lines, journals]
+  properties:
+    runId: { type: string }
+    accountCode: { type: string }
+    companyId: { type: string }
+    lines: { type: array, items: { $ref: '#/TranslatedLine' } }
+    journals: { type: array, items: { $ref: './document.yaml#/Journal' }, description: Source legal-company journals. }
+
+DueBalance:
+  type: object
+  required: [companyId, counterpartyId, receivable, payable, currency]
+  properties:
+    companyId: { type: string }
+    companyName: { type: string }
+    counterpartyId: { type: string }
+    counterpartyName: { type: string }
+    receivable: { type: number }
+    payable: { type: number }
+    currency: { type: string }
+    receivableAccountId: { type: string }
+    payableAccountId: { type: string }
+
+IcPostRequest:
+  type: object
+  required: [type, fromCompanyId, toCompanyId, amount, currency, date, postCounterparty]
+  properties:
+    type: { type: string, enum: [Invoice, Payment, Journal] }
+    fromCompanyId: { type: string, example: co_acme }
+    toCompanyId: { type: string, example: co_gulf }
+    amount: { type: number, example: 5000 }
+    currency: { type: string, example: USD }
+    date: { type: string, format: date }
+    reference: { type: string, example: IC-INV-0017 }
+    narration: { type: string }
+    postCounterparty: { type: boolean, description: Post the mirror journal in the counterparty. }

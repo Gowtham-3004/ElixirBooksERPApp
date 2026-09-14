@@ -1,0 +1,826 @@
+# Purchase & payables (src/modules/purchase/types.ts, actions.ts, invoiceActions.ts, paymentActions.ts)
+
+PurchaseSettings:
+  type: object
+  properties:
+    matchingMode: { type: string, enum: [2-way, 3-way, 4-way], example: 3-way }
+    matchTolerancePct: { type: number, example: 2 }
+    matchToleranceAmt: { type: number, example: 500 }
+    overReceiptTolerancePct: { type: number, example: 5 }
+    blockOnException: { type: boolean, example: true }
+    duplicateInvoiceScope: { type: string, enum: [Supplier, Supplier+FY, Company], example: Supplier+FY }
+    directInvoiceStock: { type: boolean, example: true }
+    grniAccountId: { type: string, description: Goods-received-not-invoiced accrual account., example: acc_2110 }
+
+# ── requisitions ──────────────────────────────────────────────────────────
+
+RequisitionStatus:
+  type: string
+  enum: [Draft, Submitted, Approved, Rejected, Returned, Converted, Cancelled]
+
+RequisitionLineInput:
+  allOf:
+    - $ref: './document.yaml#/DocLineInput'
+    - type: object
+      properties:
+        purpose: { type: string, example: Replenish Surat stock }
+
+RequisitionCreate:
+  type: object
+  required: [date, needByDate, lines]
+  properties:
+    date: { type: string, format: date }
+    branchId: { type: string }
+    requesterId: { type: string, description: Defaults to the caller's employee., example: emp_005 }
+    department: { type: string, description: Department dimension id., example: dim_dept_ops }
+    needByDate: { type: string, format: date, example: '2026-09-30' }
+    purpose: { type: string, example: Q3 raw material top-up }
+    lines: { type: array, minItems: 1, items: { $ref: '#/RequisitionLineInput' } }
+    notes: { type: string }
+    dimensions: { $ref: './common.yaml#/KeyValue' }
+
+RequisitionPatch:
+  allOf:
+    - $ref: './common.yaml#/ExpectedVersion'
+    - type: object
+      properties:
+        needByDate: { type: string, format: date }
+        purpose: { type: string }
+        department: { type: string }
+        lines: { type: array, items: { $ref: '#/RequisitionLineInput' } }
+        notes: { type: string }
+
+Requisition:
+  allOf:
+    - $ref: './document.yaml#/DocHeader'
+    - type: object
+      required: [status, requesterName, needByDate]
+      properties:
+        docType: { type: string, const: Requisition }
+        status: { $ref: '#/RequisitionStatus' }
+        requesterId: { type: string }
+        requesterName: { type: string, readOnly: true, example: Suresh Patel }
+        department: { type: string }
+        needByDate: { type: string, format: date }
+        purpose: { type: string }
+        convertedToId: { type: string, readOnly: true }
+        convertedToNumber: { type: string, readOnly: true, example: PO/2026-27/00119 }
+        rfqId: { type: string, readOnly: true }
+        rfqNumber: { type: string, readOnly: true }
+        estimatedTotal: { type: number, readOnly: true, example: 26000 }
+
+RequisitionDecision:
+  type: object
+  required: [decision]
+  properties:
+    decision: { type: string, enum: [Approved, Rejected] }
+    comment: { type: string }
+
+# ── RFQs ──────────────────────────────────────────────────────────────────
+
+RfqStatus:
+  type: string
+  enum: [Draft, Sent, Quoted, Awarded, Closed, Cancelled]
+
+RfqCreate:
+  type: object
+  required: [date, supplierIds, lines]
+  properties:
+    date: { type: string, format: date }
+    dueDate: { type: string, format: date, description: Quotes due by. }
+    supplierIds: { type: array, minItems: 1, items: { type: string }, example: [sup_bharatsteel, sup_national] }
+    requisitionId: { type: string, example: req_00031 }
+    lines: { type: array, minItems: 1, items: { $ref: './document.yaml#/DocLineInput' } }
+    notes: { type: string }
+
+Rfq:
+  allOf:
+    - $ref: './document.yaml#/DocHeader'
+    - type: object
+      required: [status, supplierIds]
+      properties:
+        docType: { type: string, const: RFQ }
+        status: { $ref: '#/RfqStatus' }
+        supplierIds: { type: array, items: { type: string } }
+        sentAt: { type: string, format: date-time, readOnly: true }
+        requisitionId: { type: string }
+        requisitionNumber: { type: string, readOnly: true }
+        awardedSupplierId: { type: string, readOnly: true }
+        awardedQuoteId: { type: string, readOnly: true }
+        poId: { type: string, readOnly: true }
+        poNumber: { type: string, readOnly: true }
+        quoteCount: { type: integer, readOnly: true, example: 2 }
+
+SupplierQuoteLine:
+  type: object
+  required: [lineId, itemName, qty, uom, rate, amount]
+  properties:
+    lineId: { type: string, example: ln_rfq_1 }
+    itemId: { type: string }
+    itemName: { type: string, example: Steel Rod 4mm }
+    qty: { type: number, example: 5000 }
+    uom: { type: string, example: KG }
+    rate: { type: number, example: 47.5 }
+    amount: { type: number, example: 237500 }
+
+SupplierQuoteInput:
+  type: object
+  required: [supplierId, date, validUntil, leadTimeDays, rates]
+  properties:
+    supplierId: { type: string, example: sup_bharatsteel }
+    quoteRef: { type: string, example: BS-Q-2291 }
+    date: { type: string, format: date }
+    validUntil: { type: string, format: date }
+    leadTimeDays: { type: integer, example: 7 }
+    paymentTerms: { type: string, example: Net 45 }
+    rates: { type: object, additionalProperties: { type: number }, description: RFQ line id → quoted rate., example: { ln_rfq_1: 47.5, ln_rfq_2: 62 } }
+    notes: { type: string }
+
+SupplierQuote:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [rfqId, rfqNumber, supplierId, supplierName, date, validUntil, leadTimeDays, currency, lines, total, status]
+      properties:
+        rfqId: { type: string }
+        rfqNumber: { type: string, example: RFQ/2026-27/00008 }
+        supplierId: { type: string }
+        supplierName: { type: string, example: Bharat Steel Industries }
+        quoteRef: { type: string }
+        date: { type: string, format: date }
+        validUntil: { type: string, format: date }
+        leadTimeDays: { type: integer }
+        currency: { type: string }
+        paymentTerms: { type: string }
+        lines: { type: array, items: { $ref: '#/SupplierQuoteLine' } }
+        total: { type: number, example: 299500 }
+        notes: { type: string }
+        status: { type: string, enum: [Received, Awarded, Rejected] }
+
+RfqComparison:
+  type: object
+  required: [rfq, quotes, lines]
+  properties:
+    rfq: { $ref: '#/Rfq' }
+    quotes: { type: array, items: { $ref: '#/SupplierQuote' } }
+    lines:
+      type: array
+      description: Per RFQ line — rate per supplier and the lowest.
+      items:
+        type: object
+        properties:
+          lineId: { type: string }
+          itemName: { type: string }
+          qty: { type: number }
+          rates: { type: object, additionalProperties: { type: number }, example: { sup_bharatsteel: 47.5, sup_national: 48.2 } }
+          lowestSupplierId: { type: string }
+    recommendation: { type: object, properties: { supplierId: { type: string }, total: { type: number }, reason: { type: string } } }
+
+# ── purchase orders ───────────────────────────────────────────────────────
+
+PurchaseOrderStatus:
+  type: string
+  enum: [Draft, Submitted, Approved, Returned, Rejected, Partially Received, Received, Closed, Short Closed, Cancelled]
+
+PoLineInput:
+  allOf:
+    - $ref: './document.yaml#/DocLineInput'
+    - type: object
+      properties:
+        expectedDate: { type: string, format: date }
+
+PoLine:
+  allOf:
+    - $ref: './document.yaml#/DocLine'
+    - type: object
+      properties:
+        expectedDate: { type: string, format: date }
+        cancelledQty: { type: number, readOnly: true }
+        pendingQty: { type: number, readOnly: true, description: qty − received − cancelled. }
+
+PurchaseOrderCreate:
+  allOf:
+    - $ref: './document.yaml#/DocHeaderInput'
+    - type: object
+      required: [partyId, lines]
+      properties:
+        expectedDate: { type: string, format: date, example: '2026-09-25' }
+        requisitionId: { type: string }
+        rfqId: { type: string }
+        lines: { type: array, minItems: 1, items: { $ref: '#/PoLineInput' } }
+
+PurchaseOrderPatch:
+  allOf:
+    - $ref: './document.yaml#/DocHeaderInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+    - type: object
+      properties:
+        expectedDate: { type: string, format: date }
+        lines: { type: array, items: { $ref: '#/PoLineInput' } }
+
+PoAmendment:
+  type: object
+  required: [at, by, reason, revision, summary]
+  properties:
+    at: { type: string, format: date-time }
+    by: { type: string }
+    reason: { type: string }
+    revision: { type: integer, example: 2 }
+    summary: { type: string, example: 'Line 1 qty 5000 → 6000; expected date 25 Sep → 30 Sep' }
+
+PurchaseOrder:
+  allOf:
+    - $ref: './document.yaml#/DocHeader'
+    - type: object
+      required: [status, amendments]
+      properties:
+        docType: { type: string, const: Purchase Order }
+        status: { $ref: '#/PurchaseOrderStatus' }
+        lines: { type: array, items: { $ref: '#/PoLine' } }
+        expectedDate: { type: string, format: date }
+        requisitionId: { type: string }
+        requisitionNumber: { type: string, readOnly: true }
+        rfqId: { type: string }
+        rfqNumber: { type: string, readOnly: true }
+        amendments: { type: array, readOnly: true, items: { $ref: '#/PoAmendment' } }
+        shortCloseReason: { type: string, readOnly: true }
+        emailedAt: { type: string, format: date-time, readOnly: true }
+        fulfilment:
+          type: object
+          readOnly: true
+          properties:
+            ordered: { type: number, example: 5000 }
+            received: { type: number, example: 3000 }
+            accepted: { type: number, example: 2950 }
+            rejected: { type: number, example: 50 }
+            invoiced: { type: number, example: 2950 }
+            returned: { type: number, example: 0 }
+            pending: { type: number, example: 2000 }
+
+AmendPoRequest:
+  type: object
+  required: [lines, reason]
+  properties:
+    lines: { type: array, minItems: 1, items: { $ref: '#/PoLineInput' } }
+    reason: { type: string, minLength: 10 }
+    expectedDate: { type: string, format: date }
+    notes: { type: string }
+    terms: { type: string }
+
+# ── GRN ───────────────────────────────────────────────────────────────────
+
+QcDisposition:
+  type: string
+  enum: [Return to supplier, Scrap, Rework]
+
+GrnLineInput:
+  type: object
+  required: [itemId, receivedQty]
+  properties:
+    id: { type: string }
+    poLineId: { type: string, example: ln_po_1 }
+    itemId: { type: string, example: item_stl4 }
+    receivedQty: { type: number, example: 3000 }
+    acceptedQty: { type: number, description: Defaults to receivedQty when QC not required., example: 2950 }
+    rejectedQty: { type: number, example: 50 }
+    heldQty: { type: number, description: Quantity awaiting QC (Hold)., example: 0 }
+    disposition: { $ref: '#/QcDisposition' }
+    qcNote: { type: string, example: 50 KG rusted }
+    uom: { type: string }
+    rate: { type: number, description: Defaults to the PO rate. }
+    warehouseId: { type: string }
+    bin: { type: string, example: A-01 }
+    batch: { type: string, example: B-2409-07 }
+    serials: { type: array, items: { type: string } }
+    expiryDate: { type: string, format: date }
+    taxRateId: { type: string }
+
+GrnLine:
+  allOf:
+    - $ref: './document.yaml#/DocLine'
+    - type: object
+      required: [orderedQty, receivedQty, acceptedQty, rejectedQty, heldQty]
+      properties:
+        poLineId: { type: string }
+        bin: { type: string }
+        orderedQty: { type: number }
+        receivedQty: { type: number }
+        acceptedQty: { type: number }
+        rejectedQty: { type: number }
+        heldQty: { type: number }
+        disposition: { $ref: '#/QcDisposition' }
+        qcNote: { type: string }
+        expiryDate: { type: string, format: date }
+        invoicedQty: { type: number, readOnly: true }
+        returnedQty: { type: number, readOnly: true }
+
+GrnCreate:
+  type: object
+  required: [date, warehouseId, lines]
+  properties:
+    date: { type: string, format: date }
+    branchId: { type: string }
+    poId: { type: string, description: Receiving against a PO (party taken from the PO)., example: po_00118 }
+    partyId: { type: string, description: Required for direct GRNs without a PO. }
+    warehouseId: { type: string, example: wh_main }
+    supplierChallan: { type: string, example: DC-BS-4471 }
+    vehicleNo: { type: string }
+    receivedBy: { type: string }
+    lines: { type: array, minItems: 1, items: { $ref: '#/GrnLineInput' } }
+    notes: { type: string }
+
+GrnPatch:
+  allOf:
+    - $ref: './common.yaml#/ExpectedVersion'
+    - type: object
+      properties:
+        date: { type: string, format: date }
+        warehouseId: { type: string }
+        supplierChallan: { type: string }
+        vehicleNo: { type: string }
+        lines: { type: array, items: { $ref: '#/GrnLineInput' } }
+        notes: { type: string }
+
+Grn:
+  allOf:
+    - $ref: './document.yaml#/DocHeader'
+    - type: object
+      required: [status, qcStatus]
+      properties:
+        docType: { type: string, const: GRN }
+        status: { type: string, enum: [Draft, Posted, Reversed, Cancelled] }
+        qcStatus: { type: string, enum: [Pending, Accepted, Partial Accept, Rejected], readOnly: true }
+        poId: { type: string }
+        poNumber: { type: string, readOnly: true }
+        lines: { type: array, items: { $ref: '#/GrnLine' } }
+        supplierChallan: { type: string }
+        vehicleNo: { type: string }
+        receivedBy: { type: string }
+        landedCostIds: { type: array, items: { type: string }, readOnly: true }
+        invoiced: { type: boolean, readOnly: true }
+
+# ── vendor invoices & matching ────────────────────────────────────────────
+
+VendorInvoiceStatus:
+  type: string
+  enum: [Draft, Submitted, Approved, Posted, Reversed, Cancelled]
+
+MatchStatus:
+  type: string
+  enum: [Pending, Matched, Exception, Not Required]
+
+VendorInvoiceLineInput:
+  allOf:
+    - $ref: './document.yaml#/DocLineInput'
+    - type: object
+      properties:
+        poLineId: { type: string, example: ln_po_1 }
+        grnId: { type: string, example: grn_00077 }
+        grnLineId: { type: string, example: ln_g1 }
+
+VendorInvoiceLine:
+  allOf:
+    - $ref: './document.yaml#/DocLine'
+    - type: object
+      properties:
+        poLineId: { type: string }
+        grnId: { type: string }
+        grnLineId: { type: string }
+        poRate: { type: number, readOnly: true }
+        poQty: { type: number, readOnly: true }
+        grnQty: { type: number, readOnly: true }
+
+VendorInvoiceCreate:
+  allOf:
+    - $ref: './document.yaml#/DocHeaderInput'
+    - type: object
+      required: [partyId, supplierInvoiceNumber, supplierInvoiceDate, lines]
+      properties:
+        supplierInvoiceNumber: { type: string, example: BS-7781 }
+        supplierInvoiceDate: { type: string, format: date, example: '2026-09-12' }
+        poId: { type: string, example: po_00118 }
+        grnIds: { type: array, items: { type: string }, example: [grn_00077] }
+        lines: { type: array, minItems: 1, items: { $ref: '#/VendorInvoiceLineInput' } }
+        tdsSectionId: { type: string, description: Defaults from the supplier., example: tds_194c }
+        reverseCharge: { type: boolean, default: false }
+        freightAsLandedCost: { type: boolean, default: false, description: Capitalise freight charges into stock via landed cost. }
+
+VendorInvoicePatch:
+  allOf:
+    - $ref: './document.yaml#/DocHeaderInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+    - type: object
+      properties:
+        supplierInvoiceNumber: { type: string }
+        supplierInvoiceDate: { type: string, format: date }
+        grnIds: { type: array, items: { type: string } }
+        lines: { type: array, items: { $ref: '#/VendorInvoiceLineInput' } }
+        tdsSectionId: { type: string }
+        reverseCharge: { type: boolean }
+        freightAsLandedCost: { type: boolean }
+
+VendorInvoice:
+  allOf:
+    - $ref: './document.yaml#/DocHeader'
+    - type: object
+      required: [status, matchStatus, supplierInvoiceNumber, supplierInvoiceDate, grnIds, grnNumbers, reverseCharge]
+      properties:
+        docType: { type: string, const: Vendor Invoice }
+        status: { $ref: '#/VendorInvoiceStatus' }
+        matchStatus: { $ref: '#/MatchStatus', readOnly: true }
+        matchMode: { type: string, readOnly: true, example: 3-way }
+        supplierInvoiceNumber: { type: string }
+        supplierInvoiceDate: { type: string, format: date }
+        poId: { type: string }
+        poNumber: { type: string, readOnly: true }
+        grnIds: { type: array, items: { type: string } }
+        grnNumbers: { type: array, items: { type: string }, readOnly: true }
+        lines: { type: array, items: { $ref: '#/VendorInvoiceLine' } }
+        tdsSectionId: { type: string }
+        reverseCharge: { type: boolean }
+        freightAsLandedCost: { type: boolean }
+        openItemId: { type: string, readOnly: true }
+        paid: { type: number, readOnly: true }
+        openExceptions: { type: integer, readOnly: true, example: 1 }
+
+MatchResult:
+  type: object
+  required: [status, mode, exceptions]
+  properties:
+    status: { $ref: '#/MatchStatus' }
+    mode: { type: string, example: 3-way }
+    tolerance: { type: string, example: '2% / ₹500' }
+    exceptions: { type: array, items: { $ref: '#/MatchException' } }
+    checks:
+      type: array
+      items:
+        type: object
+        properties:
+          lineId: { type: string }
+          itemName: { type: string }
+          check: { type: string, enum: [Price, Qty, Tax, Charge, GRN] }
+          expected: { type: number }
+          actual: { type: number }
+          variance: { type: number }
+          withinTolerance: { type: boolean }
+
+VendorInvoiceSubmitResult:
+  type: object
+  required: [outcome, invoice, match]
+  properties:
+    outcome: { type: string, enum: [approved, exception, routed-for-approval] }
+    invoice: { $ref: '#/VendorInvoice' }
+    match: { $ref: '#/MatchResult' }
+    approval: { $ref: './approvals.yaml#/ApprovalRequest' }
+    warnings: { type: array, items: { type: string } }
+
+DuplicateCheckRequest:
+  type: object
+  required: [partyId, supplierInvoiceNumber]
+  properties:
+    partyId: { type: string, example: sup_bharatsteel }
+    supplierInvoiceNumber: { type: string, example: BS-7781 }
+    supplierInvoiceDate: { type: string, format: date }
+    amount: { type: number }
+
+DuplicateCheckResult:
+  type: object
+  required: [duplicate, scope]
+  properties:
+    duplicate: { type: boolean }
+    scope: { type: string, enum: [Supplier, Supplier+FY, Company] }
+    existing: { $ref: '#/VendorInvoice' }
+    similar: { type: array, items: { $ref: '#/VendorInvoice' }, description: "Same supplier, same amount within 7 days." }
+
+ExceptionType:
+  type: string
+  enum: [Price variance, Qty variance, Tax variance, Charge variance, Missing GRN]
+
+ExceptionResolution:
+  type: string
+  enum: [Accept invoice value, Adjust to PO, Request debit note]
+
+MatchException:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [invoiceId, invoiceNumber, supplierName, type, invoiceValue, variance, variancePct, tolerance, status, raisedAt]
+      properties:
+        invoiceId: { type: string, example: vinv_00019 }
+        invoiceNumber: { type: string, example: VINV/2026-27/00019 }
+        supplierId: { type: string }
+        supplierName: { type: string, example: Bharat Steel Industries }
+        poId: { type: string }
+        poNumber: { type: string, example: PO/2026-27/00118 }
+        grnId: { type: string }
+        grnNumber: { type: string, example: GRN/2026-27/00077 }
+        lineId: { type: string }
+        itemName: { type: string, example: Steel Rod 4mm }
+        type: { $ref: '#/ExceptionType' }
+        poValue: { type: number, example: 48 }
+        grnValue: { type: number }
+        invoiceValue: { type: number, example: 50.5 }
+        variance: { type: number, example: 2.5 }
+        variancePct: { type: number, example: 5.2 }
+        tolerance: { type: string, example: '2% / ₹500' }
+        status: { type: string, enum: [Open, Assigned, Resolved, Approved] }
+        assignedToId: { type: string }
+        assignedToName: { type: string }
+        resolution: { $ref: '#/ExceptionResolution' }
+        resolutionReason: { type: string }
+        resolvedBy: { type: string }
+        resolvedAt: { type: string, format: date-time }
+        approvedBy: { type: string }
+        approvedAt: { type: string, format: date-time }
+        raisedAt: { type: string, format: date-time }
+
+ExceptionResolveRequest:
+  type: object
+  required: [resolution, reason]
+  properties:
+    resolution: { $ref: '#/ExceptionResolution' }
+    reason: { type: string, minLength: 10, example: Supplier price list revised 1 Sep — accepted by purchase manager }
+
+# ── debit notes / purchase returns ────────────────────────────────────────
+
+DebitNoteCreate:
+  allOf:
+    - $ref: './document.yaml#/DocHeaderInput'
+    - type: object
+      required: [partyId, reasonCode, lines]
+      properties:
+        invoiceId: { type: string, description: Against a posted vendor invoice (settles the open item)., example: vinv_00019 }
+        grnId: { type: string, description: Against a GRN (rejected quantities)., example: grn_00077 }
+        reasonCode: { type: string, example: REJ-QC }
+        goodsReturn: { type: boolean, default: false }
+        returnWarehouseId: { type: string }
+
+DebitNote:
+  allOf:
+    - $ref: './document.yaml#/DocHeader'
+    - type: object
+      required: [status, reasonCode, goodsReturn]
+      properties:
+        docType: { type: string, const: Debit Note }
+        status: { type: string, enum: [Draft, Posted, Reversed, Cancelled] }
+        invoiceId: { type: string }
+        invoiceNumber: { type: string, readOnly: true }
+        grnId: { type: string }
+        grnNumber: { type: string, readOnly: true }
+        reasonCode: { type: string }
+        goodsReturn: { type: boolean }
+        returnWarehouseId: { type: string }
+        purchaseReturnId: { type: string, readOnly: true }
+        purchaseReturnNumber: { type: string, readOnly: true }
+        settledAgainstInvoice: { type: boolean, readOnly: true }
+        openItemId: { type: string, readOnly: true }
+
+PurchaseReturn:
+  allOf:
+    - $ref: './document.yaml#/DocHeader'
+    - type: object
+      required: [status, debitNoteId, debitNoteNumber]
+      properties:
+        docType: { type: string, const: Purchase Return }
+        status: { type: string, enum: [Posted, Reversed] }
+        debitNoteId: { type: string }
+        debitNoteNumber: { type: string }
+        grnId: { type: string }
+        grnNumber: { type: string }
+
+# ── payments ──────────────────────────────────────────────────────────────
+
+PaymentMethod:
+  type: string
+  enum: [NEFT, RTGS, IMPS, Cheque, UPI, Cash]
+
+PaymentAllocationInput:
+  type: object
+  required: [openItemId, amount]
+  properties:
+    openItemId: { type: string, example: oi_ap_19 }
+    amount: { type: number, description: Gross amount applied (before TDS)., example: 412000 }
+    tds: { type: number, description: TDS deducted on this allocation (default computed from the section)., example: 8240 }
+
+PaymentAllocation:
+  allOf:
+    - $ref: '#/PaymentAllocationInput'
+    - type: object
+      required: [id, docType, docId, docNumber, outstanding, tds]
+      properties:
+        id: { type: string, readOnly: true }
+        docType: { type: string, readOnly: true, example: Vendor Invoice }
+        docId: { type: string, readOnly: true }
+        docNumber: { type: string, readOnly: true, example: VINV/2026-27/00019 }
+        outstanding: { type: number, readOnly: true }
+
+PaymentCreate:
+  type: object
+  required: [partyId, date, method, bankAccountId]
+  properties:
+    partyId: { type: string, example: sup_bharatsteel }
+    date: { type: string, format: date }
+    branchId: { type: string }
+    currency: { type: string }
+    rate: { type: number }
+    method: { $ref: '#/PaymentMethod' }
+    bankAccountId: { type: string, example: acc_1310 }
+    utr: { type: string, description: UTR / cheque no. / UPI ref., example: N246509999 }
+    instrumentDate: { type: string, format: date }
+    allocations: { type: array, items: { $ref: '#/PaymentAllocationInput' } }
+    grossAmount: { type: number, description: Required when paying an advance (no allocations)., example: 100000 }
+    tdsSectionId: { type: string, example: tds_194c }
+    chargesAmount: { type: number, default: 0 }
+    chargesAccountId: { type: string, example: acc_5400 }
+    notes: { type: string }
+    dimensions: { $ref: './common.yaml#/KeyValue' }
+
+PaymentPatch:
+  allOf:
+    - $ref: './common.yaml#/ExpectedVersion'
+    - type: object
+      properties:
+        date: { type: string, format: date }
+        method: { $ref: '#/PaymentMethod' }
+        bankAccountId: { type: string }
+        utr: { type: string }
+        instrumentDate: { type: string, format: date }
+        allocations: { type: array, items: { $ref: '#/PaymentAllocationInput' } }
+        grossAmount: { type: number }
+        tdsSectionId: { type: string }
+        chargesAmount: { type: number }
+        notes: { type: string }
+
+Payment:
+  allOf:
+    - $ref: './document.yaml#/DocHeader'
+    - type: object
+      required: [status, method, bankAccountId, bankAccountName, allocations, tdsAmount, chargesAmount, grossAmount, netAmount, unappliedAmount]
+      properties:
+        docType: { type: string, const: Payment }
+        status: { type: string, enum: [Draft, Pending Approval, Completed, Failed, Reversed, Cancelled] }
+        method: { $ref: '#/PaymentMethod' }
+        bankAccountId: { type: string }
+        bankAccountName: { type: string, readOnly: true, example: HDFC Bank — Current }
+        utr: { type: string }
+        instrumentDate: { type: string, format: date }
+        allocations: { type: array, items: { $ref: '#/PaymentAllocation' } }
+        tdsSectionId: { type: string }
+        tdsAmount: { type: number, readOnly: true, example: 8240 }
+        chargesAmount: { type: number }
+        chargesAccountId: { type: string }
+        grossAmount: { type: number, readOnly: true, description: Σ allocations (or the advance amount)., example: 412000 }
+        netAmount: { type: number, readOnly: true, description: gross − TDS − charges (what leaves the bank)., example: 403760 }
+        unappliedAmount: { type: number, readOnly: true }
+        advanceOpenItemId: { type: string, readOnly: true }
+        batchId: { type: string, readOnly: true }
+        batchNumber: { type: string, readOnly: true }
+        failureReason: { type: string, readOnly: true }
+        fxGainLoss: { type: number, readOnly: true }
+
+# ── payment batches ───────────────────────────────────────────────────────
+
+PaymentBatchStatus:
+  type: string
+  enum: [Created, Submitted, Approved, Rejected, Returned, Sent to bank, Accepted, Failed, Partially Completed, Completed, Reversed, Cancelled]
+
+PaymentBatchLine:
+  type: object
+  required: [id, supplierId, supplierName, openItemIds, docNumbers, amount, tds, net, status]
+  properties:
+    id: { type: string, example: pbl_1 }
+    supplierId: { type: string, example: sup_bharatsteel }
+    supplierName: { type: string, example: Bharat Steel Industries }
+    openItemIds: { type: array, items: { type: string } }
+    docNumbers: { type: array, items: { type: string }, example: [VINV/2026-27/00019] }
+    amount: { type: number, example: 412000 }
+    tds: { type: number, example: 8240 }
+    net: { type: number, example: 403760 }
+    bankName: { type: string, example: HDFC Bank }
+    accountNumber: { type: string, example: XXXXXXXX4412 }
+    ifsc: { type: string, example: HDFC0000240 }
+    note: { type: string }
+    status: { type: string, enum: [Pending, Accepted, Failed, Completed] }
+    utr: { type: string }
+    error: { type: string }
+    paymentId: { type: string }
+    paymentNumber: { type: string }
+
+PaymentProposalRequest:
+  type: object
+  required: [openItemIds, bankAccountId]
+  properties:
+    openItemIds: { type: array, minItems: 1, items: { type: string }, example: [oi_ap_19, oi_ap_22, oi_ap_23] }
+    bankAccountId: { type: string, example: acc_1310 }
+    method: { $ref: '#/PaymentMethod' }
+    date: { type: string, format: date }
+    amounts: { type: object, additionalProperties: { type: number }, description: Partial amounts per open item (default full outstanding). }
+    notes: { type: string }
+
+PaymentBatchLinesPatch:
+  type: object
+  required: [expectedVersion, lines]
+  properties:
+    expectedVersion: { type: integer }
+    lines:
+      type: array
+      items:
+        type: object
+        required: [id]
+        properties:
+          id: { type: string }
+          amount: { type: number }
+          note: { type: string }
+          remove: { type: boolean }
+
+PaymentBatch:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [number, docType, date, branchId, currency, bankAccountId, bankAccountName, method, status, lines, total, makerName]
+      properties:
+        number: { type: string, example: PB/2026-27/00012 }
+        docType: { type: string, const: Payment Batch }
+        date: { type: string, format: date }
+        branchId: { type: string }
+        currency: { type: string }
+        bankAccountId: { type: string }
+        bankAccountName: { type: string }
+        method: { $ref: '#/PaymentMethod' }
+        status: { $ref: '#/PaymentBatchStatus' }
+        lines: { type: array, items: { $ref: '#/PaymentBatchLine' } }
+        total: { type: number, example: 1264000 }
+        makerId: { type: string }
+        makerName: { type: string, example: Anita Rao }
+        checkerName: { type: string }
+        approvalId: { type: string }
+        submittedAt: { type: string, format: date-time }
+        approvedAt: { type: string, format: date-time }
+        fileGeneratedAt: { type: string, format: date-time }
+        fileName: { type: string, example: PB-2026-27-00012-HDFC.csv }
+        sentAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time }
+        notes: { type: string }
+        correlationId: { type: string }
+
+BatchDecision:
+  type: object
+  required: [action, comment]
+  properties:
+    action: { type: string, enum: [Approve, Reject, Return] }
+    comment: { type: string, minLength: 3 }
+
+BatchLineResult:
+  type: object
+  required: [result]
+  properties:
+    result: { type: string, enum: [Accepted, Failed] }
+    ref: { type: string, description: UTR for Accepted; bank error code for Failed., example: N246509999 }
+
+# ── AP ────────────────────────────────────────────────────────────────────
+
+ApAgeingRow:
+  type: object
+  required: [supplierId, supplier, current, d030, d3160, d6190, d90p, total, overdue, credits]
+  properties:
+    supplierId: { type: string }
+    supplier: { type: string }
+    current: { type: number }
+    d030: { type: number }
+    d3160: { type: number }
+    d6190: { type: number }
+    d90p: { type: number }
+    total: { type: number }
+    overdue: { type: number }
+    credits: { type: number, description: Advances / debit notes. }
+    isMsme: { type: boolean }
+
+ApAgeingReport:
+  type: object
+  required: [asAt, kpis, rows, totals, scope]
+  properties:
+    asAt: { type: string, format: date }
+    kpis:
+      type: object
+      properties:
+        overdueNow: { type: number, example: 212000 }
+        dueNext7: { type: number, example: 612000 }
+        due8to14: { type: number, example: 300000 }
+        due15to30: { type: number, example: 140000 }
+        advancesHeld: { type: number, example: 100000 }
+    rows: { type: array, items: { $ref: '#/ApAgeingRow' } }
+    totals: { $ref: '#/ApAgeingRow' }
+    scope: { $ref: './common.yaml#/Scope' }
+
+DueScheduleRow:
+  type: object
+  required: [dueDate, supplierId, supplier, docNumber, outstanding]
+  properties:
+    dueDate: { type: string, format: date }
+    supplierId: { type: string }
+    supplier: { type: string }
+    docId: { type: string }
+    docNumber: { type: string }
+    outstanding: { type: number }
+    daysToDue: { type: integer }
+    isMsme: { type: boolean }

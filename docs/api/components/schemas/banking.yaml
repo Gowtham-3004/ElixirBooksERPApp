@@ -1,0 +1,347 @@
+# Banking (src/modules/banking/types.ts, actions.ts)
+
+BankingSettings:
+  type: object
+  properties:
+    reconToleranceDays: { type: integer, description: Date window for auto-suggestions., example: 3 }
+    reconToleranceAmt: { type: number, description: Amount tolerance (base) below which a difference is treated as bank charges., example: 1 }
+    reconAutoSuggestThreshold: { type: number, description: Minimum confidence (0–1) to show a suggestion., example: 0.7 }
+
+BankAccountInput:
+  type: object
+  description: Creates/updates a GL account flagged as bank or cash (control account, posting allowed).
+  properties:
+    code: { type: string, example: '1310' }
+    name: { type: string, example: HDFC Bank — CA 0042 }
+    kind: { type: string, enum: [Bank, Cash] }
+    bankName: { type: string, example: HDFC Bank }
+    accountNumber: { type: string, description: Required for Bank (6+ digits); masked in responses., example: '50200012340042' }
+    ifsc: { type: string, pattern: '^[A-Z]{4}0[A-Z0-9]{6}$', example: HDFC0000123 }
+    branch: { type: string, example: Andheri East }
+    currency: { $ref: './common.yaml#/CurrencyCode' }
+    openingBalance: { type: number, example: 1250000 }
+    groupId: { type: string, example: ag_ca }
+
+BankAccountCreate:
+  allOf:
+    - $ref: '#/BankAccountInput'
+    - { required: [code, name, kind, currency, openingBalance] }
+
+BankAccountPatch:
+  allOf:
+    - $ref: '#/BankAccountInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+BankAccount:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [code, name, kind, currency, status, bookBalance, clearedBalance]
+      properties:
+        code: { type: string, example: '1310' }
+        name: { type: string, example: HDFC Bank — CA 0042 }
+        kind: { type: string, enum: [Bank, Cash] }
+        bankName: { type: string }
+        accountNumberMasked: { type: string, example: '••••0042' }
+        ifsc: { type: string }
+        branch: { type: string }
+        currency: { type: string, example: INR }
+        status: { type: string, enum: [Active, Inactive] }
+        openingBalance: { type: number }
+        bookBalance: { type: number, description: GL balance to date., example: 2318450 }
+        clearedBalance: { type: number, description: Book balance of matched (cleared) entries., example: 2296200 }
+        unclearedCount: { type: integer, example: 4 }
+        lastReconciliation: { type: object, properties: { id: { type: string }, number: { type: string }, periodTo: { type: string, format: date }, difference: { type: number } } }
+        lastStatementTo: { $ref: './common.yaml#/DateOnly' }
+
+VoucherType:
+  type: string
+  description: "Deposit / Withdrawal — cash ↔ bank; Contra / Transfer — bank ↔ bank; Receipt / Payment — party or income/expense ↔ bank."
+  enum: [Deposit, Withdrawal, Contra, Receipt, Payment, Transfer]
+
+BankVoucherInput:
+  type: object
+  properties:
+    date: { $ref: './common.yaml#/DateOnly' }
+    branchId: { type: string, example: br_ho }
+    voucherType: { $ref: '#/VoucherType' }
+    bankAccountId: { type: string, description: The bank/cash account money moves through., example: acc_1310 }
+    counterAccountId: { type: string, description: "Other side — bank/cash for Contra/Transfer, income/expense or party control otherwise.", example: acc_5300 }
+    partyType: { type: string, enum: [Customer, Supplier, Employee], description: Required when the counter account is an AR/AP control account. }
+    partyId: { type: string }
+    amount: { type: number, minimum: 0.01, example: 1180 }
+    currency: { $ref: './common.yaml#/CurrencyCode' }
+    rate: { type: number, example: 1 }
+    method: { type: string, enum: [NEFT, RTGS, IMPS, Cheque, UPI, Cash, Internal] }
+    instrumentRef: { type: string, description: Cheque number (required for Cheque) / UTR., example: UTR26091300112 }
+    narration: { type: string, example: Bank charges September }
+    statementLineId: { type: string, description: Statement line this voucher explains (adjustment created from reconciliation). }
+    dimensions: { $ref: './common.yaml#/KeyValue' }
+
+BankVoucherCreate:
+  allOf:
+    - $ref: '#/BankVoucherInput'
+    - { required: [date, voucherType, bankAccountId, counterAccountId, amount, narration] }
+
+BankVoucherPatch:
+  allOf:
+    - $ref: '#/BankVoucherInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+BankVoucher:
+  allOf:
+    - $ref: './document.yaml#/DocHeader'
+    - $ref: '#/BankVoucherInput'
+    - type: object
+      required: [voucherType, bankAccountId, bankAccountName, counterAccountId, counterAccountName, amount, narration]
+      properties:
+        docType: { type: string, const: Bank Voucher }
+        status: { type: string, enum: [Draft, Posted, Reversed, Cancelled] }
+        bankAccountName: { type: string, readOnly: true }
+        counterAccountName: { type: string, readOnly: true }
+        clearedOn: { type: string, format: date, readOnly: true, description: Statement date on which the voucher was matched. }
+
+# ── statements ────────────────────────────────────────────────────────────
+
+StatementFormat:
+  type: object
+  required: [name, dateCol, descCol, refCol, debitCol, creditCol, dateFormat]
+  properties:
+    name: { type: string, example: HDFC NetBanking CSV }
+    dateCol: { type: string, example: Date }
+    descCol: { type: string, example: Narration }
+    refCol: { type: string, example: Chq./Ref.No. }
+    debitCol: { type: string, example: Withdrawal Amt. }
+    creditCol: { type: string, example: Deposit Amt. }
+    balanceCol: { type: string, example: Closing Balance }
+    dateFormat: { type: string, enum: [YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY, MM/DD/YYYY] }
+
+StatementFormatRecord:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/StatementFormat'
+    - type: object
+      properties:
+        builtIn: { type: boolean, readOnly: true }
+        bankAccountId: { type: string, description: Restrict to one account (optional). }
+        usedCount: { type: integer, readOnly: true }
+
+ParsedStatementLine:
+  type: object
+  required: [row, date, description, reference, debit, credit, fingerprint]
+  properties:
+    row: { type: integer, example: 1 }
+    date: { type: string, example: '2026-09-02' }
+    description: { type: string, example: NEFT CR ARLENE TRADERS INV 00042 }
+    reference: { type: string, example: N260902001122 }
+    debit: { type: number, example: 0 }
+    credit: { type: number, example: 118000 }
+    balance: { type: number }
+    fingerprint: { type: string, example: fp_9a1b2c3d }
+    error: { type: string, example: 'Row 7: unreadable date "31/02/2026"' }
+    duplicate: { type: string, example: 'Row 3: already imported in hdfc_aug.csv' }
+
+StatementImportPreview:
+  type: object
+  description: "Dry-run result of `POST /banking/statements` (multipart). Nothing is stored until `commit`."
+  required: [previewId, bankAccountId, fileName, fingerprint, format, lines, importable, skipped, periodFrom, periodTo, computedClosing, errors, warnings]
+  properties:
+    previewId: { type: string, example: prv_7c1d }
+    bankAccountId: { type: string }
+    fileName: { type: string, example: hdfc_sep.csv }
+    fingerprint: { type: string, example: fp_file_44aa }
+    format: { $ref: '#/StatementFormat' }
+    detectedColumns: { type: array, items: { type: string } }
+    lines: { type: array, items: { $ref: '#/ParsedStatementLine' } }
+    importable: { type: integer, example: 41 }
+    skipped: { type: integer, example: 2 }
+    periodFrom: { $ref: './common.yaml#/DateOnly' }
+    periodTo: { $ref: './common.yaml#/DateOnly' }
+    openingBalance: { type: number }
+    closingBalance: { type: number }
+    computedClosing: { type: number, description: opening + Σcredit − Σdebit of importable rows. }
+    errors: { type: array, items: { type: string }, description: Blocking (validateStatement). }
+    warnings: { type: array, items: { type: string }, description: Non-blocking (statementWarnings). }
+
+StatementCommitRequest:
+  type: object
+  required: [previewId, openingBalance, closingBalance]
+  properties:
+    previewId: { type: string, example: prv_7c1d }
+    openingBalance: { type: number, example: 2200450 }
+    closingBalance: { type: number, example: 2318450 }
+    currency: { type: string, example: INR }
+    saveFormatAs: { type: string, description: Persist the column mapping under this name. }
+
+BankStatement:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [bankAccountId, bankAccountName, fileName, fingerprint, periodFrom, periodTo, currency, openingBalance, closingBalance, lineCount, totalDebit, totalCredit, status, importedBy, importedAt]
+      properties:
+        bankAccountId: { type: string }
+        bankAccountName: { type: string }
+        fileName: { type: string, example: hdfc_sep.csv }
+        fingerprint: { type: string }
+        periodFrom: { $ref: './common.yaml#/DateOnly' }
+        periodTo: { $ref: './common.yaml#/DateOnly' }
+        currency: { type: string }
+        openingBalance: { type: number }
+        closingBalance: { type: number }
+        lineCount: { type: integer }
+        totalDebit: { type: number }
+        totalCredit: { type: number }
+        status: { type: string, enum: [Imported, Partially Reconciled, Reconciled] }
+        importedBy: { type: string }
+        importedAt: { $ref: './common.yaml#/Timestamp' }
+        format: { $ref: '#/StatementFormat' }
+        reconciliationId: { type: string }
+        matched: { type: integer, readOnly: true }
+        unmatched: { type: integer, readOnly: true }
+        excluded: { type: integer, readOnly: true }
+
+StatementLine:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [statementId, bankAccountId, date, description, debit, credit, fingerprint, status]
+      properties:
+        statementId: { type: string }
+        bankAccountId: { type: string }
+        date: { $ref: './common.yaml#/DateOnly' }
+        description: { type: string }
+        reference: { type: string }
+        debit: { type: number }
+        credit: { type: number }
+        balance: { type: number }
+        fingerprint: { type: string }
+        status: { type: string, enum: [Unmatched, Matched, Excluded] }
+        matchedJournalIds: { type: array, items: { type: string } }
+        matchedDocNumber: { type: string, example: 'RCP/2026-27/00215, RCP/2026-27/00216' }
+        matchGroupId: { type: string }
+        matchedAt: { $ref: './common.yaml#/Timestamp' }
+        matchedBy: { type: string }
+        matchConfidence: { type: number, minimum: 0, maximum: 1 }
+        matchReason: { type: string, example: 'Amount = ₹1,18,000 · same day · ref INV 00042' }
+        excludeReason: { type: string }
+        reconciliationId: { type: string }
+
+# ── reconciliation ────────────────────────────────────────────────────────
+
+BankBookEntry:
+  type: object
+  required: [journalId, number, date, narration, sourceType, docNumber, dr, cr, amount, cleared]
+  properties:
+    journalId: { type: string }
+    number: { type: string, example: JV/2026-27/00298 }
+    date: { $ref: './common.yaml#/DateOnly' }
+    narration: { type: string }
+    sourceType: { type: string, example: Receipt }
+    sourceId: { type: string }
+    sourceNumber: { type: string }
+    docNumber: { type: string, example: RCP/2026-27/00215 }
+    dr: { type: number }
+    cr: { type: number }
+    amount: { type: number, description: "dr − cr (positive = money in)." }
+    partyName: { type: string }
+    cleared: { type: boolean }
+    clearedBy: { type: string, description: Statement line id. }
+
+ReconSuggestion:
+  type: object
+  required: [statementLineId, journalId, confidence, reason]
+  properties:
+    statementLineId: { type: string }
+    journalId: { type: string }
+    docNumber: { type: string }
+    confidence: { type: number, minimum: 0, maximum: 1, example: 0.92 }
+    reason: { type: string, example: 'Amount equal · 0 days apart · reference match "00042"' }
+
+ReconciliationWorkspace:
+  type: object
+  description: Live summary for an account + window (reconSummary).
+  required: [bankAccountId, from, to, statementBalance, bookBalance, difference, openingBook, adjustedBook, unmatchedStatement, unmatchedBook, cleared, clearedAmount, suggestions, canConfirm]
+  properties:
+    bankAccountId: { type: string }
+    bankAccountName: { type: string }
+    from: { $ref: './common.yaml#/DateOnly' }
+    to: { $ref: './common.yaml#/DateOnly' }
+    statementId: { type: string }
+    statementBalance: { type: number, example: 2318450 }
+    bookBalance: { type: number, example: 2296200 }
+    difference: { type: number, example: 22250 }
+    openingBook: { type: number }
+    adjustedBook: { type: number, description: "Book balance adjusted for timing items (uncleared book entries, unmatched statement lines)." }
+    unexplained: { type: number, description: statementBalance − adjustedBook; must be 0 to confirm. }
+    unmatchedStatement: { type: array, items: { $ref: '#/StatementLine' } }
+    unmatchedBook: { type: array, items: { $ref: '#/BankBookEntry' } }
+    cleared: { type: array, items: { $ref: '#/StatementLine' } }
+    clearedAmount: { type: number }
+    suggestions: { type: array, items: { $ref: '#/ReconSuggestion' } }
+    canConfirm: { type: boolean }
+    lastConfirmed: { type: object, properties: { id: { type: string }, number: { type: string }, periodTo: { type: string, format: date } } }
+
+BankMatchRequest:
+  type: object
+  description: "1:1, 1:n (one statement line, several book entries) or n:1 (several lines, one entry). Amounts must agree within 0.005."
+  required: [statementLineIds, journalIds]
+  properties:
+    statementLineIds: { type: array, minItems: 1, items: { type: string } }
+    journalIds: { type: array, minItems: 1, items: { type: string } }
+    note: { type: string }
+
+BankMatchResult:
+  type: object
+  required: [matchGroupId, lines, clearedJournalIds]
+  properties:
+    matchGroupId: { type: string, example: mg_31 }
+    lines: { type: array, items: { $ref: '#/StatementLine' } }
+    clearedJournalIds: { type: array, items: { type: string } }
+
+ReconAdjustmentRequest:
+  type: object
+  description: Create + post a bank voucher that explains a statement line (charges, interest, unknown receipt) and match it in one step.
+  required: [statementLineId, counterAccountId, narration]
+  properties:
+    statementLineId: { type: string }
+    voucherType: { $ref: '#/VoucherType' }
+    counterAccountId: { type: string, example: acc_5300 }
+    partyType: { type: string, enum: [Customer, Supplier, Employee] }
+    partyId: { type: string }
+    amount: { type: number, description: Defaults to the line amount. }
+    narration: { type: string, example: Bank charges September }
+
+ReconciliationInput:
+  type: object
+  required: [bankAccountId, periodFrom, periodTo]
+  properties:
+    bankAccountId: { type: string }
+    periodFrom: { $ref: './common.yaml#/DateOnly' }
+    periodTo: { $ref: './common.yaml#/DateOnly' }
+    statementId: { type: string }
+    notes: { type: string }
+
+Reconciliation:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [number, bankAccountId, bankAccountName, periodFrom, periodTo, statementBalance, bookBalance, clearedCount, clearedAmount, unmatchedStatement, unmatchedBook, adjustments, difference, status]
+      properties:
+        number: { type: string, example: BRS/2026-27/09 }
+        bankAccountId: { type: string }
+        bankAccountName: { type: string }
+        periodFrom: { $ref: './common.yaml#/DateOnly' }
+        periodTo: { $ref: './common.yaml#/DateOnly' }
+        statementId: { type: string }
+        statementBalance: { type: number }
+        bookBalance: { type: number }
+        clearedCount: { type: integer }
+        clearedAmount: { type: number }
+        unmatchedStatement: { type: array, items: { type: object, properties: { id: { type: string }, date: { type: string, format: date }, description: { type: string }, amount: { type: number } } } }
+        unmatchedBook: { type: array, items: { type: object, properties: { journalId: { type: string }, number: { type: string }, date: { type: string, format: date }, amount: { type: number }, narration: { type: string } } } }
+        adjustments: { type: array, items: { type: object, properties: { voucherId: { type: string }, number: { type: string }, amount: { type: number }, narration: { type: string } } } }
+        difference: { type: number }
+        status: { type: string, enum: [Draft, Confirmed] }
+        confirmedBy: { type: string }
+        confirmedAt: { $ref: './common.yaml#/Timestamp' }
+        notes: { type: string }

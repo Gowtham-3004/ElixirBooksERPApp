@@ -1,0 +1,526 @@
+# System / cross-cutting endpoints (tag: System).
+# Generic document sub-resources apply to every document collection so per-module files don't repeat them.
+
+/health:
+  get:
+    tags: [System]
+    summary: Service health
+    operationId: getHealth
+    security: []
+    x-company-scoped: false
+    responses:
+      '200':
+        description: Health status
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/Health' }
+            examples:
+              ok: { summary: All good, value: { status: ok, version: 1.0.0, time: '2026-09-13T09:12:04Z', checks: { database: ok, queue: ok, irp: ok, ewb: ok } } }
+              degraded: { summary: Provider degraded, value: { status: degraded, version: 1.0.0, time: '2026-09-13T09:12:04Z', checks: { database: ok, queue: ok, irp: degraded, ewb: ok } } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/enums:
+  get:
+    tags: [System]
+    summary: Enum catalogue (all status lists)
+    description: Every status/enum list used by the contract, keyed by schema name, plus `documentCollections`, `workflowDocTypes`, `domainEvents`, `permissionMatrix` and `apiScopes`. Cacheable (ETag).
+    operationId: getEnums
+    x-company-scoped: false
+    responses:
+      '200':
+        description: Catalogue
+        headers:
+          ETag: { $ref: '../components/headers.yaml#/ETag' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/EnumCatalog' }
+            examples:
+              catalogue:
+                summary: Excerpt
+                value:
+                  DocStatus: [Draft, Submitted, Approved, Returned, Rejected, Posted, Settled, Reversed, Cancelled, Closed]
+                  SalesInvoiceStatus: [Draft, Submitted, Approved, Returned, Rejected, Posted, Settled, Reversed, Cancelled]
+                  PurchaseOrderStatus: [Draft, Submitted, Approved, Returned, Rejected, Partially Received, Received, Closed, Short Closed, Cancelled]
+                  PeriodStatus: [Future, Open, Soft Closed, Locked, Reopened]
+                  documentCollections: [quotations, salesOrders, deliveries, salesInvoices, creditNotes, receipts, purchaseOrders, grns, vendorInvoices, payments, journals]
+                  workflowDocTypes: [Sales Invoice, Credit Note, Purchase Order, Vendor Invoice, Payment Batch, Journal, Period Reopen]
+                  domainEvents: [DocumentCreated, DocumentPosted, JournalPosted, StockMoved, PaymentCompleted, PeriodLocked]
+                  apiScopes: [sales.*, sales.invoice.view, purchase.*, reports.*, webhooks.manage]
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/search:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [System]
+    summary: Global search (⌘K)
+    description: |
+      Searches 18 collections (sales invoices, quotations, orders, deliveries, credit notes, receipts, POs, GRNs,
+      vendor invoices, payments, journals, customers, suppliers, items, employees, assets, projects, production orders)
+      by number, party, reference, code, GSTIN and e-mail, plus the navigation menu. Results are filtered by the
+      caller's permissions and data scope.
+
+      Query examples: `?q=arlene` · `?q=INV/2026-27/00042` · `?q=steel&types=items,purchaseOrders&limit=5`
+    operationId: globalSearch
+    x-permission: '*.*.view'
+    parameters:
+      - { name: q, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 120 }, example: arlene }
+      - { name: types, in: query, description: Comma-separated collection names to restrict the search., schema: { type: string }, style: form, explode: false, example: 'customers,salesInvoices' }
+      - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+    responses:
+      '200':
+        description: Ranked results
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/SearchResponse' }
+            examples:
+              hits:
+                summary: Matches across collections
+                value:
+                  q: arlene
+                  results:
+                    - { collection: customers, id: cust_arlene, title: Arlene Traders, subtitle: 'C-0101 · 27AAPFU0939F1ZV · Active', status: Active, link: '#/masters/customers/cust_arlene', score: 0.98 }
+                    - { collection: salesInvoices, id: inv_01j8k3, title: INV/2026-27/00042, subtitle: 'Arlene Traders · ₹1,18,000 · Posted', status: Posted, link: '#/sales/invoices/inv_01j8k3', score: 0.81 }
+                    - { collection: receipts, id: rcp_00210, title: RCP/2026-27/00210, subtitle: 'Arlene Traders · ₹50,000 · Posted', status: Posted, link: '#/sales/receipts/rcp_00210', score: 0.77 }
+                  menu:
+                    - { label: 'Sales › Collections', link: '#/sales/collections?customer=cust_arlene' }
+                  truncated: false
+              noHits:
+                summary: Nothing matched
+                value: { q: zzzz, results: [], menu: [], truncated: false }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/notifications:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [System]
+    summary: List my notifications
+    description: Newest first. Query examples — unread only `?read=false` · by type `?type=approval` · page 2 `?cursor=…`.
+    operationId: listNotifications
+    x-permission: '*.*.view'
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: read, in: query, schema: { type: boolean } }
+      - { name: type, in: query, schema: { type: string, enum: [approval, integration, import, export, due, system, security] } }
+    responses:
+      '200':
+        description: Notifications
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/system.yaml#/Notification' } }
+                    unread: { type: integer }
+            examples:
+              firstPage:
+                summary: Unread approvals and an export ready
+                value:
+                  data:
+                    - { id: ntf_2f8d, companyId: co_acme, at: '2026-09-13T09:12:04Z', userId: usr_rahul, type: approval, title: Approval needed — INV/2026-27/00042, body: 'Arlene Traders · ₹1,18,000 · submitted by Priya Sharma', link: '#/approvals?id=apr_6c1d', read: false, channel: in-app, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+                    - { id: ntf_2f8c, companyId: co_acme, at: '2026-09-13T08:40:00Z', userId: usr_rahul, type: export, title: Export ready — Sales invoices (CSV), body: 1240 rows · expires in 24 h, link: '#/admin/jobs?tab=exports', read: false, channel: in-app, createdAt: '2026-09-13T08:40:00Z', updatedAt: '2026-09-13T08:40:00Z', version: 1 }
+                  unread: 2
+                  meta: { nextCursor: eyJhdCI6IjIwMjYtMDktMTNUMDg6NDA6MDBaIn0, limit: 25, total: 31 }
+                  scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' }
+              lastPage:
+                summary: Last page
+                value:
+                  data:
+                    - { id: ntf_1a00, companyId: co_acme, at: '2026-08-02T10:00:00Z', userId: usr_rahul, type: system, title: Welcome to Elixir Books, read: true, channel: in-app, createdAt: '2026-08-02T10:00:00Z', updatedAt: '2026-08-02T10:00:00Z', version: 1 }
+                  unread: 0
+                  meta: { nextCursor: null, limit: 25, total: 31 }
+                  scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/notifications/{id}/read:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [System]
+    summary: Mark a notification read
+    operationId: markNotificationRead
+    x-permission: '*.*.view'
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/Notification' }
+            examples:
+              read: { summary: Now read, value: { id: ntf_2f8d, companyId: co_acme, at: '2026-09-13T09:12:04Z', userId: usr_rahul, type: approval, title: Approval needed — INV/2026-27/00042, link: '#/approvals?id=apr_6c1d', read: true, channel: in-app, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:15:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/notifications/read-all:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [System]
+    summary: Mark all my notifications read
+    operationId: markAllNotificationsRead
+    x-permission: '*.*.view'
+    responses:
+      '200':
+        description: Count updated
+        content:
+          application/json:
+            schema: { type: object, required: [updated], properties: { updated: { type: integer } } }
+            examples:
+              some: { summary: Two marked read, value: { updated: 2 } }
+              none: { summary: Nothing to do, value: { updated: 0 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+# ── attachments ──────────────────────────────────────────────────────────
+
+/attachments:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [System]
+    summary: Upload an attachment
+    description: |
+      Multipart upload bound to a document (`objectType` + `objectId`). Max 25 MB per file. Executables
+      (`.exe .bat .sh .js .msi .cmd`) are stored as `scanState: Blocked` and cannot be downloaded; other files
+      are `Scanning` until the antivirus pass completes, then `Clean`. Attachments on posted documents are allowed;
+      statutory attachments cannot be replaced or removed.
+    operationId: uploadAttachment
+    x-permission: '*.*.edit'
+    x-frd: [FR-DOC-006]
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [objectType, objectId, file]
+            properties:
+              objectType: { type: string, example: Sales Invoice }
+              objectId: { type: string, example: inv_01j8k3 }
+              file: { type: string, format: binary }
+              note: { type: string }
+          examples:
+            pdf: { summary: Customer PO as PDF, value: { objectType: Sales Invoice, objectId: inv_01j8k3, file: '(binary PO-ARL-2291.pdf)' } }
+            image: { summary: Delivery proof photo, value: { objectType: Delivery, objectId: dlv_00340, file: '(binary delivery-proof.jpg)', note: Signed by security at gate 2 } }
+            blockedType: { summary: Executable — accepted but blocked, value: { objectType: Vendor Invoice, objectId: vinv_00019, file: '(binary setup.exe)' } }
+    responses:
+      '201':
+        description: Stored (scan pending or blocked)
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/Attachment' }
+            examples:
+              scanning: { $ref: '../components/examples/common.yaml#/AttachmentScanning' }
+              blocked:
+                summary: Executable quarantined
+                value: { id: att_3d00, companyId: co_acme, objectType: Vendor Invoice, objectId: vinv_00019, name: setup.exe, size: 3145728, mime: application/x-msdownload, scanState: Blocked, statutory: false, uploadedBy: Priya Sharma, at: '2026-09-13T09:12:04Z', fileVersion: 1, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '413': { $ref: '../components/responses.yaml#/PayloadTooLarge' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/attachments/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [System]
+    summary: Get attachment metadata
+    operationId: getAttachment
+    x-permission: '*.*.view'
+    responses:
+      '200':
+        description: Attachment
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/Attachment' }
+            examples:
+              clean: { $ref: '../components/examples/common.yaml#/AttachmentClean' }
+              statutory: { $ref: '../components/examples/common.yaml#/AttachmentStatutory' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  delete:
+    tags: [System]
+    summary: Remove an attachment
+    description: Not allowed for statutory attachments (`409 INVALID_STATE`).
+    operationId: deleteAttachment
+    x-permission: '*.*.edit'
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/attachments/{id}/content:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [System]
+    summary: Download attachment content
+    description: Streams the file. `Scanning` files return `409 INVALID_STATE`; `Blocked` files return `422 SCAN_BLOCKED`.
+    operationId: downloadAttachment
+    x-permission: '*.*.view'
+    responses:
+      '200':
+        description: File bytes
+        headers:
+          Content-Disposition: { $ref: '../components/headers.yaml#/ContentDisposition' }
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/attachments/{id}/versions:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [System]
+    summary: Replace with a new file version
+    description: Uploads a replacement; `fileVersion` increments and the previous bytes stay retrievable for audit.
+    operationId: replaceAttachment
+    x-permission: '*.*.edit'
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [file]
+            properties:
+              file: { type: string, format: binary }
+              note: { type: string }
+          examples:
+            replace: { summary: Corrected PO copy, value: { file: '(binary PO-ARL-2291-v2.pdf)', note: Customer sent a corrected PO with the right ship-to } }
+    responses:
+      '200':
+        description: New version stored
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/Attachment' }
+            examples:
+              v2: { summary: Version 2, value: { id: att_3c9e, companyId: co_acme, objectType: Sales Invoice, objectId: inv_01j8k3, name: PO-ARL-2291-v2.pdf, size: 190112, mime: application/pdf, scanState: Scanning, statutory: false, uploadedBy: Priya Sharma, at: '2026-09-13T10:02:00Z', fileVersion: 2, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T10:02:00Z', version: 3 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '413': { $ref: '../components/responses.yaml#/PayloadTooLarge' }
+
+# ── generic document sub-resources ───────────────────────────────────────
+
+/documents/{collection}/{id}/attachments:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Collection'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [System]
+    summary: List a document's attachments
+    operationId: listDocumentAttachments
+    x-permission: '*.*.view'
+    responses:
+      '200':
+        description: Attachments (user + statutory)
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: { type: array, items: { $ref: '../components/schemas/system.yaml#/Attachment' } }
+            examples:
+              withStatutory:
+                summary: User upload plus signed e-invoice
+                value:
+                  data:
+                    - { id: att_3c9e, companyId: co_acme, objectType: Sales Invoice, objectId: inv_01j8k3, name: PO-ARL-2291.pdf, size: 184320, mime: application/pdf, scanState: Clean, statutory: false, uploadedBy: Priya Sharma, at: '2026-09-13T09:12:04Z', fileVersion: 1, downloadUrl: /v1/attachments/att_3c9e/content, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:09Z', version: 2 }
+                    - { id: att_irn_0042, companyId: co_acme, objectType: Sales Invoice, objectId: inv_01j8k3, name: INV-2026-27-00042-signed.pdf, size: 240113, mime: application/pdf, scanState: Clean, statutory: true, uploadedBy: system, at: '2026-09-13T09:20:00Z', fileVersion: 1, downloadUrl: /v1/attachments/att_irn_0042/content, createdAt: '2026-09-13T09:20:00Z', updatedAt: '2026-09-13T09:20:00Z', version: 1 }
+              none: { summary: No attachments, value: { data: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/documents/{collection}/{id}/journal:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Collection'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [System]
+    summary: Posted or projected journal for a document
+    description: For posted documents returns the actual journal(s). For drafts returns a **projected** journal computed from the current lines (Accounting tab preview) — includes COGS projection for stock documents.
+    operationId: getDocumentJournal
+    x-permission: accounting.journal.view
+    responses:
+      '200':
+        description: Journal(s)
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [projected, journals]
+                  properties:
+                    projected: { type: boolean, const: false }
+                    journals: { type: array, items: { $ref: '../components/schemas/document.yaml#/Journal' } }
+                - $ref: '../components/schemas/system.yaml#/ProjectedJournal'
+            examples:
+              posted:
+                summary: Posted invoice — sales journal + COGS journal
+                value:
+                  projected: false
+                  journals:
+                    - { id: jnl_01j8k4, companyId: co_acme, number: JV/2026-27/00311, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Sales Invoice, sourceId: inv_01j8k3, sourceNumber: INV/2026-27/00042, narration: Sales invoice INV/2026-27/00042 — Arlene Traders, lines: [{ id: jl1, accountId: acc_1100, accountCode: '1100', accountName: Accounts Receivable, dr: 118000, cr: 0, drBase: 118000, crBase: 0, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, dimensions: {} }, { id: jl2, accountId: acc_4000, accountCode: '4000', accountName: Sales, dr: 0, cr: 100000, drBase: 0, crBase: 100000, dimensions: { Department: dim_dept_sales } }, { id: jl3, accountId: acc_2300, accountCode: '2300', accountName: GST Output CGST, dr: 0, cr: 9000, drBase: 0, crBase: 9000, dimensions: {}, taxComponent: CGST }, { id: jl4, accountId: acc_2301, accountCode: '2301', accountName: GST Output SGST, dr: 0, cr: 9000, drBase: 0, crBase: 9000, dimensions: {}, taxComponent: SGST }], totalDr: 118000, totalCr: 118000, idempotencyKey: 'inv_01j8k3:post', postedAt: '2026-09-13T09:12:04Z', postedBy: Rahul Mehta, correlationId: corr_9f1c2e7a, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+                    - { id: jnl_01j8k5, companyId: co_acme, number: JV/2026-27/00312, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Sales Invoice, sourceId: inv_01j8k3, sourceNumber: INV/2026-27/00042, narration: COGS for INV/2026-27/00042, lines: [{ id: jl5, accountId: acc_5000, accountCode: '5000', accountName: Cost of Goods Sold, dr: 62000, cr: 0, drBase: 62000, crBase: 0, dimensions: {} }, { id: jl6, accountId: acc_1200, accountCode: '1200', accountName: Inventory — Finished Goods, dr: 0, cr: 62000, drBase: 0, crBase: 62000, dimensions: {} }], totalDr: 62000, totalCr: 62000, idempotencyKey: 'inv_01j8k3:cogs', postedAt: '2026-09-13T09:12:04Z', postedBy: Rahul Mehta, correlationId: corr_9f1c2e7a, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+              projected:
+                summary: Draft — projected journal
+                value:
+                  projected: true
+                  lines:
+                    - { id: p1, accountId: acc_1100, accountCode: '1100', accountName: Accounts Receivable, dr: 118000, cr: 0, drBase: 118000, crBase: 0, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, dimensions: {} }
+                    - { id: p2, accountId: acc_4000, accountCode: '4000', accountName: Sales, dr: 0, cr: 100000, drBase: 0, crBase: 100000, dimensions: {} }
+                    - { id: p3, accountId: acc_2300, accountCode: '2300', accountName: GST Output CGST, dr: 0, cr: 9000, drBase: 0, crBase: 9000, dimensions: {}, taxComponent: CGST }
+                    - { id: p4, accountId: acc_2301, accountCode: '2301', accountName: GST Output SGST, dr: 0, cr: 9000, drBase: 0, crBase: 9000, dimensions: {}, taxComponent: SGST }
+                  totalDr: 118000
+                  totalCr: 118000
+                  balanced: true
+                  warnings: ['Department dimension will be required on Sales (4000)']
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/documents/{collection}/{id}/activity:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Collection'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [System]
+    summary: Activity (audit trail, approvals, notifications) for a document
+    operationId: getDocumentActivity
+    x-permission: '*.*.view'
+    responses:
+      '200':
+        description: Activity
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/DocumentActivity' }
+            examples:
+              posted:
+                summary: Created → submitted → approved → posted
+                value:
+                  audit:
+                    - { id: aud_1, at: '2026-09-12T15:02:00Z', actor: Priya Sharma, actorId: usr_priya, action: invoice.created, objectType: Sales Invoice, objectId: inv_01j8k3, objectNumber: DRAFT-8821, result: Success, correlationId: corr_1, channel: web, createdAt: '2026-09-12T15:02:00Z', updatedAt: '2026-09-12T15:02:00Z', version: 1 }
+                    - { id: aud_2, at: '2026-09-12T15:10:00Z', actor: Priya Sharma, actorId: usr_priya, action: invoice.submitted, objectType: Sales Invoice, objectId: inv_01j8k3, objectNumber: DRAFT-8821, result: Success, detail: Routed to Finance review (WF-SI-100K v2), correlationId: corr_2, channel: web, createdAt: '2026-09-12T15:10:00Z', updatedAt: '2026-09-12T15:10:00Z', version: 1 }
+                    - { id: aud_3, at: '2026-09-13T09:11:00Z', actor: Rahul Mehta, actorId: usr_rahul, action: approval.approved, objectType: Sales Invoice, objectId: inv_01j8k3, result: Success, detail: Step 1 Finance review — ok, correlationId: corr_3, channel: web, createdAt: '2026-09-13T09:11:00Z', updatedAt: '2026-09-13T09:11:00Z', version: 1 }
+                    - { id: aud_4, at: '2026-09-13T09:12:04Z', actor: Rahul Mehta, actorId: usr_rahul, action: invoice.posted, objectType: Sales Invoice, objectId: inv_01j8k3, objectNumber: INV/2026-27/00042, result: Success, detail: 'Posted ₹1,18,000 · JV/2026-27/00311', correlationId: corr_9f1c2e7a, channel: api, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+                  approvals:
+                    - { id: apr_6c1d, companyId: co_acme, docType: Sales Invoice, collection: salesInvoices, docId: inv_01j8k3, docNumber: DRAFT-8821, amount: 118000, currency: INR, branchId: br_ho, requesterId: usr_priya, requesterName: Priya Sharma, ruleId: wf_si_100k, ruleName: Sales invoices above ₹1 lakh, ruleVersion: 2, steps: [{ order: 1, name: Finance review, approverType: Role, approverRef: role_finadmin, approverLabel: Finance Admin, status: Approved, actedBy: Rahul Mehta, actedById: usr_rahul, actedAt: '2026-09-13T09:11:00Z', comment: ok, commentRequired: false }], currentStep: 1, status: Approved, submittedAt: '2026-09-12T15:10:00Z', completedAt: '2026-09-13T09:11:00Z', history: [{ at: '2026-09-12T15:10:00Z', by: Priya Sharma, action: Submitted }, { at: '2026-09-13T09:11:00Z', by: Rahul Mehta, action: Approved, comment: ok, step: 1 }], createdAt: '2026-09-12T15:10:00Z', updatedAt: '2026-09-13T09:11:00Z', version: 2 }
+                  notifications: []
+              draft:
+                summary: Freshly created draft
+                value:
+                  audit:
+                    - { id: aud_9, at: '2026-09-13T09:30:00Z', actor: Priya Sharma, actorId: usr_priya, action: invoice.created, objectType: Sales Invoice, objectId: inv_01j9a0, objectNumber: DRAFT-8830, result: Success, correlationId: corr_x, channel: web, createdAt: '2026-09-13T09:30:00Z', updatedAt: '2026-09-13T09:30:00Z', version: 1 }
+                  approvals: []
+                  notifications: []
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/documents/{collection}/{id}/pdf:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Collection'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [System]
+    summary: Render a document PDF
+    description: Renders with the document template (tax invoice, quotation, order confirmation, delivery challan, credit note, receipt voucher, PO, payment voucher, payslip …). Every render is audited as `<doc>.pdf_generated` with the template version. Drafts render with a **DRAFT** watermark.
+    operationId: renderDocumentPdf
+    x-permission: '*.*.view'
+    x-frd: [FR-DOC-005]
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/system.yaml#/PdfRequest' }
+          examples:
+            default: { summary: Company default template, value: {} }
+            duplicateCopy: { summary: Duplicate copy with a specific template, value: { templateId: tpl_taxinv_v3, copy: Duplicate } }
+    responses:
+      '200':
+        description: PDF bytes
+        headers:
+          Content-Disposition: { $ref: '../components/headers.yaml#/ContentDisposition' }
+        content:
+          application/pdf:
+            schema: { type: string, format: binary }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/documents/{collection}/{id}/email:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Collection'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [System]
+    summary: E-mail a document (PDF attached)
+    description: "Queues the e-mail at the gateway, writes an `IntegrationLog{provider: Email, action: SendDocument}` and a notification. Quotations move to `Sent`; purchase orders record `emailedAt`."
+    operationId: emailDocument
+    x-permission: '*.*.view'
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/EmailRequest' }
+          examples:
+            default: { $ref: '../components/examples/common.yaml#/EmailDefault' }
+            withCc: { $ref: '../components/examples/common.yaml#/EmailWithCc' }
+    responses:
+      '202':
+        description: Queued
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmailResult' }
+            examples:
+              queued: { $ref: '../components/examples/common.yaml#/EmailResult' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '502': { $ref: '../components/responses.yaml#/ProviderError' }

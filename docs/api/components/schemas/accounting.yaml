@@ -1,0 +1,490 @@
+# Accounting (src/modules/accounting/types.ts, lib.ts, engine.ts postJournal/reverseJournal; JournalForm.tsx, Recurring.tsx, Fx.tsx, OpeningBalances.tsx, PeriodClose.tsx, intercompany)
+
+# ── manual journals ───────────────────────────────────────────────────────
+
+JournalLineDraft:
+  type: object
+  description: "One posting line (engine.PostLine). Exactly one of `dr` / `cr` must be > 0."
+  required: [accountId]
+  properties:
+    accountId: { type: string, example: acc_5100 }
+    dr: { type: number, default: 0, example: 25000 }
+    cr: { type: number, default: 0, example: 0 }
+    partyType: { type: string, enum: [Customer, Supplier, Employee], description: Required when the account is an AR/AP/Employee control account. }
+    partyId: { type: string, example: cust_arlene }
+    dimensions: { $ref: './common.yaml#/KeyValue' }
+    narration: { type: string, example: Sept office rent }
+
+JournalInput:
+  type: object
+  properties:
+    date: { $ref: './common.yaml#/DateOnly' }
+    branchId: { type: string, example: br_ho }
+    currency: { $ref: './common.yaml#/CurrencyCode' }
+    rate: { type: number, description: Exchange rate to base; resolved from approved rates when omitted., example: 1 }
+    reference: { type: string, description: External reference stored as `sourceNumber`., example: RENT-SEP-26 }
+    narration: { type: string, example: Office rent for September 2026 }
+    lines: { type: array, minItems: 2, items: { $ref: '#/JournalLineDraft' } }
+    templateId: { type: string, description: Pre-fill lines from a journal template (lines in the body override)., example: jt_rent }
+
+JournalCreate:
+  allOf:
+    - $ref: '#/JournalInput'
+    - { required: [date, narration, lines] }
+
+JournalPatch:
+  allOf:
+    - $ref: '#/JournalInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+JournalSubmitOutcome:
+  type: string
+  description: "`routed-for-approval` → Submitted; `approved` → no rule but period closed, left Approved; `posted` → no rule and period open."
+  enum: [routed-for-approval, approved, posted]
+
+JournalTemplate:
+  type: object
+  required: [id, name, lines]
+  properties:
+    id: { type: string, example: jt_rent }
+    name: { type: string, example: Monthly office rent }
+    description: { type: string, example: Rent expense vs landlord payable }
+    narration: { type: string, example: 'Office rent for {period}' }
+    lines: { type: array, items: { $ref: '#/JournalLineDraft' } }
+
+JournalValidationIssue:
+  type: object
+  description: Mirrors lib.validateDraft — returned in `details.issues` of a 422.
+  required: [message]
+  properties:
+    lineId: { type: string }
+    lineIndex: { type: integer }
+    field: { type: string, example: partyId }
+    message: { type: string, example: 'Line 2: control account 1100 needs a customer (FR-ACC-002)' }
+
+# ── recurring journals ────────────────────────────────────────────────────
+
+RecurringJournalLine:
+  type: object
+  required: [accountId, dr, cr]
+  properties:
+    id: { type: string, readOnly: true }
+    accountId: { type: string, example: acc_5100 }
+    dr: { type: number, example: 25000 }
+    cr: { type: number, example: 0 }
+    partyType: { type: string, enum: [Customer, Supplier, Employee] }
+    partyId: { type: string }
+    partyName: { type: string, readOnly: true }
+    dimensions: { $ref: './common.yaml#/KeyValue' }
+    narration: { type: string }
+
+RecurringJournalInput:
+  type: object
+  properties:
+    code: { type: string, example: RJ-004 }
+    name: { type: string, example: Office rent accrual }
+    frequency: { type: string, enum: [Monthly, Quarterly] }
+    startDate: { $ref: './common.yaml#/DateOnly' }
+    endDate: { $ref: './common.yaml#/DateOnly' }
+    nextRun: { $ref: './common.yaml#/DateOnly' }
+    mode: { type: string, enum: [Draft, Post], description: "`Draft` creates journals for review; `Post` posts directly (subject to period control)." }
+    narration: { type: string, description: "Placeholders: `{period}` → run month, `{date}` → run date.", example: 'Office rent accrual {period}' }
+    lines: { type: array, minItems: 2, items: { $ref: '#/RecurringJournalLine' } }
+
+RecurringJournal:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/RecurringJournalInput'
+    - type: object
+      required: [code, name, frequency, startDate, nextRun, mode, narration, lines, status, runCount, generatedIds]
+      properties:
+        status: { type: string, enum: [Active, Paused, Ended] }
+        lastRunAt: { $ref: './common.yaml#/Timestamp' }
+        runCount: { type: integer, readOnly: true, example: 5 }
+        generatedIds: { type: array, readOnly: true, items: { type: string } }
+
+RecurringJournalPatch:
+  allOf:
+    - $ref: '#/RecurringJournalInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+GenerateNowRequest:
+  type: object
+  properties:
+    date: { $ref: './common.yaml#/DateOnly' }
+
+# ── books ─────────────────────────────────────────────────────────────────
+
+DayBookRow:
+  type: object
+  required: [journalId, number, date, type, sourceType, narration, totalDr, totalCr, status]
+  properties:
+    journalId: { type: string }
+    number: { type: string, example: JV/2026-27/00311 }
+    date: { $ref: './common.yaml#/DateOnly' }
+    type: { type: string, example: Auto }
+    sourceType: { type: string, example: Sales Invoice }
+    sourceId: { type: string }
+    sourceNumber: { type: string }
+    sourceLink: { type: string, description: In-app route for the source document., example: sales/invoices/inv_01j8k3 }
+    narration: { type: string }
+    partyName: { type: string }
+    totalDr: { type: number }
+    totalCr: { type: number }
+    status: { type: string, enum: [Posted, Reversed] }
+    postedBy: { type: string }
+
+TrialBalanceRow:
+  type: object
+  required: [accountId, code, name, opening, dr, cr, net, drCol, crCol]
+  properties:
+    accountId: { type: string }
+    code: { type: string, example: '1100' }
+    name: { type: string, example: Accounts Receivable }
+    groupId: { type: string }
+    groupName: { type: string, example: Current Assets }
+    type: { type: string, enum: [Asset, Liability, Equity, Income, Expense] }
+    normalBalance: { type: string, enum: [Dr, Cr] }
+    opening: { type: number }
+    dr: { type: number }
+    cr: { type: number }
+    net: { type: number }
+    drCol: { type: number, description: Closing balance shown in the Dr column. }
+    crCol: { type: number, description: Closing balance shown in the Cr column. }
+
+TrialBalance:
+  type: object
+  required: [from, to, rows, totalDr, totalCr, balanced]
+  properties:
+    from: { $ref: './common.yaml#/DateOnly' }
+    to: { $ref: './common.yaml#/DateOnly' }
+    branchId: { type: string }
+    rows: { type: array, items: { $ref: '#/TrialBalanceRow' } }
+    totalDr: { type: number }
+    totalCr: { type: number }
+    balanced: { type: boolean }
+    scope: { $ref: './common.yaml#/Scope' }
+
+SubLedgerRow:
+  type: object
+  required: [partyId, partyName, opening, dr, cr, closing, openItems, overdue]
+  properties:
+    partyId: { type: string }
+    partyName: { type: string }
+    controlAccountId: { type: string }
+    currency: { type: string }
+    opening: { type: number }
+    dr: { type: number }
+    cr: { type: number }
+    closing: { type: number }
+    openItems: { type: integer }
+    overdue: { type: number }
+    oldestDueDate: { $ref: './common.yaml#/DateOnly' }
+
+SubLedger:
+  type: object
+  required: [partyType, from, to, rows, total, controlBalance, difference]
+  properties:
+    partyType: { type: string, enum: [Customer, Supplier, Employee] }
+    from: { $ref: './common.yaml#/DateOnly' }
+    to: { $ref: './common.yaml#/DateOnly' }
+    rows: { type: array, items: { $ref: '#/SubLedgerRow' } }
+    total: { type: number, description: Sum of party closing balances. }
+    controlBalance: { type: number, description: GL balance of the control account(s). }
+    difference: { type: number }
+    scope: { $ref: './common.yaml#/Scope' }
+
+ControlTieoutRow:
+  type: object
+  required: [controlType, accountId, accountCode, accountName, glBalance, subLedgerBalance, difference, status]
+  properties:
+    controlType: { type: string, enum: [AR, AP, Employee, Bank, Cash, Inventory, Tax, FixedAsset, WIP] }
+    accountId: { type: string }
+    accountCode: { type: string, example: '1100' }
+    accountName: { type: string }
+    glBalance: { type: number }
+    subLedgerBalance: { type: number }
+    difference: { type: number }
+    status: { type: string, enum: [Tied, Difference] }
+    detail: { type: string, example: 2 open items with no journal line }
+
+ControlTieout:
+  type: object
+  required: [asOf, rows, allTied]
+  properties:
+    asOf: { $ref: './common.yaml#/DateOnly' }
+    rows: { type: array, items: { $ref: '#/ControlTieoutRow' } }
+    allTied: { type: boolean }
+    scope: { $ref: './common.yaml#/Scope' }
+
+# ── opening balances ──────────────────────────────────────────────────────
+
+OpeningBalanceRow:
+  type: object
+  required: [accountId, code, name, type, normalBalance, current]
+  properties:
+    accountId: { type: string }
+    code: { type: string, example: '1300' }
+    name: { type: string, example: Cash in hand }
+    type: { type: string, enum: [Asset, Liability, Equity, Income, Expense] }
+    normalBalance: { type: string, enum: [Dr, Cr] }
+    current: { type: number, description: Posted opening balance (signed by normal balance)., example: 50000 }
+    entered: { type: number, description: Value staged but not yet posted. }
+    isControl: { type: boolean }
+    controlType: { type: string }
+
+OpeningPartyItem:
+  type: object
+  required: [partyType, partyId, amount]
+  properties:
+    id: { type: string, readOnly: true }
+    partyType: { type: string, enum: [Customer, Supplier] }
+    partyId: { type: string, example: cust_arlene }
+    partyName: { type: string, readOnly: true }
+    docNumber: { type: string, description: Original invoice number (defaults to OB/AR/xxxx)., example: INV/2025-26/00981 }
+    date: { $ref: './common.yaml#/DateOnly' }
+    dueDate: { $ref: './common.yaml#/DateOnly' }
+    amount: { type: number, description: Positive = receivable / payable balance; negative = advance., example: 118000 }
+    posted: { type: boolean, readOnly: true }
+
+OpeningBalances:
+  type: object
+  required: [date, rows, parties, postedRuns, totalDr, totalCr, difference, equityAccountId, periodOpen]
+  properties:
+    date: { $ref: './common.yaml#/DateOnly' }
+    rows: { type: array, items: { $ref: '#/OpeningBalanceRow' } }
+    parties: { type: array, items: { $ref: '#/OpeningPartyItem' } }
+    postedRuns: { type: array, readOnly: true, items: { type: object, properties: { journalId: { type: string }, journalNumber: { type: string }, postedAt: { type: string, format: date-time }, narration: { type: string } } } }
+    totalDr: { type: number }
+    totalCr: { type: number }
+    difference: { type: number, description: Dr − Cr; posted to the opening-balance equity account. }
+    equityAccountId: { type: string, example: acc_3900 }
+    periodOpen: { type: boolean, description: Whether the opening-balance date is in a postable period. }
+
+OpeningBalancesPut:
+  type: object
+  required: [rows]
+  properties:
+    rows: { type: array, items: { type: object, required: [accountId, amount], properties: { accountId: { type: string }, amount: { type: number } } } }
+    parties: { type: array, items: { $ref: '#/OpeningPartyItem' } }
+
+OpeningBalancesPost:
+  type: object
+  required: [reason]
+  properties:
+    reason: { type: string, minLength: 5, example: Migration from Tally as at 1 Apr 2026 }
+
+# ── FX ────────────────────────────────────────────────────────────────────
+
+RevaluationItem:
+  type: object
+  required: [id, kind, ref, accountId, currency, amount, bookRate, bookBase, closingBase, difference]
+  properties:
+    id: { type: string, description: Open-item id or bank account id. }
+    kind: { type: string, enum: [AR, AP, Bank] }
+    ref: { type: string, example: INV/2026-27/00044 }
+    partyName: { type: string }
+    accountId: { type: string }
+    partyType: { type: string, enum: [Customer, Supplier] }
+    partyId: { type: string }
+    currency: { type: string, example: USD }
+    amount: { type: number, description: Foreign amount (signed; negative = payable)., example: 10000 }
+    bookRate: { type: number, example: 83.2 }
+    bookBase: { type: number, example: 832000 }
+    closingBase: { type: number, example: 840000 }
+    difference: { type: number, description: Unrealised gain (+) / loss (−) in base., example: 8000 }
+
+FxRateInfo:
+  type: object
+  required: [rate, type, source]
+  properties:
+    rate: { type: number, example: 84 }
+    type: { type: string, enum: [Spot, Month-end, Manual, Chosen, Missing] }
+    source: { type: string, example: RBI reference }
+    at: { type: string, format: date-time }
+
+FxExposure:
+  type: object
+  required: [asOf, base, items, currencies, latest, totals]
+  properties:
+    asOf: { $ref: './common.yaml#/DateOnly' }
+    base: { type: string, example: INR }
+    items: { type: array, items: { $ref: '#/RevaluationItem' } }
+    currencies: { type: array, items: { type: string }, example: [USD, AED] }
+    latest: { type: object, additionalProperties: { $ref: '#/FxRateInfo' } }
+    totals: { type: object, required: [exposure, bookBase, closingBase, unrealised, realisedGainFy, realisedLossFy], properties: { exposure: { type: number }, bookBase: { type: number }, closingBase: { type: number }, unrealised: { type: number }, realisedGainFy: { type: number }, realisedLossFy: { type: number } } }
+    scope: { $ref: './common.yaml#/Scope' }
+
+RealisedFxRow:
+  type: object
+  required: [date, settlementDocType, settlementDocId, settlementDocNumber, openItemNumber, currency, amount, invoiceRate, settlementRate, gainLoss]
+  properties:
+    date: { $ref: './common.yaml#/DateOnly' }
+    settlementDocType: { type: string, example: Receipt }
+    settlementDocId: { type: string }
+    settlementDocNumber: { type: string, example: RCP/2026-27/00215 }
+    openItemNumber: { type: string, example: INV/2026-27/00044 }
+    partyName: { type: string }
+    currency: { type: string, example: USD }
+    amount: { type: number, example: 10000 }
+    invoiceRate: { type: number, example: 83.2 }
+    settlementRate: { type: number, example: 84 }
+    gainLoss: { type: number, example: 8000 }
+    journalId: { type: string }
+    journalNumber: { type: string }
+
+RevaluationRunCreate:
+  type: object
+  required: [asOf, currency, scope]
+  properties:
+    asOf: { $ref: './common.yaml#/DateOnly' }
+    currency: { type: string, example: USD }
+    rateId: { type: string, description: Approved exchange-rate id to use as closing rate (default = latest approved as of `asOf`). }
+    closingRate: { type: number, description: Manual override (audited). }
+    scope: { type: array, minItems: 1, items: { type: string, enum: [AR, AP, Bank] }, example: [AR, AP] }
+    autoReverse: { type: boolean, default: true, description: Post the reversing entry on the first day of the next period. }
+    reason: { type: string }
+    dryRun: { type: boolean, default: false, description: Return the preview only — nothing posts. }
+
+RevaluationRun:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [number, asOf, period, currency, closingRate, scope, items, gain, loss, net, autoReverse, status]
+      properties:
+        number: { type: string, example: RV/2026-27/00003 }
+        asOf: { $ref: './common.yaml#/DateOnly' }
+        period: { type: string, example: '2026-09' }
+        currency: { type: string, example: USD }
+        closingRate: { type: number, example: 84 }
+        rateId: { type: string }
+        scope: { type: array, items: { type: string, enum: [AR, AP, Bank] } }
+        items: { type: array, items: { $ref: '#/RevaluationItem' } }
+        gain: { type: number, example: 8000 }
+        loss: { type: number, example: 0 }
+        net: { type: number, example: 8000 }
+        journalId: { type: string }
+        journalNumber: { type: string }
+        reversalJournalId: { type: string }
+        autoReverse: { type: boolean }
+        status: { type: string, enum: [Posted, Reversed] }
+        reason: { type: string }
+
+# ── intercompany ──────────────────────────────────────────────────────────
+
+IntercompanyDueRow:
+  type: object
+  required: [companyId, companyName, receivable, payable, net, currency]
+  properties:
+    companyId: { type: string, example: co_gulf }
+    companyName: { type: string, example: Acme Gulf FZE }
+    receivable: { type: number, example: 420000 }
+    payable: { type: number, example: 150000 }
+    net: { type: number, example: 270000 }
+    currency: { type: string, example: INR }
+    openDocuments: { type: integer, example: 2 }
+
+IntercompanyDifference:
+  type: object
+  required: [expectedTo, actualTo, diffTo, toCurrency, explanation]
+  properties:
+    expectedTo: { type: number }
+    actualTo: { type: number }
+    diffTo: { type: number }
+    toCurrency: { type: string }
+    explanation: { type: array, items: { type: string } }
+
+IntercompanyDocInput:
+  type: object
+  properties:
+    type: { type: string, enum: [Invoice, Payment, Journal] }
+    toCompanyId: { type: string, description: Counterparty company in the same tenant., example: co_gulf }
+    date: { $ref: './common.yaml#/DateOnly' }
+    currency: { type: string, example: USD }
+    amount: { type: number, example: 5000 }
+    counterpartyRef: { type: string, example: IC-INV-0017 }
+    narration: { type: string, example: Shared-services fee Q2 }
+    dueFromAccount: { type: string, description: Due-from control account in this company., example: acc_1180 }
+    dueToAccount: { type: string, description: Due-to control account in the counterparty., example: acc_2180 }
+    postBothSides: { type: boolean, default: true, description: Post the mirror journal in the counterparty (needs a role there); otherwise it stays Unmatched until they record it. }
+
+IntercompanyDoc:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/IntercompanyDocInput'
+    - type: object
+      required: [type, number, fromCompanyId, toCompanyId, date, currency, amount, baseCurrencyFrom, baseCurrencyTo, rateFrom, rateTo, baseAmountFrom, baseAmountTo, counterpartyRef, matchStatus, dueFromAccount, dueToAccount, sourceJournalIds]
+      properties:
+        number: { type: string, readOnly: true, example: IC/2026-27/00017 }
+        fromCompanyId: { type: string, readOnly: true }
+        baseCurrencyFrom: { type: string, readOnly: true, example: INR }
+        baseCurrencyTo: { type: string, readOnly: true, example: AED }
+        rateFrom: { type: number, readOnly: true, example: 83.2 }
+        rateTo: { type: number, readOnly: true, example: 3.67 }
+        baseAmountFrom: { type: number, readOnly: true, example: 416000 }
+        baseAmountTo: { type: number, readOnly: true, example: 18350 }
+        matchStatus: { type: string, readOnly: true, enum: [Unmatched, Matched, Difference] }
+        matchedAt: { $ref: './common.yaml#/Timestamp' }
+        matchedBy: { type: string, readOnly: true }
+        sourceJournalIds: { type: object, readOnly: true, properties: { from: { type: string }, to: { type: string } } }
+        sourceJournalNumbers: { type: object, readOnly: true, properties: { from: { type: string }, to: { type: string } } }
+        difference: { $ref: '#/IntercompanyDifference' }
+        eliminationIds: { type: array, readOnly: true, items: { type: string } }
+
+IntercompanyMatchRequest:
+  type: object
+  required: [counterpartyDocId]
+  properties:
+    counterpartyDocId: { type: string, description: The counterparty's document to pair with this one. }
+    acceptDifference: { type: boolean, default: false, description: Mark as Matched even if base amounts differ (FX); difference is explained on the record. }
+    note: { type: string }
+
+# ── period close ──────────────────────────────────────────────────────────
+
+PeriodCloseItem:
+  type: object
+  required: [id, label, status, count, detail]
+  properties:
+    id: { type: string, enum: [drafts, si, vi, bank, appr, integ, tieout, stockgl, tax] }
+    label: { type: string, example: Unposted draft journals }
+    status: { type: string, enum: [Done, Warning, Blocked] }
+    count: { type: integer }
+    detail: { type: string, example: 'JV/2026-27/00340, JV/2026-27/00341 — post or delete' }
+    link: { type: string, example: accounting/journals }
+
+PeriodClose:
+  type: object
+  required: [period, status, from, to, items, blocked, warnings, canSoftClose, canLock]
+  properties:
+    period: { type: string, example: '2026-09' }
+    status: { type: string, enum: [Future, Open, Soft Closed, Locked, Reopened] }
+    from: { $ref: './common.yaml#/DateOnly' }
+    to: { $ref: './common.yaml#/DateOnly' }
+    items: { type: array, items: { $ref: '#/PeriodCloseItem' } }
+    blocked: { type: integer }
+    warnings: { type: integer }
+    canSoftClose: { type: boolean }
+    canLock: { type: boolean }
+    inventoryGl: { type: object, properties: { ledgerValue: { type: number }, glBalance: { type: number }, difference: { type: number } } }
+
+# ── settings ──────────────────────────────────────────────────────────────
+
+DuplicateRule:
+  type: object
+  required: [fields, mode]
+  properties:
+    fields: { type: array, items: { type: string }, example: [partyId, sourceNumber, totalDr] }
+    mode: { type: string, enum: [Block, Warn] }
+
+AccountingSettings:
+  type: object
+  properties:
+    roundOffAccountId: { type: string, example: acc_5990 }
+    fxGainAccountId: { type: string, example: acc_4910 }
+    fxLossAccountId: { type: string, example: acc_5600 }
+    unrealisedFxGainAccountId: { type: string, example: acc_4920 }
+    unrealisedFxLossAccountId: { type: string, example: acc_5610 }
+    retainedEarningsAccountId: { type: string, example: acc_3100 }
+    openingBalanceEquityAccountId: { type: string, example: acc_3900 }
+    defaultDimensions: { $ref: './common.yaml#/KeyValue' }
+    duplicateRules: { type: object, additionalProperties: { $ref: '#/DuplicateRule' }, example: { Journal: { fields: [date, totalDr, narration], mode: Warn } } }

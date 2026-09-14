@@ -1,0 +1,737 @@
+# Group & consolidation (tag: Reports). src/modules/reports/consolidation/lib.ts. Group-level artefacts are never written into legal-company journals.
+
+/reports/consolidation/groups:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Reports]
+    summary: Group structures
+    operationId: listGroups
+    x-permission: reports.cfo.view
+    x-frd: [FR-CNS-001]
+    responses:
+      '200':
+        description: Groups
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/reports.yaml#/Group' } } } }
+            examples:
+              list: { summary: One group, value: { data: [{ $ref: '#/components/examples/GroupAcme/value' }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Reports]
+    summary: Create a group
+    operationId: createGroup
+    x-permission: reports.cfo.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/reports.yaml#/GroupCreate' }
+          examples:
+            group: { summary: Parent + 100% subsidiary, value: { code: ACME-GRP, name: Acme Group, consolidationCurrency: INR, parentCompanyId: co_acme, members: [{ companyId: co_acme, ownershipPct: 100, from: '2024-04-01', method: Full }, { companyId: co_gulf, ownershipPct: 100, from: '2024-04-01', method: Full }], accountingStandard: Ind AS, ratePolicy: { income: Average, balance: Closing, equity: Historical, accountOverrides: { '1610': Historical } } } }
+            proportional: { summary: "60% joint venture, proportional", value: { code: JV-GRP, name: Acme JV Group, consolidationCurrency: INR, parentCompanyId: co_acme, members: [{ companyId: co_acme, ownershipPct: 100, from: '2024-04-01', method: Full }, { companyId: co_jv, ownershipPct: 60, from: '2026-04-01', method: Proportional }], accountingStandard: IFRS, ratePolicy: { income: Average, balance: Closing, equity: Historical, accountOverrides: {} } } }
+    responses:
+      '201':
+        description: Created
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/Group' }
+            examples:
+              created: { $ref: '../components/examples/reports.yaml#/GroupAcme' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/reports/consolidation/groups/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Reports]
+    summary: Get a group
+    operationId: getGroup
+    x-permission: reports.cfo.view
+    responses:
+      '200':
+        description: Group
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/Group' }
+            examples:
+              group: { $ref: '../components/examples/reports.yaml#/GroupAcme' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Reports]
+    summary: Update members / rate policy
+    operationId: updateGroup
+    x-permission: reports.cfo.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/reports.yaml#/GroupPatch' }
+          examples:
+            members: { summary: Add a member from October, value: { expectedVersion: 2, members: [{ companyId: co_acme, ownershipPct: 100, from: '2024-04-01', method: Full }, { companyId: co_gulf, ownershipPct: 100, from: '2024-04-01', method: Full }, { companyId: co_jv, ownershipPct: 60, from: '2026-10-01', method: Proportional }] } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/Group' }
+            examples:
+              updated: { $ref: '../components/examples/reports.yaml#/GroupAcme' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/reports/consolidation/groups/{id}/books-check:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Reports]
+    summary: Independent balancing check of every member's books
+    operationId: getGroupBooksCheck
+    x-permission: reports.cfo.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/AsOf'
+    responses:
+      '200':
+        description: Checks
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { type: object, properties: { companyId: { type: string }, companyName: { type: string }, accounts: { type: integer }, journals: { type: integer }, totalDr: { type: number }, totalCr: { type: number }, difference: { type: number }, balanced: { type: boolean }, asOf: { type: string, format: date } } } } } }
+            examples:
+              balanced: { summary: Both balanced, value: { data: [{ companyId: co_acme, companyName: Acme Industries, accounts: 142, journals: 412, totalDr: 184300000, totalCr: 184300000, difference: 0, balanced: true, asOf: '2026-09-30' }, { companyId: co_gulf, companyName: Acme Gulf FZE, accounts: 88, journals: 96, totalDr: 2140000, totalCr: 2140000, difference: 0, balanced: true, asOf: '2026-09-30' }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── runs ──────────────────────────────────────────────────────────────────
+
+/reports/consolidation/runs:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Reports]
+    summary: Consolidation runs
+    description: Tabs → Draft · Translated / Adjusted · Final · Reversed · All.
+    operationId: listConsolidationRuns
+    x-permission: reports.cfo.view
+    x-frd: [FR-CNS-002]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: groupId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: period, in: query, schema: { type: string } }
+    responses:
+      '200':
+        description: Runs (lines omitted in lists)
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/reports.yaml#/ConsolidationRun' } }
+            examples:
+              firstPage: { summary: Runs, value: { data: [{ $ref: '#/components/examples/ConsolidationRunTranslated/value' }], meta: { nextCursor: null, limit: 25, total: 6, counts: { Draft: 0, 'Translated / Adjusted': 1, Final: 4, Reversed: 1, All: 6 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Reports]
+    summary: "Create a run (resolves rates per member; translates immediately unless `translateNow: false`)"
+    operationId: createConsolidationRun
+    x-permission: reports.cfo.create
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/reports.yaml#/ConsolidationRunCreate' }
+          examples:
+            month: { summary: "September, YTD P&L", value: { groupId: grp_acme, period: '2026-09', from: '2026-09-01', to: '2026-09-30', plBasis: YTD } }
+            newVersion: { summary: New version of a final run, value: { groupId: grp_acme, period: '2026-08', from: '2026-08-01', to: '2026-08-31', plBasis: YTD, supersedesId: cr_2608_1 } }
+            draftOnly: { summary: Create without translating, value: { groupId: grp_acme, from: '2026-04-01', to: '2026-09-30', plBasis: Period, translateNow: false } }
+    responses:
+      '201':
+        description: Run
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/ConsolidationRun' }
+            examples:
+              translated: { $ref: '../components/examples/reports.yaml#/ConsolidationRunTranslated' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Validation
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              rate: { summary: Rate missing, value: { code: RATE_MISSING, message: 'Acme Gulf FZE: no AED→INR closing rate for 2026-09-30', field: companies, correlationId: corr_9f1c2e7a } }
+              noCompanies: { summary: Nothing included, value: { code: VALIDATION, message: Include at least one company, field: companies, correlationId: corr_9f1c2e7a } }
+
+/reports/consolidation/runs/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Reports]
+    summary: Get a run (companies, rates, translated lines, eliminations, log)
+    operationId: getConsolidationRun
+    x-permission: reports.cfo.view
+    responses:
+      '200':
+        description: Run
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/ConsolidationRun' }
+            examples:
+              translated: { $ref: '../components/examples/reports.yaml#/ConsolidationRunTranslated' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/reports/consolidation/runs/{id}/translate:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Reports]
+    summary: (Re)translate member books at the run's rates; re-proposes eliminations
+    operationId: translateConsolidationRun
+    x-permission: reports.cfo.post
+    x-frd: [FR-CNS-003, FR-RPT-013]
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            retranslate: { summary: Re-translate after late postings, value: { reason: Gulf posted 3 late journals } }
+    responses:
+      '200':
+        description: Translated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/ConsolidationRun' }
+            examples:
+              translated: { $ref: '../components/examples/reports.yaml#/ConsolidationRunTranslated' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Frozen
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              final: { summary: Final run, value: { code: INVALID_STATE, message: A final run cannot be re-translated — create a new version instead, correlationId: corr_9f1c2e7a } }
+
+/reports/consolidation/runs/{id}/override-rate:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Reports]
+    summary: Override a member's rate (audited; re-translates)
+    operationId: overrideConsolidationRate
+    x-permission: reports.cfo.post
+    x-frd: [FR-FX-014]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/reports.yaml#/RateOverrideRequest' }
+          examples:
+            closing: { summary: Closing rate, value: { companyId: co_gulf, which: rateClosing, rate: 22.95, reason: RBI reference rate published after month-end } }
+    responses:
+      '200':
+        description: Run re-translated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/ConsolidationRun' }
+            examples:
+              overridden: { $ref: '../components/examples/reports.yaml#/ConsolidationRunTranslated' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Validation
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              reason: { summary: Reason too short, value: { code: VALIDATION, message: A reason of at least 10 characters is required, field: reason, correlationId: corr_9f1c2e7a } }
+
+/reports/consolidation/runs/{id}/eliminations:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Reports]
+    summary: Proposed / accepted eliminations of a run
+    operationId: listRunEliminations
+    x-permission: reports.cfo.view
+    x-frd: [FR-CNS-005]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Status'
+    responses:
+      '200':
+        description: Eliminations
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/reports.yaml#/Elimination' } } } }
+            examples:
+              list: { summary: Two eliminations, value: { data: [{ $ref: '#/components/examples/EliminationProposed/value' }, { id: el_2, pairRef: 'co_acme↔co_gulf', kind: Intercompany trading, description: Shared-services fee Q2, drAccountCode: '4100', drAccountName: Intercompany income, drAmount: 416000, crAccountCode: '5590', crAccountName: Intercompany expense, crAmount: 416000, fxDifference: 0, differenceAccountCode: '4920', amount: 416000, sourceDocs: [{ id: ic_0017, number: IC/2026-27/00017, type: Invoice, date: '2026-09-13', amount: 5000, currency: USD, matchStatus: Matched }], status: Accepted, reversible: true, actedBy: Priya Sharma, actedAt: '2026-10-02T10:00:00Z' }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  post:
+    tags: [Reports]
+    summary: Add a manual elimination
+    operationId: createManualElimination
+    x-permission: reports.cfo.post
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/reports.yaml#/ManualEliminationRequest' }
+          examples:
+            unrealised: { summary: Unrealised profit in stock, value: { kind: Unrealised profit, description: Unrealised profit on stock sold to Gulf, drAccountCode: '4020', crAccountCode: '1200', amount: 42000, reason: 30% of Q2 IC sales still in Gulf inventory } }
+    responses:
+      '201':
+        description: Added
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/ConsolidationRun' }
+            examples:
+              run: { $ref: '../components/examples/reports.yaml#/ConsolidationRunTranslated' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/reports/consolidation/runs/{id}/eliminations/{elimId}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+    - { name: elimId, in: path, required: true, schema: { type: string }, example: el_1 }
+  post:
+    tags: [Reports]
+    summary: Accept / reject / reverse an elimination
+    operationId: decideElimination
+    x-permission: reports.cfo.approve
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/reports.yaml#/EliminationDecision' }
+          examples:
+            accept: { summary: Accept, value: { status: Accepted } }
+            reject: { summary: Reject with reason, value: { status: Rejected, reason: Balance already settled on 30 Sep — not an elimination } }
+            reverse: { summary: Reverse an accepted one, value: { status: Reversed, reason: Wrong pair matched; will re-propose } }
+    responses:
+      '200':
+        description: Run with updated elimination
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/ConsolidationRun' }
+            examples:
+              run: { $ref: '../components/examples/reports.yaml#/ConsolidationRunTranslated' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Reason required
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              reason: { summary: Reason required, value: { code: VALIDATION, message: A reason is required, field: reason, correlationId: corr_9f1c2e7a } }
+
+/reports/consolidation/runs/{id}/adjustments:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Reports]
+    summary: Group adjustment journals of a run
+    operationId: listConsolidationAdjustments
+    x-permission: reports.cfo.view
+    x-frd: [FR-CNS-004]
+    responses:
+      '200':
+        description: Adjustments
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/reports.yaml#/ConsolidationJournal' } } } }
+            examples:
+              list: { summary: One posted, value: { data: [{ $ref: '#/components/examples/ConsolidationJournalPosted/value' }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  post:
+    tags: [Reports]
+    summary: Post a group adjustment (routes through 'Consolidation Adjustment' workflow when a rule matches)
+    operationId: createConsolidationAdjustment
+    x-permission: reports.cfo.post
+    x-idempotent: true
+    x-workflow-doc-type: Consolidation Adjustment
+    x-events: [DocumentSubmitted, DocumentPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/reports.yaml#/ConsolidationJournalCreate' }
+          examples:
+            accrual: { summary: Management fee accrual, value: { date: '2026-09-30', reason: Group management fee accrual not in legal books, lines: [{ accountCode: '5590', dr: 120000, cr: 0, narration: Group management fee }, { accountCode: '2100', dr: 0, cr: 120000 }] } }
+    responses:
+      '201':
+        description: Adjustment (Posted or Submitted)
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/reports.yaml#/ConsolidationJournal' }
+                    outcome: { type: string, enum: [posted, routed-for-approval] }
+            examples:
+              posted: { summary: outcome = posted, value: { document: { $ref: '#/components/examples/ConsolidationJournalPosted/value' }, outcome: posted, warnings: [] } }
+              routed: { summary: outcome = routed-for-approval, value: { document: { id: cj_0004, companyId: co_acme, runId: cr_2609_1, groupId: grp_acme, number: CJ/2026-27/00004, date: '2026-09-30', period: '2026-09', currency: INR, reason: Group management fee accrual not in legal books, lines: [{ id: cl_1, accountCode: '5590', accountName: Intercompany expense, dr: 120000, cr: 0, narration: Group management fee }, { id: cl_2, accountCode: '2100', accountName: Accounts Payable, dr: 0, cr: 120000 }], totalDr: 120000, totalCr: 120000, status: Submitted, approvalId: apr_cj_4, createdAt: '2026-10-02T10:00:00Z', updatedAt: '2026-10-02T10:00:00Z', version: 1 }, outcome: routed-for-approval, warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Run state
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              draft: { summary: Not translated yet, value: { code: INVALID_STATE, message: Translate the run before adding adjustments, correlationId: corr_9f1c2e7a } }
+      '422':
+        description: Validation
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              unbalanced: { summary: Unbalanced, value: { code: UNBALANCED, message: 'Adjustment is not balanced: Dr 120000 ≠ Cr 110000', correlationId: corr_9f1c2e7a } }
+
+/reports/consolidation/adjustments/{id}/post:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Reports]
+    summary: Post an Approved adjustment
+    operationId: postConsolidationAdjustment
+    x-permission: reports.cfo.post
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Posted
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/ConsolidationJournal' }
+            examples:
+              posted: { $ref: '../components/examples/reports.yaml#/ConsolidationJournalPosted' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/reports/consolidation/adjustments/{id}/reverse:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Reports]
+    summary: Reverse a posted adjustment (run not final)
+    operationId: reverseConsolidationAdjustment
+    x-permission: reports.cfo.reverse
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason (≥10 chars), value: { reason: Fee was already accrued in Acme books } }
+    responses:
+      '200':
+        description: Reversed
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/ConsolidationJournal' }
+            examples:
+              reversed: { summary: Reversed, value: { id: cj_0003, companyId: co_acme, runId: cr_2609_1, groupId: grp_acme, number: CJ/2026-27/00003, date: '2026-09-30', period: '2026-09', currency: INR, reason: Group management fee accrual not in legal books, lines: [], totalDr: 120000, totalCr: 120000, status: Reversed, postedAt: '2026-10-02T10:00:00Z', postedBy: Priya Sharma, reversedById: cj_0005, reversalReason: Fee was already accrued in Acme books, createdAt: '2026-10-02T10:00:00Z', updatedAt: '2026-10-03T09:00:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/reports/consolidation/runs/{id}/finalize:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Reports]
+    summary: Finalize (freezes rates, eliminations and adjustments; snapshots member books)
+    operationId: finalizeConsolidationRun
+    x-permission: reports.cfo.approve
+    x-frd: [FR-CNS-006]
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Final
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/ConsolidationRun' }
+            examples:
+              final: { summary: Final, value: { id: cr_2609_1, companyId: co_acme, groupId: grp_acme, number: CR/2026-09/01, period: '2026-09', from: '2026-09-01', to: '2026-09-30', plBasis: YTD, currency: INR, accountingStandard: Ind AS, status: Final, runVersion: 1, companies: [], translatedLines: [], cta: -18400, ctaByCompany: { co_gulf: -18400 }, adjustments: [cj_0003], eliminations: [], totals: { CA: 61200000, FA: 18400000, CL: 24100000, EQ: 41000000, REV: 52300000, COGS: 30100000, OPEX: 13800000 }, createdBy: Priya Sharma, translatedAt: '2026-10-02T09:00:00Z', finalizedAt: '2026-10-05T10:00:00Z', finalizedBy: Rahul Mehta, booksAtTranslate: [{ companyId: co_acme, journals: 412, totalDr: 184300000, totalCr: 184300000, lastPostedAt: '2026-09-30T18:00:00Z', at: '2026-10-02T09:00:00Z' }], booksAtFinal: [{ companyId: co_acme, journals: 412, totalDr: 184300000, totalCr: 184300000, lastPostedAt: '2026-09-30T18:00:00Z', at: '2026-10-05T10:00:00Z' }], log: [{ at: '2026-10-02T09:00:00Z', by: Priya Sharma, action: translated }, { at: '2026-10-05T10:00:00Z', by: Rahul Mehta, action: finalized }], createdAt: '2026-10-02T09:00:00Z', updatedAt: '2026-10-05T10:00:00Z', version: 6 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: State conflict
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              notTranslated: { summary: Not translated, value: { code: INVALID_STATE, message: Only translated runs can be finalized (status Draft), correlationId: corr_9f1c2e7a } }
+              booksChanged: { summary: Books changed since translation, value: { code: BOOKS_CHANGED, message: Legal books of Acme Gulf FZE changed since translation — re-translate before finalizing, details: { companies: [co_gulf] }, correlationId: corr_9f1c2e7a } }
+      '422':
+        description: Pending items
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              eliminations: { summary: Proposed eliminations, value: { code: PENDING_ELIMINATIONS, message: Accept or reject every proposed elimination before finalizing, details: { pending: [el_1] }, correlationId: corr_9f1c2e7a } }
+              adjustments: { summary: Adjustments awaiting approval, value: { code: PENDING_APPROVAL, message: Consolidation adjustments are still awaiting approval, details: { journals: [CJ/2026-27/00004] }, correlationId: corr_9f1c2e7a } }
+
+/reports/consolidation/runs/{id}/reverse:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Reports]
+    summary: Reverse a run (audit trail kept; create a new version to re-run)
+    operationId: reverseConsolidationRun
+    x-permission: reports.cfo.reverse
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason (≥10 chars), value: { reason: Gulf books restated after audit adjustments } }
+    responses:
+      '200':
+        description: Reversed
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/ConsolidationRun' }
+            examples:
+              reversed: { summary: Reversed, value: { id: cr_2608_1, companyId: co_acme, groupId: grp_acme, number: CR/2026-08/01, period: '2026-08', from: '2026-08-01', to: '2026-08-31', plBasis: YTD, currency: INR, accountingStandard: Ind AS, status: Reversed, runVersion: 1, supersededById: cr_2608_2, companies: [], translatedLines: [], cta: 0, ctaByCompany: {}, adjustments: [], eliminations: [], totals: {}, reversedAt: '2026-09-13T09:12:04Z', reversalReason: Gulf books restated after audit adjustments, booksAtTranslate: [], log: [], createdAt: '2026-09-02T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 7 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/reports/consolidation/runs/{id}/statements:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Reports]
+    summary: Consolidated statements (by company → eliminations → adjustments → consolidated)
+    operationId: getConsolidatedStatements
+    x-permission: reports.cfo.view
+    x-frd: [FR-RPT-012]
+    parameters:
+      - { name: statement, in: query, schema: { type: string, enum: [balance-sheet, pl, all], default: all } }
+    responses:
+      '200':
+        description: Statements
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/ConsolidatedStatements' }
+            examples:
+              rows: { summary: Rows, value: { runId: cr_2609_1, runNumber: CR/2026-09/01, currency: INR, from: '2026-09-01', to: '2026-09-30', rows: [{ code: '1100', name: Trade receivables, type: Asset, groupCode: CA, groupName: Current assets, byCompany: { co_acme: 1980000, co_gulf: 612000 }, eliminations: -416000, adjustments: 0, consolidated: 2176000 }, { code: '2100', name: Trade payables, type: Liability, groupCode: CL, groupName: Current liabilities, byCompany: { co_acme: 1150000, co_gulf: 470000 }, eliminations: -416000, adjustments: 120000, consolidated: 1324000 }, { code: '4020', name: Sales, type: Income, groupCode: REV, groupName: Revenue, byCompany: { co_acme: 37400000, co_gulf: 14900000 }, eliminations: -416000, adjustments: 0, consolidated: 51884000 }], totals: { CA: 61200000, FA: 18400000, CL: 24100000, EQ: 41000000, REV: 51884000, COGS: 30100000, OPEX: 13920000 }, cta: -18400, balanced: true } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/reports/consolidation/drilldown:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Reports]
+    summary: Drill from a consolidated figure to the member's translated lines and source journals
+    operationId: getConsolidationDrilldown
+    x-permission: reports.cfo.view
+    x-frd: [FR-RPT-014]
+    parameters:
+      - { name: runId, in: query, required: true, schema: { type: string }, example: cr_2609_1 }
+      - { name: accountCode, in: query, required: true, schema: { type: string }, example: '1100' }
+      - { name: memberCompanyId, in: query, required: true, schema: { type: string }, example: co_gulf }
+    responses:
+      '200':
+        description: Drill-down
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reports.yaml#/DrilldownResult' }
+            examples:
+              gulfAr: { summary: Gulf receivables, value: { runId: cr_2609_1, accountCode: '1100', companyId: co_gulf, lines: [{ id: tl_9, companyId: co_gulf, accountId: acc_g_1100, accountCode: '1100', accountName: Trade receivables, type: Asset, groupCode: CA, groupName: Current assets, sourceCurrency: AED, sourceAmount: 26725, ownershipFactor: 1, rateType: Closing, rate: 22.9, translatedAmount: 612000 }], journals: [{ id: gjnl_88, companyId: co_gulf, number: GJV/2026-27/00088, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: gbr_dxb, currency: USD, rate: 3.67, status: Posted, type: Auto, sourceType: Intercompany, sourceId: ic_0017, sourceNumber: IC/2026-27/00017, narration: IC invoice IC-INV-0017 from Acme Industries, lines: [], totalDr: 18350, totalCr: 18350, correlationId: corr_ic17, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── group intercompany view ───────────────────────────────────────────────
+
+/reports/consolidation/intercompany:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Reports]
+    summary: Intercompany documents across the tenant + due-to / due-from balances
+    operationId: listGroupIntercompany
+    x-permission: reports.cfo.view
+    x-frd: [FR-CNS-005, FR-ORG-012]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: matchStatus, in: query, schema: { type: string, enum: [Unmatched, Matched, Difference] } }
+      - $ref: '../components/parameters.yaml#/AsOf'
+    responses:
+      '200':
+        description: Documents + balances
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/accounting.yaml#/IntercompanyDoc' } }
+                    dues: { type: array, items: { $ref: '../components/schemas/reports.yaml#/DueBalance' } }
+            examples:
+              rows: { summary: Docs + dues, value: { data: [{ $ref: '#/components/examples/IntercompanyInvoice/value' }], dues: [{ companyId: co_acme, companyName: Acme Industries, counterpartyId: co_gulf, counterpartyName: Acme Gulf FZE, receivable: 416000, payable: 0, currency: INR, receivableAccountId: acc_1170, payableAccountId: acc_2170 }, { companyId: co_gulf, companyName: Acme Gulf FZE, counterpartyId: co_acme, counterpartyName: Acme Industries, receivable: 0, payable: 18350, currency: AED, receivableAccountId: acc_gulf_ic_recv, payableAccountId: acc_gulf_ic_pay }], meta: { nextCursor: null, limit: 25, total: 7 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Reports]
+    summary: Record an intercompany transaction from the group view (two balanced journals, one per company)
+    operationId: postGroupIntercompany
+    x-permission: reports.cfo.post
+    x-idempotent: true
+    x-events: [JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/reports.yaml#/IcPostRequest' }
+          examples:
+            invoice: { summary: Invoice both sides, value: { type: Invoice, fromCompanyId: co_acme, toCompanyId: co_gulf, amount: 5000, currency: USD, date: '2026-09-13', reference: IC-INV-0017, narration: Shared-services fee Q2, postCounterparty: true } }
+            payment: { summary: Settlement, value: { type: Payment, fromCompanyId: co_gulf, toCompanyId: co_acme, amount: 5000, currency: USD, date: '2026-09-30', reference: IC-PAY-0009, postCounterparty: true } }
+    responses:
+      '201':
+        description: Document
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/accounting.yaml#/IntercompanyDoc' }
+            examples:
+              matched: { $ref: '../components/examples/accounting.yaml#/IntercompanyInvoice' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Business rule
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              sameCompany: { summary: Same company both sides, value: { code: SAME_COMPANY, message: From and to must be different legal companies (FR-ORG-011), field: toCompanyId, correlationId: corr_9f1c2e7a } }
+              accounts: { summary: IC accounts not configured, value: { code: INVALID_ACCOUNT, message: Acme Gulf FZE has no intercompany receivable/payable accounts, correlationId: corr_9f1c2e7a } }
+              rate: { summary: Rate missing, value: { code: RATE_MISSING, message: No USD→AED rate on 2026-09-13, field: currency, correlationId: corr_9f1c2e7a } }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/reports/consolidation/intercompany/{id}/match:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Reports]
+    summary: Re-run matching for a document (finds the counterparty entry, explains FX differences)
+    operationId: matchGroupIntercompany
+    x-permission: reports.cfo.post
+    responses:
+      '200':
+        description: Matched / Difference / Unmatched
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/accounting.yaml#/IntercompanyDoc' }
+            examples:
+              matched: { $ref: '../components/examples/accounting.yaml#/IntercompanyInvoice' }
+              difference: { summary: Difference explained, value: { id: ic_0015, companyId: co_acme, type: Invoice, number: IC/2026-27/00015, fromCompanyId: co_acme, toCompanyId: co_gulf, date: '2026-08-20', currency: USD, amount: 2000, baseCurrencyFrom: INR, baseCurrencyTo: AED, rateFrom: 83.5, rateTo: 3.67, baseAmountFrom: 167000, baseAmountTo: 7340, counterpartyRef: IC-INV-0015, matchStatus: Difference, dueFromAccount: acc_1170, dueToAccount: acc_2170, sourceJournalIds: { from: jnl_ic_15a, to: gjnl_71 }, difference: { expectedTo: 7340, actualTo: 7360, diffTo: 20, toCurrency: AED, explanation: ['Counterparty booked at 3.68 (their rate of 2026-08-22)'] }, createdAt: '2026-08-20T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 3 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }

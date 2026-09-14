@@ -1,0 +1,1090 @@
+# Payroll (tag: Payroll). src/modules/payroll/actions.ts (createRun/calculateRun/finalizeRun/postRun/reverseRun/bankFile), calc.ts, posting.ts.
+
+/payroll/employees:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Payroll]
+    summary: Payroll employees (masked identifiers)
+    description: "Tabs → Active · No structure (`hasStructure=false`) · Exited. Query examples — `?department=Finance` · `?q=priya`."
+    operationId: listPayrollEmployees
+    x-permission: payroll.employee.view
+    x-frd: [FR-PAY-001]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: department, in: query, schema: { type: string } }
+      - { name: hasStructure, in: query, schema: { type: boolean } }
+    responses:
+      '200':
+        description: Employees
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/payroll.yaml#/PayrollEmployee' } }
+            examples:
+              firstPage: { summary: Two employees, value: { data: [{ $ref: '#/components/examples/PayrollEmployeePriya/value' }, { id: emp_anil, code: E-0012, name: Anil Kumar, department: Warehouse, designation: Store Executive, branchId: br_ho, joinDate: '2026-06-01', status: Active, pf: true, esi: true, pt: true, taxRegime: New, panMasked: 'AKLPK••••J', uanMasked: '1001••••••88', esiNumberMasked: '3100••••••0012', bankMasked: 'SBI ••••7781', ctc: 336000 }], meta: { nextCursor: null, limit: 25, total: 24, counts: { Active: 24, 'No structure': 1, Exited: 3 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/payroll/employees/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Payroll]
+    summary: Payroll profile of an employee
+    operationId: getPayrollEmployee
+    x-permission: payroll.employee.view
+    responses:
+      '200':
+        description: Employee
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/payroll.yaml#/PayrollEmployee' }
+            examples:
+              priya: { $ref: '../components/examples/payroll.yaml#/PayrollEmployeePriya' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Payroll]
+    summary: Update payroll fields (statutory flags, PAN/UAN, bank)
+    description: Changing regime / PF / ESI / PT also updates the active salary structure. Audited as sensitive.
+    operationId: updatePayrollEmployee
+    x-permission: payroll.employee.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/payroll.yaml#/PayrollEmployeePatch'
+              - $ref: '../components/schemas/common.yaml#/ExpectedVersion'
+          examples:
+            regime: { summary: Switch to Old regime, value: { expectedVersion: 4, taxRegime: Old } }
+            statutory: { summary: PAN + UAN + bank, value: { expectedVersion: 4, pan: BNZPS1234K, uan: '100112345642', bankDetail: { bankName: HDFC Bank, accountNumber: '50100012340042', ifsc: HDFC0000123, accountName: Priya Sharma } } }
+            esiOff: { summary: ESI no longer applicable (gross > ceiling), value: { expectedVersion: 4, esi: false } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/payroll.yaml#/PayrollEmployee' }
+            examples:
+              updated: { $ref: '../components/examples/payroll.yaml#/PayrollEmployeePriya' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/payroll/employees/{id}/reveal:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Payroll]
+    summary: Reveal unmasked PAN / UAN / bank (audited)
+    operationId: revealPayrollEmployee
+    x-permission: payroll.payslip.view
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [reason], properties: { reason: { type: string, minLength: 5 }, fields: { type: array, items: { type: string, enum: [pan, uan, esiNumber, bankDetail] } } } }
+          examples:
+            bank: { summary: Bank for salary file, value: { reason: Verifying bank file rejection, fields: [bankDetail] } }
+    responses:
+      '200':
+        description: Revealed
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/payroll.yaml#/PayrollEmployeeRevealed' }
+            examples:
+              bank: { summary: Bank only, value: { bankDetail: { bankName: HDFC Bank, accountNumber: '50100012340042', ifsc: HDFC0000123, accountName: Priya Sharma } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── salary structures ─────────────────────────────────────────────────────
+
+/payroll/salary-structures:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Payroll]
+    summary: Salary structures (effective-dated versions)
+    operationId: listSalaryStructures
+    x-permission: payroll.employee.view
+    x-frd: [FR-PAY-002]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/EmployeeId'
+      - $ref: '../components/parameters.yaml#/Status'
+    responses:
+      '200':
+        description: Structures
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/payroll.yaml#/SalaryStructure' } }
+            examples:
+              firstPage: { summary: Active structures, value: { data: [{ $ref: '#/components/examples/SalaryStructurePriya/value' }], meta: { nextCursor: null, limit: 25, total: 23, counts: { Active: 23, Superseded: 9, Draft: 0 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Payroll]
+    summary: Create a structure version (supersedes the active one from `effectiveFrom`)
+    operationId: createSalaryStructure
+    x-permission: payroll.structure.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/payroll.yaml#/SalaryStructureCreate' }
+          examples:
+            components: { summary: Explicit components, value: { employeeId: emp_priya, effectiveFrom: '2026-10-01', components: [{ code: BASIC, name: Basic, type: Earning, basis: Amount, value: 55000 }, { code: HRA, name: HRA, type: Earning, basis: PctOfBasic, value: 50 }, { code: SPL, name: Special allowance, type: Earning, basis: Amount, value: 38000 }], pf: true, esi: false, pt: true, taxRegime: New, notes: Annual revision 10% } }
+            fromCtc: { summary: Standard split from annual CTC, value: { employeeId: emp_anil, effectiveFrom: '2026-10-01', components: [{ code: BASIC, name: Basic, type: Earning, basis: Amount, value: 14000 }, { code: HRA, name: HRA, type: Earning, basis: PctOfBasic, value: 40 }, { code: SPL, name: Special allowance, type: Earning, basis: Amount, value: 8400 }], pf: true, esi: true, pt: true, taxRegime: New } }
+    responses:
+      '201':
+        description: Created (Active)
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/payroll.yaml#/SalaryStructure' }
+            examples:
+              created: { $ref: '../components/examples/payroll.yaml#/SalaryStructurePriya' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Business rule
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              lockedPeriod: { summary: Effective date inside a posted payroll period, value: { code: INVALID_STATE, message: Payroll for 2026-09 is already posted — effective date must be 2026-10-01 or later, field: effectiveFrom, correlationId: corr_9f1c2e7a } }
+              noBasic: { summary: Basic missing, value: { code: VALIDATION, message: A BASIC earning component is required, field: components, correlationId: corr_9f1c2e7a } }
+
+/payroll/salary-structures/preview:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Payroll]
+    summary: CTC preview (statutory + TDS estimate) without saving
+    operationId: previewSalaryStructure
+    x-permission: payroll.employee.view
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/payroll.yaml#/CtcPreviewRequest' }
+          examples:
+            components: { summary: From components, value: { components: [{ code: BASIC, name: Basic, type: Earning, basis: Amount, value: 50000 }, { code: HRA, name: HRA, type: Earning, basis: PctOfBasic, value: 50 }, { code: SPL, name: Special allowance, type: Earning, basis: Amount, value: 35000 }], pf: true, esi: false, pt: true, taxRegime: New } }
+            fromCtc: { summary: From annual CTC (standard split), value: { annualCtc: 1440000, pf: true, pt: true, taxRegime: New } }
+    responses:
+      '200':
+        description: Preview
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/payroll.yaml#/CtcPreview' }
+            examples:
+              preview: { summary: Monthly figures, value: { components: [{ code: BASIC, name: Basic, type: Earning, basis: Amount, value: 50000 }, { code: HRA, name: HRA, type: Earning, basis: PctOfBasic, value: 50 }, { code: SPL, name: Special allowance, type: Earning, basis: Amount, value: 35000 }], earnings: { BASIC: 50000, HRA: 25000, SPL: 35000 }, basic: 50000, gross: 110000, pf: 1800, esi: 0, pt: 200, tds: 10500, deductions: 12500, net: 97500, employerPf: 1800, employerEsi: 0, employer: 1800, monthlyCtc: 111800, annualCtc: 1341600 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/payroll/salary-structures/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Payroll]
+    summary: Get a structure version
+    operationId: getSalaryStructure
+    x-permission: payroll.employee.view
+    responses:
+      '200':
+        description: Structure
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/payroll.yaml#/SalaryStructure' }
+            examples:
+              active: { $ref: '../components/examples/payroll.yaml#/SalaryStructurePriya' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── inputs ────────────────────────────────────────────────────────────────
+
+/payroll/inputs:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Payroll]
+    summary: Attendance / variable inputs for a period (ensures a row per payroll employee)
+    operationId: listPayrollInputs
+    x-permission: payroll.run.view
+    x-frd: [FR-PAY-003]
+    parameters:
+      - { name: period, in: query, required: true, schema: { type: string }, example: '2026-09' }
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+    responses:
+      '200':
+        description: Inputs
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/payroll.yaml#/PayrollInput' } }
+            examples:
+              september: { summary: Draft + approved, value: { data: [{ id: pin_0901, companyId: co_acme, period: '2026-09', employeeId: emp_priya, employeeName: Priya Sharma, workingDays: 30, lopDays: 0, overtimeHours: 0, overtimeAmount: 0, reimbursements: 4200, reimbursementClaimIds: [exp_00031], bonus: 0, arrears: 0, loanEmi: 0, otherDeductions: 0, status: Approved, approvedBy: Rahul Mehta, approvedAt: '2026-09-28T10:00:00Z', createdAt: '2026-09-25T09:00:00Z', updatedAt: '2026-09-28T10:00:00Z', version: 3 }, { id: pin_0912, companyId: co_acme, period: '2026-09', employeeId: emp_anil, employeeName: Anil Kumar, workingDays: 30, lopDays: 2, overtimeHours: 6, overtimeAmount: 2400, reimbursements: 0, reimbursementClaimIds: [], bonus: 0, arrears: 0, loanEmi: 5000, loanId: ln_0004, otherDeductions: 0, status: Draft, createdAt: '2026-09-25T09:00:00Z', updatedAt: '2026-09-26T09:00:00Z', version: 2 }], meta: { nextCursor: null, limit: 25, total: 24, counts: { Draft: 1, Approved: 23, Locked: 0 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  put:
+    tags: [Payroll]
+    summary: Bulk-save inputs for a period (Draft rows only)
+    operationId: savePayrollInputs
+    x-permission: payroll.input.edit
+    parameters:
+      - { name: period, in: query, required: true, schema: { type: string }, example: '2026-09' }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/payroll.yaml#/PayrollInputsBulkPut' }
+          examples:
+            attendance: { summary: LOP + overtime, value: { rows: [{ employeeId: emp_anil, lopDays: 2, overtimeHours: 6, overtimeAmount: 2400 }, { employeeId: emp_priya, reimbursementClaimIds: [exp_00031] }] } }
+            skipEmi: { summary: Skip a loan EMI this month, value: { rows: [{ employeeId: emp_anil, loanEmi: 0 }] } }
+    responses:
+      '200':
+        description: Saved rows
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/payroll.yaml#/PayrollInput' } }, skipped: { type: array, items: { type: object, properties: { employeeId: { type: string }, reason: { type: string } } } } } }
+            examples:
+              saved: { summary: "One saved, one locked", value: { data: [{ id: pin_0912, companyId: co_acme, period: '2026-09', employeeId: emp_anil, employeeName: Anil Kumar, workingDays: 30, lopDays: 2, overtimeHours: 6, overtimeAmount: 2400, reimbursements: 0, reimbursementClaimIds: [], bonus: 0, arrears: 0, loanEmi: 5000, loanId: ln_0004, otherDeductions: 0, status: Draft, createdAt: '2026-09-25T09:00:00Z', updatedAt: '2026-09-26T09:00:00Z', version: 3 }], skipped: [{ employeeId: emp_priya, reason: Locked by run PR/2026-27/00006 }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/payroll/inputs/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  patch:
+    tags: [Payroll]
+    summary: Update one employee's inputs
+    operationId: updatePayrollInput
+    x-permission: payroll.input.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/payroll.yaml#/PayrollInputPatch'
+              - $ref: '../components/schemas/common.yaml#/ExpectedVersion'
+          examples:
+            bonus: { summary: One-off bonus, value: { expectedVersion: 2, bonus: 15000 } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/payroll.yaml#/PayrollInput' }
+            examples:
+              updated: { summary: Updated, value: { id: pin_0912, companyId: co_acme, period: '2026-09', employeeId: emp_anil, employeeName: Anil Kumar, workingDays: 30, lopDays: 2, overtimeHours: 6, overtimeAmount: 2400, reimbursements: 0, reimbursementClaimIds: [], bonus: 15000, arrears: 0, loanEmi: 5000, loanId: ln_0004, otherDeductions: 0, status: Draft, createdAt: '2026-09-25T09:00:00Z', updatedAt: '2026-09-26T10:00:00Z', version: 3 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/payroll/inputs/approve:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Payroll]
+    summary: Approve all Draft inputs for a period
+    operationId: approvePayrollInputs
+    x-permission: payroll.input.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [period], properties: { period: { type: string }, employeeIds: { type: array, items: { type: string } } } }
+          examples:
+            all: { summary: Whole period, value: { period: '2026-09' } }
+    responses:
+      '200':
+        description: Approved
+        content:
+          application/json:
+            schema: { type: object, required: [approved, skipped], properties: { approved: { type: integer }, skipped: { type: integer } } }
+            examples:
+              done: { summary: Approved, value: { approved: 23, skipped: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+# ── runs ──────────────────────────────────────────────────────────────────
+
+/payroll/runs:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Payroll]
+    summary: Payroll runs
+    description: Tabs → All · Draft/Calculated · Finalized · Posted · Reversed.
+    operationId: listPayrollRuns
+    x-permission: payroll.run.view
+    x-frd: [FR-PAY-004]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/FiscalYear'
+      - { name: type, in: query, schema: { type: string, enum: [Regular, Off-cycle] } }
+    responses:
+      '200':
+        description: Runs
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/payroll.yaml#/PayrollRun' } }
+            examples:
+              firstPage: { summary: Runs (lines omitted in lists), value: { data: [{ id: pr_0006, companyId: co_acme, number: PR/2026-27/00006, period: '2026-09', fy: '2026-27', type: Regular, status: Posted, employeeCount: 24, lines: [], totals: { basic: 720000, hra: 360000, special: 540000, otherEarnings: 0, overtime: 2400, reimbursements: 4200, bonus: 15000, arrears: 0, gross: 1641600, pf: 43200, esi: 1350, pt: 4800, tds: 98000, loan: 5000, otherDeductions: 0, deductions: 152350, net: 1489250, employerPf: 43200, employerEsi: 5850, employerTotal: 49050 }, journalId: jnl_pr_6, journalNumber: JV/2026-27/00405, calculatedAt: '2026-09-28T11:00:00Z', finalizedAt: '2026-09-29T10:00:00Z', finalizedBy: Rahul Mehta, postedAt: '2026-09-30T09:00:00Z', postedBy: Priya Sharma, paymentDate: '2026-09-30', bankFileGeneratedAt: '2026-09-30T09:05:00Z', createdAt: '2026-09-28T10:00:00Z', updatedAt: '2026-09-30T09:05:00Z', version: 6 }], meta: { nextCursor: null, limit: 25, total: 7, counts: { All: 7, 'Draft/Calculated': 0, Finalized: 0, Posted: 6, Reversed: 1 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Payroll]
+    summary: Create a run (Draft)
+    description: One Regular run per period (`409 DUPLICATE_PERIOD`). Off-cycle runs take a label and an optional employee subset.
+    operationId: createPayrollRun
+    x-permission: payroll.run.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/payroll.yaml#/PayrollRunCreate' }
+          examples:
+            regular: { summary: Regular monthly, value: { period: '2026-09' } }
+            offCycle: { summary: Off-cycle bonus, value: { period: '2026-10', type: Off-cycle, label: Diwali bonus, employeeIds: [emp_priya, emp_anil] } }
+    responses:
+      '201':
+        description: Draft run
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/payroll.yaml#/PayrollRun' }
+            examples:
+              draft: { summary: Draft, value: { id: pr_0007, companyId: co_acme, number: PR/2026-27/00007, period: '2026-10', fy: '2026-27', type: Regular, status: Draft, employeeCount: 0, lines: [], totals: { basic: 0, hra: 0, special: 0, otherEarnings: 0, overtime: 0, reimbursements: 0, bonus: 0, arrears: 0, gross: 0, pf: 0, esi: 0, pt: 0, tds: 0, loan: 0, otherDeductions: 0, deductions: 0, net: 0, employerPf: 0, employerEsi: 0, employerTotal: 0 }, createdAt: '2026-10-25T09:00:00Z', updatedAt: '2026-10-25T09:00:00Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409':
+        description: Duplicate
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              period: { summary: Regular run exists, value: { code: DUPLICATE_PERIOD, message: A regular payroll run for 2026-09 already exists (PR/2026-27/00006), details: { runId: pr_0006 }, correlationId: corr_9f1c2e7a } }
+
+/payroll/runs/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Payroll]
+    summary: Get a run (with lines)
+    operationId: getPayrollRun
+    x-permission: payroll.run.view
+    responses:
+      '200':
+        description: Run
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/payroll.yaml#/PayrollRun' }
+            examples:
+              calculated: { $ref: '../components/examples/payroll.yaml#/PayrollRunCalculated' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  delete:
+    tags: [Payroll]
+    summary: Delete a Draft / Calculated run
+    operationId: deletePayrollRun
+    x-permission: payroll.run.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/payroll/runs/{id}/calculate:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Payroll]
+    summary: Calculate (or recalculate) lines from structures + approved inputs
+    operationId: calculatePayrollRun
+    x-permission: payroll.run.edit
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { type: object, properties: { employeeIds: { type: array, items: { type: string } } } }
+          examples:
+            all: { summary: All payroll employees, value: {} }
+            subset: { summary: Subset, value: { employeeIds: [emp_priya, emp_anil] } }
+    responses:
+      '200':
+        description: Calculated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/payroll.yaml#/PayrollRun' }
+            examples:
+              calculated: { $ref: '../components/examples/payroll.yaml#/PayrollRunCalculated' }
+              withWarnings: { summary: One employee skipped, value: { id: pr_0007, companyId: co_acme, number: PR/2026-27/00007, period: '2026-10', fy: '2026-27', type: Regular, status: Calculated, employeeCount: 23, lines: [], totals: { basic: 700000, hra: 350000, special: 520000, otherEarnings: 0, overtime: 0, reimbursements: 0, bonus: 0, arrears: 0, gross: 1570000, pf: 41400, esi: 1350, pt: 4600, tds: 95000, loan: 5000, otherDeductions: 0, deductions: 147350, net: 1422650, employerPf: 41400, employerEsi: 5850, employerTotal: 47250 }, calculatedAt: '2026-10-28T11:00:00Z', warnings: ['E-0031 Neha Rao has no active salary structure — skipped', '2 inputs still Draft — approved values were not used'], createdAt: '2026-10-25T09:00:00Z', updatedAt: '2026-10-28T11:00:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/payroll/runs/{id}/finalize:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Payroll]
+    summary: Finalize (locks inputs, generates payslips)
+    operationId: finalizePayrollRun
+    x-permission: payroll.run.submit
+    x-idempotent: true
+    x-events: [DocumentApproved]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Finalized
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/payroll.yaml#/PayrollRun' }
+                    payslips: { type: array, items: { $ref: '../components/schemas/payroll.yaml#/Payslip' } }
+            examples:
+              finalized: { summary: Payslips generated, value: { document: { id: pr_0006, companyId: co_acme, number: PR/2026-27/00006, period: '2026-09', fy: '2026-27', type: Regular, status: Finalized, employeeCount: 24, lines: [], totals: { basic: 720000, hra: 360000, special: 540000, otherEarnings: 0, overtime: 2400, reimbursements: 4200, bonus: 15000, arrears: 0, gross: 1641600, pf: 43200, esi: 1350, pt: 4800, tds: 98000, loan: 5000, otherDeductions: 0, deductions: 152350, net: 1489250, employerPf: 43200, employerEsi: 5850, employerTotal: 49050 }, calculatedAt: '2026-09-28T11:00:00Z', finalizedAt: '2026-09-29T10:00:00Z', finalizedBy: Rahul Mehta, createdAt: '2026-09-28T10:00:00Z', updatedAt: '2026-09-29T10:00:00Z', version: 4 }, outcome: finalized, payslips: [{ $ref: '#/components/examples/PayslipPriya/value' }], warnings: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: State conflict
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              notCalculated: { summary: Recalculate first, value: { code: INVALID_STATE, message: Recalculate the run before finalizing, correlationId: corr_9f1c2e7a } }
+      '422':
+        description: Empty
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              empty: { summary: No employees, value: { code: EMPTY, message: Run has no employees, correlationId: corr_9f1c2e7a } }
+
+/payroll/runs/{id}/post:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Payroll]
+    summary: Post the payroll journal (salary expense by department dimension, statutory payables, net salary payable)
+    operationId: postPayrollRun
+    x-permission: payroll.run.post
+    x-frd: [FR-PAY-005]
+    x-idempotent: true
+    x-events: [DocumentPosted, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/payroll.yaml#/PayrollPostRequest' }
+          examples:
+            payDate: { summary: Payment date, value: { paymentDate: '2026-09-30' } }
+    responses:
+      '200':
+        description: Posted
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/payroll.yaml#/PayrollRun' }
+            examples:
+              posted: { summary: Posted with journal, value: { document: { id: pr_0006, companyId: co_acme, number: PR/2026-27/00006, period: '2026-09', fy: '2026-27', type: Regular, status: Posted, employeeCount: 24, lines: [], totals: { basic: 720000, hra: 360000, special: 540000, otherEarnings: 0, overtime: 2400, reimbursements: 4200, bonus: 15000, arrears: 0, gross: 1641600, pf: 43200, esi: 1350, pt: 4800, tds: 98000, loan: 5000, otherDeductions: 0, deductions: 152350, net: 1489250, employerPf: 43200, employerEsi: 5850, employerTotal: 49050 }, journalId: jnl_pr_6, journalNumber: JV/2026-27/00405, finalizedAt: '2026-09-29T10:00:00Z', finalizedBy: Rahul Mehta, postedAt: '2026-09-30T09:00:00Z', postedBy: Priya Sharma, paymentDate: '2026-09-30', correlationId: corr_pr6, createdAt: '2026-09-28T10:00:00Z', updatedAt: '2026-09-30T09:00:00Z', version: 5 }, outcome: posted, journal: { id: jnl_pr_6, companyId: co_acme, number: JV/2026-27/00405, date: '2026-09-30', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Payroll Run, sourceId: pr_0006, sourceNumber: PR/2026-27/00006, narration: Payroll September 2026 — 24 employees, lines: [{ id: j1, accountId: acc_5010, accountCode: '5010', accountName: Salaries & wages, dr: 1641600, cr: 0, drBase: 1641600, crBase: 0, dimensions: { Department: dim_fin } }, { id: j2, accountId: acc_5011, accountCode: '5011', accountName: Employer PF & ESI, dr: 49050, cr: 0, drBase: 49050, crBase: 0, dimensions: {} }, { id: j3, accountId: acc_2410, accountCode: '2410', accountName: PF payable, dr: 0, cr: 86400, drBase: 0, crBase: 86400, dimensions: {} }, { id: j4, accountId: acc_2420, accountCode: '2420', accountName: ESI payable, dr: 0, cr: 7200, drBase: 0, crBase: 7200, dimensions: {} }, { id: j5, accountId: acc_2430, accountCode: '2430', accountName: PT payable, dr: 0, cr: 4800, drBase: 0, crBase: 4800, dimensions: {} }, { id: j6, accountId: acc_2400, accountCode: '2400', accountName: TDS payable, dr: 0, cr: 98000, drBase: 0, crBase: 98000, dimensions: {} }, { id: j7, accountId: acc_1500, accountCode: '1500', accountName: Employee loans, dr: 0, cr: 5000, drBase: 0, crBase: 5000, dimensions: {} }, { id: j8, accountId: acc_2440, accountCode: '2440', accountName: Salaries payable, dr: 0, cr: 1489250, drBase: 0, crBase: 1489250, dimensions: {} }], totalDr: 1690650, totalCr: 1690650, postedAt: '2026-09-30T09:00:00Z', postedBy: Priya Sharma, correlationId: corr_pr6, createdAt: '2026-09-30T09:00:00Z', updatedAt: '2026-09-30T09:00:00Z', version: 1 }, warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: State conflict
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              notFinalized: { summary: Finalize first, value: { code: INVALID_STATE, message: Finalize the run before posting, correlationId: corr_9f1c2e7a } }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/payroll/runs/{id}/bank-file:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Payroll]
+    summary: Salary bank file (CSV) — unmasked needs payslip permission
+    operationId: getPayrollBankFile
+    x-permission: payroll.run.export
+    parameters:
+      - { name: masked, in: query, schema: { type: boolean, default: true }, description: "`false` returns full account numbers (needs `payroll.payslip.view`, audited)." }
+    responses:
+      '200':
+        description: CSV
+        headers:
+          Content-Disposition: { $ref: '../components/headers.yaml#/ContentDisposition' }
+        content:
+          text/csv:
+            schema: { type: string }
+            examples:
+              masked: { summary: Masked, value: "employeeCode,name,bank,account,ifsc,amount\nE-0007,Priya Sharma,HDFC Bank,••••0042,HDFC0000123,97500.00\nE-0012,Anil Kumar,SBI,••••7781,SBIN0001234,21250.00\n" }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/payroll/runs/{id}/reverse:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Payroll]
+    summary: Reverse a Finalized / Posted run (voids payslips, reverses journal, unlocks inputs)
+    operationId: reversePayrollRun
+    x-permission: payroll.run.reverse
+    x-idempotent: true
+    x-events: [DocumentReversed, JournalReversed]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: LOP for 3 employees was wrong — rerun } }
+    responses:
+      '200':
+        description: Reversed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/payroll.yaml#/PayrollRun' }
+            examples:
+              reversed: { summary: Reversed, value: { document: { id: pr_0006, companyId: co_acme, number: PR/2026-27/00006, period: '2026-09', fy: '2026-27', type: Regular, status: Reversed, employeeCount: 24, lines: [], totals: { basic: 720000, hra: 360000, special: 540000, otherEarnings: 0, overtime: 2400, reimbursements: 4200, bonus: 15000, arrears: 0, gross: 1641600, pf: 43200, esi: 1350, pt: 4800, tds: 98000, loan: 5000, otherDeductions: 0, deductions: 152350, net: 1489250, employerPf: 43200, employerEsi: 5850, employerTotal: 49050 }, journalId: jnl_pr_6, journalNumber: JV/2026-27/00405, reversedById: jnl_pr_6r, reversalReason: LOP for 3 employees was wrong — rerun, postedAt: '2026-09-30T09:00:00Z', postedBy: Priya Sharma, createdAt: '2026-09-28T10:00:00Z', updatedAt: '2026-10-01T09:00:00Z', version: 7 }, outcome: reversed, warnings: ['24 payslips voided', 'Inputs for 2026-09 unlocked'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+# ── payslips ──────────────────────────────────────────────────────────────
+
+/payroll/payslips:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Payroll]
+    summary: Payslips (confidential)
+    operationId: listPayslips
+    x-permission: payroll.payslip.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: period, in: query, schema: { type: string } }
+      - { name: runId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/EmployeeId'
+      - $ref: '../components/parameters.yaml#/Status'
+    responses:
+      '200':
+        description: Payslips
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/payroll.yaml#/Payslip' } }
+            examples:
+              firstPage: { summary: Payslips, value: { data: [{ $ref: '#/components/examples/PayslipPriya/value' }], meta: { nextCursor: null, limit: 25, total: 24 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/payroll/payslips/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Payroll]
+    summary: Get a payslip
+    operationId: getPayslip
+    x-permission: payroll.payslip.view
+    responses:
+      '200':
+        description: Payslip
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/payroll.yaml#/Payslip' }
+            examples:
+              payslip: { $ref: '../components/examples/payroll.yaml#/PayslipPriya' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/payroll/payslips/{id}/pdf:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Payroll]
+    summary: Payslip PDF
+    operationId: getPayslipPdf
+    x-permission: payroll.payslip.view
+    responses:
+      '200':
+        description: PDF
+        headers:
+          Content-Disposition: { $ref: '../components/headers.yaml#/ContentDisposition' }
+        content:
+          application/pdf:
+            schema: { type: string, format: binary }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/payroll/payslips/{id}/email:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Payroll]
+    summary: Email the payslip to the employee
+    operationId: emailPayslip
+    x-permission: payroll.payslip.view
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/EmailRequest' }
+          examples:
+            default: { $ref: '../components/examples/common.yaml#/EmailDefault' }
+    responses:
+      '202':
+        description: Queued
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmailResult' }
+            examples:
+              queued: { $ref: '../components/examples/common.yaml#/EmailResult' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '502': { $ref: '../components/responses.yaml#/ProviderError' }
+
+/payroll/payslips/email-all:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Payroll]
+    summary: Email every payslip of a run
+    operationId: emailAllPayslips
+    x-permission: payroll.payslip.view
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [runId], properties: { runId: { type: string } } }
+          examples:
+            run: { summary: Run, value: { runId: pr_0006 } }
+    responses:
+      '202':
+        description: Queued
+        content:
+          application/json:
+            schema: { type: object, required: [queued, skipped], properties: { queued: { type: integer }, skipped: { type: integer }, jobId: { type: string } } }
+            examples:
+              queued: { summary: Queued, value: { queued: 23, skipped: 1, jobId: job_7712 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/payroll/payslips/download-all:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Payroll]
+    summary: Export all payslips of a run (ZIP of PDFs or CSV register) as a job
+    operationId: downloadAllPayslips
+    x-permission: payroll.payslip.export
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [runId], properties: { runId: { type: string }, format: { type: string, enum: [zip, csv], default: zip } } }
+          examples:
+            zip: { summary: ZIP of PDFs, value: { runId: pr_0006, format: zip } }
+            csv: { summary: CSV register, value: { runId: pr_0006, format: csv } }
+    responses:
+      '202':
+        description: Export job
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/ExportJob' }
+            examples:
+              queued: { summary: Queued, value: { id: exp_402, companyId: co_acme, kind: payslips, format: zip, status: Queued, requestedBy: Priya Sharma, params: { runId: pr_0006 }, createdAt: '2026-09-30T09:10:00Z', updatedAt: '2026-09-30T09:10:00Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── loans ─────────────────────────────────────────────────────────────────
+
+/payroll/loans:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Payroll]
+    summary: Employee loans & advances
+    operationId: listLoans
+    x-permission: payroll.employee.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/EmployeeId'
+      - $ref: '../components/parameters.yaml#/Status'
+    responses:
+      '200':
+        description: Loans
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/payroll.yaml#/Loan' } }
+            examples:
+              firstPage: { summary: Loans, value: { data: [{ $ref: '#/components/examples/LoanAnil/value' }], meta: { nextCursor: null, limit: 25, total: 4, counts: { Active: 3, Closed: 1 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Payroll]
+    summary: Disburse a loan / advance (posts Dr Employee loans / Cr bank; builds the EMI schedule)
+    operationId: createLoan
+    x-permission: payroll.loan.create
+    x-idempotent: true
+    x-events: [JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/payroll.yaml#/LoanCreate' }
+          examples:
+            loan: { summary: "Interest-free loan, 12 EMIs", value: { employeeId: emp_anil, type: Loan, principal: 60000, interestPct: 0, months: 12, startPeriod: '2026-10', disbursedOn: '2026-09-15', bankAccountId: acc_1310, purpose: Medical emergency } }
+            advance: { summary: "Salary advance, 1 EMI", value: { employeeId: emp_priya, type: Advance, principal: 25000, months: 1, startPeriod: '2026-10', disbursedOn: '2026-09-20', bankAccountId: acc_1310 } }
+    responses:
+      '201':
+        description: Loan
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/payroll.yaml#/Loan' }
+            examples:
+              created: { $ref: '../components/examples/payroll.yaml#/LoanAnil' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/payroll/loans/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Payroll]
+    summary: Get a loan
+    operationId: getLoan
+    x-permission: payroll.employee.view
+    responses:
+      '200':
+        description: Loan
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/payroll.yaml#/Loan' }
+            examples:
+              active: { $ref: '../components/examples/payroll.yaml#/LoanAnil' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/payroll/loans/{id}/schedule:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Payroll]
+    summary: EMI schedule
+    operationId: getLoanSchedule
+    x-permission: payroll.employee.view
+    responses:
+      '200':
+        description: Schedule
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/payroll.yaml#/LoanScheduleRow' } } } }
+            examples:
+              schedule: { summary: "12 EMIs, one recovered", value: { data: [{ period: '2026-10', emi: 5000, principal: 5000, interest: 0, balance: 55000, status: Recovered, runId: pr_0007 }, { period: '2026-11', emi: 5000, principal: 5000, interest: 0, balance: 50000, status: Pending }, { period: '2026-12', emi: 5000, principal: 5000, interest: 0, balance: 45000, status: Pending }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/payroll/loans/{id}/close:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Payroll]
+    summary: Close a loan early (waive / settle outside payroll)
+    operationId: closeLoan
+    x-permission: payroll.loan.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            settled: { summary: Settled by cheque, value: { reason: Balance settled by cheque on exit } }
+    responses:
+      '200':
+        description: Closed
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/payroll.yaml#/Loan' }
+            examples:
+              closed: { summary: Closed, value: { id: ln_0004, companyId: co_acme, number: LN/2026-27/00004, employeeId: emp_anil, employeeName: Anil Kumar, type: Loan, principal: 60000, interestPct: 0, emi: 5000, months: 12, startPeriod: '2026-10', disbursedOn: '2026-09-15', purpose: Medical emergency, balance: 0, recovered: 5000, status: Closed, schedule: [], journalId: jnl_ln_4, journalNumber: JV/2026-27/00380, createdAt: '2026-09-15T10:00:00Z', updatedAt: '2026-11-05T10:00:00Z', version: 4 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── statutory ─────────────────────────────────────────────────────────────
+
+/payroll/statutory:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Payroll]
+    summary: PF / ESI / PT / salary-TDS filings for a period
+    operationId: listPayrollStatutory
+    x-permission: payroll.run.view
+    parameters:
+      - { name: period, in: query, required: true, schema: { type: string }, example: '2026-09' }
+    responses:
+      '200':
+        description: Filings
+        content:
+          application/json:
+            schema: { type: object, required: [period, data], properties: { period: { type: string }, data: { type: array, items: { $ref: '../components/schemas/payroll.yaml#/StatutoryFiling' } } } }
+            examples:
+              september: { summary: September, value: { period: '2026-09', data: [{ key: 'PF:2026-09', kind: PF, label: PF ECR September 2026, period: '2026-09', employee: 43200, employer: 43200, total: 86400, employees: 24, dueDate: '2026-10-15', status: Pending }, { key: 'ESI:2026-09', kind: ESI, label: ESI September 2026, period: '2026-09', employee: 1350, employer: 5850, total: 7200, employees: 6, dueDate: '2026-10-15', status: Pending }, { key: 'PT:2026-09', kind: PT, label: Professional tax September 2026, period: '2026-09', employee: 4800, employer: 0, total: 4800, employees: 24, dueDate: '2026-10-31', status: Pending }, { key: 'TDS:2026-09', kind: TDS, label: Salary TDS (192) September 2026, period: '2026-09', employee: 98000, employer: 0, total: 98000, employees: 11, dueDate: '2026-10-07', status: Filed, filedAt: '2026-10-05T10:00:00Z', reference: '0510123456789099' }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/payroll/statutory/{kind}/mark-filed:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - { name: kind, in: path, required: true, schema: { type: string, enum: [pf, esi, pt, tds] } }
+  post:
+    tags: [Payroll]
+    summary: Mark a filing done (TRRN / challan reference)
+    operationId: markPayrollStatutoryFiled
+    x-permission: payroll.run.submit
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [period, reference], properties: { period: { type: string }, reference: { type: string }, filedAt: { type: string, format: date-time } } }
+          examples:
+            pf: { summary: PF TRRN, value: { period: '2026-09', reference: TRRN2026100012345, filedAt: '2026-10-12T11:00:00Z' } }
+    responses:
+      '200':
+        description: Filed
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/payroll.yaml#/StatutoryFiling' }
+            examples:
+              filed: { summary: Filed, value: { key: 'PF:2026-09', kind: PF, label: PF ECR September 2026, period: '2026-09', employee: 43200, employer: 43200, total: 86400, employees: 24, dueDate: '2026-10-15', status: Filed, filedAt: '2026-10-12T11:00:00Z', reference: TRRN2026100012345 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/payroll/statutory/{kind}/download:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - { name: kind, in: path, required: true, schema: { type: string, enum: [pf, esi, pt, tds] } }
+  get:
+    tags: [Payroll]
+    summary: Download the filing file (ECR text / ESI CSV / PT CSV / 24Q CSV) — audited as sensitive
+    operationId: downloadPayrollStatutory
+    x-permission: payroll.run.export
+    parameters:
+      - { name: period, in: query, required: true, schema: { type: string }, example: '2026-09' }
+    responses:
+      '200':
+        description: File
+        headers:
+          Content-Disposition: { $ref: '../components/headers.yaml#/ContentDisposition' }
+        content:
+          text/plain:
+            schema: { type: string }
+            examples:
+              ecr: { summary: PF ECR (excerpt), value: "100112345642#~#PRIYA SHARMA#~#110000#~#15000#~#15000#~#15000#~#1800#~#1250#~#550#~#0#~#0\n" }
+          text/csv:
+            schema: { type: string }
+            examples:
+              esi: { summary: ESI CSV (excerpt), value: "ipNumber,name,days,wages,employeeContribution,employerContribution\n3100000000012,Anil Kumar,28,28000,210,910\n" }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── settings ──────────────────────────────────────────────────────────────
+
+/payroll/settings:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Payroll]
+    summary: Payroll settings (statutory rates, ceilings, PT slabs, rounding)
+    operationId: getPayrollSettings
+    x-permission: payroll.run.view
+    responses:
+      '200':
+        description: Settings
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/PayrollSettings' }
+            examples:
+              current: { summary: Defaults, value: { pfEmployeePct: 12, pfEmployerPct: 12, pfWageCeiling: 15000, esiEmployeePct: 0.75, esiEmployerPct: 3.25, esiWageCeiling: 21000, ptSlabs: [{ upTo: 7500, amount: 0 }, { upTo: 10000, amount: 175 }, { upTo: 999999999, amount: 200 }], payrollDay: 1, rounding: Nearest, workingDaysPerMonth: 30 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  put:
+    tags: [Payroll]
+    summary: Update payroll settings
+    operationId: updatePayrollSettings
+    x-permission: payroll.settings.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/admin.yaml#/PayrollSettings' }
+          examples:
+            ptSlabs: { summary: Karnataka PT slabs, value: { ptSlabs: [{ upTo: 25000, amount: 0 }, { upTo: 999999999, amount: 200 }] } }
+            rounding: { summary: "Round down, pay on 28th", value: { rounding: Down, payrollDay: 28 } }
+    responses:
+      '200':
+        description: Saved
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/PayrollSettings' }
+            examples:
+              saved: { summary: Saved, value: { pfEmployeePct: 12, pfEmployerPct: 12, pfWageCeiling: 15000, esiEmployeePct: 0.75, esiEmployerPct: 3.25, esiWageCeiling: 21000, ptSlabs: [{ upTo: 25000, amount: 0 }, { upTo: 999999999, amount: 200 }], payrollDay: 1, rounding: Nearest, workingDaysPerMonth: 30 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }

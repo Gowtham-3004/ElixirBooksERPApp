@@ -1,0 +1,756 @@
+# Master data (src/store/types.ts:243-555; src/modules/masters/*)
+
+MasterStatus:
+  type: string
+  enum: [Active, Inactive]
+
+PartyStatus:
+  type: string
+  enum: [Active, Inactive, Blocked]
+
+TaxTreatment:
+  type: string
+  enum: [Registered, Unregistered, Composition, SEZ, Export, Overseas, Deemed Export]
+
+ChangeHistoryEntry:
+  type: object
+  description: Audited master change (before/after per field).
+  required: [at, by, action, changes]
+  properties:
+    at: { type: string, format: date-time }
+    by: { type: string, example: Priya Sharma }
+    action: { type: string, example: customer.updated }
+    changes:
+      type: array
+      items:
+        type: object
+        properties:
+          field: { type: string, example: creditLimit }
+          from: {}
+          to: {}
+
+MasterStatusChange:
+  type: object
+  required: [status]
+  properties:
+    status: { type: string, enum: [Active, Inactive, Blocked] }
+    reason: { type: string, description: Required for Blocked. }
+
+# ── customers ─────────────────────────────────────────────────────────────
+
+CustomerInput:
+  type: object
+  properties:
+    code: { type: string, description: Generated (`C-nnnn`) when omitted., example: C-0101 }
+    name: { type: string, example: Arlene Traders }
+    displayName: { type: string, example: Arlene }
+    group: { type: string, example: Distributors }
+    gstin: { type: string, pattern: '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$', example: 27AAPFU0939F1ZV }
+    pan: { type: string, example: AAPFU0939F }
+    taxTreatment: { $ref: '#/TaxTreatment' }
+    addresses: { type: array, items: { $ref: './common.yaml#/PartyAddress' } }
+    contacts: { type: array, items: { $ref: './common.yaml#/Contact' } }
+    currency: { type: string, example: INR }
+    paymentTerms: { type: string, example: Net 30 }
+    creditLimit: { type: number, example: 500000 }
+    creditPolicy: { type: string, enum: [Warn, Block, Override, Inherit], default: Inherit }
+    priceListId: { type: string, example: pl_wholesale }
+    salespersonId: { type: string, example: sp_vikram }
+    receivableAccountId: { type: string, example: acc_1100 }
+    tdsSectionId: { type: string, description: TDS the customer deducts on our invoices (e.g. 194C)., example: tds_194c }
+    email: { type: string, format: email }
+    phone: { type: string }
+    notes: { type: string }
+
+CustomerPatch:
+  allOf:
+    - $ref: '#/CustomerInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+Customer:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/CustomerInput'
+    - type: object
+      required: [code, name, taxTreatment, addresses, contacts, currency, paymentTerms, creditLimit, creditPolicy, status]
+      properties:
+        status: { $ref: '#/PartyStatus', readOnly: true }
+        outstanding: { type: number, readOnly: true, description: Open receivables (base currency)., example: 168000 }
+        overdue: { type: number, readOnly: true, example: 50000 }
+        unappliedCredits: { type: number, readOnly: true, example: 0 }
+        exposure: { type: number, readOnly: true, description: outstanding + confirmed orders not yet invoiced., example: 245000 }
+        referenceCount: { type: integer, readOnly: true, description: Documents referencing this customer (delete blocked when > 0)., example: 14 }
+
+CustomerLedgerRow:
+  type: object
+  required: [date, docType, docNumber, debit, credit, balance]
+  properties:
+    date: { type: string, format: date }
+    docType: { type: string, example: Sales Invoice }
+    docId: { type: string, example: inv_01j8k3 }
+    docNumber: { type: string, example: INV/2026-27/00042 }
+    narration: { type: string }
+    debit: { type: number, example: 118000 }
+    credit: { type: number, example: 0 }
+    balance: { type: number, example: 168000 }
+    currency: { type: string, example: INR }
+
+PartyOutstanding:
+  type: object
+  required: [partyId, currency, outstanding, overdue, items]
+  properties:
+    partyId: { type: string }
+    currency: { type: string }
+    outstanding: { type: number, example: 168000 }
+    overdue: { type: number, example: 50000 }
+    creditLimit: { type: number, example: 500000 }
+    exposure: { type: number, example: 245000 }
+    buckets: { type: object, additionalProperties: { type: number }, example: { Current: 118000, '0-30': 50000, '31-60': 0, '61-90': 0, '90+': 0 } }
+    items: { type: array, items: { $ref: './document.yaml#/OpenItem' } }
+
+# ── suppliers ─────────────────────────────────────────────────────────────
+
+SupplierInput:
+  type: object
+  properties:
+    code: { type: string, example: S-0201 }
+    name: { type: string, example: Bharat Steel Industries }
+    displayName: { type: string }
+    group: { type: string, example: Raw material }
+    gstin: { type: string, example: 27AABCB1234C1Z2 }
+    pan: { type: string, example: AABCB1234C }
+    taxTreatment: { $ref: '#/TaxTreatment' }
+    addresses: { type: array, items: { $ref: './common.yaml#/PartyAddress' } }
+    contacts: { type: array, items: { $ref: './common.yaml#/Contact' } }
+    currency: { type: string, example: INR }
+    purchaseTerms: { type: string, example: Net 45 }
+    payableAccountId: { type: string, example: acc_2100 }
+    tdsSectionId: { type: string, description: TDS we deduct on this supplier (194C/194J…)., example: tds_194c }
+    msmeNumber: { type: string, example: UDYAM-MH-18-0012345 }
+    email: { type: string, format: email }
+    phone: { type: string }
+    notes: { type: string }
+
+SupplierPatch:
+  allOf:
+    - $ref: '#/SupplierInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+Supplier:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/SupplierInput'
+    - type: object
+      required: [code, name, taxTreatment, addresses, contacts, currency, purchaseTerms, bankDetails, status]
+      properties:
+        bankDetails: { type: array, readOnly: true, items: { $ref: './common.yaml#/BankDetail' }, description: "Managed via `/suppliers/{id}/bank-details` (approval workflow)." }
+        status: { $ref: '#/PartyStatus', readOnly: true }
+        payable: { type: number, readOnly: true, example: 412000 }
+        overdue: { type: number, readOnly: true }
+        isMsme: { type: boolean, readOnly: true }
+        referenceCount: { type: integer, readOnly: true }
+
+# ── employees ─────────────────────────────────────────────────────────────
+
+EmployeeInput:
+  type: object
+  properties:
+    code: { type: string, example: EMP-009 }
+    name: { type: string, example: Sunita Deshmukh }
+    email: { type: string, format: email }
+    phone: { type: string }
+    department: { type: string, example: Finance }
+    designation: { type: string, example: Senior Accountant }
+    branchId: { type: string, example: br_ho }
+    managerId: { type: string, example: emp_001 }
+    pan: { type: string, example: BXYPD1234K }
+    uan: { type: string, example: '100123456789' }
+    esiNumber: { type: string }
+    bankDetail: { $ref: './common.yaml#/BankDetail' }
+    dateOfJoining: { type: string, format: date, example: '2026-10-01' }
+    dateOfLeaving: { type: string, format: date }
+    ctc: { type: number, example: 900000 }
+    pf: { type: boolean }
+    esi: { type: boolean }
+    userId: { type: string, description: Linked login. }
+    costCentreId: { type: string }
+
+EmployeePatch:
+  allOf:
+    - $ref: '#/EmployeeInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+Employee:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/EmployeeInput'
+    - type: object
+      required: [code, name, department, designation, dateOfJoining, ctc, status, pf, esi]
+      properties:
+        status: { type: string, enum: [Active, Probation, Resigned, Terminated], readOnly: true }
+        managerName: { type: string, readOnly: true }
+
+EmployeeStatusChange:
+  type: object
+  required: [status]
+  properties:
+    status: { type: string, enum: [Active, Probation, Resigned, Terminated] }
+    dateOfLeaving: { type: string, format: date }
+    reason: { type: string }
+
+# ── items ─────────────────────────────────────────────────────────────────
+
+UomConversion:
+  type: object
+  required: [uom, factor]
+  properties:
+    uom: { type: string, example: BOX }
+    factor: { type: number, description: Base units per alt unit., example: 12 }
+
+ItemInput:
+  type: object
+  properties:
+    code: { type: string, example: STL-4 }
+    name: { type: string, example: Steel Rod 4mm }
+    description: { type: string }
+    type: { type: string, enum: [Goods, Service, Consumable, Asset, Raw Material, Finished Good, Semi-Finished] }
+    group: { type: string, example: Steel }
+    brand: { type: string }
+    baseUom: { type: string, example: KG }
+    altUoms: { type: array, items: { $ref: '#/UomConversion' } }
+    hsn: { type: string, example: '7214' }
+    taxRateId: { type: string, example: tax_gst18 }
+    salesAccountId: { type: string, example: acc_4000 }
+    purchaseAccountId: { type: string, example: acc_5010 }
+    inventoryAccountId: { type: string, example: acc_1200 }
+    tracking: { type: string, enum: [None, Batch, Serial], default: None }
+    reorderLevel: { type: number, example: 200 }
+    reorderQty: { type: number, example: 500 }
+    safetyStock: { type: number, example: 100 }
+    leadTimeDays: { type: integer, example: 7 }
+    salesPrice: { type: number, example: 62 }
+    purchasePrice: { type: number, example: 48 }
+    standardCost: { type: number, example: 50 }
+    isStock: { type: boolean, description: Stock-tracked (false for services)., default: true }
+    barcode: { type: string, example: '8901234567890' }
+    minOrderQty: { type: number }
+    preferredSupplierId: { type: string, example: sup_bharatsteel }
+
+ItemPatch:
+  allOf:
+    - $ref: '#/ItemInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+Item:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/ItemInput'
+    - type: object
+      required: [code, name, type, baseUom, altUoms, tracking, reorderLevel, reorderQty, safetyStock, leadTimeDays, salesPrice, purchasePrice, status, isStock]
+      properties:
+        status: { $ref: '#/MasterStatus', readOnly: true }
+        onHand: { type: number, readOnly: true, example: 1240 }
+        available: { type: number, readOnly: true, example: 1160 }
+        avgRate: { type: number, readOnly: true, example: 49.8 }
+        belowReorder: { type: boolean, readOnly: true }
+        referenceCount: { type: integer, readOnly: true }
+
+ItemStockRow:
+  type: object
+  required: [warehouseId, warehouseName, onHand, reserved, available, inTransit, avgRate, value]
+  properties:
+    warehouseId: { type: string, example: wh_main }
+    warehouseName: { type: string, example: Main Warehouse }
+    onHand: { type: number, example: 1000 }
+    reserved: { type: number, example: 80 }
+    available: { type: number, example: 920 }
+    inTransit: { type: number, example: 0 }
+    onOrder: { type: number, example: 500 }
+    avgRate: { type: number, example: 49.8 }
+    value: { type: number, example: 49800 }
+
+ItemPriceRow:
+  type: object
+  required: [priceListId, priceListName, currency, rate, uom, minQty]
+  properties:
+    priceListId: { type: string, example: pl_wholesale }
+    priceListName: { type: string, example: Wholesale INR }
+    type: { type: string, enum: [Sales, Purchase] }
+    currency: { type: string, example: INR }
+    rate: { type: number, example: 58 }
+    uom: { type: string, example: KG }
+    minQty: { type: number, example: 100 }
+    partyId: { type: string }
+    effectiveFrom: { type: string, format: date }
+    effectiveTo: { type: string, format: date }
+
+# ── warehouses ────────────────────────────────────────────────────────────
+
+WarehouseInput:
+  type: object
+  properties:
+    code: { type: string, example: WH-PUNE }
+    name: { type: string, example: Pune Warehouse }
+    branchId: { type: string, example: br_pune }
+    bins: { type: array, items: { type: string }, example: [A-01, A-02, B-01] }
+    type: { type: string, enum: [Standard, Transit, Quarantine, Scrap, WIP], default: Standard }
+    address: { $ref: './common.yaml#/Address' }
+
+WarehousePatch:
+  allOf:
+    - $ref: '#/WarehouseInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+Warehouse:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/WarehouseInput'
+    - type: object
+      required: [code, name, bins, type, status]
+      properties:
+        status: { $ref: '#/MasterStatus', readOnly: true }
+        skuCount: { type: integer, readOnly: true, example: 14 }
+        stockValue: { type: number, readOnly: true, example: 1842000 }
+
+# ── price lists ───────────────────────────────────────────────────────────
+
+PriceListInput:
+  type: object
+  properties:
+    code: { type: string, example: PL-WHOLESALE }
+    name: { type: string, example: Wholesale INR }
+    type: { type: string, enum: [Sales, Purchase] }
+    currency: { type: string, example: INR }
+    taxInclusive: { type: boolean, default: false }
+    validFrom: { type: string, format: date }
+    validTo: { type: string, format: date }
+    scope: { type: string, enum: [All, Customer, Supplier, Branch], default: All }
+    priority: { type: integer, description: Lower wins when several lists apply., example: 10 }
+
+PriceListPatch:
+  allOf:
+    - $ref: '#/PriceListInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+PriceList:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/PriceListInput'
+    - type: object
+      required: [code, name, type, currency, taxInclusive, scope, priority, status]
+      properties:
+        status: { $ref: '#/MasterStatus', readOnly: true }
+        isDefault: { type: boolean, readOnly: true }
+        entryCount: { type: integer, readOnly: true, example: 42 }
+
+PriceListEntryInput:
+  type: object
+  required: [itemId, rate]
+  properties:
+    itemId: { type: string, example: item_stl4 }
+    uom: { type: string, example: KG }
+    minQty: { type: number, default: 0, example: 100 }
+    rate: { type: number, example: 58 }
+    partyId: { type: string, description: Party-specific price (scope Customer/Supplier). }
+    effectiveFrom: { type: string, format: date }
+    effectiveTo: { type: string, format: date }
+
+PriceListEntry:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/PriceListEntryInput'
+    - type: object
+      required: [priceListId, itemId, uom, minQty, rate]
+      properties:
+        priceListId: { type: string, readOnly: true, example: pl_wholesale }
+        itemCode: { type: string, readOnly: true }
+        itemName: { type: string, readOnly: true }
+
+PriceResolveRequest:
+  type: object
+  required: [itemId]
+  properties:
+    itemId: { type: string, example: item_stl4 }
+    qty: { type: number, example: 250 }
+    uom: { type: string }
+    customerId: { type: string, example: cust_arlene }
+    supplierId: { type: string }
+    priceListId: { type: string }
+    date: { type: string, format: date }
+    direction: { type: string, enum: [sale, purchase], default: sale }
+
+PriceResolution:
+  type: object
+  required: [rate, source]
+  properties:
+    rate: { type: number, example: 56 }
+    currency: { type: string, example: INR }
+    taxInclusive: { type: boolean }
+    source: { type: string, description: Which rule won., example: 'Price list Wholesale INR · tier ≥ 200 · customer override' }
+    priceListId: { type: string }
+    priceListName: { type: string }
+    entryId: { type: string }
+    candidates: { type: array, items: { type: object, properties: { priceListName: { type: string }, rate: { type: number }, reason: { type: string } } } }
+
+# ── chart of accounts ─────────────────────────────────────────────────────
+
+AccountGroupInput:
+  type: object
+  properties:
+    code: { type: string, example: CA }
+    name: { type: string, example: Current assets }
+    parentId: { type: string }
+    type: { type: string, enum: [Asset, Liability, Equity, Income, Expense] }
+    order: { type: integer, example: 10 }
+
+AccountGroup:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/AccountGroupInput'
+    - type: object
+      required: [code, name, type, order]
+
+AccountInput:
+  type: object
+  properties:
+    code: { type: string, example: '1100' }
+    name: { type: string, example: Accounts Receivable }
+    groupId: { type: string, example: grp_ca }
+    type: { type: string, enum: [Asset, Liability, Equity, Income, Expense] }
+    subType: { type: string, example: Receivable }
+    normalBalance: { type: string, enum: [Dr, Cr] }
+    isControl: { type: boolean }
+    controlType: { type: string, enum: [AR, AP, Bank, Cash, Inventory, Tax, Employee, FixedAsset, WIP] }
+    postingAllowed: { type: boolean, default: true }
+    currencyBehaviour: { type: string, enum: [Base, Any, Fixed], default: Base }
+    fixedCurrency: { type: string }
+    requiredDimensions: { type: array, items: { type: string }, example: [Department] }
+    prohibitedDimensions: { type: array, items: { type: string } }
+    openingBalance: { type: number, description: Signed by normal balance; editable until opening balances are posted. }
+    isBank: { type: boolean }
+    bankDetails:
+      type: object
+      properties:
+        bankName: { type: string }
+        accountNumber: { type: string }
+        ifsc: { type: string }
+        branch: { type: string }
+        currency: { type: string }
+
+AccountPatch:
+  allOf:
+    - $ref: '#/AccountInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+Account:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/AccountInput'
+    - type: object
+      required: [code, name, type, normalBalance, isControl, postingAllowed, currencyBehaviour, requiredDimensions, prohibitedDimensions, status]
+      properties:
+        status: { $ref: '#/MasterStatus', readOnly: true }
+        groupName: { type: string, readOnly: true }
+        balance: { type: number, readOnly: true, description: "Current balance (Dr +, Cr −).", example: 1264000 }
+        hasPostings: { type: boolean, readOnly: true }
+
+LedgerRow:
+  type: object
+  required: [date, journalId, journalNumber, narration, debit, credit, balance]
+  properties:
+    date: { type: string, format: date }
+    journalId: { type: string, example: jnl_01j8k4 }
+    journalNumber: { type: string, example: JV/2026-27/00311 }
+    sourceType: { type: string, example: Sales Invoice }
+    sourceId: { type: string }
+    sourceNumber: { type: string, example: INV/2026-27/00042 }
+    narration: { type: string }
+    partyName: { type: string }
+    dimensions: { $ref: './common.yaml#/KeyValue' }
+    debit: { type: number }
+    credit: { type: number }
+    balance: { type: number }
+
+LedgerResponse:
+  type: object
+  required: [accountId, from, to, opening, closing, totalDebit, totalCredit, rows]
+  properties:
+    accountId: { type: string }
+    accountCode: { type: string }
+    accountName: { type: string }
+    from: { type: string, format: date }
+    to: { type: string, format: date }
+    opening: { type: number }
+    closing: { type: number }
+    totalDebit: { type: number }
+    totalCredit: { type: number }
+    rows: { type: array, items: { $ref: '#/LedgerRow' } }
+    scope: { $ref: './common.yaml#/Scope' }
+
+# ── dimensions / tax / tds / currencies / rates ───────────────────────────
+
+DimensionInput:
+  type: object
+  properties:
+    type: { type: string, enum: [Branch, Department, CostCentre, ProfitCentre, Project, Employee, ProductLine, Customer, Supplier] }
+    code: { type: string, example: SALES }
+    name: { type: string, example: Sales }
+    parentId: { type: string }
+    color: { type: string, example: '#0ea5e9' }
+
+Dimension:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/DimensionInput'
+    - type: object
+      required: [type, code, name, status]
+      properties:
+        status: { $ref: '#/MasterStatus', readOnly: true }
+
+TaxComponent:
+  type: object
+  required: [name, rate]
+  properties:
+    name: { type: string, example: CGST }
+    rate: { type: number, example: 9 }
+
+TaxRateInput:
+  type: object
+  properties:
+    code: { type: string, example: GST18 }
+    name: { type: string, example: GST 18% }
+    rate: { type: number, example: 18 }
+    components: { type: array, items: { $ref: '#/TaxComponent' }, example: [{ name: CGST, rate: 9 }, { name: SGST, rate: 9 }] }
+    type: { type: string, enum: [GST, VAT, None] }
+    treatment: { type: string, enum: [Taxable, Exempt, Nil-rated, Non-GST, Zero-rated] }
+    reverseCharge: { type: boolean, default: false }
+    cessRate: { type: number }
+    effectiveFrom: { type: string, format: date }
+    effectiveTo: { type: string, format: date }
+    outputAccountIds: { type: object, additionalProperties: { type: string }, example: { CGST: acc_2300, SGST: acc_2301, IGST: acc_2302 } }
+    inputAccountIds: { type: object, additionalProperties: { type: string }, example: { CGST: acc_1400, SGST: acc_1401, IGST: acc_1402 } }
+
+TaxRate:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/TaxRateInput'
+    - type: object
+      required: [code, name, rate, components, type, treatment, reverseCharge, effectiveFrom, ruleVersion, status]
+      properties:
+        ruleVersion: { type: string, readOnly: true, example: IN-1.4 }
+        status: { $ref: '#/MasterStatus', readOnly: true }
+
+TaxCalcRequest:
+  type: object
+  required: [taxRateId, qty, rate]
+  properties:
+    taxRateId: { type: string, example: tax_gst18 }
+    qty: { type: number, example: 10 }
+    rate: { type: number, example: 1000 }
+    discountPct: { type: number, example: 5 }
+    discountAmt: { type: number }
+    taxInclusive: { type: boolean, default: false }
+    partyType: { type: string, enum: [Customer, Supplier] }
+    partyId: { type: string, example: cust_arlene }
+    direction: { type: string, enum: [sale, purchase], default: sale }
+    branchId: { type: string }
+    placeOfSupplyCode: { type: string, example: '27' }
+
+TaxCalcResult:
+  type: object
+  required: [taxable, taxRate, taxAmt, taxComponents, amount, explanation]
+  properties:
+    taxable: { type: number, example: 9500 }
+    taxRate: { type: number, example: 18 }
+    taxAmt: { type: number, example: 1710 }
+    taxComponents: { type: object, additionalProperties: { type: number }, example: { CGST: 855, SGST: 855 } }
+    amount: { type: number, example: 11210 }
+    reverseCharge: { type: boolean }
+    explanation: { type: array, items: { type: string }, example: ['Intra-state (27 → 27): CGST 9% + SGST 9%', 'Customer is Registered — taxable'] }
+
+TdsSectionInput:
+  type: object
+  properties:
+    section: { type: string, example: 194C }
+    description: { type: string, example: Payment to contractors }
+    rate: { type: number, example: 2 }
+    ratePanMissing: { type: number, example: 20 }
+    thresholdPerTxn: { type: number, example: 30000 }
+    thresholdAnnual: { type: number, example: 100000 }
+    basis: { type: string, enum: [Payment, Invoice, Earlier] }
+    applicability: { type: string, enum: [Supplier, Customer, Employee, Any] }
+    kind: { type: string, enum: [TDS, TCS] }
+    accountId: { type: string, example: acc_2310 }
+
+TdsSection:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/TdsSectionInput'
+    - type: object
+      required: [section, description, rate, ratePanMissing, thresholdPerTxn, thresholdAnnual, basis, applicability, kind, status]
+      properties:
+        status: { $ref: '#/MasterStatus', readOnly: true }
+
+CurrencyInput:
+  type: object
+  properties:
+    code: { type: string, example: USD }
+    name: { type: string, example: US Dollar }
+    symbol: { type: string, example: $ }
+    minorUnits: { type: integer, example: 2 }
+    roundingIncrement: { type: number, example: 0.01 }
+    roundingMode: { type: string, enum: [HalfUp, HalfEven, Down] }
+
+Currency:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/CurrencyInput'
+    - type: object
+      required: [code, name, symbol, minorUnits, roundingIncrement, roundingMode, status]
+      properties:
+        status: { $ref: '#/MasterStatus', readOnly: true }
+
+ExchangeRateInput:
+  type: object
+  required: [base, quote, rate, type, effectiveAt]
+  properties:
+    base: { type: string, example: USD }
+    quote: { type: string, example: INR }
+    rate: { type: number, example: 83.42 }
+    direction: { type: string, enum: [Multiply, Divide], default: Multiply }
+    type: { type: string, enum: [Spot, Closing, Average, Manual, Historical, Imported] }
+    effectiveAt: { type: string, format: date, example: '2026-09-13' }
+    source: { type: string, example: RBI reference rate }
+    reason: { type: string, description: Required for Manual rates. }
+
+ExchangeRate:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/ExchangeRateInput'
+    - type: object
+      required: [base, quote, rate, direction, type, effectiveAt, source, status]
+      properties:
+        status: { type: string, enum: [Pending, Approved, Rejected], readOnly: true, description: Manual / Imported rates start Pending and go through the `Exchange Rate` workflow. }
+        approvedBy: { type: string, readOnly: true }
+        approvalId: { type: string, readOnly: true }
+
+RateResolveRequest:
+  type: object
+  required: [from, to]
+  properties:
+    from: { type: string, example: USD }
+    to: { type: string, example: INR }
+    date: { type: string, format: date, example: '2026-09-13' }
+    type: { type: string, enum: [Spot, Closing, Average, Manual, Historical, Imported] }
+
+RateResolution:
+  type: object
+  required: [rate, type, source, at]
+  properties:
+    rate: { type: number, example: 83.42 }
+    type: { type: string, example: Closing }
+    source: { type: string, example: RBI reference rate }
+    at: { type: string, format: date, example: '2026-09-12' }
+    id: { type: string, example: fx_usd_inr_20260912 }
+    fallback: { type: boolean, description: True when no rate on the exact date — nearest prior approved rate used. }
+
+# ── simple masters ────────────────────────────────────────────────────────
+
+PaymentTermInput:
+  type: object
+  properties:
+    code: { type: string, example: NET30 }
+    name: { type: string, example: Net 30 }
+    days: { type: integer, example: 30 }
+    discountPct: { type: number, example: 2 }
+    discountDays: { type: integer, example: 10 }
+
+PaymentTerm:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/PaymentTermInput'
+    - type: object
+      required: [code, name, days, status]
+      properties:
+        status: { $ref: '#/MasterStatus', readOnly: true }
+
+UomInput:
+  type: object
+  properties:
+    code: { type: string, example: KG }
+    name: { type: string, example: Kilogram }
+    decimals: { type: integer, example: 3 }
+
+Uom:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/UomInput'
+    - type: object
+      required: [code, name, decimals, status]
+      properties:
+        status: { $ref: '#/MasterStatus', readOnly: true }
+
+HsnCodeInput:
+  type: object
+  properties:
+    code: { type: string, example: '7214' }
+    description: { type: string, example: Bars and rods of iron or non-alloy steel }
+    type: { type: string, enum: [HSN, SAC] }
+    defaultTaxRateId: { type: string, example: tax_gst18 }
+
+HsnCode:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/HsnCodeInput'
+    - type: object
+      required: [code, description, type]
+
+ReasonCodeInput:
+  type: object
+  properties:
+    code: { type: string, example: RET-DMG }
+    name: { type: string, example: Damaged in transit }
+    category: { type: string, enum: [Return, Adjustment, Reversal, Period, Credit, Rejection, Other] }
+
+ReasonCode:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/ReasonCodeInput'
+    - type: object
+      required: [code, name, category, status]
+      properties:
+        status: { $ref: '#/MasterStatus', readOnly: true }
+
+SalespersonInput:
+  type: object
+  properties:
+    code: { type: string, example: SP-VN }
+    name: { type: string, example: Vikram Nair }
+    employeeId: { type: string, example: emp_003 }
+    target: { type: number, example: 2500000 }
+
+Salesperson:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/SalespersonInput'
+    - type: object
+      required: [code, name, status]
+      properties:
+        status: { $ref: '#/MasterStatus', readOnly: true }
+
+Country:
+  type: object
+  required: [code, name, currency]
+  properties:
+    code: { type: string, example: IN }
+    name: { type: string, example: India }
+    currency: { type: string, example: INR }
+    localizationPack: { type: string, example: IN }
+
+State:
+  type: object
+  required: [code, name]
+  properties:
+    code: { type: string, description: GST state code., example: '27' }
+    name: { type: string, example: Maharashtra }
+    alpha: { type: string, example: MH }

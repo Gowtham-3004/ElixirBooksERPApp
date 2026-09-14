@@ -1,0 +1,37 @@
+# Projects shared examples
+
+ContractFixedDraft:
+  summary: Fixed-price contract with instalments, Draft
+  value: { id: ctr_0012, companyId: co_acme, number: DRAFT-CTR-12, docType: Contract, date: '2026-09-13', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, customerId: cust_arlene, projectId: prj_erp, title: ERP implementation — phase 1, billingMethod: Fixed price, amount: 2400000, start: '2026-09-15', end: '2027-03-31', taxRateId: tr_gst18, serviceItemId: item_consult, revenueMethod: Percent complete, milestones: [{ id: ms_i1, kind: Instalment, order: 1, name: Advance 30%, amount: 720000, due: '2026-09-20' }, { id: ms_i2, kind: Instalment, order: 2, name: On UAT 40%, amount: 960000, due: '2027-01-15' }, { id: ms_i3, kind: Instalment, order: 3, name: On go-live 30%, amount: 720000, due: '2027-03-31' }], lines: [], totals: { subtotal: 2400000, discount: 0, taxable: 2400000, tax: 432000, components: { CGST: 216000, SGST: 216000 }, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 2832000, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 2832000 }, billedToDate: 0, recognizedToDate: 0, milestoneSummary: { total: 3, achieved: 0, invoiced: 0 }, correlationId: corr_ctr12, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+
+ContractTmActive:
+  summary: T&M contract, Active
+  value: { id: ctr_0013, companyId: co_acme, number: CTR/2026-27/00013, docType: Contract, date: '2026-08-20', branchId: br_ho, status: Active, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, customerId: cust_arlene, projectId: prj_erp, title: ERP advisory — T&M, billingMethod: Time & material, amount: 900000, rateCardId: rc_std, rates: [{ role: Senior consultant, rate: 6000 }], capHours: 150, capAmount: 900000, start: '2026-09-01', taxRateId: tr_gst18, serviceItemId: item_consult, revenueMethod: Hours, lines: [], totals: { subtotal: 900000, discount: 0, taxable: 900000, tax: 162000, components: { CGST: 81000, SGST: 81000 }, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 1062000, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 1062000 }, approvedAt: '2026-08-22T10:00:00Z', approvedBy: Rahul Mehta, activatedAt: '2026-08-25T09:00:00Z', activatedBy: Priya Sharma, billedToDate: 204000, recognizedToDate: 204000, correlationId: corr_ctr13, createdAt: '2026-08-20T09:00:00Z', updatedAt: '2026-09-30T18:00:00Z', version: 6 }
+
+ProjectErp:
+  summary: ERP implementation project, Active
+  value: { id: prj_erp, companyId: co_acme, code: PRJ-ERP, name: Arlene ERP implementation, customerId: cust_arlene, customerName: Arlene Traders, contractId: ctr_0012, managerEmployeeId: emp_priya, start: '2026-09-15', end: '2027-03-31', budgetHours: 800, budgetAmount: 2400000, status: Active, dimensionId: dim_prj_erp, teamEmployeeIds: [emp_neha, emp_anil], branchId: br_ho, statusHistory: [{ at: '2026-09-14T09:00:00Z', by: Priya Sharma, from: Planned, to: Active }], hoursLogged: 170, hoursBilled: 34, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-14T09:00:00Z', version: 2 }
+
+TimesheetApproved:
+  summary: Weekly timesheet, Approved
+  value: { id: ts_0218, companyId: co_acme, number: TS/2026-27/00218, docType: Timesheet, employeeId: emp_neha, employeeName: Neha Rao, weekStart: '2026-09-07', rows: [{ id: tr_1, projectId: prj_erp, task: Requirement workshops, hours: [8, 8, 6, 8, 4, 0, 0], billable: true, serviceId: svc_cons }], totalHours: 34, billableHours: 34, status: Approved, branchId: br_ho, approvalId: apr_ts_218, submittedAt: '2026-09-13T09:30:00Z', submittedBy: Neha Rao, approvedAt: '2026-09-13T10:15:00Z', approvedBy: Priya Sharma, source: Web, value: 204000, correlationId: corr_ts218, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T10:15:00Z', version: 3 }
+
+MilestoneAchieved:
+  summary: Milestone achieved, not yet invoiced
+  value: { id: ms_1, companyId: co_acme, contractId: ctr_0015, contractNumber: CTR/2026-27/00015, projectId: prj_erp, kind: Milestone, order: 1, name: Design sign-off, amount: 400000, due: '2026-10-15', status: Achieved, achievedAt: '2026-10-14T10:00:00Z', achievedBy: Priya Sharma, deliverable: Approved design, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-10-14T10:00:00Z', version: 2 }
+
+UsageSep:
+  summary: September usage record
+  value: { id: ur_0041, companyId: co_acme, contractId: ctr_0019, metric: API calls, qty: 12500, rate: 1.2, amount: 15000, period: '2026-09', date: '2026-09-30', invoiced: false, source: Web, createdAt: '2026-09-30T18:00:00Z', updatedAt: '2026-09-30T18:00:00Z', version: 1 }
+
+BillingRunSep:
+  summary: September billing run
+  value: { id: br_0006, companyId: co_acme, number: BR/2026-27/00006, period: '2026-09', from: '2026-09-01', to: '2026-09-30', date: '2026-09-30', contractIds: [ctr_0013, ctr_0017], results: [{ contractId: ctr_0013, contractNumber: CTR/2026-27/00013, customerId: cust_arlene, customerName: Arlene Traders, method: Time & material, currency: INR, amount: 240720, taxable: 204000, invoiceId: inv_01j8k9, invoiceNumber: DRAFT-INV-50, retainerApplied: 240720, sources: 1 }, { contractId: ctr_0017, contractNumber: CTR/2026-27/00017, customerId: cust_ustech, customerName: US Tech Inc, method: Recurring, currency: USD, amount: 2000, taxable: 2000, invoiceId: inv_01j8ka, invoiceNumber: DRAFT-INV-51, sources: 1 }, { contractId: ctr_0015, contractNumber: CTR/2026-27/00015, customerId: cust_arlene, customerName: Arlene Traders, method: Milestone, currency: INR, amount: 0, taxable: 0, skipped: No milestones achieved in the period, sources: 0 }], invoiceIds: [inv_01j8k9, inv_01j8ka], status: Generated, by: Priya Sharma, applyRetainer: true, branchId: br_ho, createdAt: '2026-09-30T18:00:00Z', updatedAt: '2026-09-30T18:00:00Z', version: 1 }
+
+RetainerOpen:
+  summary: Retainer received, Open
+  value: { id: ret_0004, companyId: co_acme, number: RET/2026-27/00004, customerId: cust_arlene, customerName: Arlene Traders, contractId: ctr_0012, amount: 500000, currency: INR, rate: 1, baseAmount: 500000, receivedDate: '2026-09-15', bankAccountId: acc_1310, reference: NEFT26091500334, journalId: jnl_ret_4, journalNumber: JV/2026-27/00411, openItemId: oi_ret_4, allocations: [], allocated: 0, remaining: 500000, status: Open, branchId: br_ho, createdAt: '2026-09-15T10:00:00Z', updatedAt: '2026-09-15T10:00:00Z', version: 1 }
+
+RevenueScheduleSep:
+  summary: Recognition row September, Posted (accrual)
+  value: { id: rs_0012_0909, companyId: co_acme, contractId: ctr_0012, contractNumber: CTR/2026-27/00012, projectId: prj_erp, customerId: cust_arlene, period: '2026-09', method: Fixed price, billed: 720000, recognized: 840000, cumBilled: 720000, cumRecognized: 840000, unbilled: 120000, deferred: 0, reversed: 0, journalId: jnl_rev_1, journalNumber: JV/2026-27/00414, adjustmentType: Accrual, adjustment: 120000, status: Posted, runAt: '2026-09-30T18:00:00Z', runBy: Priya Sharma, idempotencyKey: 'rev:ctr_0012:2026-09', createdAt: '2026-09-30T18:00:00Z', updatedAt: '2026-09-30T18:00:00Z', version: 1 }

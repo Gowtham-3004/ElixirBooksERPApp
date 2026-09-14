@@ -1,0 +1,1515 @@
+# Masters part 1 (tag: Masters): customers, suppliers, employees, items, warehouses, price lists.
+# Every master register: list (tabs/search/filters), create (code generated, duplicate rules), get, patch (expectedVersion),
+# delete (blocked when referenced → 409 REFERENCED), status change, bulk status, change history.
+
+# ── customers ─────────────────────────────────────────────────────────────
+
+/customers:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Masters]
+    summary: List customers
+    description: |
+      Tabs → `status`: Active · Inactive · Blocked · All (`includeInactive=true`). Search keys: name, code, GSTIN, e-mail, display name.
+      Query examples — `?q=arlene` · `?status=Blocked` · `?group=Distributors&taxTreatment=Registered` · `?state=Maharashtra` · `?creditPolicy=Block` · `?updatedSince=2026-09-01T00:00:00Z` (sync).
+    operationId: listCustomers
+    x-permission: masters.customers.view
+    x-frd: [FR-MST-001, FR-MST-002]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/IncludeInactive'
+      - { name: group, in: query, schema: { type: string } }
+      - { name: taxTreatment, in: query, schema: { $ref: '../components/schemas/masters.yaml#/TaxTreatment' } }
+      - { name: state, in: query, schema: { type: string } }
+      - { name: creditPolicy, in: query, schema: { type: string, enum: [Warn, Block, Override, Inherit] } }
+      - { name: salespersonId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/UpdatedSince'
+    responses:
+      '200':
+        description: Customers
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/Customer' } }
+            examples:
+              firstPage:
+                summary: Active customers
+                value:
+                  data:
+                    - { id: cust_arlene, companyId: co_acme, code: C-0101, name: Arlene Traders, gstin: 27AAPFU0939F1ZV, taxTreatment: Registered, addresses: [], contacts: [], currency: INR, paymentTerms: Net 30, creditLimit: 500000, creditPolicy: Inherit, status: Active, outstanding: 168000, overdue: 50000, exposure: 245000, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-12T11:00:00Z', version: 4 }
+                    - { id: cust_ustech, companyId: co_acme, code: C-0150, name: US Tech Imports LLC, taxTreatment: Overseas, addresses: [], contacts: [], currency: USD, paymentTerms: Net 45, creditLimit: 25000, creditPolicy: Warn, status: Active, outstanding: 12000, overdue: 0, exposure: 12000, createdAt: '2026-05-01T09:00:00Z', updatedAt: '2026-05-01T09:00:00Z', version: 1 }
+                  meta: { nextCursor: eyJuIjoiVVMgVGVjaCIsImlkIjoiY3VzdF91c3RlY2gifQ, limit: 25, total: 12, sort: 'name:asc', counts: { Active: 10, Inactive: 1, Blocked: 1, All: 12 } }
+                  scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' }
+              lastPage:
+                summary: Last page
+                value:
+                  data:
+                    - { id: cust_walkin, companyId: co_acme, code: C-0199, name: Walk-in customer, taxTreatment: Unregistered, addresses: [], contacts: [], currency: INR, paymentTerms: Immediate, creditLimit: 0, creditPolicy: Block, status: Active, outstanding: 0, overdue: 0, exposure: 0, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }
+                  meta: { nextCursor: null, limit: 25, total: 12, sort: 'name:asc' }
+                  scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Masters]
+    summary: Create a customer
+    description: Duplicate rule — same GSTIN (or same normalised name + state when no GSTIN) → `409 DUPLICATE`. GSTIN / PAN / e-mail / PIN validated. Code generated when omitted.
+    operationId: createCustomer
+    x-permission: masters.customers.create
+    x-frd: [FR-MST-001, FR-MST-003]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/CustomerInput'
+              - { required: [name, taxTreatment] }
+          examples:
+            minimalB2c: { summary: Minimal B2C (unregistered), value: { name: Ravi Kumar, taxTreatment: Unregistered, phone: '+91 98111 22334' } }
+            fullB2b: { summary: "Full B2B with addresses, contacts, credit", value: { code: C-0160, name: Delta Fabricators Pvt Ltd, displayName: Delta, group: OEM, gstin: 27AAHCD4321E1ZK, pan: AAHCD4321E, taxTreatment: Registered, addresses: [{ purpose: Billing, isDefault: true, address: { line1: 7 Industrial Estate, city: Thane, state: Maharashtra, stateCode: '27', pin: '400604', country: IN } }, { purpose: Shipping, isDefault: false, label: Plant 2, address: { line1: Plot 19 MIDC, city: Pune, state: Maharashtra, stateCode: '27', pin: '411019', country: IN } }], contacts: [{ name: Sanjay Deshpande, email: accounts@delta.example, phone: '+91 98900 11223', designation: Finance Head, isDefault: true, purpose: Billing }], currency: INR, paymentTerms: Net 45, creditLimit: 1000000, creditPolicy: Warn, priceListId: pl_wholesale, salespersonId: sp_priya, tdsSectionId: tds_194c, email: accounts@delta.example } }
+            overseasUsd: { summary: Overseas customer in USD, value: { name: Nordic Imports AB, taxTreatment: Overseas, currency: USD, paymentTerms: Net 60, creditLimit: 40000, creditPolicy: Block, priceListId: pl_usd, addresses: [{ purpose: Both, isDefault: true, address: { line1: Kungsgatan 12, city: Stockholm, state: Stockholm, pin: '111 35', country: SE } }] } }
+            sez: { summary: SEZ unit (zero-rated), value: { name: Infotech SEZ Unit, gstin: 24AABCI9876F1Z3, taxTreatment: SEZ, currency: INR, paymentTerms: Net 30, creditLimit: 250000, creditPolicy: Inherit } }
+    responses:
+      '201':
+        description: Customer
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Customer' }
+            examples:
+              b2b: { $ref: '../components/examples/masters.yaml#/CustomerArlene' }
+              overseas: { $ref: '../components/examples/masters.yaml#/CustomerUsTech' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/customers/bulk:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Masters]
+    summary: Bulk activate / deactivate / block customers
+    operationId: bulkCustomers
+    x-permission: masters.customers.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/BulkRequest' }
+          examples:
+            deactivate: { summary: Deactivate, value: { ids: [cust_vimal, cust_kiran], action: deactivate } }
+            activate: { summary: Activate, value: { ids: [cust_vimal], action: activate } }
+            block: { summary: Block with reason, value: { ids: [cust_kiran], action: block, reason: Repeated payment defaults } }
+    responses:
+      '200':
+        description: Per-id results
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/BulkResult' }
+            examples:
+              allSucceeded: { $ref: '../components/examples/common.yaml#/BulkAllSucceeded' }
+              partialFailure: { summary: One already blocked, value: { requested: 2, succeeded: 1, failed: 1, results: [{ id: cust_vimal, ok: true, status: Inactive }, { id: cust_kiran, ok: false, code: INVALID_STATE, message: Customer is Blocked — unblock before deactivating }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/customers/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Masters]
+    summary: Get a customer
+    operationId: getCustomer
+    x-permission: masters.customers.view
+    responses:
+      '200':
+        description: Customer
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Customer' }
+            examples:
+              b2b: { $ref: '../components/examples/masters.yaml#/CustomerArlene' }
+              walkin: { $ref: '../components/examples/masters.yaml#/CustomerWalkin' }
+              blocked: { $ref: '../components/examples/masters.yaml#/CustomerBlocked' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Masters]
+    summary: Update a customer (audited with before/after)
+    operationId: updateCustomer
+    x-permission: masters.customers.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/masters.yaml#/CustomerPatch' }
+          examples:
+            creditTerms: { summary: Raise credit limit + terms, value: { expectedVersion: 4, creditLimit: 750000, paymentTerms: Net 45 } }
+            addContact: { summary: Replace contacts, value: { expectedVersion: 4, contacts: [{ id: ct_1, name: Arlene D'Souza, email: accounts@arlenetraders.in, isDefault: true, purpose: Billing }, { name: Joseph D'Souza, email: joseph@arlenetraders.in, phone: '+91 98200 55555', isDefault: false, purpose: Delivery }] } }
+            gstin: { summary: Correct GSTIN (validated), value: { expectedVersion: 4, gstin: 27AAPFU0939F1ZV, taxTreatment: Registered } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Customer' }
+            examples:
+              updated: { $ref: '../components/examples/masters.yaml#/CustomerArlene' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Masters]
+    summary: Delete a customer (only when unreferenced)
+    operationId: deleteCustomer
+    x-permission: masters.customers.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/customers/{id}/status:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Masters]
+    summary: Activate / deactivate / block a customer
+    description: Blocked customers cannot be used on new documents (open documents continue). Reason required for Blocked.
+    operationId: setCustomerStatus
+    x-permission: masters.customers.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/masters.yaml#/MasterStatusChange' }
+          examples:
+            block: { summary: Block for new business, value: { status: Blocked, reason: Repeated payment defaults — 3 invoices > 90 days } }
+            deactivate: { summary: Deactivate, value: { status: Inactive } }
+            reactivate: { summary: Reactivate, value: { status: Active } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Customer' }
+            examples:
+              blocked: { $ref: '../components/examples/masters.yaml#/CustomerBlocked' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/customers/{id}/ledger:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Masters]
+    summary: Customer ledger (running balance)
+    operationId: getCustomerLedger
+    x-permission: masters.customers.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/ReportFrom'
+      - $ref: '../components/parameters.yaml#/ReportTo'
+    responses:
+      '200':
+        description: Ledger
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [partyId, opening, closing, rows]
+              properties:
+                partyId: { type: string }
+                currency: { type: string }
+                opening: { type: number }
+                closing: { type: number }
+                rows: { type: array, items: { $ref: '../components/schemas/masters.yaml#/CustomerLedgerRow' } }
+                scope: { $ref: '../components/schemas/common.yaml#/Scope' }
+            examples:
+              ledger: { summary: Sep 2026, value: { partyId: cust_arlene, currency: INR, opening: 50000, closing: 168000, rows: [{ date: '2026-09-02', docType: Receipt, docId: rcp_00201, docNumber: RCP/2026-27/00201, narration: NEFT UTR N2465…, debit: 0, credit: 50000, balance: 0 }, { date: '2026-09-05', docType: Sales Invoice, docId: inv_00031, docNumber: INV/2026-27/00031, debit: 50000, credit: 0, balance: 50000 }, { date: '2026-09-13', docType: Sales Invoice, docId: inv_01j8k3, docNumber: INV/2026-27/00042, debit: 118000, credit: 0, balance: 168000 }], scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { summary: No movements, value: { partyId: cust_walkin, currency: INR, opening: 0, closing: 0, rows: [], scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/customers/{id}/outstanding:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Masters]
+    summary: Outstanding, exposure, ageing buckets and open items
+    operationId: getCustomerOutstanding
+    x-permission: masters.customers.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/AsAt'
+    responses:
+      '200':
+        description: Outstanding
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/PartyOutstanding' }
+            examples:
+              withOverdue: { summary: One overdue invoice, value: { partyId: cust_arlene, currency: INR, outstanding: 168000, overdue: 50000, creditLimit: 500000, exposure: 245000, buckets: { Current: 118000, '0-30': 50000, '31-60': 0, '61-90': 0, '90+': 0 }, items: [{ id: oi_1, companyId: co_acme, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, docType: Sales Invoice, docId: inv_00031, docNumber: INV/2026-27/00031, date: '2026-08-05', dueDate: '2026-09-04', currency: INR, originalAmount: 50000, baseAmount: 50000, rate: 1, outstanding: 50000, baseOutstanding: 50000, direction: Debit, status: Open, settlements: [], branchId: br_ho, createdAt: '2026-08-05T10:00:00Z', updatedAt: '2026-08-05T10:00:00Z', version: 1 }, { id: oi_2, companyId: co_acme, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, docType: Sales Invoice, docId: inv_01j8k3, docNumber: INV/2026-27/00042, date: '2026-09-13', dueDate: '2026-10-13', currency: INR, originalAmount: 118000, baseAmount: 118000, rate: 1, outstanding: 118000, baseOutstanding: 118000, direction: Debit, status: Open, settlements: [], branchId: br_ho, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }] } }
+              nothingDue: { summary: Nothing outstanding, value: { partyId: cust_walkin, currency: INR, outstanding: 0, overdue: 0, creditLimit: 0, exposure: 0, buckets: {}, items: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/customers/{id}/history:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Masters]
+    summary: Change history (audited field diffs)
+    operationId: getCustomerHistory
+    x-permission: masters.customers.view
+    responses:
+      '200':
+        description: History
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/ChangeHistoryEntry' } } } }
+            examples:
+              history: { summary: Two edits, value: { data: [{ at: '2026-09-12T11:00:00Z', by: Priya Sharma, action: customer.updated, changes: [{ field: creditLimit, from: 300000, to: 500000 }, { field: paymentTerms, from: Net 30, to: Net 45 }] }, { at: '2026-04-01T09:00:00Z', by: Rahul Mehta, action: customer.created, changes: [] }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── suppliers ─────────────────────────────────────────────────────────────
+
+/suppliers:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Masters]
+    summary: List suppliers
+    description: Tabs → Active · Inactive · MSME (`msme=true`) · Bank pending (`bankPending=true`) · All. Query examples — `?q=steel` · `?group=Raw material` · `?taxTreatment=Registered&state=Gujarat`.
+    operationId: listSuppliers
+    x-permission: masters.suppliers.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/IncludeInactive'
+      - { name: group, in: query, schema: { type: string } }
+      - { name: taxTreatment, in: query, schema: { $ref: '../components/schemas/masters.yaml#/TaxTreatment' } }
+      - { name: state, in: query, schema: { type: string } }
+      - { name: msme, in: query, schema: { type: boolean } }
+      - { name: bankPending, in: query, schema: { type: boolean } }
+      - $ref: '../components/parameters.yaml#/UpdatedSince'
+    responses:
+      '200':
+        description: Suppliers
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/Supplier' } }
+            examples:
+              firstPage: { summary: Suppliers, value: { data: [{ id: sup_bharatsteel, companyId: co_acme, code: S-0201, name: Bharat Steel Industries, group: Raw material, gstin: 27AABCB1234C1Z2, taxTreatment: Registered, addresses: [], contacts: [], currency: INR, purchaseTerms: Net 45, bankDetails: [], tdsSectionId: tds_194c, msmeNumber: UDYAM-MH-18-0012345, status: Active, payable: 412000, overdue: 0, isMsme: true, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-08-20T09:00:00Z', version: 5 }, { id: sup_transport, companyId: co_acme, code: S-0210, name: Speedy Transport Co, group: Logistics, taxTreatment: Registered, gstin: 27AAACS9876G1Z1, addresses: [], contacts: [], currency: INR, purchaseTerms: Net 15, bankDetails: [], tdsSectionId: tds_194c, status: Active, payable: 38000, overdue: 12000, isMsme: false, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }], meta: { nextCursor: null, limit: 25, total: 10, counts: { Active: 9, Inactive: 1, MSME: 3, 'Bank pending': 1, All: 10 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Masters]
+    summary: Create a supplier
+    description: Bank details are **not** accepted here — add them via `/suppliers/{id}/bank-details` (approval workflow). Duplicate rule on GSTIN.
+    operationId: createSupplier
+    x-permission: masters.suppliers.create
+    x-frd: [FR-MST-004]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/SupplierInput'
+              - { required: [name, taxTreatment] }
+          examples:
+            minimal: { summary: Minimal, value: { name: Local Stationers, taxTreatment: Unregistered, purchaseTerms: Immediate } }
+            fullWithTds: { summary: Registered with TDS section and MSME, value: { code: S-0220, name: Shree Packaging Pvt Ltd, group: Packaging, gstin: 24AABCS5555H1Z9, pan: AABCS5555H, taxTreatment: Registered, addresses: [{ purpose: Both, isDefault: true, address: { line1: GIDC Phase 3, city: Vapi, state: Gujarat, stateCode: '24', pin: '396195', country: IN } }], contacts: [{ name: Hemant Shah, email: hemant@shreepack.example, isDefault: true }], currency: INR, purchaseTerms: Net 30, tdsSectionId: tds_194c, msmeNumber: UDYAM-GJ-05-0009876, email: accounts@shreepack.example } }
+            overseas: { summary: Overseas supplier in USD (import), value: { name: Shenzhen Electro Ltd, taxTreatment: Overseas, currency: USD, purchaseTerms: Advance, addresses: [{ purpose: Both, isDefault: true, address: { line1: Bldg 4 Nanshan Tech Park, city: Shenzhen, state: Guangdong, country: CN } }] } }
+            consultant194j: { summary: Professional services (194J), value: { name: Mehta & Associates, taxTreatment: Registered, gstin: 27AAEFM1234K1ZP, pan: AAEFM1234K, currency: INR, purchaseTerms: Net 15, tdsSectionId: tds_194j } }
+    responses:
+      '201':
+        description: Supplier
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Supplier' }
+            examples:
+              created: { $ref: '../components/examples/masters.yaml#/SupplierBharatSteel' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/suppliers/bulk:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Masters]
+    summary: Bulk activate / deactivate suppliers
+    operationId: bulkSuppliers
+    x-permission: masters.suppliers.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/BulkRequest' }
+          examples:
+            deactivate: { summary: Deactivate, value: { ids: [sup_vinod], action: deactivate } }
+            activate: { summary: Activate, value: { ids: [sup_vinod, sup_shree], action: activate } }
+    responses:
+      '200':
+        description: Per-id results
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/BulkResult' }
+            examples:
+              allSucceeded: { $ref: '../components/examples/common.yaml#/BulkAllSucceeded' }
+              partialFailure: { $ref: '../components/examples/common.yaml#/BulkPartialFailure' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/suppliers/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Masters]
+    summary: Get a supplier
+    operationId: getSupplier
+    x-permission: masters.suppliers.view
+    responses:
+      '200':
+        description: Supplier
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Supplier' }
+            examples:
+              registered: { $ref: '../components/examples/masters.yaml#/SupplierBharatSteel' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Masters]
+    summary: Update a supplier
+    operationId: updateSupplier
+    x-permission: masters.suppliers.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/masters.yaml#/SupplierPatch' }
+          examples:
+            terms: { summary: Change terms + TDS section, value: { expectedVersion: 5, purchaseTerms: Net 60, tdsSectionId: tds_194c } }
+            msme: { summary: Record MSME number, value: { expectedVersion: 5, msmeNumber: UDYAM-MH-18-0012345 } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Supplier' }
+            examples:
+              updated: { $ref: '../components/examples/masters.yaml#/SupplierBharatSteel' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Masters]
+    summary: Delete a supplier (only when unreferenced)
+    operationId: deleteSupplier
+    x-permission: masters.suppliers.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/suppliers/{id}/status:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Masters]
+    summary: Activate / deactivate / block a supplier
+    operationId: setSupplierStatus
+    x-permission: masters.suppliers.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/masters.yaml#/MasterStatusChange' }
+          examples:
+            deactivate: { summary: Deactivate, value: { status: Inactive } }
+            block: { summary: Block, value: { status: Blocked, reason: Quality failures on 3 consecutive GRNs } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Supplier' }
+            examples:
+              updated: { $ref: '../components/examples/masters.yaml#/SupplierBharatSteel' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/suppliers/{id}/ledger:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Masters]
+    summary: Supplier ledger (running balance)
+    operationId: getSupplierLedger
+    x-permission: masters.suppliers.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/ReportFrom'
+      - $ref: '../components/parameters.yaml#/ReportTo'
+    responses:
+      '200':
+        description: Ledger
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [partyId, opening, closing, rows]
+              properties:
+                partyId: { type: string }
+                currency: { type: string }
+                opening: { type: number }
+                closing: { type: number }
+                rows: { type: array, items: { $ref: '../components/schemas/masters.yaml#/CustomerLedgerRow' } }
+                scope: { $ref: '../components/schemas/common.yaml#/Scope' }
+            examples:
+              ledger: { summary: Sep 2026, value: { partyId: sup_bharatsteel, currency: INR, opening: 0, closing: 412000, rows: [{ date: '2026-09-04', docType: Vendor Invoice, docId: vinv_00019, docNumber: VINV/2026-27/00019, narration: BS-7781, debit: 0, credit: 412000, balance: 412000 }], scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/suppliers/{id}/history:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Masters]
+    summary: Change history
+    operationId: getSupplierHistory
+    x-permission: masters.suppliers.view
+    responses:
+      '200':
+        description: History
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/ChangeHistoryEntry' } } } }
+            examples:
+              history: { summary: Bank detail approval, value: { data: [{ at: '2026-04-05T10:00:00Z', by: Rahul Mehta, action: supplier.bank_approved, changes: [{ field: 'bankDetails[bk_1].status', from: Pending Approval, to: Approved }] }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/suppliers/{id}/bank-details:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Masters]
+    summary: Add / change supplier bank details (routes for approval)
+    description: Inserted as `Pending Approval` and submitted to the `Supplier Bank Detail` workflow (payment-fraud control). Payments cannot use a pending account. IFSC format validated.
+    operationId: addSupplierBankDetail
+    x-permission: masters.suppliers.edit
+    x-workflow-doc-type: Supplier Bank Detail
+    x-frd: [FR-MST-005, FR-AP-012]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/BankDetail' }
+          examples:
+            newAccount: { summary: New account, value: { bankName: ICICI Bank, accountNumber: '000405009901', ifsc: ICIC0000012, accountName: Bharat Steel Industries } }
+    responses:
+      '201':
+        description: Pending approval
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bankDetail, outcome]
+              properties:
+                bankDetail: { $ref: '../components/schemas/common.yaml#/BankDetail' }
+                outcome: { type: string, enum: [routed-for-approval, approved] }
+                approval: { $ref: '../components/schemas/approvals.yaml#/ApprovalRequest' }
+            examples:
+              routed: { summary: Routed for approval, value: { bankDetail: { id: bk_2, bankName: ICICI Bank, accountNumber: XXXXXXXX9901, ifsc: ICIC0000012, accountName: Bharat Steel Industries, status: Pending Approval }, outcome: routed-for-approval, approval: { id: apr_bank_1, companyId: co_acme, docType: Supplier Bank Detail, collection: suppliers, docId: sup_bharatsteel, docNumber: S-0201, amount: 0, currency: INR, branchId: br_ho, requesterId: usr_anita, requesterName: Anita Rao, steps: [{ order: 1, name: Finance verification, approverType: Role, approverRef: role_finadmin, approverLabel: Finance Admin, status: Pending, commentRequired: true }], currentStep: 0, status: Pending, submittedAt: '2026-09-13T09:12:04Z', history: [], createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } } }
+              approvedDirect: { summary: No workflow — approved immediately, value: { bankDetail: { id: bk_2, bankName: ICICI Bank, accountNumber: XXXXXXXX9901, ifsc: ICIC0000012, accountName: Bharat Steel Industries, status: Approved, approvedBy: Rahul Mehta, approvedAt: '2026-09-13T09:12:04Z' }, outcome: approved } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/suppliers/{id}/bank-details/{bankId}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+    - { name: bankId, in: path, required: true, schema: { type: string }, example: bk_2 }
+  delete:
+    tags: [Masters]
+    summary: Remove a bank detail (not the only approved one while payables exist)
+    operationId: deleteSupplierBankDetail
+    x-permission: masters.suppliers.edit
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── employees ─────────────────────────────────────────────────────────────
+
+/employees:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Masters]
+    summary: List employees
+    description: Tabs → Active · Left (`status=Resigned,Terminated`) · All. Query examples — `?department=Finance` · `?branchId=br_ho` · `?q=sunita`.
+    operationId: listEmployees
+    x-permission: masters.employees.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: department, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/BranchFilter'
+    responses:
+      '200':
+        description: Employees
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/Employee' } }
+            examples:
+              firstPage: { summary: Active employees, value: { data: [{ id: emp_001, companyId: co_acme, code: EMP-001, name: Rahul Mehta, email: rahul@acme.example, department: Finance, designation: CFO, branchId: br_ho, pan: ABCPM1234R, uan: '100123456001', dateOfJoining: '2020-04-01', ctc: 3600000, status: Active, pf: true, esi: false, userId: usr_rahul, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: emp_003, companyId: co_acme, code: EMP-003, name: Vikram Nair, email: vikram@acme.example, department: Sales, designation: Sales Executive, branchId: br_andheri, managerId: emp_002, managerName: Priya Sharma, dateOfJoining: '2024-07-15', ctc: 720000, status: Active, pf: true, esi: false, userId: usr_vikram, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }], meta: { nextCursor: null, limit: 25, total: 8, counts: { Active: 7, Left: 1, All: 8 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Masters]
+    summary: Create an employee
+    operationId: createEmployee
+    x-permission: masters.employees.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/EmployeeInput'
+              - { required: [name, department, designation, dateOfJoining, ctc] }
+          examples:
+            minimal: { summary: Minimal, value: { name: Sunita Deshmukh, department: Finance, designation: Senior Accountant, dateOfJoining: '2026-10-01', ctc: 900000 } }
+            fullPayroll: { summary: "With statutory ids, bank and manager", value: { code: EMP-009, name: Sunita Deshmukh, email: sunita@acme.example, phone: '+91 98200 77889', department: Finance, designation: Senior Accountant, branchId: br_ho, managerId: emp_001, pan: BXYPD1234K, uan: '100123456789', esiNumber: '', bankDetail: { bankName: SBI, accountNumber: '30012345678', ifsc: SBIN0001234, accountName: Sunita Deshmukh }, dateOfJoining: '2026-10-01', ctc: 900000, pf: true, esi: false, costCentreId: dim_cc_fin } }
+    responses:
+      '201':
+        description: Employee
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Employee' }
+            examples:
+              created: { summary: Created (Probation), value: { id: emp_009, companyId: co_acme, code: EMP-009, name: Sunita Deshmukh, email: sunita@acme.example, department: Finance, designation: Senior Accountant, branchId: br_ho, managerId: emp_001, managerName: Rahul Mehta, pan: BXYPD1234K, uan: '100123456789', dateOfJoining: '2026-10-01', ctc: 900000, status: Probation, pf: true, esi: false, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/employees/bulk:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Masters]
+    summary: Bulk set Active / mark resigned
+    operationId: bulkEmployees
+    x-permission: masters.employees.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/BulkRequest' }
+          examples:
+            resigned: { summary: Mark resigned, value: { ids: [emp_008], action: resign, reason: Left on 31 Aug 2026 } }
+            activate: { summary: Confirm probation → Active, value: { ids: [emp_009], action: activate } }
+    responses:
+      '200':
+        description: Per-id results
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/BulkResult' }
+            examples:
+              allSucceeded: { $ref: '../components/examples/common.yaml#/BulkAllSucceeded' }
+              partialFailure: { $ref: '../components/examples/common.yaml#/BulkPartialFailure' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/employees/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Masters]
+    summary: Get an employee
+    operationId: getEmployee
+    x-permission: masters.employees.view
+    responses:
+      '200':
+        description: Employee
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Employee' }
+            examples:
+              active: { summary: Active, value: { id: emp_003, companyId: co_acme, code: EMP-003, name: Vikram Nair, email: vikram@acme.example, department: Sales, designation: Sales Executive, branchId: br_andheri, managerId: emp_002, managerName: Priya Sharma, pan: AKXPN5678L, uan: '100123456003', bankDetail: { bankName: HDFC Bank, accountNumber: XXXXXXXX2201, ifsc: HDFC0000240, accountName: Vikram Nair, status: Approved }, dateOfJoining: '2024-07-15', ctc: 720000, status: Active, pf: true, esi: false, userId: usr_vikram, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 } }
+              resigned: { summary: Resigned, value: { id: emp_008, companyId: co_acme, code: EMP-008, name: Sunita Rao, department: Operations, designation: Store Supervisor, branchId: br_andheri, dateOfJoining: '2023-01-10', dateOfLeaving: '2026-08-31', ctc: 480000, status: Resigned, pf: true, esi: true, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-01T09:00:00Z', version: 2 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Masters]
+    summary: Update an employee
+    operationId: updateEmployee
+    x-permission: masters.employees.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/masters.yaml#/EmployeePatch' }
+          examples:
+            promotion: { summary: Designation + CTC, value: { expectedVersion: 1, designation: Senior Sales Executive, ctc: 840000 } }
+            transfer: { summary: Move branch and manager, value: { expectedVersion: 1, branchId: br_pune, managerId: emp_005 } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Employee' }
+            examples:
+              updated: { summary: Updated, value: { id: emp_003, companyId: co_acme, code: EMP-003, name: Vikram Nair, department: Sales, designation: Senior Sales Executive, branchId: br_andheri, dateOfJoining: '2024-07-15', ctc: 840000, status: Active, pf: true, esi: false, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Masters]
+    summary: Delete an employee (no payroll / claims / timesheets)
+    operationId: deleteEmployee
+    x-permission: masters.employees.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/employees/{id}/status:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Masters]
+    summary: Change employment status
+    operationId: setEmployeeStatus
+    x-permission: masters.employees.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/masters.yaml#/EmployeeStatusChange' }
+          examples:
+            resign: { summary: Mark resigned, value: { status: Resigned, dateOfLeaving: '2026-09-30', reason: Resignation accepted } }
+            confirm: { summary: Probation → Active, value: { status: Active } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Employee' }
+            examples:
+              resigned: { summary: Resigned, value: { id: emp_008, companyId: co_acme, code: EMP-008, name: Sunita Rao, department: Operations, designation: Store Supervisor, dateOfJoining: '2023-01-10', dateOfLeaving: '2026-09-30', ctc: 480000, status: Resigned, pf: true, esi: true, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── items ─────────────────────────────────────────────────────────────────
+
+/items:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Masters]
+    summary: List items
+    description: "Tabs → Active · Inactive · Stock items (`isStock=true`) · Services (`type=Service`) · Below reorder (`belowReorder=true`) · All. Search keys: name, code, HSN, barcode, group, brand. Query examples — `?q=steel` · `?type=Raw Material&group=Steel` · `?tracking=Batch` · `?belowReorder=true`."
+    operationId: listItems
+    x-permission: masters.items.view
+    x-frd: [FR-MST-006]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/IncludeInactive'
+      - { name: type, in: query, schema: { type: string, enum: [Goods, Service, Consumable, Asset, Raw Material, Finished Good, Semi-Finished] } }
+      - { name: group, in: query, schema: { type: string } }
+      - { name: tracking, in: query, schema: { type: string, enum: [None, Batch, Serial] } }
+      - { name: isStock, in: query, schema: { type: boolean } }
+      - { name: belowReorder, in: query, schema: { type: boolean } }
+      - $ref: '../components/parameters.yaml#/UpdatedSince'
+    responses:
+      '200':
+        description: Items
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/Item' } }
+            examples:
+              firstPage: { summary: Items, value: { data: [{ id: item_stl4, companyId: co_acme, code: STL-4, name: Steel Rod 4mm, type: Raw Material, group: Steel, baseUom: KG, altUoms: [], hsn: '7214', taxRateId: tax_gst18, tracking: Batch, reorderLevel: 200, reorderQty: 500, safetyStock: 100, leadTimeDays: 7, salesPrice: 62, purchasePrice: 48, status: Active, isStock: true, onHand: 1240, available: 1160, avgRate: 49.8, belowReorder: false, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-08-01T09:00:00Z', version: 3 }, { id: item_crate, companyId: co_acme, code: CRT-TEA, name: Tea Crate, type: Goods, group: Packaging, baseUom: NOS, altUoms: [], hsn: '4415', taxRateId: tax_gst12, tracking: None, reorderLevel: 100, reorderQty: 200, safetyStock: 50, leadTimeDays: 5, salesPrice: 450, purchasePrice: 320, status: Active, isStock: true, onHand: 120, available: 40, avgRate: 318, belowReorder: false, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }], meta: { nextCursor: null, limit: 25, total: 18, counts: { Active: 17, Inactive: 1, 'Stock items': 14, Services: 3, 'Below reorder': 2, All: 18 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Masters]
+    summary: Create an item
+    description: Duplicate rule on `code` (and barcode). Services are non-stock (`isStock=false`, tracking None). Tax rate defaults from HSN.
+    operationId: createItem
+    x-permission: masters.items.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/ItemInput'
+              - { required: [code, name, type, baseUom] }
+          examples:
+            stockGoods: { summary: Stock item with alt UOM and reorder, value: { code: STL-6, name: Steel Rod 6mm, type: Raw Material, group: Steel, baseUom: KG, altUoms: [{ uom: TON, factor: 1000 }], hsn: '7214', taxRateId: tax_gst18, inventoryAccountId: acc_1210, tracking: Batch, reorderLevel: 300, reorderQty: 1000, safetyStock: 150, leadTimeDays: 7, salesPrice: 66, purchasePrice: 51, standardCost: 53, isStock: true, preferredSupplierId: sup_bharatsteel } }
+            serialTracked: { summary: Serial-tracked finished good, value: { code: FRM-A1, name: Steel Frame A1, type: Finished Good, baseUom: NOS, hsn: '7308', taxRateId: tax_gst18, tracking: Serial, salesPrice: 4200, purchasePrice: 0, standardCost: 2900, isStock: true } }
+            service: { summary: Service (non-stock), value: { code: SVC-AMC, name: Annual maintenance contract, type: Service, baseUom: YR, hsn: '998719', taxRateId: tax_gst18, salesAccountId: acc_4010, salesPrice: 60000, purchasePrice: 0, isStock: false } }
+            consumable: { summary: Consumable with barcode, value: { code: GRS-1L, name: Machine grease 1 L, type: Consumable, baseUom: NOS, hsn: '2710', taxRateId: tax_gst18, barcode: '8901234500017', salesPrice: 0, purchasePrice: 240, reorderLevel: 20, reorderQty: 50, isStock: true } }
+    responses:
+      '201':
+        description: Item
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Item' }
+            examples:
+              stock: { $ref: '../components/examples/masters.yaml#/ItemSteelRod' }
+              service: { $ref: '../components/examples/masters.yaml#/ItemConsulting' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/items/bulk:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Masters]
+    summary: Bulk activate / deactivate items
+    operationId: bulkItems
+    x-permission: masters.items.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/BulkRequest' }
+          examples:
+            deactivate: { summary: Deactivate discontinued SKUs, value: { ids: [item_grind, item_electrode], action: deactivate } }
+            activate: { summary: Activate, value: { ids: [item_grind], action: activate } }
+    responses:
+      '200':
+        description: Per-id results
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/BulkResult' }
+            examples:
+              allSucceeded: { $ref: '../components/examples/common.yaml#/BulkAllSucceeded' }
+              partialFailure: { summary: One has stock on hand, value: { requested: 2, succeeded: 1, failed: 1, results: [{ id: item_grind, ok: true, status: Inactive }, { id: item_electrode, ok: false, code: INVALID_STATE, message: Item has 40 on hand — clear stock before deactivating }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/items/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Masters]
+    summary: Get an item
+    operationId: getItem
+    x-permission: masters.items.view
+    responses:
+      '200':
+        description: Item
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Item' }
+            examples:
+              stock: { $ref: '../components/examples/masters.yaml#/ItemSteelRod' }
+              service: { $ref: '../components/examples/masters.yaml#/ItemConsulting' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Masters]
+    summary: Update an item
+    description: '`tracking` and `isStock` cannot change once stock movements exist (`409 INVALID_STATE`).'
+    operationId: updateItem
+    x-permission: masters.items.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/masters.yaml#/ItemPatch' }
+          examples:
+            prices: { summary: Update prices, value: { expectedVersion: 3, salesPrice: 64, purchasePrice: 49 } }
+            reorder: { summary: Reorder policy + preferred supplier, value: { expectedVersion: 3, reorderLevel: 300, reorderQty: 800, safetyStock: 150, leadTimeDays: 10, preferredSupplierId: sup_national } }
+            accounts: { summary: Account mapping, value: { expectedVersion: 3, salesAccountId: acc_4000, purchaseAccountId: acc_5010, inventoryAccountId: acc_1210 } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Item' }
+            examples:
+              updated: { $ref: '../components/examples/masters.yaml#/ItemSteelRod' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Masters]
+    summary: Delete an item (no movements / documents)
+    operationId: deleteItem
+    x-permission: masters.items.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/items/{id}/status:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Masters]
+    summary: Activate / deactivate an item
+    operationId: setItemStatus
+    x-permission: masters.items.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [status], properties: { status: { $ref: '../components/schemas/masters.yaml#/MasterStatus' } } }
+          examples:
+            deactivate: { summary: Deactivate, value: { status: Inactive } }
+            activate: { summary: Activate, value: { status: Active } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Item' }
+            examples:
+              updated: { $ref: '../components/examples/masters.yaml#/ItemSteelRod' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/items/{id}/stock:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Masters]
+    summary: Stock by warehouse
+    operationId: getItemStock
+    x-permission: inventory.stock.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/AsOf'
+    responses:
+      '200':
+        description: Rows per warehouse
+        content:
+          application/json:
+            schema: { type: object, required: [itemId, data, totals], properties: { itemId: { type: string }, data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/ItemStockRow' } }, totals: { $ref: '../components/schemas/masters.yaml#/ItemStockRow' } } }
+            examples:
+              twoWarehouses: { summary: Two warehouses, value: { itemId: item_stl4, data: [{ warehouseId: wh_main, warehouseName: Main Warehouse, onHand: 1000, reserved: 80, available: 920, inTransit: 0, onOrder: 500, avgRate: 49.8, value: 49800 }, { warehouseId: wh_pune, warehouseName: Pune Warehouse, onHand: 240, reserved: 0, available: 240, inTransit: 0, onOrder: 0, avgRate: 49.8, value: 11952 }], totals: { warehouseId: all, warehouseName: All, onHand: 1240, reserved: 80, available: 1160, inTransit: 0, onOrder: 500, avgRate: 49.8, value: 61752 } } }
+              service: { summary: Non-stock item, value: { itemId: item_consult, data: [], totals: { warehouseId: all, warehouseName: All, onHand: 0, reserved: 0, available: 0, inTransit: 0, onOrder: 0, avgRate: 0, value: 0 } } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/items/{id}/movements:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Masters]
+    summary: Stock movements for the item
+    operationId: listItemMovements
+    x-permission: inventory.stock.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/WarehouseId'
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Movements
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/document.yaml#/StockMovement' } }
+            examples:
+              firstPage: { summary: "GRN in, delivery out", value: { data: [{ id: sm_2, companyId: co_acme, date: '2026-09-13', itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, warehouseId: wh_main, warehouseName: Main Warehouse, qty: -50, uom: KG, baseQty: -50, batch: B-2409-07, rate: 49.8, value: -2490, type: Delivery, sourceType: Sales Invoice, sourceId: inv_01j8k3, sourceNumber: INV/2026-27/00042, journalId: jnl_01j8k5, balanceAfter: 1000, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }, { id: sm_1, companyId: co_acme, date: '2026-09-04', itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, warehouseId: wh_main, warehouseName: Main Warehouse, qty: 500, uom: KG, baseQty: 500, batch: B-2409-07, rate: 48, value: 24000, type: GRN, sourceType: GRN, sourceId: grn_00077, sourceNumber: GRN/2026-27/00077, balanceAfter: 1050, createdAt: '2026-09-04T11:00:00Z', updatedAt: '2026-09-04T11:00:00Z', version: 1 }], meta: { nextCursor: null, limit: 25, total: 2 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/items/{id}/prices:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Masters]
+    summary: Price-list entries for the item
+    operationId: listItemPrices
+    x-permission: masters.pricelists.view
+    responses:
+      '200':
+        description: Entries
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/ItemPriceRow' } } } }
+            examples:
+              prices: { summary: Sales + purchase lists, value: { data: [{ priceListId: pl_wholesale, priceListName: Wholesale INR, type: Sales, currency: INR, rate: 58, uom: KG, minQty: 100 }, { priceListId: pl_wholesale, priceListName: Wholesale INR, type: Sales, currency: INR, rate: 56, uom: KG, minQty: 500 }, { priceListId: pl_usd, priceListName: Export USD, type: Sales, currency: USD, rate: 0.72, uom: KG, minQty: 0 }, { priceListId: pl_purchase, priceListName: Standard purchase, type: Purchase, currency: INR, rate: 48, uom: KG, minQty: 0, partyId: sup_bharatsteel }] } }
+              none: { summary: No entries — item price used, value: { data: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── warehouses ────────────────────────────────────────────────────────────
+
+/warehouses:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Masters]
+    summary: List warehouses
+    description: Query examples — `?type=Transit` · `?branchId=br_ho` · `?status=Active`.
+    operationId: listWarehouses
+    x-permission: masters.warehouses.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: type, in: query, schema: { type: string, enum: [Standard, Transit, Quarantine, Scrap, WIP] } }
+      - $ref: '../components/parameters.yaml#/BranchFilter'
+    responses:
+      '200':
+        description: Warehouses
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/Warehouse' } }
+            examples:
+              firstPage: { summary: Warehouses, value: { data: [{ id: wh_main, companyId: co_acme, code: WH-MAIN, name: Main Warehouse, branchId: br_ho, bins: [A-01, A-02, B-01, B-02], type: Standard, status: Active, skuCount: 14, stockValue: 1842000, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: wh_transit, companyId: co_acme, code: WH-TRANSIT, name: In transit, bins: [], type: Transit, status: Active, skuCount: 1, stockValue: 24000, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }], meta: { nextCursor: null, limit: 25, total: 5, counts: { Active: 5, Inactive: 0, All: 5 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Masters]
+    summary: Create a warehouse
+    operationId: createWarehouse
+    x-permission: masters.warehouses.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/WarehouseInput'
+              - { required: [code, name] }
+          examples:
+            standard: { summary: Standard with bins, value: { code: WH-PUNE, name: Pune Warehouse, branchId: br_pune, bins: [A-01, A-02, B-01], type: Standard, address: { line1: Plot 7 MIDC, city: Pune, state: Maharashtra, stateCode: '27', pin: '411019', country: IN } } }
+            scrap: { summary: Scrap location, value: { code: WH-SCRAP, name: Scrap yard, type: Scrap } }
+    responses:
+      '201':
+        description: Warehouse
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Warehouse' }
+            examples:
+              created: { $ref: '../components/examples/masters.yaml#/WarehouseMain' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/warehouses/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Masters]
+    summary: Get a warehouse
+    operationId: getWarehouse
+    x-permission: masters.warehouses.view
+    responses:
+      '200':
+        description: Warehouse
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Warehouse' }
+            examples:
+              main: { $ref: '../components/examples/masters.yaml#/WarehouseMain' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Masters]
+    summary: Update a warehouse
+    operationId: updateWarehouse
+    x-permission: masters.warehouses.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/masters.yaml#/WarehousePatch' }
+          examples:
+            bins: { summary: Add bins, value: { expectedVersion: 1, bins: [A-01, A-02, B-01, B-02, C-01] } }
+            status: { summary: Deactivate (must be empty), value: { expectedVersion: 1, name: Old Pune Warehouse } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Warehouse' }
+            examples:
+              updated: { $ref: '../components/examples/masters.yaml#/WarehouseMain' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Masters]
+    summary: Delete a warehouse (no stock or movements)
+    operationId: deleteWarehouse
+    x-permission: masters.warehouses.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/warehouses/{id}/status:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Masters]
+    summary: Activate / deactivate a warehouse (deactivation needs zero stock)
+    operationId: setWarehouseStatus
+    x-permission: masters.warehouses.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [status], properties: { status: { $ref: '../components/schemas/masters.yaml#/MasterStatus' } } }
+          examples:
+            deactivate: { summary: Deactivate, value: { status: Inactive } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Warehouse' }
+            examples:
+              updated: { $ref: '../components/examples/masters.yaml#/WarehouseMain' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+# ── price lists ───────────────────────────────────────────────────────────
+
+/price-lists:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Masters]
+    summary: List price lists
+    description: Tabs → Active · Inactive · Sales · Purchase · All.
+    operationId: listPriceLists
+    x-permission: masters.pricelists.view
+    x-frd: [FR-MST-007]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: type, in: query, schema: { type: string, enum: [Sales, Purchase] } }
+      - { name: currency, in: query, schema: { type: string } }
+    responses:
+      '200':
+        description: Price lists
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/PriceList' } } } }
+            examples:
+              list: { summary: Four lists, value: { data: [{ id: pl_wholesale, companyId: co_acme, code: PL-WHOLESALE, name: Wholesale INR, type: Sales, currency: INR, taxInclusive: false, scope: All, priority: 10, status: Active, isDefault: true, entryCount: 42, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: pl_retail, companyId: co_acme, code: PL-RETAIL, name: Retail (tax inclusive), type: Sales, currency: INR, taxInclusive: true, scope: Branch, priority: 5, status: Active, isDefault: false, entryCount: 30, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: pl_usd, companyId: co_acme, code: PL-USD, name: Export USD, type: Sales, currency: USD, taxInclusive: false, scope: Customer, priority: 1, status: Active, isDefault: false, entryCount: 12, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: pl_purchase, companyId: co_acme, code: PL-PURCHASE, name: Standard purchase, type: Purchase, currency: INR, taxInclusive: false, scope: Supplier, priority: 10, status: Active, isDefault: false, entryCount: 25, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Masters]
+    summary: Create a price list
+    operationId: createPriceList
+    x-permission: masters.pricelists.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/PriceListInput'
+              - { required: [code, name, type, currency] }
+          examples:
+            sales: { summary: Seasonal sales list with validity, value: { code: PL-DIWALI26, name: Diwali 2026 offer, type: Sales, currency: INR, taxInclusive: false, validFrom: '2026-10-15', validTo: '2026-11-15', scope: All, priority: 1 } }
+            purchaseSupplier: { summary: Supplier-specific purchase list, value: { code: PL-BHARAT, name: Bharat Steel contract 2026-27, type: Purchase, currency: INR, scope: Supplier, priority: 1, validFrom: '2026-04-01', validTo: '2027-03-31' } }
+    responses:
+      '201':
+        description: Price list
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/PriceList' }
+            examples:
+              created: { $ref: '../components/examples/masters.yaml#/PriceListWholesale' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/price-lists/resolve:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Masters]
+    summary: Resolve the price for an item (tester)
+    description: Runs `engine.resolvePrice` — party override → scoped list → default list → item price, honouring qty tiers, validity and priority. Returns the winner and the candidates considered.
+    operationId: resolvePrice
+    x-permission: masters.pricelists.view
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/masters.yaml#/PriceResolveRequest' }
+          examples:
+            customerTier: { summary: Customer + qty tier, value: { itemId: item_stl4, qty: 600, customerId: cust_arlene, date: '2026-09-13' } }
+            purchase: { summary: Purchase price for a supplier, value: { itemId: item_stl4, qty: 1000, supplierId: sup_bharatsteel, direction: purchase } }
+            explicitList: { summary: Force a list, value: { itemId: item_stl4, qty: 10, priceListId: pl_usd } }
+    responses:
+      '200':
+        description: Resolution
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/PriceResolution' }
+            examples:
+              tier: { summary: Tier ≥ 500 won, value: { rate: 56, currency: INR, taxInclusive: false, source: 'Price list Wholesale INR · tier ≥ 500', priceListId: pl_wholesale, priceListName: Wholesale INR, entryId: ple_2, candidates: [{ priceListName: Wholesale INR, rate: 56, reason: default list · tier ≥ 500 }, { priceListName: Item master, rate: 62, reason: fallback }] } }
+              fallback: { summary: No entry — item master price, value: { rate: 62, currency: INR, taxInclusive: false, source: Item master sales price (no price-list entry), candidates: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/price-lists/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Masters]
+    summary: Get a price list
+    operationId: getPriceList
+    x-permission: masters.pricelists.view
+    responses:
+      '200':
+        description: Price list
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/PriceList' }
+            examples:
+              wholesale: { $ref: '../components/examples/masters.yaml#/PriceListWholesale' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Masters]
+    summary: Update a price list
+    operationId: updatePriceList
+    x-permission: masters.pricelists.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/masters.yaml#/PriceListPatch' }
+          examples:
+            validity: { summary: Extend validity, value: { expectedVersion: 1, validTo: '2027-03-31' } }
+            priority: { summary: Change priority, value: { expectedVersion: 1, priority: 5 } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/PriceList' }
+            examples:
+              updated: { $ref: '../components/examples/masters.yaml#/PriceListWholesale' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Masters]
+    summary: Delete a price list (not the default, not referenced)
+    operationId: deletePriceList
+    x-permission: masters.pricelists.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/price-lists/{id}/set-default:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Masters]
+    summary: Set as the company default (for its type)
+    operationId: setDefaultPriceList
+    x-permission: masters.pricelists.edit
+    responses:
+      '200':
+        description: Now default
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/PriceList' }
+            examples:
+              default: { $ref: '../components/examples/masters.yaml#/PriceListWholesale' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/price-lists/{id}/entries:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Masters]
+    summary: List entries of a price list
+    operationId: listPriceListEntries
+    x-permission: masters.pricelists.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/ItemId'
+      - $ref: '../components/parameters.yaml#/PartyId'
+    responses:
+      '200':
+        description: Entries
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/PriceListEntry' } }
+            examples:
+              firstPage: { summary: Tiered entries, value: { data: [{ id: ple_1, companyId: co_acme, priceListId: pl_wholesale, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, uom: KG, minQty: 100, rate: 58, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: ple_2, companyId: co_acme, priceListId: pl_wholesale, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, uom: KG, minQty: 500, rate: 56, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }], meta: { nextCursor: null, limit: 25, total: 42 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  post:
+    tags: [Masters]
+    summary: Add an entry (or several)
+    description: Send one entry or an array. Same item + uom + minQty + party + effectiveFrom → `409 DUPLICATE`.
+    operationId: createPriceListEntries
+    x-permission: masters.pricelists.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '../components/schemas/masters.yaml#/PriceListEntryInput'
+              - { type: array, items: { $ref: '../components/schemas/masters.yaml#/PriceListEntryInput' } }
+          examples:
+            single: { summary: One tier, value: { itemId: item_stl4, uom: KG, minQty: 100, rate: 58 } }
+            tiers: { summary: Several tiers at once, value: [{ itemId: item_stl4, uom: KG, minQty: 100, rate: 58 }, { itemId: item_stl4, uom: KG, minQty: 500, rate: 56 }, { itemId: item_stl4, uom: TON, minQty: 1, rate: 55000 }] }
+            partySpecific: { summary: Customer-specific with validity, value: { itemId: item_stl4, uom: KG, minQty: 0, rate: 54, partyId: cust_arlene, effectiveFrom: '2026-10-01', effectiveTo: '2027-03-31' } }
+    responses:
+      '201':
+        description: Created entries
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/PriceListEntry' } } } }
+            examples:
+              created: { summary: Created, value: { data: [{ id: ple_1, companyId: co_acme, priceListId: pl_wholesale, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, uom: KG, minQty: 100, rate: 58, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/price-lists/{id}/entries/{entryId}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+    - { name: entryId, in: path, required: true, schema: { type: string }, example: ple_1 }
+  patch:
+    tags: [Masters]
+    summary: Update an entry
+    operationId: updatePriceListEntry
+    x-permission: masters.pricelists.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/PriceListEntryInput'
+              - $ref: '../components/schemas/common.yaml#/ExpectedVersion'
+          examples:
+            rate: { summary: Change rate, value: { expectedVersion: 1, itemId: item_stl4, rate: 59 } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/PriceListEntry' }
+            examples:
+              updated: { $ref: '../components/examples/masters.yaml#/PriceListEntrySteel' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Masters]
+    summary: Remove an entry
+    operationId: deletePriceListEntry
+    x-permission: masters.pricelists.edit
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }

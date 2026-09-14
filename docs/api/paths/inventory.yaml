@@ -1,0 +1,1271 @@
+# Inventory (tag: Inventory). src/modules/inventory/actions.ts, engine.ts stock functions.
+
+# ── stock views ───────────────────────────────────────────────────────────
+
+/inventory/stock:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Inventory]
+    summary: Stock on hand (item × warehouse or aggregated)
+    description: "Tabs → All · Below reorder (`belowReorder=true`) · With reservations (`reserved=true`). Query examples — `?warehouseId=wh_main` · `?group=Steel` · `?asOf=2026-08-31` · `?aggregate=true` (one row per item)."
+    operationId: listStockPositions
+    x-permission: inventory.stock.view
+    x-frd: [FR-INV-001]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/WarehouseId'
+      - { name: group, in: query, schema: { type: string } }
+      - { name: belowReorder, in: query, schema: { type: boolean } }
+      - { name: reserved, in: query, schema: { type: boolean } }
+      - { name: aggregate, in: query, schema: { type: boolean, default: false } }
+      - $ref: '../components/parameters.yaml#/AsOf'
+    responses:
+      '200':
+        description: Positions
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/inventory.yaml#/StockPosition' } }
+                    totals: { type: object, properties: { value: { type: number } } }
+            examples:
+              firstPage: { summary: Two SKUs, value: { data: [{ itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, group: Steel, warehouses: 2, uom: KG, onHand: 1240, reserved: 80, available: 1160, onOrder: 2000, inTransit: 0, committed: 120, projected: 3120, reorderLevel: 200, safetyStock: 100, belowReorder: false, avgRate: 49.8, value: 61752 }, { itemId: item_crate, itemCode: CRT-TEA, itemName: Tea Crate, group: Packaging, warehouses: 1, uom: NOS, onHand: 40, reserved: 0, available: 40, onOrder: 0, inTransit: 0, committed: 0, projected: 40, reorderLevel: 100, safetyStock: 50, belowReorder: true, avgRate: 318, value: 12720 }], totals: { value: 1842000 }, meta: { nextCursor: null, limit: 25, total: 14, counts: { All: 14, 'Below reorder': 2, 'With reservations': 3 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/inventory/items/{id}/position:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Inventory]
+    summary: Stock position of one item (engine.stockPosition)
+    operationId: getItemStockPosition
+    x-permission: inventory.stock.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/WarehouseId'
+      - $ref: '../components/parameters.yaml#/AsOf'
+      - { name: batch, in: query, schema: { type: string } }
+    responses:
+      '200':
+        description: Position
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/inventory.yaml#/StockPosition' }
+            examples:
+              warehouse: { summary: One warehouse, value: { itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, warehouseId: wh_main, warehouseName: Main Warehouse, uom: KG, onHand: 1000, reserved: 80, available: 920, onOrder: 2000, inTransit: 0, committed: 120, projected: 2880, reorderLevel: 200, safetyStock: 100, belowReorder: false, avgRate: 49.8, value: 49800 } }
+              allWarehouses: { summary: Aggregated, value: { itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, warehouses: 2, uom: KG, onHand: 1240, reserved: 80, available: 1160, onOrder: 2000, inTransit: 0, committed: 120, projected: 3120, reorderLevel: 200, safetyStock: 100, belowReorder: false, avgRate: 49.8, value: 61752 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/inventory/ledger:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Inventory]
+    summary: Stock ledger (movements with running balance)
+    description: Query examples — `?itemId=item_stl4&warehouseId=wh_main` · `?type=GRN,Delivery` · `?dateFrom=2026-09-01&dateTo=2026-09-30` · `?sourceId=inv_01j8k3`.
+    operationId: listStockLedger
+    x-permission: inventory.stock.view
+    x-frd: [FR-INV-002]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/ItemId'
+      - $ref: '../components/parameters.yaml#/WarehouseId'
+      - { name: type, in: query, schema: { type: string }, style: form, explode: false, example: 'GRN,Delivery' }
+      - { name: batch, in: query, schema: { type: string } }
+      - { name: sourceId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Ledger rows
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/inventory.yaml#/StockLedgerRow' } }
+            examples:
+              firstPage: { summary: In and out, value: { data: [{ id: sm_50, companyId: co_acme, date: '2026-09-12', itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, warehouseId: wh_main, warehouseName: Main Warehouse, bin: A-01, qty: 2950, uom: KG, baseQty: 2950, batch: B-2609-11, rate: 48, value: 141600, type: GRN, sourceType: GRN, sourceId: grn_00077, sourceNumber: GRN/2026-27/00077, balanceAfter: 4190, source: '#/purchase/grn/grn_00077', createdAt: '2026-09-12T11:00:00Z', updatedAt: '2026-09-12T11:00:00Z', version: 1 }, { id: sm_21, companyId: co_acme, date: '2026-09-13', itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, warehouseId: wh_main, warehouseName: Main Warehouse, qty: -1000, uom: KG, baseQty: -1000, batch: B-2409-07, rate: 49.8, value: -49800, type: Delivery, sourceType: Sales Invoice, sourceId: inv_01j8k3, sourceNumber: INV/2026-27/00042, journalId: jnl_01j8k5, balanceAfter: 3190, source: '#/sales/invoices/inv_01j8k3', createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }], meta: { nextCursor: null, limit: 25, total: 2 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/inventory/batches:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Inventory]
+    summary: Batch & serial balances
+    description: "Tabs → All · Batches (`type=Batch`) · Serials (`type=Serial`) · Expiring/expired (`expiringWithinDays=30`)."
+    operationId: listBatchBalances
+    x-permission: inventory.stock.view
+    x-frd: [FR-INV-003]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/ItemId'
+      - $ref: '../components/parameters.yaml#/WarehouseId'
+      - { name: type, in: query, schema: { type: string, enum: [Batch, Serial] } }
+      - { name: code, in: query, schema: { type: string }, description: Batch number / serial. }
+      - { name: expiringWithinDays, in: query, schema: { type: integer } }
+    responses:
+      '200':
+        description: Balances
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/inventory.yaml#/BatchBalance' } }
+            examples:
+              firstPage: { summary: Batches and serials, value: { data: [{ itemId: item_stl4, itemName: Steel Rod 4mm, type: Batch, code: B-2609-11, warehouseId: wh_main, warehouseName: Main Warehouse, bin: A-01, qty: 2950, value: 141600, lastMovementAt: '2026-09-12T11:00:00Z' }, { itemId: item_frame, itemName: Steel Frame A1, type: Serial, code: SN-00201, warehouseId: wh_main, warehouseName: Main Warehouse, qty: 1, value: 2900, lastMovementAt: '2026-09-13T09:00:00Z' }, { itemId: item_chai, itemName: Masala Chai 250g, type: Batch, code: CH-2603, warehouseId: wh_andheri, warehouseName: Andheri Store, qty: 40, value: 3600, expiryDate: '2026-09-30', expiresInDays: 17, lastMovementAt: '2026-08-20T10:00:00Z' }], meta: { nextCursor: null, limit: 25, total: 3, counts: { All: 38, Batches: 26, Serials: 12, 'Expiring/expired': 1 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+# ── reservations ──────────────────────────────────────────────────────────
+
+/inventory/reservations:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Inventory]
+    summary: Reservations register
+    description: "Tabs → Active (`status=Reserved,Partially Fulfilled`) · Expiring ≤ 7 d (`expiringWithinDays=7`) · Fulfilled · Released/expired · All."
+    operationId: listReservations
+    x-permission: inventory.stock.view
+    x-frd: [FR-INV-004]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/ItemId'
+      - $ref: '../components/parameters.yaml#/WarehouseId'
+      - { name: sourceId, in: query, schema: { type: string } }
+      - { name: expiringWithinDays, in: query, schema: { type: integer } }
+    responses:
+      '200':
+        description: Reservations
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/document.yaml#/Reservation' } }
+            examples:
+              firstPage: { summary: Active reservations, value: { data: [{ id: rsv_1, companyId: co_acme, itemId: item_stl4, warehouseId: wh_main, qty: 500, fulfilledQty: 0, sourceType: Sales Order, sourceId: so_00090, sourceNumber: SO/2026-27/00090, lineId: ln_1, status: Reserved, expiresAt: '2026-09-27T00:00:00Z', createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }, { id: rsv_0, companyId: co_acme, itemId: item_crate, warehouseId: wh_main, qty: 120, fulfilledQty: 100, sourceType: Sales Order, sourceId: so_00087, sourceNumber: SO/2026-27/00087, lineId: ln_so_2, status: Partially Fulfilled, expiresAt: '2026-09-22T00:00:00Z', createdAt: '2026-09-08T12:00:00Z', updatedAt: '2026-09-10T15:00:00Z', version: 2 }], meta: { nextCursor: null, limit: 25, total: 2, counts: { Active: 5, 'Expiring ≤7d': 1, Fulfilled: 40, 'Released/expired': 6, All: 51 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/inventory/reservations/{id}/release:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Inventory]
+    summary: Release / expire / cancel a reservation
+    operationId: releaseReservation
+    x-permission: inventory.stock.edit
+    x-events: [StockReleased]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [action], properties: { action: { type: string, enum: [Release, Expire, Cancel] }, reason: { type: string } } }
+          examples:
+            release: { summary: Release, value: { action: Release, reason: Customer postponed delivery } }
+            expire: { summary: Expire (past expiry date), value: { action: Expire } }
+            cancel: { summary: Cancel, value: { action: Cancel, reason: Order cancelled } }
+    responses:
+      '200':
+        description: Updated reservation
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/document.yaml#/Reservation' }
+            examples:
+              released: { summary: Released, value: { id: rsv_1, companyId: co_acme, itemId: item_stl4, warehouseId: wh_main, qty: 500, fulfilledQty: 0, sourceType: Sales Order, sourceId: so_00090, sourceNumber: SO/2026-27/00090, lineId: ln_1, status: Released, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T10:00:00Z', version: 2 } }
+              expired: { summary: Expired, value: { id: rsv_9, companyId: co_acme, itemId: item_crate, warehouseId: wh_main, qty: 50, fulfilledQty: 0, sourceType: Sales Order, sourceId: so_00080, sourceNumber: SO/2026-27/00080, lineId: ln_x, status: Expired, expiresAt: '2026-09-10T00:00:00Z', createdAt: '2026-08-27T09:00:00Z', updatedAt: '2026-09-13T10:00:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── adjustments ───────────────────────────────────────────────────────────
+
+/inventory/adjustments:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Inventory]
+    summary: List stock adjustments
+    description: Tabs → All · Draft · Pending approval · Approved · Posted · Reversed.
+    operationId: listStockAdjustments
+    x-permission: inventory.adjustment.view
+    x-frd: [FR-INV-005]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: adjustmentType, in: query, schema: { $ref: '../components/schemas/inventory.yaml#/AdjustmentType' } }
+      - $ref: '../components/parameters.yaml#/WarehouseId'
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Adjustments
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/inventory.yaml#/StockAdjustment' } }
+            examples:
+              firstPage: { summary: Adjustments, value: { data: [{ id: adj_0021, companyId: co_acme, number: ADJ/2026-27/00021, docType: Stock Adjustment, date: '2026-09-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: None, warehouseId: wh_main, warehouseName: Main Warehouse, adjustmentType: Damage, reasonCode: ADJ-DMG, reason: 5 tins leaked during storage — written off, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: -1200, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: -1200 }, totalValue: -1200, journalId: jnl_adj_21, journalNumber: JV/2026-27/00343, postedAt: '2026-09-13T11:00:00Z', postedBy: Suresh Patel, createdAt: '2026-09-13T10:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 3 }], meta: { nextCursor: null, limit: 25, total: 1, counts: { All: 21, Draft: 1, 'Pending approval': 0, Approved: 0, Posted: 19, Reversed: 1 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Inventory]
+    summary: Create a stock adjustment (Draft)
+    operationId: createStockAdjustment
+    x-permission: inventory.adjustment.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/inventory.yaml#/StockAdjustmentCreate' }
+          examples:
+            writeOff: { summary: Damage write-off (negative), value: { date: '2026-09-13', warehouseId: wh_main, adjustmentType: Damage, reasonCode: ADJ-DMG, reason: 5 tins leaked during storage — written off, lines: [{ itemId: item_grease, qty: -5, batch: GR-2607 }] } }
+            found: { summary: "Found stock (positive, with rate)", value: { date: '2026-09-13', warehouseId: wh_pune, adjustmentType: Found, reasonCode: ADJ-FOUND, reason: 12 crates found in mezzanine during audit, lines: [{ itemId: item_crate, qty: 12, rate: 318 }] } }
+            mixed: { summary: Rework with serials, value: { date: '2026-09-13', warehouseId: wh_main, adjustmentType: Rework, reasonCode: ADJ-RWK, reason: Frames sent to rework — out of saleable stock, lines: [{ itemId: item_frame, qty: -2, serials: [SN-00121, SN-00122] }] } }
+    responses:
+      '201':
+        description: Draft adjustment
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/inventory.yaml#/StockAdjustment' }
+            examples:
+              draft: { summary: Draft, value: { id: adj_0021, companyId: co_acme, number: DRAFT-ADJ-21, docType: Stock Adjustment, date: '2026-09-13', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: None, warehouseId: wh_main, warehouseName: Main Warehouse, adjustmentType: Damage, reasonCode: ADJ-DMG, reason: 5 tins leaked during storage — written off, lines: [{ id: ln_a1, itemId: item_grease, itemCode: GRS-1L, itemName: Machine grease 1 L, qty: -5, uom: NOS, rate: 240, discountPct: 0, discountAmt: 0, taxable: 0, taxRate: 0, taxAmt: 0, taxComponents: {}, amount: 0, value: -1200, batch: GR-2607 }], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: -1200, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: -1200 }, totalValue: -1200, createdAt: '2026-09-13T10:00:00Z', updatedAt: '2026-09-13T10:00:00Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/inventory/adjustments/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Inventory]
+    summary: Get an adjustment
+    operationId: getStockAdjustment
+    x-permission: inventory.adjustment.view
+    responses:
+      '200':
+        description: Adjustment
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/inventory.yaml#/StockAdjustment' }
+            examples:
+              posted: { summary: Posted, value: { id: adj_0021, companyId: co_acme, number: ADJ/2026-27/00021, docType: Stock Adjustment, date: '2026-09-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: None, warehouseId: wh_main, warehouseName: Main Warehouse, adjustmentType: Damage, reasonCode: ADJ-DMG, reason: 5 tins leaked during storage — written off, lines: [{ id: ln_a1, itemId: item_grease, itemCode: GRS-1L, itemName: Machine grease 1 L, qty: -5, uom: NOS, rate: 240, discountPct: 0, discountAmt: 0, taxable: 0, taxRate: 0, taxAmt: 0, taxComponents: {}, amount: 0, value: -1200, batch: GR-2607 }], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: -1200, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: -1200 }, totalValue: -1200, journalId: jnl_adj_21, journalNumber: JV/2026-27/00343, postedAt: '2026-09-13T11:00:00Z', postedBy: Suresh Patel, approverName: Rahul Mehta, createdAt: '2026-09-13T10:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 3 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Inventory]
+    summary: Edit a Draft adjustment
+    operationId: updateStockAdjustment
+    x-permission: inventory.adjustment.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/inventory.yaml#/StockAdjustmentPatch' }
+          examples:
+            lines: { summary: Change quantity, value: { expectedVersion: 1, lines: [{ itemId: item_grease, qty: -6, batch: GR-2607 }] } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/inventory.yaml#/StockAdjustment' }
+            examples:
+              updated: { summary: Updated, value: { id: adj_0021, companyId: co_acme, number: DRAFT-ADJ-21, docType: Stock Adjustment, date: '2026-09-13', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: None, warehouseId: wh_main, adjustmentType: Damage, reasonCode: ADJ-DMG, reason: 5 tins leaked during storage — written off, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: -1440, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: -1440 }, totalValue: -1440, createdAt: '2026-09-13T10:00:00Z', updatedAt: '2026-09-13T10:10:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Inventory]
+    summary: Delete a Draft adjustment
+    operationId: deleteStockAdjustment
+    x-permission: inventory.adjustment.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/inventory/adjustments/{id}/submit:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Inventory]
+    summary: Submit for approval (or approve directly)
+    operationId: submitStockAdjustment
+    x-permission: inventory.adjustment.submit
+    x-idempotent: true
+    x-workflow-doc-type: Stock Adjustment
+    x-events: [DocumentSubmitted, DocumentApproved]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Outcome
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/inventory.yaml#/StockAdjustment' }
+            examples:
+              routed: { summary: outcome = routed-for-approval, value: { document: { id: adj_0021, companyId: co_acme, number: ADJ/2026-27/00021, docType: Stock Adjustment, date: '2026-09-13', branchId: br_ho, status: Submitted, currency: INR, rate: 1, partyType: None, warehouseId: wh_main, adjustmentType: Damage, reasonCode: ADJ-DMG, reason: 5 tins leaked during storage — written off, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: -1200, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: -1200 }, totalValue: -1200, approvalId: apr_adj_21, createdAt: '2026-09-13T10:00:00Z', updatedAt: '2026-09-13T10:20:00Z', version: 2 }, outcome: routed-for-approval, approval: { id: apr_adj_21, companyId: co_acme, docType: Stock Adjustment, collection: stockAdjustments, docId: adj_0021, docNumber: ADJ/2026-27/00021, amount: 1200, currency: INR, branchId: br_ho, requesterId: usr_suresh, requesterName: Suresh Patel, steps: [{ order: 1, name: Warehouse manager, approverType: Role, approverRef: role_opsmgr, approverLabel: Operations Manager, status: Pending, commentRequired: false }], currentStep: 0, status: Pending, submittedAt: '2026-09-13T10:20:00Z', history: [], createdAt: '2026-09-13T10:20:00Z', updatedAt: '2026-09-13T10:20:00Z', version: 1 }, warnings: [] } }
+              approved: { summary: outcome = approved (no rule), value: { document: { id: adj_0021, companyId: co_acme, number: ADJ/2026-27/00021, docType: Stock Adjustment, date: '2026-09-13', branchId: br_ho, status: Approved, currency: INR, rate: 1, partyType: None, warehouseId: wh_main, adjustmentType: Damage, reasonCode: ADJ-DMG, reason: 5 tins leaked during storage — written off, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: -1200, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: -1200 }, totalValue: -1200, createdAt: '2026-09-13T10:00:00Z', updatedAt: '2026-09-13T10:20:00Z', version: 2 }, outcome: approved, warnings: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/inventory/adjustments/{id}/post:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Inventory]
+    summary: Post an Approved adjustment (stock + journal Dr/Cr 5020 vs inventory)
+    operationId: postStockAdjustment
+    x-permission: inventory.adjustment.post
+    x-idempotent: true
+    x-events: [DocumentPosted, StockMoved, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Posted
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/inventory.yaml#/StockAdjustment' }
+            examples:
+              posted: { summary: Write-off posted, value: { document: { id: adj_0021, companyId: co_acme, number: ADJ/2026-27/00021, docType: Stock Adjustment, date: '2026-09-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: None, warehouseId: wh_main, adjustmentType: Damage, reasonCode: ADJ-DMG, reason: 5 tins leaked during storage — written off, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: -1200, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: -1200 }, totalValue: -1200, journalId: jnl_adj_21, journalNumber: JV/2026-27/00343, postedAt: '2026-09-13T11:00:00Z', postedBy: Suresh Patel, createdAt: '2026-09-13T10:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 3 }, outcome: posted, journal: { id: jnl_adj_21, companyId: co_acme, number: JV/2026-27/00343, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Stock Adjustment, sourceId: adj_0021, sourceNumber: ADJ/2026-27/00021, narration: Stock adjustment ADJ/2026-27/00021 — Damage, lines: [{ id: j1, accountId: acc_5020, accountCode: '5020', accountName: Inventory adjustments, dr: 1200, cr: 0, drBase: 1200, crBase: 0, dimensions: {} }, { id: j2, accountId: acc_1200, accountCode: '1200', accountName: Inventory — Finished Goods, dr: 0, cr: 1200, drBase: 0, crBase: 1200, dimensions: {} }], totalDr: 1200, totalCr: 1200, postedAt: '2026-09-13T11:00:00Z', postedBy: Suresh Patel, correlationId: corr_adj21, createdAt: '2026-09-13T11:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 1 }, stockMovements: [{ id: sm_70, companyId: co_acme, date: '2026-09-13', itemId: item_grease, itemCode: GRS-1L, itemName: Machine grease 1 L, warehouseId: wh_main, qty: -5, uom: NOS, baseQty: -5, batch: GR-2607, rate: 240, value: -1200, type: Adjustment, sourceType: Stock Adjustment, sourceId: adj_0021, sourceNumber: ADJ/2026-27/00021, journalId: jnl_adj_21, balanceAfter: 35, createdAt: '2026-09-13T11:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 1 }], warnings: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/inventory/adjustments/{id}/reverse:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Inventory]
+    summary: Reverse a posted adjustment
+    operationId: reverseStockAdjustment
+    x-permission: inventory.adjustment.reverse
+    x-idempotent: true
+    x-events: [DocumentReversed, StockReversed, JournalReversed]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Tins were found intact — write-off reversed } }
+    responses:
+      '200':
+        description: Reversed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/inventory.yaml#/StockAdjustment' }
+            examples:
+              reversed: { summary: Reversed, value: { document: { id: adj_0021, companyId: co_acme, number: ADJ/2026-27/00021, docType: Stock Adjustment, date: '2026-09-13', branchId: br_ho, status: Reversed, currency: INR, rate: 1, partyType: None, warehouseId: wh_main, adjustmentType: Damage, reasonCode: ADJ-DMG, reason: 5 tins leaked during storage — written off, reversalReason: Tins were found intact — write-off reversed, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: -1200, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: -1200 }, totalValue: -1200, createdAt: '2026-09-13T10:00:00Z', updatedAt: '2026-09-14T09:00:00Z', version: 4 }, outcome: reversed, warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+# ── transfers ─────────────────────────────────────────────────────────────
+
+/inventory/transfers:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Inventory]
+    summary: List stock transfers
+    description: Tabs → All · Draft · In transit · Completed · Reversed/cancelled.
+    operationId: listStockTransfers
+    x-permission: inventory.transfer.view
+    x-frd: [FR-INV-006]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: fromWarehouseId, in: query, schema: { type: string } }
+      - { name: toWarehouseId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Transfers
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/inventory.yaml#/StockTransfer' } }
+            examples:
+              firstPage: { summary: In transit, value: { data: [{ id: trf_0009, companyId: co_acme, number: TRF/2026-27/00009, docType: Stock Transfer, date: '2026-09-12', branchId: br_ho, status: In Transit, currency: INR, rate: 1, partyType: None, fromWarehouseId: wh_main, fromWarehouseName: Main Warehouse, toWarehouseId: wh_pune, toWarehouseName: Pune Warehouse, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 24900, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 24900 }, totalValue: 24900, dispatchedAt: '2026-09-12T16:00:00Z', dispatchedBy: Suresh Patel, vehicleNo: MH04CD5678, createdAt: '2026-09-12T15:00:00Z', updatedAt: '2026-09-12T16:00:00Z', version: 2 }], meta: { nextCursor: null, limit: 25, total: 1, counts: { All: 9, Draft: 0, 'In transit': 1, Completed: 7, 'Reversed/cancelled': 1 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Inventory]
+    summary: Create a transfer (Draft)
+    operationId: createStockTransfer
+    x-permission: inventory.transfer.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/inventory.yaml#/StockTransferCreate' }
+          examples:
+            batch: { summary: Batch-tracked transfer, value: { date: '2026-09-12', fromWarehouseId: wh_main, toWarehouseId: wh_pune, vehicleNo: MH04CD5678, lines: [{ itemId: item_stl4, qty: 500, batch: B-2609-11 }] } }
+            multi: { summary: Several items to a store, value: { date: '2026-09-13', fromWarehouseId: wh_main, toWarehouseId: wh_andheri, lines: [{ itemId: item_chai, qty: 200, batch: CH-2609 }, { itemId: item_assam, qty: 100 }, { itemId: item_green, qty: 50 }] } }
+    responses:
+      '201':
+        description: Draft transfer
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/inventory.yaml#/StockTransfer' }
+            examples:
+              draft: { summary: Draft, value: { id: trf_0009, companyId: co_acme, number: DRAFT-TRF-9, docType: Stock Transfer, date: '2026-09-12', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: None, fromWarehouseId: wh_main, fromWarehouseName: Main Warehouse, toWarehouseId: wh_pune, toWarehouseName: Pune Warehouse, lines: [{ id: ln_t1, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, qty: 500, uom: KG, rate: 49.8, discountPct: 0, discountAmt: 0, taxable: 0, taxRate: 0, taxAmt: 0, taxComponents: {}, amount: 24900, batch: B-2609-11 }], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 24900, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 24900 }, totalValue: 24900, vehicleNo: MH04CD5678, createdAt: '2026-09-12T15:00:00Z', updatedAt: '2026-09-12T15:00:00Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/inventory/transfers/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Inventory]
+    summary: Get a transfer
+    operationId: getStockTransfer
+    x-permission: inventory.transfer.view
+    responses:
+      '200':
+        description: Transfer
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/inventory.yaml#/StockTransfer' }
+            examples:
+              inTransit: { summary: In transit, value: { id: trf_0009, companyId: co_acme, number: TRF/2026-27/00009, docType: Stock Transfer, date: '2026-09-12', branchId: br_ho, status: In Transit, currency: INR, rate: 1, partyType: None, fromWarehouseId: wh_main, fromWarehouseName: Main Warehouse, toWarehouseId: wh_pune, toWarehouseName: Pune Warehouse, lines: [{ id: ln_t1, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, qty: 500, uom: KG, rate: 49.8, discountPct: 0, discountAmt: 0, taxable: 0, taxRate: 0, taxAmt: 0, taxComponents: {}, amount: 24900, batch: B-2609-11 }], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 24900, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 24900 }, totalValue: 24900, dispatchedAt: '2026-09-12T16:00:00Z', dispatchedBy: Suresh Patel, vehicleNo: MH04CD5678, createdAt: '2026-09-12T15:00:00Z', updatedAt: '2026-09-12T16:00:00Z', version: 2 } }
+              completed: { summary: Completed with shortage, value: { id: trf_0009, companyId: co_acme, number: TRF/2026-27/00009, docType: Stock Transfer, date: '2026-09-12', branchId: br_ho, status: Completed, currency: INR, rate: 1, partyType: None, fromWarehouseId: wh_main, fromWarehouseName: Main Warehouse, toWarehouseId: wh_pune, toWarehouseName: Pune Warehouse, lines: [{ id: ln_t1, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, qty: 500, uom: KG, rate: 49.8, discountPct: 0, discountAmt: 0, taxable: 0, taxRate: 0, taxAmt: 0, taxComponents: {}, amount: 24900, batch: B-2609-11, receivedQty: 495, shortageQty: 5, damageQty: 0, shortageReason: 5 KG spilled in transit }], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 24900, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 24900 }, totalValue: 24900, dispatchedAt: '2026-09-12T16:00:00Z', dispatchedBy: Suresh Patel, receivedAt: '2026-09-13T11:00:00Z', receivedBy: Anil Kumar, vehicleNo: MH04CD5678, createdAt: '2026-09-12T15:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 3 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Inventory]
+    summary: Edit a Draft transfer
+    operationId: updateStockTransfer
+    x-permission: inventory.transfer.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/inventory.yaml#/StockTransferPatch' }
+          examples:
+            vehicle: { summary: Vehicle, value: { expectedVersion: 1, vehicleNo: MH04CD5678 } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/inventory.yaml#/StockTransfer' }
+            examples:
+              updated: { summary: Updated, value: { id: trf_0009, companyId: co_acme, number: DRAFT-TRF-9, docType: Stock Transfer, date: '2026-09-12', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: None, fromWarehouseId: wh_main, toWarehouseId: wh_pune, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 24900, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 24900 }, totalValue: 24900, vehicleNo: MH04CD5678, createdAt: '2026-09-12T15:00:00Z', updatedAt: '2026-09-12T15:30:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Inventory]
+    summary: Delete a Draft transfer
+    operationId: deleteStockTransfer
+    x-permission: inventory.transfer.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/inventory/transfers/{id}/dispatch:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Inventory]
+    summary: Dispatch (stock out of source into the transit warehouse)
+    operationId: dispatchStockTransfer
+    x-permission: inventory.transfer.post
+    x-idempotent: true
+    x-events: [StockMoved]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: In transit
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/inventory.yaml#/StockTransfer' }
+            examples:
+              dispatched: { summary: Moved to transit, value: { document: { id: trf_0009, companyId: co_acme, number: TRF/2026-27/00009, docType: Stock Transfer, date: '2026-09-12', branchId: br_ho, status: In Transit, currency: INR, rate: 1, partyType: None, fromWarehouseId: wh_main, toWarehouseId: wh_pune, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 24900, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 24900 }, totalValue: 24900, dispatchedAt: '2026-09-12T16:00:00Z', dispatchedBy: Suresh Patel, createdAt: '2026-09-12T15:00:00Z', updatedAt: '2026-09-12T16:00:00Z', version: 2 }, outcome: dispatched, stockMovements: [{ id: sm_80, companyId: co_acme, date: '2026-09-12', itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, warehouseId: wh_main, qty: -500, uom: KG, baseQty: -500, batch: B-2609-11, rate: 49.8, value: -24900, type: Transfer Out, sourceType: Stock Transfer, sourceId: trf_0009, sourceNumber: TRF/2026-27/00009, balanceAfter: 2690, createdAt: '2026-09-12T16:00:00Z', updatedAt: '2026-09-12T16:00:00Z', version: 1 }, { id: sm_81, companyId: co_acme, date: '2026-09-12', itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, warehouseId: wh_transit, qty: 500, uom: KG, baseQty: 500, batch: B-2609-11, rate: 49.8, value: 24900, type: Transfer In, sourceType: Stock Transfer, sourceId: trf_0009, sourceNumber: TRF/2026-27/00009, balanceAfter: 500, createdAt: '2026-09-12T16:00:00Z', updatedAt: '2026-09-12T16:00:00Z', version: 1 }], warnings: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/inventory/transfers/{id}/receive:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Inventory]
+    summary: Receive at destination (shortage / damage to scrap)
+    operationId: receiveStockTransfer
+    x-permission: inventory.transfer.post
+    x-idempotent: true
+    x-events: [StockMoved, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/inventory.yaml#/TransferReceiveRequest' }
+          examples:
+            full: { summary: All received, value: { lines: [{ lineId: ln_t1, receivedQty: 500, bin: B-01 }] } }
+            shortage: { summary: Shortage, value: { lines: [{ lineId: ln_t1, receivedQty: 495, shortageQty: 5, shortageReason: 5 KG spilled in transit }] } }
+            damage: { summary: Damage to scrap, value: { lines: [{ lineId: ln_t1, receivedQty: 490, damageQty: 10, shortageReason: Bent rods — scrapped }] } }
+    responses:
+      '200':
+        description: Completed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/inventory.yaml#/StockTransfer' }
+            examples:
+              withShortage: { summary: Completed; shortage expensed, value: { document: { id: trf_0009, companyId: co_acme, number: TRF/2026-27/00009, docType: Stock Transfer, date: '2026-09-12', branchId: br_ho, status: Completed, currency: INR, rate: 1, partyType: None, fromWarehouseId: wh_main, toWarehouseId: wh_pune, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 24900, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 24900 }, totalValue: 24900, dispatchedAt: '2026-09-12T16:00:00Z', receivedAt: '2026-09-13T11:00:00Z', receivedBy: Anil Kumar, createdAt: '2026-09-12T15:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 3 }, outcome: completed, stockMovements: [{ id: sm_82, companyId: co_acme, date: '2026-09-13', itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, warehouseId: wh_transit, qty: -500, uom: KG, baseQty: -500, batch: B-2609-11, rate: 49.8, value: -24900, type: Transfer Out, sourceType: Stock Transfer, sourceId: trf_0009, sourceNumber: TRF/2026-27/00009, balanceAfter: 0, createdAt: '2026-09-13T11:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 1 }, { id: sm_83, companyId: co_acme, date: '2026-09-13', itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, warehouseId: wh_pune, qty: 495, uom: KG, baseQty: 495, batch: B-2609-11, rate: 49.8, value: 24651, type: Transfer In, sourceType: Stock Transfer, sourceId: trf_0009, sourceNumber: TRF/2026-27/00009, balanceAfter: 735, createdAt: '2026-09-13T11:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 1 }, { id: sm_84, companyId: co_acme, date: '2026-09-13', itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, warehouseId: wh_scrap, qty: 5, uom: KG, baseQty: 5, batch: B-2609-11, rate: 49.8, value: 249, type: Scrap, sourceType: Stock Transfer, sourceId: trf_0009, sourceNumber: TRF/2026-27/00009, balanceAfter: 5, createdAt: '2026-09-13T11:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 1 }], journal: { id: jnl_trf_9, companyId: co_acme, number: JV/2026-27/00344, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Stock Transfer, sourceId: trf_0009, sourceNumber: TRF/2026-27/00009, narration: Transit shortage TRF/2026-27/00009, lines: [{ id: j1, accountId: acc_5700, accountCode: '5700', accountName: Scrap & shortage, dr: 249, cr: 0, drBase: 249, crBase: 0, dimensions: {} }, { id: j2, accountId: acc_1210, accountCode: '1210', accountName: Inventory — Raw Material, dr: 0, cr: 249, drBase: 0, crBase: 249, dimensions: {} }], totalDr: 249, totalCr: 249, postedAt: '2026-09-13T11:00:00Z', postedBy: Anil Kumar, correlationId: corr_trf9, createdAt: '2026-09-13T11:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 1 }, warnings: ['5 KG shortage moved to scrap warehouse and expensed'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/inventory/transfers/{id}/reverse:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Inventory]
+    summary: Reverse a completed transfer
+    operationId: reverseStockTransfer
+    x-permission: inventory.transfer.reverse
+    x-idempotent: true
+    x-events: [StockReversed]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Transferred to the wrong warehouse — sending back } }
+    responses:
+      '200':
+        description: Reversed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/inventory.yaml#/StockTransfer' }
+            examples:
+              reversed: { summary: Reversed, value: { document: { id: trf_0009, companyId: co_acme, number: TRF/2026-27/00009, docType: Stock Transfer, date: '2026-09-12', branchId: br_ho, status: Reversed, currency: INR, rate: 1, partyType: None, fromWarehouseId: wh_main, toWarehouseId: wh_pune, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 24900, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 24900 }, totalValue: 24900, reversalReason: Transferred to the wrong warehouse — sending back, createdAt: '2026-09-12T15:00:00Z', updatedAt: '2026-09-14T09:00:00Z', version: 4 }, outcome: reversed, warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/inventory/transfers/{id}/cancel:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Inventory]
+    summary: Cancel a Draft transfer
+    operationId: cancelStockTransfer
+    x-permission: inventory.transfer.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            cancel: { summary: Cancel, value: { reason: Pune requirement withdrawn } }
+    responses:
+      '200':
+        description: Cancelled
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/inventory.yaml#/StockTransfer' }
+            examples:
+              cancelled: { summary: Cancelled, value: { id: trf_0010, companyId: co_acme, number: DRAFT-TRF-10, docType: Stock Transfer, date: '2026-09-13', branchId: br_ho, status: Cancelled, currency: INR, rate: 1, partyType: None, fromWarehouseId: wh_main, toWarehouseId: wh_pune, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 0, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 0 }, totalValue: 0, cancelReason: Pune requirement withdrawn, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T10:00:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── stock counts ──────────────────────────────────────────────────────────
+
+/inventory/counts:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Inventory]
+    summary: List stock counts
+    description: Tabs → All · In progress · Awaiting approval · Approved · Posted.
+    operationId: listStockCounts
+    x-permission: inventory.count.view
+    x-frd: [FR-INV-007]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/WarehouseId'
+    responses:
+      '200':
+        description: Counts
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/inventory.yaml#/StockCount' } }
+            examples:
+              firstPage: { summary: Counts, value: { data: [{ id: cnt_0005, companyId: co_acme, number: CNT/2026-27/00005, docType: Stock Count, date: '2026-09-13', branchId: br_ho, status: In Progress, currency: INR, rate: 1, partyType: None, warehouseId: wh_main, warehouseName: Main Warehouse, itemGroup: Steel, frozenAt: '2026-09-13T08:00:00Z', countLines: [], progress: { counted: 3, total: 4 }, netVariance: -398.4, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 0, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 0 }, createdAt: '2026-09-13T08:00:00Z', updatedAt: '2026-09-13T09:00:00Z', version: 4 }], meta: { nextCursor: null, limit: 25, total: 1, counts: { All: 5, 'In progress': 1, 'Awaiting approval': 0, Approved: 0, Posted: 4 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Inventory]
+    summary: Start a count (freezes system quantities)
+    operationId: createStockCount
+    x-permission: inventory.count.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/inventory.yaml#/StockCountCreate' }
+          examples:
+            fullWarehouse: { summary: Whole warehouse, value: { date: '2026-09-13', warehouseId: wh_main } }
+            cycleCount: { summary: Cycle count of a group, value: { date: '2026-09-13', warehouseId: wh_main, itemGroup: Steel } }
+            binCount: { summary: Specific bins, value: { date: '2026-09-13', warehouseId: wh_main, bins: [A-01, A-02] } }
+    responses:
+      '201':
+        description: Count sheet (In Progress)
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/inventory.yaml#/StockCount' }
+            examples:
+              created: { summary: Sheet with frozen quantities, value: { id: cnt_0005, companyId: co_acme, number: CNT/2026-27/00005, docType: Stock Count, date: '2026-09-13', branchId: br_ho, status: In Progress, currency: INR, rate: 1, partyType: None, warehouseId: wh_main, warehouseName: Main Warehouse, itemGroup: Steel, frozenAt: '2026-09-13T08:00:00Z', countLines: [{ id: cl_1, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, uom: KG, batch: B-2609-11, bin: A-01, systemQty: 2690, countedQty: null, rate: 49.8 }, { id: cl_2, itemId: item_stl6, itemCode: STL-6, itemName: Steel Rod 6mm, uom: KG, bin: A-02, systemQty: 800, countedQty: null, rate: 52 }], progress: { counted: 0, total: 2 }, netVariance: 0, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 0, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 0 }, createdAt: '2026-09-13T08:00:00Z', updatedAt: '2026-09-13T08:00:00Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/inventory/counts/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Inventory]
+    summary: Get a count sheet
+    operationId: getStockCount
+    x-permission: inventory.count.view
+    responses:
+      '200':
+        description: Count
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/inventory.yaml#/StockCount' }
+            examples:
+              inProgress: { summary: Partially counted, value: { id: cnt_0005, companyId: co_acme, number: CNT/2026-27/00005, docType: Stock Count, date: '2026-09-13', branchId: br_ho, status: In Progress, currency: INR, rate: 1, partyType: None, warehouseId: wh_main, warehouseName: Main Warehouse, itemGroup: Steel, frozenAt: '2026-09-13T08:00:00Z', countLines: [{ id: cl_1, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, uom: KG, batch: B-2609-11, bin: A-01, systemQty: 2690, countedQty: 2682, rate: 49.8, variance: -8, varianceValue: -398.4, countedBy: Anil Kumar, countedAt: '2026-09-13T08:40:00Z' }, { id: cl_2, itemId: item_stl6, itemCode: STL-6, itemName: Steel Rod 6mm, uom: KG, bin: A-02, systemQty: 800, countedQty: null, rate: 52 }], progress: { counted: 1, total: 2 }, netVariance: -398.4, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 0, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 0 }, createdAt: '2026-09-13T08:00:00Z', updatedAt: '2026-09-13T08:40:00Z', version: 2 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Inventory]
+    summary: Save counted quantities (progress)
+    operationId: updateStockCountLines
+    x-permission: inventory.count.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/inventory.yaml#/CountLinesPatch' }
+          examples:
+            partial: { summary: Enter two lines, value: { expectedVersion: 1, lines: [{ id: cl_1, countedQty: 2682, note: 8 KG less — likely weighing error }, { id: cl_2, countedQty: 800 }] } }
+    responses:
+      '200':
+        description: Updated sheet
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/inventory.yaml#/StockCount' }
+            examples:
+              updated: { summary: Progress saved, value: { id: cnt_0005, companyId: co_acme, number: CNT/2026-27/00005, docType: Stock Count, date: '2026-09-13', branchId: br_ho, status: In Progress, currency: INR, rate: 1, partyType: None, warehouseId: wh_main, itemGroup: Steel, frozenAt: '2026-09-13T08:00:00Z', countLines: [], progress: { counted: 2, total: 2 }, netVariance: -398.4, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 0, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 0 }, createdAt: '2026-09-13T08:00:00Z', updatedAt: '2026-09-13T09:00:00Z', version: 3 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/inventory/counts/{id}/submit:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Inventory]
+    summary: Submit the count (all lines counted) for approval
+    operationId: submitStockCount
+    x-permission: inventory.count.submit
+    x-idempotent: true
+    x-workflow-doc-type: Stock Count
+    x-events: [DocumentSubmitted, DocumentApproved]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Outcome
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/inventory.yaml#/StockCount' }
+            examples:
+              routed: { summary: outcome = routed-for-approval, value: { document: { id: cnt_0005, companyId: co_acme, number: CNT/2026-27/00005, docType: Stock Count, date: '2026-09-13', branchId: br_ho, status: Submitted, currency: INR, rate: 1, partyType: None, warehouseId: wh_main, countLines: [], progress: { counted: 2, total: 2 }, netVariance: -398.4, approvalId: apr_cnt_5, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 0, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 0 }, createdAt: '2026-09-13T08:00:00Z', updatedAt: '2026-09-13T09:10:00Z', version: 4 }, outcome: routed-for-approval, approval: { id: apr_cnt_5, companyId: co_acme, docType: Stock Count, collection: stockCounts, docId: cnt_0005, docNumber: CNT/2026-27/00005, amount: 398.4, currency: INR, branchId: br_ho, requesterId: usr_anil, requesterName: Anil Kumar, steps: [{ order: 1, name: Warehouse manager, approverType: Role, approverRef: role_opsmgr, approverLabel: Operations Manager, status: Pending, commentRequired: false }], currentStep: 0, status: Pending, submittedAt: '2026-09-13T09:10:00Z', history: [], createdAt: '2026-09-13T09:10:00Z', updatedAt: '2026-09-13T09:10:00Z', version: 1 }, warnings: [] } }
+              approved: { summary: outcome = approved, value: { document: { id: cnt_0005, companyId: co_acme, number: CNT/2026-27/00005, docType: Stock Count, date: '2026-09-13', branchId: br_ho, status: Approved, currency: INR, rate: 1, partyType: None, warehouseId: wh_main, countLines: [], progress: { counted: 2, total: 2 }, netVariance: -398.4, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 0, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 0 }, createdAt: '2026-09-13T08:00:00Z', updatedAt: '2026-09-13T09:10:00Z', version: 4 }, outcome: approved, warnings: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Incomplete count
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              incomplete: { summary: Lines not counted, value: { code: INCOMPLETE, message: 1 of 2 lines has no counted quantity, details: { uncounted: [cl_2] }, correlationId: corr_9f1c2e7a } }
+
+/inventory/counts/{id}/approve:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Inventory]
+    summary: Approve / reject the count directly
+    operationId: approveStockCount
+    x-permission: inventory.count.approve
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [decision], properties: { decision: { type: string, enum: [Approved, Rejected] }, comment: { type: string } } }
+          examples:
+            approve: { summary: Approve, value: { decision: Approved, comment: Variance within tolerance } }
+            reject: { summary: Reject (recount), value: { decision: Rejected, comment: Recount bin A-01 — scale was uncalibrated } }
+    responses:
+      '200':
+        description: Decided
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/inventory.yaml#/StockCount' }
+            examples:
+              approved: { summary: Approved, value: { id: cnt_0005, companyId: co_acme, number: CNT/2026-27/00005, docType: Stock Count, date: '2026-09-13', branchId: br_ho, status: Approved, currency: INR, rate: 1, partyType: None, warehouseId: wh_main, countLines: [], progress: { counted: 2, total: 2 }, netVariance: -398.4, approverName: Suresh Patel, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 0, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 0 }, createdAt: '2026-09-13T08:00:00Z', updatedAt: '2026-09-13T09:30:00Z', version: 5 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/inventory/counts/{id}/post-variance:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Inventory]
+    summary: Post the variance as a stock adjustment
+    description: Creates and posts a `Count variance` adjustment for every line with a difference; the count becomes Posted and links the adjustment.
+    operationId: postStockCountVariance
+    x-permission: inventory.count.post
+    x-idempotent: true
+    x-events: [DocumentPosted, StockMoved, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Posted
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/inventory.yaml#/StockCount' }
+                    adjustment: { $ref: '../components/schemas/inventory.yaml#/StockAdjustment' }
+            examples:
+              posted: { summary: Adjustment created and posted, value: { document: { id: cnt_0005, companyId: co_acme, number: CNT/2026-27/00005, docType: Stock Count, date: '2026-09-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: None, warehouseId: wh_main, countLines: [], progress: { counted: 2, total: 2 }, netVariance: -398.4, adjustmentId: adj_0022, adjustmentNumber: ADJ/2026-27/00022, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 0, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 0 }, createdAt: '2026-09-13T08:00:00Z', updatedAt: '2026-09-13T10:00:00Z', version: 6 }, outcome: posted, adjustment: { id: adj_0022, companyId: co_acme, number: ADJ/2026-27/00022, docType: Stock Adjustment, date: '2026-09-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: None, warehouseId: wh_main, adjustmentType: Count variance, reasonCode: ADJ-CNT, reason: Count variance CNT/2026-27/00005, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: -398.4, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: -398.4 }, totalValue: -398.4, countId: cnt_0005, countNumber: CNT/2026-27/00005, journalId: jnl_adj_22, journalNumber: JV/2026-27/00346, postedAt: '2026-09-13T10:00:00Z', postedBy: Suresh Patel, createdAt: '2026-09-13T10:00:00Z', updatedAt: '2026-09-13T10:00:00Z', version: 2 }, stockMovements: [{ id: sm_90, companyId: co_acme, date: '2026-09-13', itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, warehouseId: wh_main, qty: -8, uom: KG, baseQty: -8, batch: B-2609-11, rate: 49.8, value: -398.4, type: Count, sourceType: Stock Adjustment, sourceId: adj_0022, sourceNumber: ADJ/2026-27/00022, balanceAfter: 2682, createdAt: '2026-09-13T10:00:00Z', updatedAt: '2026-09-13T10:00:00Z', version: 1 }], warnings: [] } }
+              noVariance: { summary: Nothing to post, value: { document: { id: cnt_0006, companyId: co_acme, number: CNT/2026-27/00006, docType: Stock Count, date: '2026-09-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: None, warehouseId: wh_pune, countLines: [], progress: { counted: 3, total: 3 }, netVariance: 0, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 0, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 0 }, createdAt: '2026-09-13T08:00:00Z', updatedAt: '2026-09-13T10:00:00Z', version: 5 }, outcome: posted, warnings: ['No variance — no adjustment created'] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+# ── replenishment ─────────────────────────────────────────────────────────
+
+/inventory/replenishment:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Inventory]
+    summary: Reorder suggestions (live)
+    description: "Tabs → All · Out of stock · Below safety stock · Below reorder level · No preferred supplier (`noSupplier=true`)."
+    operationId: listReplenishment
+    x-permission: inventory.stock.view
+    x-frd: [FR-INV-009]
+    parameters:
+      - { name: trigger, in: query, schema: { type: string, enum: [Out of stock, Below safety stock, Below reorder level] } }
+      - { name: noSupplier, in: query, schema: { type: boolean } }
+      - $ref: '../components/parameters.yaml#/WarehouseId'
+    responses:
+      '200':
+        description: Suggestions
+        content:
+          application/json:
+            schema: { type: object, required: [data, totalEstValue], properties: { data: { type: array, items: { $ref: '../components/schemas/inventory.yaml#/ReplenishmentRow' } }, totalEstValue: { type: number } } }
+            examples:
+              rows: { summary: Two items, value: { data: [{ itemId: item_crate, itemCode: CRT-TEA, itemName: Tea Crate, trigger: Below reorder level, onHand: 40, reserved: 0, onOrder: 0, projected: 40, reorderLevel: 100, safetyStock: 50, shortfall: 60, orderQty: 200, estValue: 64000, preferredSupplierId: sup_globalpack, preferredSupplierName: Global Packaging Co, leadTimeDays: 5, needBy: '2026-09-18' }, { itemId: item_grease, itemCode: GRS-1L, itemName: Machine grease 1 L, trigger: Below safety stock, onHand: 8, reserved: 0, onOrder: 0, projected: 8, reorderLevel: 20, safetyStock: 10, shortfall: 12, orderQty: 50, estValue: 12000, leadTimeDays: 3, needBy: '2026-09-16' }], totalEstValue: 76000 } }
+              none: { summary: Nothing to reorder, value: { data: [], totalEstValue: 0 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/inventory/replenishment/create-requisition:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Inventory]
+    summary: Create one requisition from selected suggestions
+    operationId: createRequisitionFromReplenishment
+    x-permission: purchase.requisition.create
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [itemIds], properties: { itemIds: { type: array, minItems: 1, items: { type: string } }, needByDate: { type: string, format: date }, quantities: { type: object, additionalProperties: { type: number } } } }
+          examples:
+            selected: { summary: Two items, value: { itemIds: [item_crate, item_grease], needByDate: '2026-09-20' } }
+    responses:
+      '201':
+        description: Draft requisition
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/Requisition' }
+            examples:
+              created: { $ref: '../components/examples/purchase.yaml#/RequisitionApproved' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/inventory/replenishment/create-purchase-orders:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Inventory]
+    summary: Create Draft POs grouped by preferred supplier
+    operationId: createPosFromReplenishment
+    x-permission: purchase.order.create
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [itemIds], properties: { itemIds: { type: array, minItems: 1, items: { type: string } }, warehouseId: { type: string }, expectedDate: { type: string, format: date } } }
+          examples:
+            selected: { summary: Items with preferred suppliers, value: { itemIds: [item_crate], warehouseId: wh_main, expectedDate: '2026-09-18' } }
+    responses:
+      '201':
+        description: POs created (one per supplier)
+        content:
+          application/json:
+            schema: { type: object, required: [orders, skipped], properties: { orders: { type: array, items: { $ref: '../components/schemas/purchase.yaml#/PurchaseOrder' } }, skipped: { type: array, items: { type: object, properties: { itemId: { type: string }, reason: { type: string } } } } } }
+            examples:
+              created: { summary: "One PO, one skipped", value: { orders: [{ id: po_00126, companyId: co_acme, number: DRAFT-PO-126, docType: Purchase Order, date: '2026-09-13', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: Supplier, partyId: sup_globalpack, partyName: Global Packaging Co, expectedDate: '2026-09-18', warehouseId: wh_main, lines: [], totals: { subtotal: 64000, discount: 0, taxable: 64000, tax: 11520, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 75520, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 75520 }, amendments: [], createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }], skipped: [{ itemId: item_grease, reason: No preferred supplier }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── landed cost ───────────────────────────────────────────────────────────
+
+/inventory/landed-costs:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Inventory]
+    summary: List landed-cost vouchers
+    operationId: listLandedCosts
+    x-permission: inventory.stock.view
+    x-frd: [FR-INV-010]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: grnId, in: query, schema: { type: string } }
+    responses:
+      '200':
+        description: Landed costs
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/inventory.yaml#/LandedCost' } }
+            examples:
+              firstPage: { summary: Landed costs, value: { data: [{ id: lc_0003, companyId: co_acme, number: LC/2026-27/00003, docType: Landed Cost, date: '2026-09-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: None, grnIds: [grn_00080], grnNumbers: [GRN/2026-27/00080], basis: Value, costs: [{ id: lci_1, name: Sea freight, supplierId: sup_transport, amount: 66700, accountId: acc_5030, reference: ST-BL-4471 }], allocations: [{ id: lca_1, grnId: grn_00080, grnNumber: GRN/2026-27/00080, lineId: ln_g40, itemId: item_electrode, itemName: Welding electrode, warehouseId: wh_main, qty: 10000, baseValue: 291970, weight: 0, allocated: 66700, newRate: 35.87 }], totalCost: 66700, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 66700, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 66700 }, journalId: jnl_lc_3, journalNumber: JV/2026-27/00347, postedAt: '2026-09-13T12:00:00Z', postedBy: Rahul Mehta, createdAt: '2026-09-13T11:30:00Z', updatedAt: '2026-09-13T12:00:00Z', version: 2 }], meta: { nextCursor: null, limit: 25, total: 1, counts: { All: 3, Draft: 0, Posted: 3, Reversed: 0 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Inventory]
+    summary: Create a landed-cost voucher (allocations previewed)
+    operationId: createLandedCost
+    x-permission: inventory.stock.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/inventory.yaml#/LandedCostCreate' }
+          examples:
+            byValue: { summary: Freight by value, value: { date: '2026-09-13', grnIds: [grn_00080], basis: Value, costs: [{ name: Sea freight, supplierId: sup_transport, amount: 66700, accountId: acc_5030, reference: ST-BL-4471 }] } }
+            byWeight: { summary: Customs + clearing by weight over two GRNs, value: { date: '2026-09-13', grnIds: [grn_00080, grn_00081], basis: Weight, costs: [{ name: Customs duty, amount: 42000, accountId: acc_5030 }, { name: Clearing agent, supplierId: sup_consult, amount: 8000, accountId: acc_5030 }] } }
+    responses:
+      '201':
+        description: Draft voucher with computed allocations
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/inventory.yaml#/LandedCost' }
+            examples:
+              draft: { summary: Draft, value: { id: lc_0003, companyId: co_acme, number: DRAFT-LC-3, docType: Landed Cost, date: '2026-09-13', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: None, grnIds: [grn_00080], grnNumbers: [GRN/2026-27/00080], basis: Value, costs: [{ id: lci_1, name: Sea freight, supplierId: sup_transport, amount: 66700, accountId: acc_5030, reference: ST-BL-4471 }], allocations: [{ id: lca_1, grnId: grn_00080, grnNumber: GRN/2026-27/00080, lineId: ln_g40, itemId: item_electrode, itemName: Welding electrode, warehouseId: wh_main, qty: 10000, baseValue: 291970, weight: 0, allocated: 66700, newRate: 35.87 }], totalCost: 66700, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 66700, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 66700 }, createdAt: '2026-09-13T11:30:00Z', updatedAt: '2026-09-13T11:30:00Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/inventory/landed-costs/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Inventory]
+    summary: Get a landed-cost voucher
+    operationId: getLandedCost
+    x-permission: inventory.stock.view
+    responses:
+      '200':
+        description: Voucher
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/inventory.yaml#/LandedCost' }
+            examples:
+              posted: { summary: Posted, value: { id: lc_0003, companyId: co_acme, number: LC/2026-27/00003, docType: Landed Cost, date: '2026-09-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: None, grnIds: [grn_00080], grnNumbers: [GRN/2026-27/00080], basis: Value, costs: [{ id: lci_1, name: Sea freight, supplierId: sup_transport, amount: 66700, accountId: acc_5030 }], allocations: [{ id: lca_1, grnId: grn_00080, grnNumber: GRN/2026-27/00080, lineId: ln_g40, itemId: item_electrode, itemName: Welding electrode, warehouseId: wh_main, qty: 10000, baseValue: 291970, weight: 0, allocated: 66700, newRate: 35.87 }], totalCost: 66700, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 66700, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 66700 }, journalId: jnl_lc_3, journalNumber: JV/2026-27/00347, postedAt: '2026-09-13T12:00:00Z', postedBy: Rahul Mehta, createdAt: '2026-09-13T11:30:00Z', updatedAt: '2026-09-13T12:00:00Z', version: 2 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  delete:
+    tags: [Inventory]
+    summary: Delete a Draft voucher
+    operationId: deleteLandedCost
+    x-permission: inventory.stock.edit
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/inventory/landed-costs/{id}/post:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Inventory]
+    summary: Post (revalue stock, Dr inventory / Cr cost accounts)
+    operationId: postLandedCost
+    x-permission: inventory.stock.post
+    x-idempotent: true
+    x-events: [DocumentPosted, StockMoved, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Posted
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/inventory.yaml#/LandedCost' }
+            examples:
+              posted: { summary: Stock revalued, value: { document: { id: lc_0003, companyId: co_acme, number: LC/2026-27/00003, docType: Landed Cost, date: '2026-09-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: None, grnIds: [grn_00080], grnNumbers: [GRN/2026-27/00080], basis: Value, costs: [], allocations: [], totalCost: 66700, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 66700, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 66700 }, journalId: jnl_lc_3, journalNumber: JV/2026-27/00347, postedAt: '2026-09-13T12:00:00Z', postedBy: Rahul Mehta, createdAt: '2026-09-13T11:30:00Z', updatedAt: '2026-09-13T12:00:00Z', version: 2 }, outcome: posted, journal: { id: jnl_lc_3, companyId: co_acme, number: JV/2026-27/00347, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Landed Cost, sourceId: lc_0003, sourceNumber: LC/2026-27/00003, narration: Landed cost LC/2026-27/00003 on GRN/2026-27/00080, lines: [{ id: j1, accountId: acc_1210, accountCode: '1210', accountName: Inventory — Raw Material, dr: 66700, cr: 0, drBase: 66700, crBase: 0, dimensions: {} }, { id: j2, accountId: acc_5030, accountCode: '5030', accountName: Freight inward, dr: 0, cr: 66700, drBase: 0, crBase: 66700, dimensions: {} }], totalDr: 66700, totalCr: 66700, postedAt: '2026-09-13T12:00:00Z', postedBy: Rahul Mehta, correlationId: corr_lc3, createdAt: '2026-09-13T12:00:00Z', updatedAt: '2026-09-13T12:00:00Z', version: 1 }, stockMovements: [{ id: sm_95, companyId: co_acme, date: '2026-09-13', itemId: item_electrode, itemCode: ELEC-3, itemName: Welding electrode, warehouseId: wh_main, qty: 0, uom: NOS, baseQty: 0, rate: 6.67, value: 66700, type: Landed Cost, sourceType: Landed Cost, sourceId: lc_0003, sourceNumber: LC/2026-27/00003, journalId: jnl_lc_3, balanceAfter: 10000, createdAt: '2026-09-13T12:00:00Z', updatedAt: '2026-09-13T12:00:00Z', version: 1 }], warnings: ['AVCO of Welding electrode: 29.20 → 35.87'] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/inventory/landed-costs/{id}/reverse:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Inventory]
+    summary: Reverse a posted landed cost
+    operationId: reverseLandedCost
+    x-permission: inventory.stock.reverse
+    x-idempotent: true
+    x-events: [DocumentReversed, StockReversed, JournalReversed]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Freight invoice was for a different shipment } }
+    responses:
+      '200':
+        description: Reversed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/inventory.yaml#/LandedCost' }
+            examples:
+              reversed: { summary: Reversed, value: { document: { id: lc_0003, companyId: co_acme, number: LC/2026-27/00003, docType: Landed Cost, date: '2026-09-13', branchId: br_ho, status: Reversed, currency: INR, rate: 1, partyType: None, grnIds: [grn_00080], grnNumbers: [GRN/2026-27/00080], basis: Value, costs: [], allocations: [], totalCost: 66700, reversalReason: Freight invoice was for a different shipment, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 66700, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 66700 }, createdAt: '2026-09-13T11:30:00Z', updatedAt: '2026-09-14T09:00:00Z', version: 3 }, outcome: reversed, warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+# ── valuation & settings ──────────────────────────────────────────────────
+
+/inventory/valuation:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Inventory]
+    summary: Valuation (AVCO) with GL reconciliation
+    operationId: getInventoryValuation
+    x-permission: inventory.stock.view
+    x-frd: [FR-INV-008]
+    parameters:
+      - $ref: '../components/parameters.yaml#/AsOf'
+      - $ref: '../components/parameters.yaml#/WarehouseId'
+    responses:
+      '200':
+        description: Valuation
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/inventory.yaml#/ValuationReport' }
+            examples:
+              reconciled: { summary: Ledger ties to GL, value: { asOf: '2026-09-13', rows: [{ itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, warehouseId: wh_main, warehouseName: Main Warehouse, inventoryAccountId: acc_1210, qty: 2682, avgRate: 49.8, standardCost: 50, purchasePrice: 48, value: 133563.6 }, { itemId: item_crate, itemCode: CRT-TEA, itemName: Tea Crate, warehouseId: wh_main, warehouseName: Main Warehouse, inventoryAccountId: acc_1200, qty: 40, avgRate: 318, purchasePrice: 320, value: 12720 }], totalValue: 1842000, reconciliation: [{ accountId: acc_1210, accountName: Inventory — Raw Material, ledgerValue: 1264000, glBalance: 1264000, difference: 0 }, { accountId: acc_1200, accountName: Inventory — Finished Goods, ledgerValue: 578000, glBalance: 578000, difference: 0 }], scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              difference: { summary: GL difference flagged, value: { asOf: '2026-09-13', rows: [], totalValue: 1842000, reconciliation: [{ accountId: acc_1210, accountName: Inventory — Raw Material, ledgerValue: 1264000, glBalance: 1263751, difference: 249 }], scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/inventory/settings:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Inventory]
+    summary: Inventory settings
+    operationId: getInventorySettings
+    x-permission: inventory.stock.view
+    responses:
+      '200':
+        description: Settings
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/inventory.yaml#/InventorySettings' }
+            examples:
+              current: { summary: Current, value: { negativeStockPolicy: Block, valuationMethod: AVCO, transitWarehouseId: wh_transit, scrapWarehouseId: wh_scrap, countTolerancePct: 1 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  put:
+    tags: [Inventory]
+    summary: Update inventory settings
+    description: Valuation method is locked once movements exist (`409 INVALID_STATE`).
+    operationId: updateInventorySettings
+    x-permission: inventory.settings.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/inventory.yaml#/InventorySettings' }
+          examples:
+            warn: { summary: Warn on negative stock, value: { negativeStockPolicy: Warn, countTolerancePct: 2 } }
+            warehouses: { summary: Transit / scrap warehouses, value: { transitWarehouseId: wh_transit, scrapWarehouseId: wh_scrap } }
+    responses:
+      '200':
+        description: Saved
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/inventory.yaml#/InventorySettings' }
+            examples:
+              saved: { summary: Saved, value: { negativeStockPolicy: Warn, valuationMethod: AVCO, transitWarehouseId: wh_transit, scrapWarehouseId: wh_scrap, countTolerancePct: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }

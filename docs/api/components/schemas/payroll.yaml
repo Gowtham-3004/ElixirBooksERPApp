@@ -1,0 +1,358 @@
+# Payroll (src/modules/payroll/types.ts, actions.ts, calc.ts, posting.ts)
+
+PayrollEmployee:
+  type: object
+  description: Payroll view of an employee — statutory identifiers are masked unless revealed (audited).
+  required: [id, code, name, department, designation, status, pf, esi, pt, taxRegime]
+  properties:
+    id: { type: string, example: emp_priya }
+    code: { type: string, example: E-0007 }
+    name: { type: string, example: Priya Sharma }
+    department: { type: string, example: Finance }
+    designation: { type: string, example: Finance Manager }
+    branchId: { type: string }
+    joinDate: { type: string, format: date }
+    status: { type: string, enum: [Active, On Notice, Exited] }
+    pf: { type: boolean }
+    esi: { type: boolean }
+    pt: { type: boolean }
+    taxRegime: { type: string, enum: [Old, New] }
+    panMasked: { type: string, example: 'BNZPS••••K' }
+    uanMasked: { type: string, example: '1001••••••42' }
+    esiNumberMasked: { type: string }
+    bankMasked: { type: string, example: 'HDFC ••••0042' }
+    ctc: { type: number, example: 1440000 }
+    activeStructureId: { type: string }
+
+PayrollEmployeePatch:
+  type: object
+  properties:
+    pf: { type: boolean }
+    esi: { type: boolean }
+    pt: { type: boolean }
+    taxRegime: { type: string, enum: [Old, New] }
+    pan: { type: string, writeOnly: true, pattern: '^[A-Z]{5}[0-9]{4}[A-Z]$', example: BNZPS1234K }
+    uan: { type: string, writeOnly: true, example: '100112345642' }
+    esiNumber: { type: string, writeOnly: true }
+    bankDetail: { $ref: './common.yaml#/BankDetail' }
+
+PayrollEmployeeRevealed:
+  type: object
+  description: Unmasked identifiers; every call is written to the audit log as sensitive.
+  properties:
+    pan: { type: string, example: BNZPS1234K }
+    uan: { type: string, example: '100112345642' }
+    esiNumber: { type: string }
+    bankDetail: { $ref: './common.yaml#/BankDetail' }
+
+SalaryComponent:
+  type: object
+  required: [code, name, type, basis, value]
+  properties:
+    code: { type: string, example: BASIC }
+    name: { type: string, example: Basic }
+    type: { type: string, enum: [Earning, Deduction, EmployerContribution] }
+    basis: { type: string, enum: [Amount, PctOfBasic, PctOfGross] }
+    value: { type: number, example: 50000 }
+    taxable: { type: boolean, default: true }
+
+SalaryStructureInput:
+  type: object
+  properties:
+    employeeId: { type: string, example: emp_priya }
+    effectiveFrom: { type: string, format: date, example: '2026-10-01' }
+    components: { type: array, minItems: 1, items: { $ref: '#/SalaryComponent' } }
+    pf: { type: boolean }
+    esi: { type: boolean }
+    pt: { type: boolean }
+    taxRegime: { type: string, enum: [Old, New] }
+    notes: { type: string }
+
+SalaryStructureCreate:
+  allOf:
+    - $ref: '#/SalaryStructureInput'
+    - { required: [employeeId, effectiveFrom, components, taxRegime] }
+
+SalaryStructure:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/SalaryStructureInput'
+    - type: object
+      required: [employeeId, employeeName, employeeCode, effectiveFrom, structureVersion, components, pf, esi, pt, taxRegime, tdsMonthly, monthlyGross, monthlyCtc, annualCtc, status]
+      properties:
+        employeeName: { type: string, readOnly: true }
+        employeeCode: { type: string, readOnly: true }
+        effectiveTo: { type: string, format: date, readOnly: true }
+        structureVersion: { type: integer, readOnly: true, example: 2 }
+        tdsMonthly: { type: number, readOnly: true, example: 10500 }
+        monthlyGross: { type: number, readOnly: true, example: 110000 }
+        monthlyCtc: { type: number, readOnly: true, example: 120000 }
+        annualCtc: { type: number, readOnly: true, example: 1440000 }
+        status: { type: string, enum: [Active, Superseded, Draft] }
+        supersededById: { type: string, readOnly: true }
+        revisionOfId: { type: string, readOnly: true }
+
+CtcPreviewRequest:
+  type: object
+  required: [components]
+  properties:
+    components: { type: array, items: { $ref: '#/SalaryComponent' } }
+    pf: { type: boolean, default: true }
+    esi: { type: boolean, default: false }
+    pt: { type: boolean, default: true }
+    taxRegime: { type: string, enum: [Old, New], default: New }
+    annualCtc: { type: number, description: "When given without components, standard components are derived (`standardComponents`)." }
+
+CtcPreview:
+  type: object
+  required: [basic, gross, pf, esi, pt, tds, deductions, net, employer, employerPf, employerEsi, monthlyCtc, annualCtc, components]
+  properties:
+    components: { type: array, items: { $ref: '#/SalaryComponent' } }
+    earnings: { type: object, additionalProperties: { type: number } }
+    basic: { type: number, example: 50000 }
+    gross: { type: number, example: 110000 }
+    pf: { type: number, example: 1800 }
+    esi: { type: number, example: 0 }
+    pt: { type: number, example: 200 }
+    tds: { type: number, example: 10500 }
+    deductions: { type: number, example: 12500 }
+    net: { type: number, example: 97500 }
+    employerPf: { type: number, example: 1800 }
+    employerEsi: { type: number, example: 0 }
+    employer: { type: number, example: 1800 }
+    monthlyCtc: { type: number, example: 111800 }
+    annualCtc: { type: number, example: 1341600 }
+
+PayrollInputPatch:
+  type: object
+  properties:
+    workingDays: { type: number, example: 30 }
+    lopDays: { type: number, example: 1 }
+    overtimeHours: { type: number, example: 6 }
+    overtimeAmount: { type: number, example: 2400 }
+    reimbursementClaimIds: { type: array, items: { type: string }, description: Approved expense claims to reimburse via payroll. }
+    bonus: { type: number }
+    arrears: { type: number }
+    loanEmi: { type: number, description: Overrides the scheduled EMI (0 to skip). }
+    otherDeductions: { type: number }
+    otherDeductionNote: { type: string }
+
+PayrollInput:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/PayrollInputPatch'
+    - type: object
+      required: [period, employeeId, employeeName, workingDays, lopDays, overtimeHours, overtimeAmount, reimbursements, reimbursementClaimIds, bonus, arrears, loanEmi, otherDeductions, status]
+      properties:
+        period: { type: string, example: '2026-09' }
+        employeeId: { type: string }
+        employeeName: { type: string, readOnly: true }
+        reimbursements: { type: number, readOnly: true, description: Sum of linked claims. }
+        loanId: { type: string, readOnly: true }
+        status: { type: string, enum: [Draft, Approved, Locked] }
+        approvedBy: { type: string, readOnly: true }
+        approvedAt: { type: string, format: date-time, readOnly: true }
+        lockedByRunId: { type: string, readOnly: true }
+
+PayrollInputsBulkPut:
+  type: object
+  required: [rows]
+  properties:
+    rows: { type: array, items: { allOf: [{ $ref: '#/PayrollInputPatch' }, { type: object, required: [employeeId], properties: { employeeId: { type: string } } }] } }
+
+PayrollLine:
+  type: object
+  required: [employeeId, employeeName, employeeCode, department, workingDays, paidDays, lopDays, earnings, basic, hra, special, otherEarnings, overtime, reimbursements, bonus, arrears, gross, pf, esi, pt, tds, loan, otherDeductions, deductions, net, employerPf, employerEsi]
+  properties:
+    employeeId: { type: string }
+    employeeName: { type: string }
+    employeeCode: { type: string }
+    department: { type: string }
+    departmentDimId: { type: string }
+    costCentreId: { type: string }
+    branchId: { type: string }
+    structureId: { type: string }
+    workingDays: { type: number }
+    paidDays: { type: number }
+    lopDays: { type: number }
+    earnings: { type: object, additionalProperties: { type: number }, example: { BASIC: 50000, HRA: 25000, SPL: 35000 } }
+    basic: { type: number }
+    hra: { type: number }
+    special: { type: number }
+    otherEarnings: { type: number }
+    overtime: { type: number }
+    reimbursements: { type: number }
+    bonus: { type: number }
+    arrears: { type: number }
+    gross: { type: number }
+    pf: { type: number }
+    esi: { type: number }
+    pt: { type: number }
+    tds: { type: number }
+    loan: { type: number }
+    otherDeductions: { type: number }
+    deductions: { type: number }
+    net: { type: number }
+    employerPf: { type: number }
+    employerEsi: { type: number }
+    payslipId: { type: string }
+    bankMasked: { type: string }
+    note: { type: string }
+
+PayrollTotals:
+  type: object
+  properties:
+    basic: { type: number }
+    hra: { type: number }
+    special: { type: number }
+    otherEarnings: { type: number }
+    overtime: { type: number }
+    reimbursements: { type: number }
+    bonus: { type: number }
+    arrears: { type: number }
+    gross: { type: number }
+    pf: { type: number }
+    esi: { type: number }
+    pt: { type: number }
+    tds: { type: number }
+    loan: { type: number }
+    otherDeductions: { type: number }
+    deductions: { type: number }
+    net: { type: number }
+    employerPf: { type: number }
+    employerEsi: { type: number }
+    employerTotal: { type: number }
+
+PayrollRunCreate:
+  type: object
+  required: [period]
+  properties:
+    period: { type: string, example: '2026-09' }
+    type: { type: string, enum: [Regular, Off-cycle], default: Regular }
+    label: { type: string, description: Off-cycle label., example: Diwali bonus }
+    branchId: { type: string }
+    employeeIds: { type: array, items: { type: string }, description: Off-cycle only — subset of employees. }
+
+PayrollRun:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [number, period, fy, type, status, employeeCount, lines, totals]
+      properties:
+        number: { type: string, example: PR/2026-27/00006 }
+        period: { type: string, example: '2026-09' }
+        fy: { type: string, example: '2026-27' }
+        type: { type: string, enum: [Regular, Off-cycle] }
+        label: { type: string }
+        branchId: { type: string }
+        status: { type: string, enum: [Draft, Calculated, Finalized, Posted, Reversed] }
+        employeeCount: { type: integer, example: 24 }
+        lines: { type: array, items: { $ref: '#/PayrollLine' } }
+        totals: { $ref: '#/PayrollTotals' }
+        journalId: { type: string }
+        journalNumber: { type: string }
+        calculatedAt: { type: string, format: date-time }
+        finalizedAt: { type: string, format: date-time }
+        finalizedBy: { type: string }
+        postedAt: { type: string, format: date-time }
+        postedBy: { type: string }
+        reversedById: { type: string }
+        reversalOfId: { type: string }
+        reversalReason: { type: string }
+        bankFileGeneratedAt: { type: string, format: date-time }
+        paymentDate: { type: string, format: date }
+        correlationId: { type: string }
+        notes: { type: string }
+        warnings: { type: array, readOnly: true, items: { type: string }, example: ['E-0012 has no active salary structure — skipped'] }
+
+PayrollPostRequest:
+  type: object
+  properties:
+    paymentDate: { type: string, format: date, example: '2026-09-30' }
+
+Payslip:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [number, runId, runNumber, period, employeeId, employeeName, employeeCode, department, designation, line, status]
+      properties:
+        number: { type: string, example: PS/2026-09/E-0007 }
+        runId: { type: string }
+        runNumber: { type: string }
+        period: { type: string }
+        employeeId: { type: string }
+        employeeName: { type: string }
+        employeeCode: { type: string }
+        department: { type: string }
+        designation: { type: string }
+        panMasked: { type: string }
+        uanMasked: { type: string }
+        bankMasked: { type: string }
+        line: { $ref: '#/PayrollLine' }
+        status: { type: string, enum: [Generated, Emailed, Void] }
+        emailedAt: { type: string, format: date-time }
+        voidReason: { type: string }
+
+LoanScheduleRow:
+  type: object
+  required: [period, emi, principal, interest, balance, status]
+  properties:
+    period: { type: string, example: '2026-10' }
+    emi: { type: number }
+    principal: { type: number }
+    interest: { type: number }
+    balance: { type: number }
+    status: { type: string, enum: [Pending, Recovered, Skipped] }
+    runId: { type: string }
+
+LoanInput:
+  type: object
+  properties:
+    employeeId: { type: string, example: emp_anil }
+    type: { type: string, enum: [Loan, Advance] }
+    principal: { type: number, example: 60000 }
+    interestPct: { type: number, default: 0, example: 0 }
+    months: { type: integer, example: 12 }
+    startPeriod: { type: string, example: '2026-10' }
+    disbursedOn: { type: string, format: date, example: '2026-09-15' }
+    bankAccountId: { type: string, description: Disbursement account (posts Dr Employee loans / Cr bank)., example: acc_1310 }
+    purpose: { type: string, example: Medical emergency }
+
+LoanCreate:
+  allOf:
+    - $ref: '#/LoanInput'
+    - { required: [employeeId, type, principal, months, startPeriod, disbursedOn] }
+
+Loan:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/LoanInput'
+    - type: object
+      required: [number, employeeId, employeeName, type, principal, interestPct, emi, months, startPeriod, balance, recovered, status, schedule]
+      properties:
+        number: { type: string, example: LN/2026-27/00004 }
+        employeeName: { type: string, readOnly: true }
+        emi: { type: number, readOnly: true, example: 5000 }
+        balance: { type: number, readOnly: true, example: 55000 }
+        recovered: { type: number, readOnly: true, example: 5000 }
+        status: { type: string, enum: [Active, Closed] }
+        schedule: { type: array, items: { $ref: '#/LoanScheduleRow' } }
+        journalId: { type: string }
+        journalNumber: { type: string }
+
+StatutoryFiling:
+  type: object
+  required: [key, kind, label, period, employee, employer, total, dueDate, status]
+  properties:
+    key: { type: string, example: 'PF:2026-09' }
+    kind: { type: string, enum: [PF, ESI, PT, TDS] }
+    label: { type: string, example: PF ECR September 2026 }
+    period: { type: string, example: '2026-09' }
+    employee: { type: number, example: 43200 }
+    employer: { type: number, example: 43200 }
+    total: { type: number, example: 86400 }
+    employees: { type: integer, example: 24 }
+    dueDate: { type: string, format: date, example: '2026-10-15' }
+    status: { type: string, enum: [Pending, Overdue, Filed] }
+    filedAt: { type: string, format: date-time }
+    reference: { type: string, description: TRRN / challan number. }

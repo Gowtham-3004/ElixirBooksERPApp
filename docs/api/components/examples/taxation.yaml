@@ -1,0 +1,9 @@
+# Taxation shared examples
+
+Gstr1Filed:
+  summary: GSTR-1 August 2026, Filed
+  value: { id: ret_g1_0808_1, companyId: co_acme, type: GSTR-1, period: '2026-08', fy: '2026-27', registrationId: reg_mh, gstin: 27AAACA1234A1Z5, status: Filed, sections: [{ code: 4A, desc: B2B supplies to registered persons, count: 35, taxable: 3980000, cgst: 358200, sgst: 358200, igst: 0, cess: 0, tax: 716400 }, { code: '7', desc: B2C Small (unregistered), count: 388, taxable: 1490000, cgst: 39800, sgst: 39800, igst: 41000, cess: 0, tax: 120600 }], totals: { taxable: 5470000, cgst: 398000, sgst: 398000, igst: 41000, cess: 0, tax: 837000 }, reconciliation: { registerTax: 837000, ledgerTax: 837000, difference: 0 }, generatedAt: '2026-09-08T10:00:00Z', generatedBy: Priya Sharma, filedAt: '2026-09-09T14:00:00Z', filedBy: Priya Sharma, arn: AA270826123456K, dueDate: '2026-09-11', hasJson: true, createdAt: '2026-09-08T10:00:00Z', updatedAt: '2026-09-09T14:00:00Z', version: 1 }
+
+TdsChallan:
+  summary: 194C deposit challan
+  value: { id: tde_41, companyId: co_acme, kind: Challan, sourceType: Challan, sourceId: jnl_tds_q2, sourceNumber: '0510123456789012', date: '2026-10-05', partyType: Supplier, partyName: Income Tax Department, section: 194C, kindOfTax: TDS, rate: 0, base: 0, amount: 5900, quarter: Q2, fy: '2026-27', challanNo: '0510123456789012', challanDate: '2026-10-05', bsrCode: '0510123', journalId: jnl_tds_q2, journalNumber: DRAFT-JV-421, status: Deposited, createdAt: '2026-10-05T10:00:00Z', updatedAt: '2026-10-05T10:00:00Z', version: 1 }

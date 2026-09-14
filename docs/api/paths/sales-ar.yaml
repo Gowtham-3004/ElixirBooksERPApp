@@ -1,0 +1,1505 @@
+# Sales part 2 (tag: Sales): invoices, credit notes, returns, receipts, AR ageing / collections / statements, settings.
+# src/modules/sales/actions.ts, ar/*
+
+# ── sales invoices ────────────────────────────────────────────────────────
+
+/sales/invoices:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Sales]
+    summary: List sales invoices
+    description: "Tabs → All · Draft (`status=Draft,Returned,Rejected`) · Awaiting approval (`status=Submitted,Approved`) · Posted (`status=Posted,Settled`) · Overdue (`overdue=true`) · Cancelled (`status=Cancelled,Reversed`). Search keys: number, party name, reference, GSTIN. Query examples — `?status=Posted&partyId=cust_arlene` · `?overdue=true` · `?eInvoiceStatus=Pending` · `?dateFrom=2026-09-01&dateTo=2026-09-30&amountMin=100000` · `?view=mine`."
+    operationId: listSalesInvoices
+    x-permission: sales.invoice.view
+    x-frd: [FR-SAL-030]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: overdue, in: query, schema: { type: boolean } }
+      - { name: eInvoiceStatus, in: query, schema: { type: string, enum: [Not Applicable, Pending, Queued, Submitted, Accepted, Rejected, Cancelled, Failed] } }
+      - { name: view, in: query, schema: { type: string, enum: [all, mine, shared] }, description: Saved view — mine = created by me; shared = my branch. }
+      - $ref: '../components/parameters.yaml#/PartyId'
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+      - $ref: '../components/parameters.yaml#/AmountMin'
+      - $ref: '../components/parameters.yaml#/AmountMax'
+      - $ref: '../components/parameters.yaml#/BranchFilter'
+      - $ref: '../components/parameters.yaml#/UpdatedSince'
+    responses:
+      '200':
+        description: Invoices
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/sales.yaml#/SalesInvoice' } }
+                    totals: { type: object, properties: { total: { type: number }, due: { type: number } } }
+            examples:
+              firstPage:
+                summary: Posted tab, page 1
+                value:
+                  data:
+                    - { id: inv_01j8k3, companyId: co_acme, number: INV/2026-27/00042, docType: Sales Invoice, date: '2026-09-13', dueDate: '2026-10-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, reference: PO-ARL-2291, lines: [], totals: { subtotal: 100000, discount: 0, taxable: 100000, tax: 15480, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 115480, paid: 0, credited: 0, writtenOff: 0, due: 115480, baseTotal: 115480 }, statutory: { eInvoiceStatus: Accepted, ewbStatus: Pending }, overdueDays: 0, createdAt: '2026-09-12T15:02:00Z', updatedAt: '2026-09-13T09:12:10Z', version: 7 }
+                    - { id: inv_00031, companyId: co_acme, number: INV/2026-27/00031, docType: Sales Invoice, date: '2026-08-05', dueDate: '2026-09-04', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, lines: [], totals: { subtotal: 42373, discount: 0, taxable: 42373, tax: 7627, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 50000, paid: 0, credited: 0, writtenOff: 0, due: 50000, baseTotal: 50000 }, statutory: { eInvoiceStatus: Accepted, ewbStatus: Not Applicable }, overdueDays: 9, createdAt: '2026-08-05T10:00:00Z', updatedAt: '2026-08-05T10:05:00Z', version: 4 }
+                  totals: { total: 165480, due: 165480 }
+                  meta: { nextCursor: eyJkIjoiMjAyNi0wOC0wNSIsImlkIjoiaW52XzAwMDMxIn0, limit: 25, total: 120, sort: 'date:desc', counts: { All: 142, Draft: 6, 'Awaiting approval': 3, Posted: 120, Overdue: 11, Cancelled: 2 } }
+                  scope: { companyId: co_acme, companyName: Acme Trading Pvt Ltd, branchId: br_ho, period: '2026-09', fy: '2026-27', currency: INR, asOf: '2026-09-13T09:12:04Z' }
+              lastPage:
+                summary: Last page
+                value:
+                  data:
+                    - { id: inv_00001, companyId: co_acme, number: INV/2026-27/00001, docType: Sales Invoice, date: '2026-04-02', dueDate: '2026-05-02', branchId: br_ho, status: Settled, currency: INR, rate: 1, partyType: Customer, partyId: cust_rajesh, partyName: Rajesh Enterprises, lines: [], totals: { subtotal: 20000, discount: 0, taxable: 20000, tax: 3600, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 23600, paid: 23600, credited: 0, writtenOff: 0, due: 0, baseTotal: 23600 }, overdueDays: 0, createdAt: '2026-04-02T10:00:00Z', updatedAt: '2026-04-20T10:00:00Z', version: 5 }
+                  totals: { total: 23600, due: 0 }
+                  meta: { nextCursor: null, limit: 25, total: 120, sort: 'date:desc' }
+                  scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Sales]
+    summary: Create a sales invoice (Draft)
+    description: |
+      Party snapshot, price resolution, tax context (intra/inter-state, treatment, RCM) and totals are computed server-side.
+      Sources: **direct** (no source; moves stock on post when `directInvoiceStock`), **from order** (`sourceType: Sales Order`),
+      **from delivery** (`sourceType: Delivery` — no stock movement on post, delivery marked invoiced). Duplicate customer
+      `reference` warns or blocks per `salesDuplicateRefRule`.
+    operationId: createSalesInvoice
+    x-permission: sales.invoice.create
+    x-events: [DocumentCreated]
+    x-frd: [FR-SAL-031, FR-SAL-032]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/sales.yaml#/SalesInvoiceCreate' }
+          examples:
+            direct: { summary: Direct invoice (stock moves on post), value: { partyId: cust_arlene, date: '2026-09-13', reference: PO-ARL-2291, lines: [{ itemId: item_stl4, qty: 1000, rate: 58, taxRateId: tax_gst18, warehouseId: wh_main, batch: B-2409-07 }, { itemId: item_crate, qty: 100, rate: 420, overrideReason: Negotiated annual contract, taxRateId: tax_gst12, warehouseId: wh_main }] } }
+            fromOrder: { summary: From a sales order (source lines), value: { partyId: cust_arlene, date: '2026-09-13', sourceType: Sales Order, sourceId: so_00087, lines: [{ itemId: item_stl4, qty: 1000, rate: 58, taxRateId: tax_gst18, warehouseId: wh_main, sourceDocId: so_00087, sourceLineId: ln_so_1 }, { itemId: item_crate, qty: 100, rate: 420, taxRateId: tax_gst12, warehouseId: wh_main, sourceDocId: so_00087, sourceLineId: ln_so_2 }] } }
+            fromDeliveries: { summary: Consolidating two deliveries, value: { partyId: cust_arlene, date: '2026-09-13', sourceType: Delivery, sourceId: dlv_00340, deliveryIds: [dlv_00341], lines: [{ itemId: item_crate, qty: 100, rate: 420, taxRateId: tax_gst12, sourceDocId: dlv_00340, sourceLineId: ln_d1 }, { itemId: item_crate, qty: 20, rate: 420, taxRateId: tax_gst12, sourceDocId: dlv_00341, sourceLineId: ln_d2 }] } }
+            foreignCurrency: { summary: USD export (zero-rated), value: { partyId: cust_ustech, date: '2026-09-13', currency: USD, priceListId: pl_usd, reference: USTI-PO-3310, lines: [{ itemId: item_stl4, qty: 5000, rate: 0.72, taxRateId: tax_export, warehouseId: wh_main, batch: B-2409-07 }] } }
+            serviceWithTds: { summary: Service invoice with customer TDS and charges, value: { partyId: cust_globaltech, date: '2026-09-13', tdsSectionId: tds_194j, roundTotal: true, lines: [{ itemId: item_consult, qty: 40, rate: 2500, taxRateId: tax_gst18, dimensions: { Department: dim_dept_consult } }], charges: [{ name: Travel reimbursement, amount: 8000, taxRateId: tax_gst18, accountId: acc_4010 }] } }
+            interStateHeaderDiscount: { summary: Inter-state (IGST) with header discount, value: { partyId: cust_globaltech, date: '2026-09-13', placeOfSupplyCode: '29', headerDiscountPct: 2, lines: [{ itemId: item_chai, qty: 500, rate: 150, taxRateId: tax_gst5, warehouseId: wh_main }] } }
+    responses:
+      '201':
+        description: Draft invoice (totals computed, number pending)
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/SalesInvoice' }
+            examples:
+              draft: { $ref: '../components/examples/sales.yaml#/SalesInvoiceDraft' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Duplicate reference (rule = block), idempotency conflict, or source already fully invoiced
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              duplicateReference: { summary: Reference already used (block rule), value: { code: DUPLICATE_REFERENCE, message: 'Reference "PO-ARL-2291" already used on INV/2026-27/00042', field: reference, details: { existingId: inv_01j8k3 }, correlationId: corr_9f1c2e7a } }
+              sourceExhausted: { summary: Order line already fully invoiced, value: { code: INVALID_STATE, message: 'SO/2026-27/00087 line 1: 1000 of 1000 already invoiced', field: 'lines[0].qty', correlationId: corr_9f1c2e7a } }
+              partyBlocked: { summary: Customer blocked, value: { code: PARTY_BLOCKED, message: Kiran Enterprises is blocked for new business, field: partyId, correlationId: corr_9f1c2e7a } }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/sales/invoices/bulk:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Sales]
+    summary: Bulk submit / cancel drafts
+    operationId: bulkSalesInvoices
+    x-permission: sales.invoice.submit
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/BulkRequest' }
+          examples:
+            submit: { summary: Submit selected drafts, value: { ids: [inv_01j8k3, inv_01j8k7, inv_01j8k9], action: submit } }
+            cancel: { summary: Cancel selected drafts, value: { ids: [inv_01j9a0], action: cancel, reason: Created in error during migration } }
+    responses:
+      '200':
+        description: Per-id results
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/BulkResult' }
+            examples:
+              allSucceeded: { summary: All submitted, value: { requested: 2, succeeded: 2, failed: 0, results: [{ id: inv_01j8k3, ok: true, status: Submitted }, { id: inv_01j8k7, ok: true, status: Posted }] } }
+              partialFailure: { $ref: '../components/examples/common.yaml#/BulkPartialFailure' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/sales/invoices/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Sales]
+    summary: Get a sales invoice
+    description: '`expand=journal,openItems,approval,attachments,receipts,creditNotes` embeds related objects.'
+    operationId: getSalesInvoice
+    x-permission: sales.invoice.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Expand'
+    responses:
+      '200':
+        description: Invoice
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/SalesInvoice' }
+            examples:
+              draft: { $ref: '../components/examples/sales.yaml#/SalesInvoiceDraft' }
+              posted: { $ref: '../components/examples/sales.yaml#/SalesInvoicePosted' }
+              usdExport: { $ref: '../components/examples/sales.yaml#/SalesInvoiceUsd' }
+              reversed: { $ref: '../components/examples/sales.yaml#/SalesInvoiceReversed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Sales]
+    summary: Edit a Draft / Returned / Rejected invoice (autosave)
+    description: Approved invoices whose `materialChangeFields` change go back to Draft and need re-submission. Posted invoices are immutable (`409 INVALID_STATE`).
+    operationId: updateSalesInvoice
+    x-permission: sales.invoice.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/sales.yaml#/SalesInvoicePatch' }
+          examples:
+            fieldsOnly: { summary: Reference + due date, value: { expectedVersion: 1, reference: PO-ARL-2291-A, dueDate: '2026-10-20' } }
+            replaceLines: { summary: Replace lines, value: { expectedVersion: 1, lines: [{ id: ln_1, itemId: item_stl4, qty: 1200, rate: 58, taxRateId: tax_gst18, warehouseId: wh_main, batch: B-2409-07 }] } }
+            addTds: { summary: Add customer TDS section, value: { expectedVersion: 1, tdsSectionId: tds_194c } }
+    responses:
+      '200':
+        description: Updated (totals recomputed)
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/SalesInvoice' }
+            examples:
+              updated: { $ref: '../components/examples/sales.yaml#/SalesInvoiceDraft' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Sales]
+    summary: Delete a Draft invoice
+    operationId: deleteSalesInvoice
+    x-permission: sales.invoice.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/sales/invoices/{id}/submit:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Submit for approval — or post directly when no rule applies
+    description: |
+      Validates, checks the period, runs the credit check (`Block` → `422 CREDIT_BLOCK`; `Override` → exception flag on the
+      approval) and the duplicate-reference rule, then resolves the `Sales Invoice` workflow:
+      - rule matched → `outcome: routed-for-approval`, invoice `Submitted`, `approval` returned;
+      - no rule → `outcome: posted`, identical effects to `POST …/post` (number, journal, stock, open item, statutory pending).
+    operationId: submitSalesInvoice
+    x-permission: sales.invoice.submit
+    x-idempotent: true
+    x-workflow-doc-type: Sales Invoice
+    x-events: [DocumentSubmitted, DocumentPosted, InvoicePosted, JournalPosted, StockMoved]
+    x-frd: [FR-SAL-033, FR-WFL-001]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Outcome
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/InvoiceSubmitResult' }
+            examples:
+              routedForApproval:
+                summary: outcome = routed-for-approval (rule WF-SI-100K matched)
+                value:
+                  outcome: routed-for-approval
+                  invoice: { id: inv_01j8k3, companyId: co_acme, number: DRAFT-8821, docType: Sales Invoice, date: '2026-09-13', dueDate: '2026-10-13', branchId: br_ho, status: Submitted, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, lines: [], totals: { subtotal: 100000, discount: 0, taxable: 100000, tax: 15480, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 115480, paid: 0, credited: 0, writtenOff: 0, due: 115480, baseTotal: 115480 }, submittedAt: '2026-09-12T15:10:00Z', submittedBy: Priya Sharma, approvalId: apr_6c1d, createdAt: '2026-09-12T15:02:00Z', updatedAt: '2026-09-12T15:10:00Z', version: 3 }
+                  creditCheck: { ok: true, mode: Warn, exposure: 245000, limit: 500000, at: '2026-09-12T15:10:00Z' }
+                  approval: { id: apr_6c1d, companyId: co_acme, docType: Sales Invoice, collection: salesInvoices, docId: inv_01j8k3, docNumber: DRAFT-8821, amount: 115480, currency: INR, branchId: br_ho, requesterId: usr_priya, requesterName: Priya Sharma, ruleId: wf_si_100k, ruleName: Sales invoices above ₹1 lakh, ruleVersion: 2, steps: [{ order: 1, name: Finance review, approverType: Role, approverRef: role_finadmin, approverLabel: Finance Admin, status: Pending, commentRequired: false, dueAt: '2026-09-13T15:10:00Z' }], currentStep: 0, status: Pending, submittedAt: '2026-09-12T15:10:00Z', history: [{ at: '2026-09-12T15:10:00Z', by: Priya Sharma, action: Submitted }], summary: 'Arlene Traders · ₹1,15,480', createdAt: '2026-09-12T15:10:00Z', updatedAt: '2026-09-12T15:10:00Z', version: 1 }
+                  warnings: []
+              postedDirectly:
+                summary: outcome = posted (no rule) — journal + stock + open item
+                value:
+                  outcome: posted
+                  invoice: { id: inv_01j8k7, companyId: co_acme, number: INV/2026-27/00045, docType: Sales Invoice, date: '2026-09-13', dueDate: '2026-10-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: Customer, partyId: cust_vimal, partyName: Vimal Stores, lines: [], totals: { subtotal: 30000, discount: 0, taxable: 30000, tax: 1500, components: { CGST: 750, SGST: 750 }, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 31500, paid: 0, credited: 0, writtenOff: 0, due: 31500, baseTotal: 31500 }, journalId: jnl_01j8k8, journalNumber: JV/2026-27/00314, openItemId: oi_11, postedAt: '2026-09-13T09:12:04Z', postedBy: Priya Sharma, statutory: { eInvoiceStatus: Pending, ewbStatus: Not Applicable }, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 3 }
+                  creditCheck: { ok: true, mode: Warn, exposure: 31500, limit: 200000, at: '2026-09-13T09:12:04Z' }
+                  journals:
+                    - { id: jnl_01j8k8, companyId: co_acme, number: JV/2026-27/00314, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Sales Invoice, sourceId: inv_01j8k7, sourceNumber: INV/2026-27/00045, narration: Sales invoice INV/2026-27/00045 · Vimal Stores, lines: [{ id: j1, accountId: acc_1100, accountCode: '1100', accountName: Accounts Receivable, dr: 31500, cr: 0, drBase: 31500, crBase: 0, partyType: Customer, partyId: cust_vimal, partyName: Vimal Stores, dimensions: {} }, { id: j2, accountId: acc_4000, accountCode: '4000', accountName: Sales, dr: 0, cr: 30000, drBase: 0, crBase: 30000, dimensions: {} }, { id: j3, accountId: acc_2300, accountCode: '2300', accountName: GST Output CGST, dr: 0, cr: 750, drBase: 0, crBase: 750, dimensions: {}, taxComponent: CGST }, { id: j4, accountId: acc_2301, accountCode: '2301', accountName: GST Output SGST, dr: 0, cr: 750, drBase: 0, crBase: 750, dimensions: {}, taxComponent: SGST }], totalDr: 31500, totalCr: 31500, idempotencyKey: 'inv:inv_01j8k7:post', postedAt: '2026-09-13T09:12:04Z', postedBy: Priya Sharma, correlationId: corr_k7, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+                    - { id: jnl_01j8k9, companyId: co_acme, number: JV/2026-27/00315, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Sales Invoice, sourceId: inv_01j8k7, sourceNumber: INV/2026-27/00045, narration: COGS for INV/2026-27/00045, lines: [{ id: j5, accountId: acc_5000, accountCode: '5000', accountName: Cost of Goods Sold, dr: 18000, cr: 0, drBase: 18000, crBase: 0, dimensions: {} }, { id: j6, accountId: acc_1200, accountCode: '1200', accountName: Inventory — Finished Goods, dr: 0, cr: 18000, drBase: 0, crBase: 18000, dimensions: {} }], totalDr: 18000, totalCr: 18000, idempotencyKey: 'inv:inv_01j8k7:cogs', postedAt: '2026-09-13T09:12:04Z', postedBy: Priya Sharma, correlationId: corr_k7, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+                  stockMovements: [{ id: sm_20, companyId: co_acme, date: '2026-09-13', itemId: item_chai, itemCode: TEA-CHAI, itemName: Masala Chai 250g, warehouseId: wh_main, qty: -200, uom: NOS, baseQty: -200, rate: 90, value: -18000, type: Delivery, sourceType: Sales Invoice, sourceId: inv_01j8k7, sourceNumber: INV/2026-27/00045, journalId: jnl_01j8k9, balanceAfter: 800, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }]
+                  openItems: [{ id: oi_11, companyId: co_acme, partyType: Customer, partyId: cust_vimal, partyName: Vimal Stores, docType: Sales Invoice, docId: inv_01j8k7, docNumber: INV/2026-27/00045, date: '2026-09-13', dueDate: '2026-10-13', currency: INR, originalAmount: 31500, baseAmount: 31500, rate: 1, outstanding: 31500, baseOutstanding: 31500, direction: Debit, status: Open, settlements: [], branchId: br_ho, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }]
+                  warnings: []
+              postedWithCreditWarning:
+                summary: outcome = posted with a credit warning
+                value:
+                  outcome: posted
+                  invoice: { id: inv_01j8m0, companyId: co_acme, number: INV/2026-27/00046, docType: Sales Invoice, date: '2026-09-13', dueDate: '2026-10-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, lines: [], totals: { subtotal: 300000, discount: 0, taxable: 300000, tax: 54000, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 354000, paid: 0, credited: 0, writtenOff: 0, due: 354000, baseTotal: 354000 }, journalId: jnl_01j8m1, journalNumber: JV/2026-27/00316, openItemId: oi_12, postedAt: '2026-09-13T09:12:04Z', postedBy: Priya Sharma, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 3 }
+                  creditCheck: { ok: true, mode: Warn, exposure: 522000, limit: 500000, message: 'Exposure ₹5,22,000 exceeds credit limit ₹5,00,000', at: '2026-09-13T09:12:04Z' }
+                  warnings: ['Exposure ₹5,22,000 exceeds credit limit ₹5,00,000']
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Credit blocked, stock, serials or validation rules
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              creditBlock: { summary: Customer credit policy Block, value: { code: CREDIT_BLOCK, message: 'Exposure ₹6,45,000 exceeds credit limit ₹5,00,000 (policy Block)', details: { exposure: 645000, limit: 500000, mode: Block }, correlationId: corr_9f1c2e7a } }
+              negativeStock: { summary: Insufficient stock on a line, value: { code: NEGATIVE_STOCK, message: 'Insufficient stock for Steel Rod 4mm: on hand 120 KG, invoice needs 1000', field: lines, correlationId: corr_9f1c2e7a } }
+              serialRequired: { summary: Serial numbers missing, value: { code: SERIAL_REQUIRED, message: 'Steel Frame A1 is serial-tracked: 2 serial numbers required', field: lines, correlationId: corr_9f1c2e7a } }
+              duplicateReference: { summary: Duplicate customer reference (block rule), value: { code: DUPLICATE_REFERENCE, message: 'Reference "PO-ARL-2291" already used on INV/2026-27/00042', field: reference, correlationId: corr_9f1c2e7a } }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/sales/invoices/{id}/post:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Post an Approved (or workflow-free Draft) invoice
+    description: |
+      Atomic (FR-SAL-033): allocate number → post sales journal (AR / revenue / tax) → issue stock for direct invoices
+      (batch / serial validated; negative-stock policy) → post COGS journal → update source order/delivery quantities →
+      create the AR open item → set statutory readiness (`eInvoiceStatus: Pending` for registered Indian customers,
+      `ewbStatus: Pending` for goods ≥ ₹50,000). Idempotent on `inv:<id>:post`; re-posting a Posted invoice returns it unchanged.
+      A Draft that needs approval → `422 WORKFLOW_REQUIRED`.
+    operationId: postSalesInvoice
+    x-permission: sales.invoice.post
+    x-idempotent: true
+    x-events: [DocumentPosted, InvoicePosted, JournalPosted, StockMoved]
+    x-frd: [FR-SAL-033, FR-INV-008]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Posted
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/sales.yaml#/SalesInvoice' }
+            examples:
+              withStockAndCogs:
+                summary: Direct goods invoice — sales journal + COGS journal + stock issue + open item
+                value:
+                  document: { id: inv_01j8k3, companyId: co_acme, number: INV/2026-27/00042, docType: Sales Invoice, date: '2026-09-13', dueDate: '2026-10-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, lines: [], totals: { subtotal: 100000, discount: 0, taxable: 100000, tax: 15480, components: { CGST: 7740, SGST: 7740 }, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 115480, paid: 0, credited: 0, writtenOff: 0, due: 115480, baseTotal: 115480 }, journalId: jnl_01j8k4, journalNumber: JV/2026-27/00311, openItemId: oi_2, postedAt: '2026-09-13T09:12:04Z', postedBy: Rahul Mehta, statutory: { eInvoiceStatus: Pending, ewbStatus: Pending }, idempotencyKey: 'inv:inv_01j8k3:post', createdAt: '2026-09-12T15:02:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 6 }
+                  outcome: posted
+                  journals:
+                    - { id: jnl_01j8k4, companyId: co_acme, number: JV/2026-27/00311, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Sales Invoice, sourceId: inv_01j8k3, sourceNumber: INV/2026-27/00042, narration: Sales invoice INV/2026-27/00042 · Arlene Traders, lines: [{ id: j1, accountId: acc_1100, accountCode: '1100', accountName: Accounts Receivable, dr: 115480, cr: 0, drBase: 115480, crBase: 0, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, dimensions: {} }, { id: j2, accountId: acc_4000, accountCode: '4000', accountName: Sales, dr: 0, cr: 100000, drBase: 0, crBase: 100000, dimensions: {} }, { id: j3, accountId: acc_2300, accountCode: '2300', accountName: GST Output CGST, dr: 0, cr: 7740, drBase: 0, crBase: 7740, dimensions: {}, taxComponent: CGST }, { id: j4, accountId: acc_2301, accountCode: '2301', accountName: GST Output SGST, dr: 0, cr: 7740, drBase: 0, crBase: 7740, dimensions: {}, taxComponent: SGST }], totalDr: 115480, totalCr: 115480, idempotencyKey: 'inv:inv_01j8k3:post', postedAt: '2026-09-13T09:12:04Z', postedBy: Rahul Mehta, correlationId: corr_9f1c2e7a, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+                    - { id: jnl_01j8k5, companyId: co_acme, number: JV/2026-27/00312, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Sales Invoice, sourceId: inv_01j8k3, sourceNumber: INV/2026-27/00042, narration: COGS for INV/2026-27/00042, lines: [{ id: j5, accountId: acc_5000, accountCode: '5000', accountName: Cost of Goods Sold, dr: 81600, cr: 0, drBase: 81600, crBase: 0, dimensions: {} }, { id: j6, accountId: acc_1210, accountCode: '1210', accountName: Inventory — Raw Material, dr: 0, cr: 49800, drBase: 0, crBase: 49800, dimensions: {} }, { id: j7, accountId: acc_1200, accountCode: '1200', accountName: Inventory — Finished Goods, dr: 0, cr: 31800, drBase: 0, crBase: 31800, dimensions: {} }], totalDr: 81600, totalCr: 81600, idempotencyKey: 'inv:inv_01j8k3:cogs', postedAt: '2026-09-13T09:12:04Z', postedBy: Rahul Mehta, correlationId: corr_9f1c2e7a, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+                  stockMovements:
+                    - { id: sm_21, companyId: co_acme, date: '2026-09-13', itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, warehouseId: wh_main, qty: -1000, uom: KG, baseQty: -1000, batch: B-2409-07, rate: 49.8, value: -49800, type: Delivery, sourceType: Sales Invoice, sourceId: inv_01j8k3, sourceNumber: INV/2026-27/00042, journalId: jnl_01j8k5, balanceAfter: 240, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+                    - { id: sm_22, companyId: co_acme, date: '2026-09-13', itemId: item_crate, itemCode: CRT-TEA, itemName: Tea Crate, warehouseId: wh_main, qty: -100, uom: NOS, baseQty: -100, rate: 318, value: -31800, type: Delivery, sourceType: Sales Invoice, sourceId: inv_01j8k3, sourceNumber: INV/2026-27/00042, journalId: jnl_01j8k5, balanceAfter: 20, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+                  openItems: [{ id: oi_2, companyId: co_acme, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, docType: Sales Invoice, docId: inv_01j8k3, docNumber: INV/2026-27/00042, date: '2026-09-13', dueDate: '2026-10-13', currency: INR, originalAmount: 115480, baseAmount: 115480, rate: 1, outstanding: 115480, baseOutstanding: 115480, direction: Debit, status: Open, settlements: [], branchId: br_ho, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }]
+                  warnings: []
+              serviceOnly:
+                summary: Service invoice — single journal, no stock
+                value:
+                  document: { id: inv_01j8s1, companyId: co_acme, number: INV/2026-27/00047, docType: Sales Invoice, date: '2026-09-13', dueDate: '2026-10-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: Customer, partyId: cust_globaltech, partyName: GlobalTech Solutions, tdsSectionId: tds_194j, lines: [], totals: { subtotal: 100000, discount: 0, taxable: 108000, tax: 19440, components: { CGST: 9720, SGST: 9720 }, breakup: [], charges: 8000, tds: 10000, tdsSection: 194J, roundOff: 0, total: 127440, paid: 0, credited: 0, writtenOff: 0, due: 127440, baseTotal: 127440 }, journalId: jnl_01j8s2, journalNumber: JV/2026-27/00317, openItemId: oi_13, postedAt: '2026-09-13T09:12:04Z', postedBy: Rahul Mehta, statutory: { eInvoiceStatus: Pending, ewbStatus: Not Applicable }, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 3 }
+                  outcome: posted
+                  journal: { id: jnl_01j8s2, companyId: co_acme, number: JV/2026-27/00317, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Sales Invoice, sourceId: inv_01j8s1, sourceNumber: INV/2026-27/00047, narration: Sales invoice INV/2026-27/00047 · GlobalTech Solutions, lines: [{ id: j1, accountId: acc_1100, accountCode: '1100', accountName: Accounts Receivable, dr: 127440, cr: 0, drBase: 127440, crBase: 0, partyType: Customer, partyId: cust_globaltech, partyName: GlobalTech Solutions, dimensions: {} }, { id: j2, accountId: acc_4010, accountCode: '4010', accountName: Service revenue, dr: 0, cr: 108000, drBase: 0, crBase: 108000, dimensions: { Department: dim_dept_consult } }, { id: j3, accountId: acc_2300, accountCode: '2300', accountName: GST Output CGST, dr: 0, cr: 9720, drBase: 0, crBase: 9720, dimensions: {}, taxComponent: CGST }, { id: j4, accountId: acc_2301, accountCode: '2301', accountName: GST Output SGST, dr: 0, cr: 9720, drBase: 0, crBase: 9720, dimensions: {}, taxComponent: SGST }], totalDr: 127440, totalCr: 127440, idempotencyKey: 'inv:inv_01j8s1:post', postedAt: '2026-09-13T09:12:04Z', postedBy: Rahul Mehta, correlationId: corr_s1, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+                  openItems: [{ id: oi_13, companyId: co_acme, partyType: Customer, partyId: cust_globaltech, partyName: GlobalTech Solutions, docType: Sales Invoice, docId: inv_01j8s1, docNumber: INV/2026-27/00047, date: '2026-09-13', dueDate: '2026-10-13', currency: INR, originalAmount: 127440, baseAmount: 127440, rate: 1, outstanding: 127440, baseOutstanding: 127440, direction: Debit, status: Open, settlements: [], branchId: br_ho, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }]
+                  warnings: ['Customer will deduct TDS 194J ₹10,000 — expect a short receipt']
+              alreadyPosted:
+                summary: Replay — already Posted, returned unchanged
+                value:
+                  document: { id: inv_01j8k3, companyId: co_acme, number: INV/2026-27/00042, docType: Sales Invoice, date: '2026-09-13', dueDate: '2026-10-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, lines: [], totals: { subtotal: 100000, discount: 0, taxable: 100000, tax: 15480, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 115480, paid: 0, credited: 0, writtenOff: 0, due: 115480, baseTotal: 115480 }, journalId: jnl_01j8k4, journalNumber: JV/2026-27/00311, openItemId: oi_2, postedAt: '2026-09-13T09:12:04Z', postedBy: Rahul Mehta, createdAt: '2026-09-12T15:02:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 6 }
+                  outcome: already-posted
+                  warnings: ['Invoice was already posted at 2026-09-13T09:12:04Z — no changes made']
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Business rule failed — nothing written
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              workflowRequired: { summary: Draft needs approval first, value: { code: WORKFLOW_REQUIRED, message: This invoice requires approval — submit it for approval first, details: { rule: WF-SI-100K }, correlationId: corr_9f1c2e7a } }
+              creditBlock: { summary: Credit blocked, value: { code: CREDIT_BLOCK, message: 'Exposure ₹6,45,000 exceeds credit limit ₹5,00,000 (policy Block)', correlationId: corr_9f1c2e7a } }
+              negativeStock: { summary: Insufficient stock, value: { code: NEGATIVE_STOCK, message: 'Insufficient stock for Steel Rod 4mm: on hand 120 KG, invoice needs 1000', field: lines, correlationId: corr_9f1c2e7a } }
+              unbalanced: { summary: Account mapping produced an unbalanced journal, value: { code: UNBALANCED, message: Debits 115480.00 do not equal credits 115479.00 — check round-off account mapping, correlationId: corr_9f1c2e7a } }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/sales/invoices/{id}/reverse:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Reverse a posted invoice (linked reversal document)
+    description: |
+      Blocked when receipts/credits are allocated, a posted credit note exists, or the IRN is older than 24 h
+      (`409 INVALID_STATE` with the reason). Cancels IRN / e-Way bill when present, reverses the sales and COGS journals,
+      restores stock, settles the open item, rolls back source quantities and creates a **negative-line reversal invoice**
+      (`reversalOfId`). The original goes `Reversed` (`reversedById`). Reversal date must be in an open period.
+    operationId: reverseSalesInvoice
+    x-permission: sales.invoice.reverse
+    x-idempotent: true
+    x-events: [DocumentReversed, JournalReversed, StockReversed, StatutorySubmissionCancelled]
+    x-frd: [FR-SAL-035]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { $ref: '../components/examples/common.yaml#/ReasonReverse' }
+            dated: { $ref: '../components/examples/common.yaml#/ReasonReverseDated' }
+    responses:
+      '200':
+        description: Reversed — returns the reversal document plus the original
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  required: [original]
+                  properties:
+                    document: { $ref: '../components/schemas/sales.yaml#/SalesInvoice', description: The reversal invoice (negative lines). }
+                    original: { $ref: '../components/schemas/sales.yaml#/SalesInvoice' }
+            examples:
+              reversed:
+                summary: Reversal document created, original marked Reversed
+                value:
+                  document: { id: inv_01j9x1, companyId: co_acme, number: INV/2026-27/00051, docType: Sales Invoice, date: '2026-09-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, reversalOfId: inv_01j8k3, reversalReason: Customer returned the full consignment on 12 Sep (RMA-118), lines: [{ id: ln_r1, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, hsn: '7214', qty: -1000, uom: KG, rate: 58, discountPct: 0, discountAmt: 0, taxable: -58000, taxRateId: tax_gst18, taxRate: 18, taxAmt: -10440, taxComponents: { CGST: -5220, SGST: -5220 }, amount: -68440, warehouseId: wh_main, batch: B-2409-07 }], totals: { subtotal: -100000, discount: 0, taxable: -100000, tax: -15480, components: { CGST: -7740, SGST: -7740 }, breakup: [], charges: 0, tds: 0, roundOff: 0, total: -115480, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: -115480 }, journalId: jnl_01j9x2, journalNumber: JV/2026-27/00330, postedAt: '2026-09-13T11:00:00Z', postedBy: Rahul Mehta, statutory: { eInvoiceStatus: Not Applicable, ewbStatus: Not Applicable }, idempotencyKey: 'inv:inv_01j8k3:reverse', createdAt: '2026-09-13T11:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 1 }
+                  original: { $ref: '#/components/examples/SalesInvoiceReversed/value' }
+                  outcome: reversed
+                  journals:
+                    - { id: jnl_01j9x2, companyId: co_acme, number: JV/2026-27/00330, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Reversal, sourceType: Sales Invoice, sourceId: inv_01j8k3, sourceNumber: INV/2026-27/00042, narration: Reversal of JV/2026-27/00311, lines: [], totalDr: 115480, totalCr: 115480, reversalOfId: jnl_01j8k4, reversalReason: Customer returned the full consignment on 12 Sep (RMA-118), postedAt: '2026-09-13T11:00:00Z', postedBy: Rahul Mehta, correlationId: corr_9f1c2e7a, createdAt: '2026-09-13T11:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 1 }
+                    - { id: jnl_01j9x3, companyId: co_acme, number: JV/2026-27/00331, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Reversal, sourceType: Sales Invoice, sourceId: inv_01j8k3, sourceNumber: INV/2026-27/00042, narration: Reversal of COGS JV/2026-27/00312, lines: [], totalDr: 81600, totalCr: 81600, reversalOfId: jnl_01j8k5, postedAt: '2026-09-13T11:00:00Z', postedBy: Rahul Mehta, correlationId: corr_9f1c2e7a, createdAt: '2026-09-13T11:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 1 }
+                  stockMovements: [{ id: sm_30, companyId: co_acme, date: '2026-09-13', itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, warehouseId: wh_main, qty: 1000, uom: KG, baseQty: 1000, batch: B-2409-07, rate: 49.8, value: 49800, type: Sales Return, sourceType: Sales Invoice Reversal, sourceId: inv_01j8k3, sourceNumber: INV/2026-27/00051, reversalOfId: sm_21, balanceAfter: 1240, createdAt: '2026-09-13T11:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 1 }]
+                  openItems: [{ id: oi_2, companyId: co_acme, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, docType: Sales Invoice, docId: inv_01j8k3, docNumber: INV/2026-27/00042, date: '2026-09-13', dueDate: '2026-10-13', currency: INR, originalAmount: 115480, baseAmount: 115480, rate: 1, outstanding: 0, baseOutstanding: 0, direction: Debit, status: Settled, settlements: [{ id: st_1, date: '2026-09-13', docType: Sales Invoice Reversal, docId: inv_01j8k3, docNumber: INV/2026-27/00051, amount: 115480, baseAmount: 115480, rate: 1, fxGainLoss: 0 }], branchId: br_ho, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T11:00:00Z', version: 2 }]
+                  integrationLogId: ilog_irn_cancel_1
+                  warnings: ['IRN cancelled at IRP (within 24 h)']
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Cannot reverse in the current state
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              hasReceipts: { summary: Receipts allocated, value: { code: INVALID_STATE, message: Receipts or credits are allocated to this invoice — reverse those first, details: { settlements: 1 }, correlationId: corr_9f1c2e7a } }
+              irnTooOld: { summary: IRN older than 24 h, value: { code: INVALID_STATE, message: IRN is older than 24 h and cannot be cancelled — issue a credit note instead, correlationId: corr_9f1c2e7a } }
+              creditNoteExists: { summary: Posted credit note exists, value: { code: INVALID_STATE, message: Credit note CN/2026-27/00012 exists against this invoice, correlationId: corr_9f1c2e7a } }
+              alreadyReversed: { summary: Already reversed, value: { code: ALREADY_REVERSED, message: Invoice INV/2026-27/00035 was already reversed by INV/2026-27/00051, correlationId: corr_9f1c2e7a } }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+      '502': { $ref: '../components/responses.yaml#/ProviderError' }
+
+/sales/invoices/{id}/cancel:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Cancel a non-posted invoice (voids the number if allocated)
+    description: Posted invoices cannot be cancelled — reverse instead. A pending approval is cancelled with the document.
+    operationId: cancelSalesInvoice
+    x-permission: sales.invoice.edit
+    x-events: [DocumentCancelled]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            cancel: { $ref: '../components/examples/common.yaml#/ReasonCancel' }
+    responses:
+      '200':
+        description: Cancelled
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/SalesInvoice' }
+            examples:
+              cancelled: { summary: Cancelled draft, value: { id: inv_01j9a0, companyId: co_acme, number: DRAFT-8830, docType: Sales Invoice, date: '2026-09-13', branchId: br_ho, status: Cancelled, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, lines: [], totals: { subtotal: 100000, discount: 0, taxable: 100000, tax: 15480, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 115480, paid: 0, credited: 0, writtenOff: 0, due: 115480, baseTotal: 115480 }, cancelReason: Raised against the wrong customer account — re-issued as INV/2026-27/00044, createdAt: '2026-09-13T09:30:00Z', updatedAt: '2026-09-13T10:00:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/sales/invoices/{id}/write-off:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Write off the outstanding balance to bad debts
+    operationId: writeOffSalesInvoice
+    x-permission: sales.invoice.post
+    x-idempotent: true
+    x-events: [JournalPosted]
+    x-frd: [FR-SAL-034]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/common.yaml#/Reason'
+              - { properties: { amount: { type: number, description: Partial write-off (default full outstanding). }, accountId: { type: string, description: Bad-debts account (default company setting). } } }
+          examples:
+            full: { summary: Full outstanding, value: { reason: Customer insolvent — NCLT order dated 5 Sep 2026 } }
+            partial: { summary: Partial (short payment agreed), value: { reason: Settled at 95% per negotiation, amount: 5774 } }
+    responses:
+      '200':
+        description: Written off
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/sales.yaml#/SalesInvoice' }
+            examples:
+              writtenOff: { summary: Full write-off posted, value: { document: { id: inv_00031, companyId: co_acme, number: INV/2026-27/00031, docType: Sales Invoice, date: '2026-08-05', dueDate: '2026-09-04', branchId: br_ho, status: Settled, currency: INR, rate: 1, partyType: Customer, partyId: cust_kiran, partyName: Kiran Enterprises, lines: [], totals: { subtotal: 42373, discount: 0, taxable: 42373, tax: 7627, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 50000, paid: 0, credited: 0, writtenOff: 50000, due: 0, baseTotal: 50000 }, writeOffReason: Customer insolvent — NCLT order dated 5 Sep 2026, createdAt: '2026-08-05T10:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 5 }, outcome: written-off, journal: { id: jnl_wo_1, companyId: co_acme, number: JV/2026-27/00335, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Sales Invoice, sourceId: inv_00031, sourceNumber: INV/2026-27/00031, narration: Write-off INV/2026-27/00031, lines: [{ id: j1, accountId: acc_5590, accountCode: '5590', accountName: Bad debts, dr: 50000, cr: 0, drBase: 50000, crBase: 0, dimensions: {} }, { id: j2, accountId: acc_1100, accountCode: '1100', accountName: Accounts Receivable, dr: 0, cr: 50000, drBase: 0, crBase: 50000, partyType: Customer, partyId: cust_kiran, partyName: Kiran Enterprises, dimensions: {} }], totalDr: 50000, totalCr: 50000, postedAt: '2026-09-13T09:12:04Z', postedBy: Rahul Mehta, correlationId: corr_9f1c2e7a, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }, openItems: [{ id: oi_1, companyId: co_acme, partyType: Customer, partyId: cust_kiran, partyName: Kiran Enterprises, docType: Sales Invoice, docId: inv_00031, docNumber: INV/2026-27/00031, date: '2026-08-05', dueDate: '2026-09-04', currency: INR, originalAmount: 50000, baseAmount: 50000, rate: 1, outstanding: 0, baseOutstanding: 0, direction: Debit, status: Written Off, settlements: [], branchId: br_ho, createdAt: '2026-08-05T10:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 }], warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/sales/invoices/{id}/apply-credit:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Apply an unapplied credit / advance to this invoice
+    operationId: applyCreditToInvoice
+    x-permission: sales.receipt.post
+    x-idempotent: true
+    x-events: [ReceiptAllocated]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/sales.yaml#/ApplyCreditRequest' }
+          examples:
+            creditNote: { summary: Apply a credit-note balance, value: { creditOpenItemId: oi_cn_7, amount: 9408 } }
+            advance: { summary: Apply a customer advance, value: { creditOpenItemId: oi_adv_3, amount: 45750 } }
+    responses:
+      '200':
+        description: Applied
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/sales.yaml#/SalesInvoice' }
+            examples:
+              applied: { summary: Invoice partly settled, value: { document: { id: inv_01j8k3, companyId: co_acme, number: INV/2026-27/00042, docType: Sales Invoice, date: '2026-09-13', dueDate: '2026-10-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, lines: [], totals: { subtotal: 100000, discount: 0, taxable: 100000, tax: 15480, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 115480, paid: 0, credited: 9408, writtenOff: 0, due: 106072, baseTotal: 115480 }, openItemId: oi_2, createdAt: '2026-09-12T15:02:00Z', updatedAt: '2026-09-13T12:30:00Z', version: 8 }, outcome: applied, openItems: [{ id: oi_2, companyId: co_acme, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, docType: Sales Invoice, docId: inv_01j8k3, docNumber: INV/2026-27/00042, date: '2026-09-13', dueDate: '2026-10-13', currency: INR, originalAmount: 115480, baseAmount: 115480, rate: 1, outstanding: 106072, baseOutstanding: 106072, direction: Debit, status: Partially Settled, settlements: [{ id: st_2, date: '2026-09-13', docType: Credit Note, docId: cn_00012, docNumber: CN/2026-27/00012, amount: 9408, baseAmount: 9408, rate: 1, fxGainLoss: 0 }], branchId: br_ho, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T12:30:00Z', version: 3 }, { id: oi_cn_7, companyId: co_acme, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, docType: Credit Note, docId: cn_00012, docNumber: CN/2026-27/00012, date: '2026-09-13', dueDate: '2026-09-13', currency: INR, originalAmount: 9408, baseAmount: 9408, rate: 1, outstanding: 0, baseOutstanding: 0, direction: Credit, status: Settled, settlements: [], branchId: br_ho, createdAt: '2026-09-13T12:00:00Z', updatedAt: '2026-09-13T12:30:00Z', version: 2 }], warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/sales/invoices/{id}/e-invoice:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Generate the IRN at the IRP
+    description: Checks readiness (`GET` the document's `statutory` / `422 EINV_NOT_READY` with issues), submits with an idempotency key, stores request/response in the integration log and, on acceptance, the signed PDF as a statutory attachment.
+    operationId: generateInvoiceIrn
+    x-permission: taxation.einvoice.create
+    x-idempotent: true
+    x-events: [StatutorySubmissionAccepted, StatutorySubmissionRejected]
+    x-frd: [FR-TAX-010]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: IRP response
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/StatutoryResult' }
+            examples:
+              accepted: { summary: Accepted — IRN issued, value: { document: { id: inv_01j8k3, number: INV/2026-27/00042, status: Posted }, statutory: { irn: 35054cc24d97033afc24f49ec4444dbab81f542c999a4f3f4e7a6f6a4a5b1c2d, ackNo: '112010036563789', ackDate: '2026-09-13T09:12:10Z', eInvoiceStatus: Accepted, eInvoiceSubmittedAt: '2026-09-13T09:12:05Z', ewbStatus: Pending }, integrationLog: { id: ilog_5f2a, companyId: co_acme, provider: IRP, action: GenerateIRN, objectType: Sales Invoice, objectId: inv_01j8k3, objectNumber: INV/2026-27/00042, requestFingerprint: 'sha256:1b7d', idempotencyKey: 'inv_01j8k3:irn:1', request: { Version: '1.1', DocDtls: { Typ: INV, No: INV/2026-27/00042, Dt: 13/09/2026 } }, response: { Irn: 35054cc24d97033afc24f49ec4444dbab81f542c999a4f3f4e7a6f6a4a5b1c2d, AckNo: '112010036563789' }, status: Accepted, providerRef: '112010036563789', at: '2026-09-13T09:12:10Z', correlationId: corr_9f1c2e7a, createdAt: '2026-09-13T09:12:10Z', updatedAt: '2026-09-13T09:12:10Z', version: 1 }, attachment: { $ref: '#/components/examples/AttachmentStatutory/value' } } }
+              rejected: { summary: "Rejected by IRP (recorded, retry allowed)", value: { document: { id: inv_01j8k7, number: INV/2026-27/00045, status: Posted }, statutory: { eInvoiceStatus: Rejected, eInvoiceError: '2150 Duplicate IRN', eInvoiceSubmittedAt: '2026-09-13T09:15:00Z' }, integrationLog: { id: ilog_5f2c, companyId: co_acme, provider: IRP, action: GenerateIRN, objectType: Sales Invoice, objectId: inv_01j8k7, objectNumber: INV/2026-27/00045, requestFingerprint: 'sha256:c0de', idempotencyKey: 'inv_01j8k7:irn:1', request: {}, response: { ErrorDetails: [{ ErrorCode: '2150', ErrorMessage: Duplicate IRN }] }, status: Rejected, errorCode: '2150', errorMessage: Duplicate IRN, at: '2026-09-13T09:15:00Z', correlationId: corr_r1, createdAt: '2026-09-13T09:15:00Z', updatedAt: '2026-09-13T09:15:00Z', version: 1 } } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '502': { $ref: '../components/responses.yaml#/ProviderError' }
+  delete:
+    tags: [Sales]
+    summary: Cancel the IRN (within 24 h)
+    operationId: cancelInvoiceIrn
+    x-permission: taxation.einvoice.edit
+    x-events: [StatutorySubmissionCancelled]
+    parameters:
+      - { name: reason, in: query, required: true, schema: { type: string }, example: Wrong buyer GSTIN — re-issuing }
+    responses:
+      '200':
+        description: Cancelled
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/StatutoryResult' }
+            examples:
+              cancelled: { summary: IRN cancelled, value: { document: { id: inv_01j8k3, number: INV/2026-27/00042, status: Posted }, statutory: { irn: 35054cc24d97033afc24f49ec4444dbab81f542c999a4f3f4e7a6f6a4a5b1c2d, eInvoiceStatus: Cancelled, eInvoiceCancelledAt: '2026-09-13T12:00:00Z' }, integrationLog: { id: ilog_irn_cancel_1, companyId: co_acme, provider: IRP, action: CancelIRN, objectType: Sales Invoice, objectId: inv_01j8k3, requestFingerprint: 'sha256:cc11', idempotencyKey: 'inv_01j8k3:irn-cancel:1', request: { Irn: 35054cc24d97033afc24f49ec4444dbab81f542c999a4f3f4e7a6f6a4a5b1c2d, CnlRsn: '1', CnlRem: Wrong buyer GSTIN }, response: { CancelDate: '2026-09-13 17:30:00' }, status: Accepted, at: '2026-09-13T12:00:00Z', correlationId: corr_9f1c2e7a, createdAt: '2026-09-13T12:00:00Z', updatedAt: '2026-09-13T12:00:00Z', version: 1 } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '502': { $ref: '../components/responses.yaml#/ProviderError' }
+
+/sales/invoices/{id}/eway-bill:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Generate an e-Way bill for the invoice
+    description: "Only for invoices with goods lines ≥ the threshold (`ewbStatus: Pending`); otherwise `422 EWB_NOT_REQUIRED`."
+    operationId: generateInvoiceEwayBill
+    x-permission: taxation.einvoice.create
+    x-idempotent: true
+    x-events: [StatutorySubmissionAccepted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/sales.yaml#/EwayBillRequest' }
+          examples:
+            vehicle: { summary: Own vehicle, value: { vehicleNo: MH02AB1234, distanceKm: 120, mode: Road } }
+            transporter: { summary: Transporter id, value: { transporterId: 27AABCT1332L1ZU, distanceKm: 120 } }
+    responses:
+      '200':
+        description: Generated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/StatutoryResult' }
+            examples:
+              generated: { summary: EWB generated, value: { document: { id: inv_01j8k3, number: INV/2026-27/00042, status: Posted }, statutory: { eInvoiceStatus: Accepted, ewbNo: '271000123457', ewbStatus: Generated, ewbValidUpto: '2026-09-15T23:59:00Z', vehicleNo: MH02AB1234, distanceKm: 120 }, integrationLog: { id: ilog_ewb_3, companyId: co_acme, provider: EWB, action: GenerateEWB, objectType: Sales Invoice, objectId: inv_01j8k3, requestFingerprint: 'sha256:ee44', idempotencyKey: 'inv_01j8k3:ewb:1', request: { docNo: INV/2026-27/00042, distance: 120 }, response: { ewayBillNo: '271000123457' }, status: Accepted, providerRef: '271000123457', at: '2026-09-13T09:20:00Z', correlationId: corr_9f1c2e7a, createdAt: '2026-09-13T09:20:00Z', updatedAt: '2026-09-13T09:20:00Z', version: 1 } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '502': { $ref: '../components/responses.yaml#/ProviderError' }
+  delete:
+    tags: [Sales]
+    summary: Cancel the invoice's e-Way bill
+    operationId: cancelInvoiceEwayBill
+    x-permission: taxation.einvoice.edit
+    x-events: [StatutorySubmissionCancelled]
+    parameters:
+      - { name: reason, in: query, required: true, schema: { type: string }, example: Goods not moved }
+    responses:
+      '200':
+        description: Cancelled
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/StatutoryResult' }
+            examples:
+              cancelled: { summary: EWB cancelled, value: { document: { id: inv_01j8k3, number: INV/2026-27/00042, status: Posted }, statutory: { eInvoiceStatus: Accepted, ewbNo: '271000123457', ewbStatus: Cancelled }, integrationLog: { id: ilog_ewb_4, companyId: co_acme, provider: EWB, action: CancelEWB, objectType: Sales Invoice, objectId: inv_01j8k3, requestFingerprint: 'sha256:ff55', idempotencyKey: 'inv_01j8k3:ewb-cancel:1', request: { ewbNo: '271000123457' }, response: { status: cancelled }, status: Accepted, at: '2026-09-13T12:00:00Z', correlationId: corr_9f1c2e7a, createdAt: '2026-09-13T12:00:00Z', updatedAt: '2026-09-13T12:00:00Z', version: 1 } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '502': { $ref: '../components/responses.yaml#/ProviderError' }
+
+/sales/invoices/{id}/receipts:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Sales]
+    summary: Receipts and credits settled against the invoice
+    operationId: listInvoiceSettlements
+    x-permission: sales.receipt.view
+    responses:
+      '200':
+        description: Settlements
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [openItem, receipts, creditNotes]
+              properties:
+                openItem: { $ref: '../components/schemas/document.yaml#/OpenItem' }
+                receipts: { type: array, items: { $ref: '../components/schemas/sales.yaml#/Receipt' } }
+                creditNotes: { type: array, items: { $ref: '../components/schemas/sales.yaml#/CreditNote' } }
+            examples:
+              settled: { summary: One receipt, value: { openItem: { id: oi_1, companyId: co_acme, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, docType: Sales Invoice, docId: inv_00031, docNumber: INV/2026-27/00031, date: '2026-08-05', dueDate: '2026-09-04', currency: INR, originalAmount: 50000, baseAmount: 50000, rate: 1, outstanding: 0, baseOutstanding: 0, direction: Debit, status: Settled, settlements: [{ id: st_1, date: '2026-09-13', docType: Receipt, docId: rcp_00210, docNumber: RCP/2026-27/00210, amount: 50000, baseAmount: 50000, rate: 1, fxGainLoss: 0 }], branchId: br_ho, createdAt: '2026-08-05T10:00:00Z', updatedAt: '2026-09-13T13:00:00Z', version: 2 }, receipts: [{ $ref: '#/components/examples/ReceiptPosted/value' }], creditNotes: [] } }
+              none: { summary: Nothing settled, value: { openItem: { id: oi_2, companyId: co_acme, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, docType: Sales Invoice, docId: inv_01j8k3, docNumber: INV/2026-27/00042, date: '2026-09-13', dueDate: '2026-10-13', currency: INR, originalAmount: 115480, baseAmount: 115480, rate: 1, outstanding: 115480, baseOutstanding: 115480, direction: Debit, status: Open, settlements: [], branchId: br_ho, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }, receipts: [], creditNotes: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── credit notes & returns ────────────────────────────────────────────────
+
+/sales/credit-notes:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Sales]
+    summary: List credit notes
+    description: "Tabs → All · Draft · Awaiting approval · Posted · Goods returns (`goodsReturn=true`) · Cancelled. Query examples — `?invoiceId=inv_01j8k3` · `?partyId=cust_arlene&status=Posted`."
+    operationId: listCreditNotes
+    x-permission: sales.creditnote.view
+    x-frd: [FR-SAL-040]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: invoiceId, in: query, schema: { type: string } }
+      - { name: goodsReturn, in: query, schema: { type: boolean } }
+      - $ref: '../components/parameters.yaml#/PartyId'
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Credit notes
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/sales.yaml#/CreditNote' } }
+            examples:
+              firstPage: { summary: Posted credit notes, value: { data: [{ id: cn_00012, companyId: co_acme, number: CN/2026-27/00012, docType: Credit Note, date: '2026-09-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, invoiceId: inv_01j8k3, invoiceNumber: INV/2026-27/00042, reasonCode: RET-DMG, goodsReturn: true, lines: [], totals: { subtotal: 8400, discount: 0, taxable: 8400, tax: 1008, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 9408, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 9408 }, allocated: 9408, unapplied: 0, createdAt: '2026-09-13T11:30:00Z', updatedAt: '2026-09-13T12:00:00Z', version: 4 }], meta: { nextCursor: null, limit: 25, total: 1, counts: { All: 14, Draft: 1, 'Awaiting approval': 0, Posted: 12, 'Goods returns': 7, Cancelled: 1 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Sales]
+    summary: Create a credit note against a posted invoice
+    description: Lines must reference invoice lines; quantity ≤ returnable (invoiced − already credited). Rate / tax are taken from the invoice. `goodsReturn` needs a `returnWarehouseId`.
+    operationId: createCreditNote
+    x-permission: sales.creditnote.create
+    x-events: [DocumentCreated]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/sales.yaml#/CreditNoteCreate' }
+          examples:
+            goodsReturn: { summary: Goods returned to stock, value: { invoiceId: inv_01j8k3, date: '2026-09-13', reasonCode: RET-DMG, reasonText: 20 crates damaged in transit — accepted back, goodsReturn: true, returnWarehouseId: wh_main, lines: [{ sourceLineId: ln_2, sourceDocId: inv_01j8k3, itemId: item_crate, qty: 20, rate: 420, taxRateId: tax_gst12 }] } }
+            priceAdjustment: { summary: Value-only credit (no goods), value: { invoiceId: inv_01j8k3, date: '2026-09-13', reasonCode: CR-PRICE, reasonText: Rate difference agreed post-delivery, goodsReturn: false, lines: [{ sourceLineId: ln_1, sourceDocId: inv_01j8k3, itemId: item_stl4, qty: 1000, rate: 2, taxRateId: tax_gst18 }] } }
+    responses:
+      '201':
+        description: Draft credit note
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/CreditNote' }
+            examples:
+              draft: { summary: Draft, value: { id: cn_00012, companyId: co_acme, number: DRAFT-CN-12, docType: Credit Note, date: '2026-09-13', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, invoiceId: inv_01j8k3, invoiceNumber: INV/2026-27/00042, reasonCode: RET-DMG, reasonText: 20 crates damaged in transit — accepted back, goodsReturn: true, returnWarehouseId: wh_main, lines: [{ id: ln_c1, itemId: item_crate, itemCode: CRT-TEA, itemName: Tea Crate, hsn: '4415', qty: 20, uom: NOS, rate: 420, discountPct: 0, discountAmt: 0, taxable: 8400, taxRateId: tax_gst12, taxRate: 12, taxAmt: 1008, taxComponents: { CGST: 504, SGST: 504 }, amount: 9408, warehouseId: wh_main, sourceLineId: ln_2, sourceDocId: inv_01j8k3, sourceQty: 100, remainingQty: 80 }], totals: { subtotal: 8400, discount: 0, taxable: 8400, tax: 1008, components: { CGST: 504, SGST: 504 }, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 9408, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 9408 }, createdAt: '2026-09-13T11:30:00Z', updatedAt: '2026-09-13T11:30:00Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Quantity exceeds returnable, invoice not posted, missing warehouse
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              overReturn: { summary: More than returnable, value: { code: VALIDATION, message: 'Tea Crate: 120 exceeds returnable quantity 80', field: 'lines[0].qty', correlationId: corr_9f1c2e7a } }
+              invoiceNotPosted: { summary: Invoice not posted, value: { code: INVALID_STATE, message: Credit notes can only be raised against posted invoices, field: invoiceId, correlationId: corr_9f1c2e7a } }
+
+/sales/credit-notes/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Sales]
+    summary: Get a credit note
+    operationId: getCreditNote
+    x-permission: sales.creditnote.view
+    responses:
+      '200':
+        description: Credit note
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/CreditNote' }
+            examples:
+              posted: { $ref: '../components/examples/sales.yaml#/CreditNotePosted' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Sales]
+    summary: Edit a Draft / Returned credit note
+    operationId: updateCreditNote
+    x-permission: sales.creditnote.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/sales.yaml#/CreditNotePatch' }
+          examples:
+            reason: { summary: Change reason, value: { expectedVersion: 1, reasonCode: RET-QUAL, reasonText: Quality complaint accepted } }
+            qty: { summary: Change quantity, value: { expectedVersion: 1, lines: [{ id: ln_c1, sourceLineId: ln_2, sourceDocId: inv_01j8k3, itemId: item_crate, qty: 15, rate: 420, taxRateId: tax_gst12 }] } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/CreditNote' }
+            examples:
+              updated: { $ref: '../components/examples/sales.yaml#/CreditNotePosted' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Sales]
+    summary: Delete a Draft credit note
+    operationId: deleteCreditNote
+    x-permission: sales.creditnote.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/sales/credit-notes/{id}/submit:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Submit for approval (or post directly when no rule)
+    operationId: submitCreditNote
+    x-permission: sales.creditnote.submit
+    x-idempotent: true
+    x-workflow-doc-type: Credit Note
+    x-events: [DocumentSubmitted, DocumentPosted, InvoiceCredited]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Outcome
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/sales.yaml#/CreditNote' }
+            examples:
+              routed: { summary: outcome = routed-for-approval, value: { document: { id: cn_00012, companyId: co_acme, number: DRAFT-CN-12, docType: Credit Note, date: '2026-09-13', branchId: br_ho, status: Submitted, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, invoiceId: inv_01j8k3, invoiceNumber: INV/2026-27/00042, reasonCode: RET-DMG, goodsReturn: true, lines: [], totals: { subtotal: 8400, discount: 0, taxable: 8400, tax: 1008, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 9408, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 9408 }, approvalId: apr_cn_12, submittedAt: '2026-09-13T11:40:00Z', submittedBy: Priya Sharma, createdAt: '2026-09-13T11:30:00Z', updatedAt: '2026-09-13T11:40:00Z', version: 2 }, outcome: routed-for-approval, approval: { id: apr_cn_12, companyId: co_acme, docType: Credit Note, collection: creditNotes, docId: cn_00012, docNumber: DRAFT-CN-12, amount: 9408, currency: INR, branchId: br_ho, requesterId: usr_priya, requesterName: Priya Sharma, steps: [{ order: 1, name: Finance review, approverType: Role, approverRef: role_finadmin, approverLabel: Finance Admin, status: Pending, commentRequired: true }], currentStep: 0, status: Pending, submittedAt: '2026-09-13T11:40:00Z', history: [], createdAt: '2026-09-13T11:40:00Z', updatedAt: '2026-09-13T11:40:00Z', version: 1 }, warnings: [] } }
+              posted: { summary: outcome = posted (no rule), value: { document: { $ref: '#/components/examples/CreditNotePosted/value' }, outcome: posted, warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/sales/credit-notes/{id}/post:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Post a credit note (journal, allocation, optional goods return)
+    description: Reverses revenue/tax, allocates against the invoice open item (remainder becomes a Credit open item), and for `goodsReturn` creates a posted Sales Return with stock-in and COGS reversal. Idempotent.
+    operationId: postCreditNote
+    x-permission: sales.creditnote.post
+    x-idempotent: true
+    x-events: [DocumentPosted, InvoiceCredited, JournalPosted, StockMoved]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Posted
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/sales.yaml#/CreditNote' }
+            examples:
+              withGoodsReturn: { summary: Goods return — stock in + sales return doc, value: { document: { $ref: '#/components/examples/CreditNotePosted/value' }, outcome: posted, journal: { id: jnl_01j8m1, companyId: co_acme, number: JV/2026-27/00318, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Credit Note, sourceId: cn_00012, sourceNumber: CN/2026-27/00012, narration: Credit note CN/2026-27/00012 against INV/2026-27/00042, lines: [{ id: j1, accountId: acc_4000, accountCode: '4000', accountName: Sales, dr: 8400, cr: 0, drBase: 8400, crBase: 0, dimensions: {} }, { id: j2, accountId: acc_2300, accountCode: '2300', accountName: GST Output CGST, dr: 504, cr: 0, drBase: 504, crBase: 0, dimensions: {}, taxComponent: CGST }, { id: j3, accountId: acc_2301, accountCode: '2301', accountName: GST Output SGST, dr: 504, cr: 0, drBase: 504, crBase: 0, dimensions: {}, taxComponent: SGST }, { id: j4, accountId: acc_1100, accountCode: '1100', accountName: Accounts Receivable, dr: 0, cr: 9408, drBase: 0, crBase: 9408, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, dimensions: {} }], totalDr: 9408, totalCr: 9408, postedAt: '2026-09-13T12:00:00Z', postedBy: Rahul Mehta, correlationId: corr_cn12, createdAt: '2026-09-13T12:00:00Z', updatedAt: '2026-09-13T12:00:00Z', version: 1 }, stockMovements: [{ id: sm_40, companyId: co_acme, date: '2026-09-13', itemId: item_crate, itemCode: CRT-TEA, itemName: Tea Crate, warehouseId: wh_main, qty: 20, uom: NOS, baseQty: 20, rate: 318, value: 6360, type: Sales Return, sourceType: Sales Return, sourceId: sret_0012, sourceNumber: SRN/2026-27/00012, balanceAfter: 40, createdAt: '2026-09-13T12:00:00Z', updatedAt: '2026-09-13T12:00:00Z', version: 1 }], relatedDocuments: [{ collection: salesReturns, id: sret_0012, number: SRN/2026-27/00012, status: Posted }], warnings: [] } }
+              partlyUnapplied: { summary: Credit exceeds invoice due — remainder stays as credit, value: { document: { id: cn_00013, companyId: co_acme, number: CN/2026-27/00013, docType: Credit Note, date: '2026-09-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, invoiceId: inv_00031, invoiceNumber: INV/2026-27/00031, reasonCode: CR-PRICE, goodsReturn: false, lines: [], totals: { subtotal: 20000, discount: 0, taxable: 20000, tax: 3600, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 23600, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 23600 }, allocated: 5000, unapplied: 18600, creditOpenItemId: oi_cn_8, journalId: jnl_01j8m5, journalNumber: JV/2026-27/00319, postedAt: '2026-09-13T12:10:00Z', postedBy: Rahul Mehta, createdAt: '2026-09-13T12:05:00Z', updatedAt: '2026-09-13T12:10:00Z', version: 3 }, outcome: posted, openItems: [{ id: oi_cn_8, companyId: co_acme, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, docType: Credit Note, docId: cn_00013, docNumber: CN/2026-27/00013, date: '2026-09-13', dueDate: '2026-09-13', currency: INR, originalAmount: 18600, baseAmount: 18600, rate: 1, outstanding: 18600, baseOutstanding: 18600, direction: Credit, status: Open, settlements: [], branchId: br_ho, createdAt: '2026-09-13T12:10:00Z', updatedAt: '2026-09-13T12:10:00Z', version: 1 }], warnings: ['₹18,600 remains as unapplied credit — apply it to another invoice or refund'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/sales/credit-notes/{id}/cancel:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Cancel a non-posted credit note
+    operationId: cancelCreditNote
+    x-permission: sales.creditnote.edit
+    x-events: [DocumentCancelled]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            cancel: { summary: Cancel, value: { reason: Customer withdrew the return request } }
+    responses:
+      '200':
+        description: Cancelled
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/CreditNote' }
+            examples:
+              cancelled: { summary: Cancelled, value: { id: cn_00014, companyId: co_acme, number: DRAFT-CN-14, docType: Credit Note, date: '2026-09-13', branchId: br_ho, status: Cancelled, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, invoiceId: inv_01j8k3, invoiceNumber: INV/2026-27/00042, reasonCode: RET-DMG, goodsReturn: true, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 0, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 0 }, cancelReason: Customer withdrew the return request, createdAt: '2026-09-13T12:00:00Z', updatedAt: '2026-09-13T12:30:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/sales/credit-notes/{id}/e-invoice:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Generate the IRN for a posted credit note
+    operationId: generateCreditNoteIrn
+    x-permission: taxation.einvoice.create
+    x-idempotent: true
+    x-events: [StatutorySubmissionAccepted, StatutorySubmissionRejected]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: IRP response
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/StatutoryResult' }
+            examples:
+              accepted: { summary: Accepted, value: { document: { id: cn_00012, number: CN/2026-27/00012, status: Posted }, statutory: { irn: 8c1d…, ackNo: '112010036563801', ackDate: '2026-09-13T12:05:00Z', eInvoiceStatus: Accepted }, integrationLog: { id: ilog_cn_irn, companyId: co_acme, provider: IRP, action: GenerateIRN, objectType: Credit Note, objectId: cn_00012, objectNumber: CN/2026-27/00012, requestFingerprint: 'sha256:9a9a', idempotencyKey: 'cn_00012:irn:1', request: { DocDtls: { Typ: CRN } }, response: { AckNo: '112010036563801' }, status: Accepted, at: '2026-09-13T12:05:00Z', correlationId: corr_cn12, createdAt: '2026-09-13T12:05:00Z', updatedAt: '2026-09-13T12:05:00Z', version: 1 } } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '502': { $ref: '../components/responses.yaml#/ProviderError' }
+
+/sales/returns:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Sales]
+    summary: List sales returns (goods movements created by credit notes)
+    operationId: listSalesReturns
+    x-permission: sales.creditnote.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/PartyId'
+      - $ref: '../components/parameters.yaml#/WarehouseId'
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Returns
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/sales.yaml#/SalesReturn' } }
+            examples:
+              firstPage: { summary: Returns, value: { data: [{ id: sret_0012, companyId: co_acme, number: SRN/2026-27/00012, docType: Sales Return, date: '2026-09-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, creditNoteId: cn_00012, creditNoteNumber: CN/2026-27/00012, invoiceId: inv_01j8k3, invoiceNumber: INV/2026-27/00042, reasonCode: RET-DMG, warehouseId: wh_main, lines: [], totals: { subtotal: 8400, discount: 0, taxable: 8400, tax: 1008, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 9408, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 9408 }, createdAt: '2026-09-13T12:00:00Z', updatedAt: '2026-09-13T12:00:00Z', version: 1 }], meta: { nextCursor: null, limit: 25, total: 1 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/sales/returns/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Sales]
+    summary: Get a sales return
+    operationId: getSalesReturn
+    x-permission: sales.creditnote.view
+    responses:
+      '200':
+        description: Sales return
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/SalesReturn' }
+            examples:
+              posted: { summary: Posted, value: { id: sret_0012, companyId: co_acme, number: SRN/2026-27/00012, docType: Sales Return, date: '2026-09-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, creditNoteId: cn_00012, creditNoteNumber: CN/2026-27/00012, invoiceId: inv_01j8k3, invoiceNumber: INV/2026-27/00042, reasonCode: RET-DMG, warehouseId: wh_main, lines: [{ id: ln_sr1, itemId: item_crate, itemCode: CRT-TEA, itemName: Tea Crate, hsn: '4415', qty: 20, uom: NOS, rate: 420, discountPct: 0, discountAmt: 0, taxable: 8400, taxRateId: tax_gst12, taxRate: 12, taxAmt: 1008, taxComponents: { CGST: 504, SGST: 504 }, amount: 9408, warehouseId: wh_main }], totals: { subtotal: 8400, discount: 0, taxable: 8400, tax: 1008, components: { CGST: 504, SGST: 504 }, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 9408, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 9408 }, createdAt: '2026-09-13T12:00:00Z', updatedAt: '2026-09-13T12:00:00Z', version: 1 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── receipts ──────────────────────────────────────────────────────────────
+
+/sales/receipts:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Sales]
+    summary: List receipts
+    description: "Tabs → All · Draft · Allocated (`allocation=full`) · Partial · Unallocated · Reversed. Query examples — `?method=NEFT,RTGS` · `?partyId=cust_arlene` · `?dateFrom=2026-09-01`."
+    operationId: listReceipts
+    x-permission: sales.receipt.view
+    x-frd: [FR-SAL-050]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: allocation, in: query, schema: { type: string, enum: [full, partial, none] } }
+      - { name: method, in: query, schema: { type: string }, style: form, explode: false, example: 'NEFT,RTGS' }
+      - $ref: '../components/parameters.yaml#/PartyId'
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+      - $ref: '../components/parameters.yaml#/AmountMin'
+      - $ref: '../components/parameters.yaml#/AmountMax'
+    responses:
+      '200':
+        description: Receipts
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/sales.yaml#/Receipt' } }
+            examples:
+              firstPage: { summary: Recent receipts, value: { data: [{ $ref: '#/components/examples/ReceiptPosted/value' }, { $ref: '#/components/examples/ReceiptAdvance/value' }], meta: { nextCursor: null, limit: 25, total: 2, counts: { All: 210, Draft: 1, Allocated: 180, Partial: 12, Unallocated: 9, Reversed: 8 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Sales]
+    summary: Record a customer receipt (Draft)
+    description: Allocations may only target the customer's open Debit items in the receipt currency; Σ allocations ≤ amount − charges − tds (`422 OVER_ALLOCATION`). The unallocated remainder becomes an advance on post.
+    operationId: createReceipt
+    x-permission: sales.receipt.create
+    x-events: [DocumentCreated]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/sales.yaml#/ReceiptCreate' }
+          examples:
+            allocated: { summary: NEFT fully allocated to one invoice, value: { partyId: cust_arlene, date: '2026-09-13', method: NEFT, reference: UTR N246509132, bankAccountId: acc_1310, amount: 50000, allocations: [{ openItemId: oi_1, amount: 50000 }] } }
+            advance: { summary: Advance — nothing allocated, value: { partyId: cust_metro, date: '2026-09-13', method: RTGS, reference: RTGS MET-101, bankAccountId: acc_1310, amount: 250000, allocations: [] } }
+            tdsAndCharges: { summary: "Short receipt with customer TDS + bank charges, multi-invoice", value: { partyId: cust_globaltech, date: '2026-09-13', method: Bank, reference: RTGS GT-8812, bankAccountId: acc_1310, amount: 200000, charges: 250, tds: 4000, allocations: [{ openItemId: oi_5, amount: 150000 }, { openItemId: oi_6, amount: 45750 }] } }
+            cheque: { summary: Cheque with date and bank, value: { partyId: cust_rajesh, date: '2026-09-13', method: Cheque, reference: '004512', chequeDate: '2026-09-12', chequeBank: SBI Fort, bankAccountId: acc_1310, amount: 23600, allocations: [{ openItemId: oi_7, amount: 23600 }] } }
+            cashPos: { summary: Cash into petty cash, value: { partyId: cust_walkin, date: '2026-09-13', method: Cash, bankAccountId: acc_1300, amount: 3150, allocations: [{ openItemId: oi_8, amount: 3150 }] } }
+            usdFx: { summary: USD receipt settling a USD invoice (FX), value: { partyId: cust_ustech, date: '2026-09-30', currency: USD, rate: 83.9, method: Bank, reference: SWIFT REF 77A1, bankAccountId: acc_1340, amount: 3600, charges: 25, allocations: [{ openItemId: oi_9, amount: 3575 }] } }
+    responses:
+      '201':
+        description: Draft receipt
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/Receipt' }
+            examples:
+              draft: { summary: Draft, value: { id: rcp_00210, companyId: co_acme, number: DRAFT-RCP-210, docType: Receipt, date: '2026-09-13', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, method: NEFT, reference: UTR N246509132, bankAccountId: acc_1310, amount: 50000, charges: 0, tds: 0, allocations: [{ openItemId: oi_1, docId: inv_00031, docNumber: INV/2026-27/00031, amount: 50000 }], unapplied: 0, totals: { subtotal: 50000, discount: 0, taxable: 50000, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 50000, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 50000 }, lines: [], correlationId: corr_r210, createdAt: '2026-09-13T12:50:00Z', updatedAt: '2026-09-13T12:50:00Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Allocation / currency rules
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              overAllocation: { summary: Allocations exceed net amount, value: { code: OVER_ALLOCATION, message: Allocations 60000.00 exceed receipt amount 50000.00, details: { allocated: 60000, amount: 50000 }, correlationId: corr_9f1c2e7a } }
+              exceedsOutstanding: { summary: Allocation exceeds the invoice outstanding, value: { code: OVER_ALLOCATION, message: 'INV/2026-27/00031: allocation 60000.00 exceeds outstanding 50000.00', field: 'allocations[0].amount', correlationId: corr_9f1c2e7a } }
+              currencyMismatch: { summary: Open item in another currency, value: { code: VALIDATION, message: INV/2026-27/00043 is in USD — receipt currency is INR, field: 'allocations[0].openItemId', correlationId: corr_9f1c2e7a } }
+
+/sales/receipts/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Sales]
+    summary: Get a receipt
+    operationId: getReceipt
+    x-permission: sales.receipt.view
+    responses:
+      '200':
+        description: Receipt
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/Receipt' }
+            examples:
+              allocated: { $ref: '../components/examples/sales.yaml#/ReceiptPosted' }
+              advance: { $ref: '../components/examples/sales.yaml#/ReceiptAdvance' }
+              fx: { $ref: '../components/examples/sales.yaml#/ReceiptUsdFx' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Sales]
+    summary: Edit a Draft receipt
+    operationId: updateReceipt
+    x-permission: sales.receipt.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/sales.yaml#/ReceiptPatch' }
+          examples:
+            reallocate: { summary: Change allocations, value: { expectedVersion: 1, allocations: [{ openItemId: oi_1, amount: 30000 }, { openItemId: oi_2, amount: 20000 }] } }
+            reference: { summary: Fix UTR, value: { expectedVersion: 1, reference: UTR N246509133 } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/Receipt' }
+            examples:
+              updated: { $ref: '../components/examples/sales.yaml#/ReceiptPosted' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Sales]
+    summary: Delete a Draft receipt
+    operationId: deleteReceipt
+    x-permission: sales.receipt.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/sales/receipts/{id}/post:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Post a receipt (bank/cash journal, settle open items, realised FX, advance)
+    operationId: postReceipt
+    x-permission: sales.receipt.post
+    x-idempotent: true
+    x-events: [DocumentPosted, ReceiptAllocated, JournalPosted]
+    x-frd: [FR-SAL-051, FR-FX-004]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Posted
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/sales.yaml#/Receipt' }
+            examples:
+              allocated: { summary: Fully allocated — invoice settled, value: { document: { $ref: '#/components/examples/ReceiptPosted/value' }, outcome: posted, journal: { id: jnl_01j8n2, companyId: co_acme, number: JV/2026-27/00320, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Receipt, sourceId: rcp_00210, sourceNumber: RCP/2026-27/00210, narration: Receipt RCP/2026-27/00210 · Arlene Traders, lines: [{ id: j1, accountId: acc_1310, accountCode: '1310', accountName: HDFC Bank — Current, dr: 50000, cr: 0, drBase: 50000, crBase: 0, dimensions: {} }, { id: j2, accountId: acc_1100, accountCode: '1100', accountName: Accounts Receivable, dr: 0, cr: 50000, drBase: 0, crBase: 50000, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, dimensions: {} }], totalDr: 50000, totalCr: 50000, postedAt: '2026-09-13T13:00:00Z', postedBy: Anita Rao, correlationId: corr_r210, createdAt: '2026-09-13T13:00:00Z', updatedAt: '2026-09-13T13:00:00Z', version: 1 }, openItems: [{ id: oi_1, companyId: co_acme, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, docType: Sales Invoice, docId: inv_00031, docNumber: INV/2026-27/00031, date: '2026-08-05', dueDate: '2026-09-04', currency: INR, originalAmount: 50000, baseAmount: 50000, rate: 1, outstanding: 0, baseOutstanding: 0, direction: Debit, status: Settled, settlements: [{ id: st_1, date: '2026-09-13', docType: Receipt, docId: rcp_00210, docNumber: RCP/2026-27/00210, amount: 50000, baseAmount: 50000, rate: 1, fxGainLoss: 0 }], branchId: br_ho, createdAt: '2026-08-05T10:00:00Z', updatedAt: '2026-09-13T13:00:00Z', version: 2 }], relatedDocuments: [{ collection: salesInvoices, id: inv_00031, number: INV/2026-27/00031, status: Settled }], warnings: [] } }
+              withAdvanceTdsCharges: { summary: TDS + charges + unapplied advance (Credit open item), value: { document: { $ref: '#/components/examples/ReceiptAdvance/value' }, outcome: posted, journal: { id: jnl_01j8n3, companyId: co_acme, number: JV/2026-27/00321, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Receipt, sourceId: rcp_00211, sourceNumber: RCP/2026-27/00211, narration: Receipt RCP/2026-27/00211 · GlobalTech Solutions, lines: [{ id: j1, accountId: acc_1310, accountCode: '1310', accountName: HDFC Bank — Current, dr: 195750, cr: 0, drBase: 195750, crBase: 0, dimensions: {} }, { id: j2, accountId: acc_5400, accountCode: '5400', accountName: Bank charges, dr: 250, cr: 0, drBase: 250, crBase: 0, dimensions: {} }, { id: j3, accountId: acc_1410, accountCode: '1410', accountName: TDS receivable, dr: 4000, cr: 0, drBase: 4000, crBase: 0, dimensions: {} }, { id: j4, accountId: acc_1100, accountCode: '1100', accountName: Accounts Receivable, dr: 0, cr: 150000, drBase: 0, crBase: 150000, partyType: Customer, partyId: cust_globaltech, partyName: GlobalTech Solutions, dimensions: {} }, { id: j5, accountId: acc_2150, accountCode: '2150', accountName: Advances from customers, dr: 0, cr: 50000, drBase: 0, crBase: 50000, partyType: Customer, partyId: cust_globaltech, partyName: GlobalTech Solutions, dimensions: {} }], totalDr: 200000, totalCr: 200000, postedAt: '2026-09-13T13:10:00Z', postedBy: Anita Rao, correlationId: corr_r211, createdAt: '2026-09-13T13:10:00Z', updatedAt: '2026-09-13T13:10:00Z', version: 1 }, openItems: [{ id: oi_adv_3, companyId: co_acme, partyType: Customer, partyId: cust_globaltech, partyName: GlobalTech Solutions, docType: Receipt, docId: rcp_00211, docNumber: RCP/2026-27/00211, date: '2026-09-13', dueDate: '2026-09-13', currency: INR, originalAmount: 45750, baseAmount: 45750, rate: 1, outstanding: 45750, baseOutstanding: 45750, direction: Credit, status: Open, settlements: [], branchId: br_ho, createdAt: '2026-09-13T13:10:00Z', updatedAt: '2026-09-13T13:10:00Z', version: 1 }], warnings: ['₹45,750 recorded as customer advance'] } }
+              fxRealised: { summary: USD receipt — realised FX gain journal line, value: { document: { $ref: '#/components/examples/ReceiptUsdFx/value' }, outcome: posted, journal: { id: jnl_01j9z1, companyId: co_acme, number: JV/2026-27/00360, date: '2026-09-30', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: USD, rate: 83.9, status: Posted, type: Auto, sourceType: Receipt, sourceId: rcp_00212, sourceNumber: RCP/2026-27/00212, narration: Receipt RCP/2026-27/00212 · US Tech Imports LLC, lines: [{ id: j1, accountId: acc_1340, accountCode: '1340', accountName: HDFC EEFC USD, dr: 3575, cr: 0, drBase: 299942.5, crBase: 0, currency: USD, dimensions: {} }, { id: j2, accountId: acc_5400, accountCode: '5400', accountName: Bank charges, dr: 25, cr: 0, drBase: 2097.5, crBase: 0, currency: USD, dimensions: {} }, { id: j3, accountId: acc_1100, accountCode: '1100', accountName: Accounts Receivable, dr: 0, cr: 3600, drBase: 0, crBase: 300312, currency: USD, partyType: Customer, partyId: cust_ustech, partyName: US Tech Imports LLC, dimensions: {} }, { id: j4, accountId: acc_4910, accountCode: '4910', accountName: FX gain, dr: 0, cr: 0, drBase: 0, crBase: 1728, dimensions: {} }], totalDr: 302040, totalCr: 302040, postedAt: '2026-09-30T10:00:00Z', postedBy: Anita Rao, correlationId: corr_r212, createdAt: '2026-09-30T10:00:00Z', updatedAt: '2026-09-30T10:00:00Z', version: 1 }, openItems: [{ id: oi_9, companyId: co_acme, partyType: Customer, partyId: cust_ustech, partyName: US Tech Imports LLC, docType: Sales Invoice, docId: inv_01j8u7, docNumber: INV/2026-27/00043, date: '2026-09-13', dueDate: '2026-10-28', currency: USD, originalAmount: 3600, baseAmount: 300312, rate: 83.42, outstanding: 25, baseOutstanding: 2085.5, direction: Debit, status: Partially Settled, settlements: [{ id: st_9, date: '2026-09-30', docType: Receipt, docId: rcp_00212, docNumber: RCP/2026-27/00212, amount: 3575, baseAmount: 299942.5, rate: 83.9, fxGainLoss: 1716 }], branchId: br_ho, createdAt: '2026-09-13T10:00:00Z', updatedAt: '2026-09-30T10:00:00Z', version: 2 }], warnings: ['Realised FX gain ₹1,716 posted', 'USD 25 remains outstanding (bank charges) — write off or collect'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/sales/receipts/{id}/reverse:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Sales]
+    summary: Reverse a posted receipt (un-settles invoices)
+    description: Blocked when the advance created by this receipt has already been applied (`409 INVALID_STATE`) or the receipt is matched on a bank statement.
+    operationId: reverseReceipt
+    x-permission: sales.receipt.reverse
+    x-idempotent: true
+    x-events: [DocumentReversed, ReceiptReversed, JournalReversed]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            bounced: { summary: Cheque bounced, value: { reason: Cheque 004512 returned unpaid — insufficient funds } }
+    responses:
+      '200':
+        description: Reversed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/sales.yaml#/Receipt' }
+            examples:
+              reversed: { summary: Reversed; invoice open again, value: { document: { id: rcp_00209, companyId: co_acme, number: RCP/2026-27/00209, docType: Receipt, date: '2026-09-12', branchId: br_ho, status: Reversed, currency: INR, rate: 1, partyType: Customer, partyId: cust_rajesh, partyName: Rajesh Enterprises, method: Cheque, reference: '004512', bankAccountId: acc_1310, amount: 23600, charges: 0, tds: 0, allocations: [{ openItemId: oi_7, docId: inv_00040, docNumber: INV/2026-27/00040, amount: 23600 }], unapplied: 0, totals: { subtotal: 23600, discount: 0, taxable: 23600, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 23600, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 23600 }, journalId: jnl_00305, journalNumber: JV/2026-27/00305, reversalReason: Cheque 004512 returned unpaid — insufficient funds, lines: [], correlationId: corr_r209, createdAt: '2026-09-12T10:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 4 }, outcome: reversed, journal: { id: jnl_01j9r1, companyId: co_acme, number: JV/2026-27/00336, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Reversal, sourceType: Receipt, sourceId: rcp_00209, sourceNumber: RCP/2026-27/00209, narration: Reversal of JV/2026-27/00305, lines: [], totalDr: 23600, totalCr: 23600, reversalOfId: jnl_00305, postedAt: '2026-09-13T09:12:04Z', postedBy: Anita Rao, correlationId: corr_9f1c2e7a, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }, openItems: [{ id: oi_7, companyId: co_acme, partyType: Customer, partyId: cust_rajesh, partyName: Rajesh Enterprises, docType: Sales Invoice, docId: inv_00040, docNumber: INV/2026-27/00040, date: '2026-08-30', dueDate: '2026-09-29', currency: INR, originalAmount: 23600, baseAmount: 23600, rate: 1, outstanding: 23600, baseOutstanding: 23600, direction: Debit, status: Open, settlements: [], branchId: br_ho, createdAt: '2026-08-30T10:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 3 }], warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/sales/customers/{id}/open-items:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Sales]
+    summary: Open invoices and credits for allocation
+    operationId: listCustomerOpenItems
+    x-permission: sales.receipt.view
+    parameters:
+      - { name: currency, in: query, schema: { type: string } }
+    responses:
+      '200':
+        description: Open items
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [invoices, credits]
+              properties:
+                invoices: { type: array, items: { $ref: '../components/schemas/document.yaml#/OpenItem' } }
+                credits: { type: array, items: { $ref: '../components/schemas/document.yaml#/OpenItem' } }
+            examples:
+              mixed: { summary: "Two invoices, one credit", value: { invoices: [{ id: oi_1, companyId: co_acme, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, docType: Sales Invoice, docId: inv_00031, docNumber: INV/2026-27/00031, date: '2026-08-05', dueDate: '2026-09-04', currency: INR, originalAmount: 50000, baseAmount: 50000, rate: 1, outstanding: 50000, baseOutstanding: 50000, direction: Debit, status: Open, settlements: [], branchId: br_ho, createdAt: '2026-08-05T10:00:00Z', updatedAt: '2026-08-05T10:00:00Z', version: 1 }, { id: oi_2, companyId: co_acme, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, docType: Sales Invoice, docId: inv_01j8k3, docNumber: INV/2026-27/00042, date: '2026-09-13', dueDate: '2026-10-13', currency: INR, originalAmount: 115480, baseAmount: 115480, rate: 1, outstanding: 115480, baseOutstanding: 115480, direction: Debit, status: Open, settlements: [], branchId: br_ho, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }], credits: [{ id: oi_cn_8, companyId: co_acme, partyType: Customer, partyId: cust_arlene, partyName: Arlene Traders, docType: Credit Note, docId: cn_00013, docNumber: CN/2026-27/00013, date: '2026-09-13', dueDate: '2026-09-13', currency: INR, originalAmount: 18600, baseAmount: 18600, rate: 1, outstanding: 18600, baseOutstanding: 18600, direction: Credit, status: Open, settlements: [], branchId: br_ho, createdAt: '2026-09-13T12:10:00Z', updatedAt: '2026-09-13T12:10:00Z', version: 1 }] } }
+              none: { summary: Nothing open, value: { invoices: [], credits: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── AR ────────────────────────────────────────────────────────────────────
+
+/sales/ageing:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Sales]
+    summary: AR ageing (buckets as at a date)
+    description: Query examples — `?asAt=2026-09-30` · `?branchId=br_ho` · `?customerId=cust_arlene` · `?overdueOnly=true`.
+    operationId: getArAgeing
+    x-permission: sales.invoice.view
+    x-frd: [FR-SAL-060]
+    parameters:
+      - $ref: '../components/parameters.yaml#/AsAt'
+      - $ref: '../components/parameters.yaml#/BranchFilter'
+      - $ref: '../components/parameters.yaml#/CustomerId'
+      - { name: overdueOnly, in: query, schema: { type: boolean } }
+    responses:
+      '200':
+        description: Ageing
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/AgeingReport' }
+            examples:
+              withRows: { summary: Two customers, value: { asAt: '2026-09-13', rows: [{ customerId: cust_arlene, customer: Arlene Traders, gstin: 27AAPFU0939F1ZV, current: 115480, d030: 50000, d3160: 0, d6190: 0, d90p: 0, total: 165480, overdue: 50000, credits: 18600, net: 146880, oldestDays: 9, creditLimit: 500000 }, { customerId: cust_kiran, customer: Kiran Enterprises, gstin: 27AABCK1234D1Z7, current: 0, d030: 0, d3160: 110000, d6190: 200000, d90p: 0, total: 310000, overdue: 310000, credits: 0, net: 310000, oldestDays: 78, creditLimit: 200000 }], totals: { customerId: all, customer: Total, current: 115480, d030: 50000, d3160: 110000, d6190: 200000, d90p: 0, total: 475480, overdue: 360000, credits: 18600, net: 456880, oldestDays: 78, creditLimit: 0 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { summary: Nothing outstanding, value: { asAt: '2026-09-13', rows: [], totals: { customerId: all, customer: Total, current: 0, d030: 0, d3160: 0, d6190: 0, d90p: 0, total: 0, overdue: 0, credits: 0, net: 0, oldestDays: 0, creditLimit: 0 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/sales/collections:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Sales]
+    summary: Collections workbench (overdue by customer, promises, follow-ups)
+    operationId: getCollections
+    x-permission: sales.invoice.view
+    x-frd: [FR-SAL-061]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CustomerId'
+      - { name: minOverdueDays, in: query, schema: { type: integer } }
+      - { name: ownerId, in: query, schema: { type: string } }
+    responses:
+      '200':
+        description: Collections
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/CollectionsReport' }
+            examples:
+              withRows: { summary: Overdue customers, value: { kpis: { overdueTotal: 360000, overdueCustomers: 2, promisesDue7d: 50000, dso: 41 }, rows: [{ customerId: cust_arlene, customer: Arlene Traders, outstanding: 165480, overdue: 50000, oldestDays: 9, credits: 18600, creditLimit: 500000, promise: { $ref: '#/components/examples/ActivityPromise/value' }, lastActivity: { $ref: '#/components/examples/ActivityFollowUp/value' }, openFollowUps: 1, items: [] }, { customerId: cust_kiran, customer: Kiran Enterprises, outstanding: 310000, overdue: 310000, oldestDays: 78, credits: 0, creditLimit: 200000, openFollowUps: 0, items: [] }], scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { summary: Nothing overdue, value: { kpis: { overdueTotal: 0, overdueCustomers: 0, promisesDue7d: 0, dso: 28 }, rows: [], scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/sales/collections/{customerId}/reminder:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - { name: customerId, in: path, required: true, schema: { type: string }, example: cust_arlene }
+  post:
+    tags: [Sales]
+    summary: Send a payment reminder (e-mail / SMS) and log the activity
+    operationId: sendCollectionReminder
+    x-permission: sales.invoice.view
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/sales.yaml#/ReminderRequest' }
+          examples:
+            email: { summary: E-mail all overdue, value: { channel: email } }
+            smsSpecific: { summary: SMS for one invoice, value: { channel: sms, invoiceIds: [inv_00031], message: 'Reminder: INV/2026-27/00031 ₹50,000 was due on 4 Sep.' } }
+    responses:
+      '202':
+        description: Queued + activity logged
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [notification, activity]
+              properties:
+                notification: { $ref: '../components/schemas/common.yaml#/EmailResult' }
+                activity: { $ref: '../components/schemas/crm.yaml#/Activity' }
+            examples:
+              queued: { summary: Queued, value: { notification: { integrationLogId: ilog_email_91, status: Queued, to: [accounts@arlenetraders.in], sentAt: '2026-09-13T09:12:04Z' }, activity: { id: act_11, companyId: co_acme, type: Reminder, subject: Payment reminder sent (e-mail) — 1 overdue invoice, customerId: cust_arlene, customerName: Arlene Traders, status: Done, doneAt: '2026-09-13T09:12:04Z', ownerId: usr_priya, ownerName: Priya Sharma, channel: email, overdue: false, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '502': { $ref: '../components/responses.yaml#/ProviderError' }
+
+/sales/collections/{customerId}/promise-to-pay:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - { name: customerId, in: path, required: true, schema: { type: string }, example: cust_arlene }
+  post:
+    tags: [Sales]
+    summary: Record a promise to pay
+    operationId: recordPromiseToPay
+    x-permission: crm.activity.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/sales.yaml#/PromiseToPayRequest' }
+          examples:
+            promise: { summary: Promise, value: { amount: 50000, date: '2026-09-20', invoiceId: inv_00031, notes: Confirmed by Arlene on phone } }
+    responses:
+      '201':
+        description: Activity
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/crm.yaml#/Activity' }
+            examples:
+              promise: { $ref: '../components/examples/masters.yaml#/ActivityPromise' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/sales/statements/{customerId}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - { name: customerId, in: path, required: true, schema: { type: string }, example: cust_arlene }
+  get:
+    tags: [Sales]
+    summary: Customer statement (running balance)
+    operationId: getCustomerStatement
+    x-permission: sales.invoice.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/ReportFrom'
+      - $ref: '../components/parameters.yaml#/ReportTo'
+    responses:
+      '200':
+        description: Statement
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/CustomerStatement' }
+            examples:
+              statement: { summary: Sep 2026, value: { customer: { $ref: '#/components/examples/CustomerArlene/value' }, from: '2026-09-01', to: '2026-09-30', currency: INR, opening: 50000, closing: 146880, rows: [{ date: '2026-09-13', docType: Sales Invoice, docId: inv_01j8k3, docNumber: INV/2026-27/00042, reference: PO-ARL-2291, dueDate: '2026-10-13', debit: 115480, credit: 0, balance: 165480, overdueDays: 0 }, { date: '2026-09-13', docType: Credit Note, docId: cn_00013, docNumber: CN/2026-27/00013, debit: 0, credit: 18600, balance: 146880 }], ageing: { customerId: cust_arlene, customer: Arlene Traders, current: 115480, d030: 50000, d3160: 0, d6190: 0, d90p: 0, total: 165480, overdue: 50000, credits: 18600, net: 146880, oldestDays: 9, creditLimit: 500000 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+          application/pdf:
+            schema: { type: string, format: binary }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/sales/statements/{customerId}/email:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - { name: customerId, in: path, required: true, schema: { type: string }, example: cust_arlene }
+  post:
+    tags: [Sales]
+    summary: E-mail the statement PDF
+    operationId: emailCustomerStatement
+    x-permission: sales.invoice.view
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+      - $ref: '../components/parameters.yaml#/ReportFrom'
+      - $ref: '../components/parameters.yaml#/ReportTo'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/EmailRequest' }
+          examples:
+            default: { summary: Default contact, value: { to: [accounts@arlenetraders.in], subject: Statement of account — Sep 2026, message: Please find your statement attached. } }
+    responses:
+      '202':
+        description: Queued
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmailResult' }
+            examples:
+              queued: { $ref: '../components/examples/common.yaml#/EmailResult' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '502': { $ref: '../components/responses.yaml#/ProviderError' }
+
+/sales/settings:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Sales]
+    summary: Sales module settings
+    operationId: getSalesSettings
+    x-permission: sales.invoice.view
+    responses:
+      '200':
+        description: Settings
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/SalesSettings' }
+            examples:
+              defaults: { summary: Defaults, value: { salesDuplicateRefRule: warn, salesDiscountThresholdPct: 10, salesOverInvoiceTolerancePct: 2, salesDefaultTerms: Net 30, salesQuoteValidityDays: 14, salesReservationDays: 14, salesAutoReserveOnConfirm: true } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  put:
+    tags: [Sales]
+    summary: Update sales settings
+    operationId: updateSalesSettings
+    x-permission: sales.settings.edit
+    x-frd: [FR-SAL-036]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/sales.yaml#/SalesSettings' }
+          examples:
+            strict: { summary: "Block duplicate references, tighter discount threshold", value: { salesDuplicateRefRule: block, salesDiscountThresholdPct: 5 } }
+            reservations: { summary: "Longer reservations, manual reserve", value: { salesReservationDays: 30, salesAutoReserveOnConfirm: false } }
+    responses:
+      '200':
+        description: Saved
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/sales.yaml#/SalesSettings' }
+            examples:
+              saved: { summary: Saved, value: { salesDuplicateRefRule: block, salesDiscountThresholdPct: 5, salesOverInvoiceTolerancePct: 2, salesDefaultTerms: Net 30, salesQuoteValidityDays: 14, salesReservationDays: 14, salesAutoReserveOnConfirm: true } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }

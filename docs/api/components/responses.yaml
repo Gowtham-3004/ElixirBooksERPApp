@@ -1,0 +1,281 @@
+# Shared responses. Reference as '../components/responses.yaml#/Name'.
+# Every error response carries the single Error shape and several named examples so that each
+# operation exposes all of its failure cases without repeating them.
+
+NoContent:
+  description: Done — no body.
+  headers:
+    X-Correlation-Id: { $ref: '../components/headers.yaml#/XCorrelationId' }
+
+Accepted:
+  description: Accepted for asynchronous processing. Poll the returned job.
+  headers:
+    X-Correlation-Id: { $ref: '../components/headers.yaml#/XCorrelationId' }
+    Location: { $ref: '../components/headers.yaml#/Location' }
+  content:
+    application/json:
+      schema: { $ref: '../components/schemas/system.yaml#/BackgroundJob' }
+      examples:
+        queued:
+          summary: Job queued
+          value: { id: job_export_4421, type: export, name: 'Sales invoices export (CSV)', status: Queued, attempts: 0, maxAttempts: 3, correlationId: corr_9f1c2e7a, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+
+BadRequest:
+  description: Malformed request, missing/invalid field, bad cursor or filter (`VALIDATION`).
+  headers:
+    X-Correlation-Id: { $ref: '../components/headers.yaml#/XCorrelationId' }
+  content:
+    application/json:
+      schema: { $ref: '../components/schemas/common.yaml#/Error' }
+      examples:
+        requiredField:
+          summary: Required field missing
+          value: { code: VALIDATION, message: Customer is required, field: partyId, correlationId: corr_9f1c2e7a }
+        badFormat:
+          summary: Format validation (GSTIN / PAN / IFSC / e-mail / date)
+          value: { code: VALIDATION, message: GSTIN must be 15 characters (e.g. 27AAPFU0939F1ZV), field: gstin, correlationId: corr_9f1c2e7a }
+        multipleFields:
+          summary: Several field errors at once
+          value:
+            code: VALIDATION
+            message: 3 fields need attention
+            correlationId: corr_9f1c2e7a
+            details:
+              errors:
+                - { field: date, code: REQUIRED, message: Date is required }
+                - { field: 'lines[0].qty', code: MIN, message: Quantity must be greater than 0 }
+                - { field: 'lines[1].taxRateId', code: REFERENCE, message: Tax rate tax_gst99 does not exist }
+        badCursor:
+          summary: Invalid or expired pagination cursor
+          value: { code: VALIDATION, message: Cursor is invalid or has expired — restart from the first page, field: cursor, correlationId: corr_9f1c2e7a }
+        badFilter:
+          summary: Unknown sort field / filter value
+          value: { code: VALIDATION, message: 'Unknown sort field ''foo''; allowed: number, date, partyName, status, total, due, dueDate', field: sort, correlationId: corr_9f1c2e7a }
+        malformedJson:
+          summary: Body is not valid JSON
+          value: { code: VALIDATION, message: Request body is not valid JSON (unexpected token at position 214), correlationId: corr_9f1c2e7a }
+
+Unauthorized:
+  description: Missing/invalid/expired credentials, MFA pending, or the user account cannot sign in.
+  headers:
+    X-Correlation-Id: { $ref: '../components/headers.yaml#/XCorrelationId' }
+  content:
+    application/json:
+      schema: { $ref: '../components/schemas/common.yaml#/Error' }
+      examples:
+        missingToken:
+          summary: No / malformed Authorization header
+          value: { code: UNAUTHENTICATED, message: Authentication required, correlationId: corr_9f1c2e7a }
+        expiredToken:
+          summary: Access token expired — refresh it
+          value: { code: UNAUTHENTICATED, message: Access token expired, details: { expiredAt: '2026-09-13T09:00:00Z' }, correlationId: corr_9f1c2e7a }
+        mfaRequired:
+          summary: Login completed but MFA challenge not yet passed
+          value: { code: MFA_REQUIRED, message: Complete the MFA challenge to continue, details: { mfaToken: mfa_7d2e…, expiresIn: 300 }, correlationId: corr_9f1c2e7a }
+        suspended:
+          summary: User suspended (FR-IAM-005)
+          value: { code: AUTH_SUSPENDED, message: Your access has been suspended — contact your administrator, correlationId: corr_9f1c2e7a }
+        deactivated:
+          summary: User deactivated
+          value: { code: AUTH_DEACTIVATED, message: This account has been deactivated, correlationId: corr_9f1c2e7a }
+        invalidApiKey:
+          summary: Revoked or expired API key
+          value: { code: UNAUTHENTICATED, message: API key is revoked or expired, correlationId: corr_9f1c2e7a }
+
+Forbidden:
+  description: Authenticated but not allowed — missing permission, module not in plan, tenant suspended, approval not yours, self-approval, or platform-only route.
+  headers:
+    X-Correlation-Id: { $ref: '../components/headers.yaml#/XCorrelationId' }
+  content:
+    application/json:
+      schema: { $ref: '../components/schemas/common.yaml#/Error' }
+      examples:
+        permission:
+          summary: Role lacks the permission (x-permission)
+          value: { code: PERMISSION_DENIED, message: Requires permission sales.invoice.post (Finance role), details: { permission: sales.invoice.post }, correlationId: corr_9f1c2e7a }
+        entitlement:
+          summary: Module not included in the tenant plan (FR-PLT-003)
+          value: { code: ENTITLEMENT_DENIED, message: Production is not included in the Lite plan — upgrade to Growth, details: { module: production, plan: Lite }, correlationId: corr_9f1c2e7a }
+        tenantSuspended:
+          summary: Subscription suspended / expired — read-only except home & admin
+          value: { code: TENANT_SUSPENDED, message: Subscription is suspended; only Home and Company administration are available, details: { subscriptionState: Suspended }, correlationId: corr_9f1c2e7a }
+        wrongCompany:
+          summary: X-Company-Id not in the user's companies
+          value: { code: PERMISSION_DENIED, message: You do not have access to company co_gulf, details: { companyId: co_gulf }, correlationId: corr_9f1c2e7a }
+        branchScope:
+          summary: Data scope is branch-restricted
+          value: { code: PERMISSION_DENIED, message: Your role is restricted to branches br_andheri, br_surat, details: { branchId: br_pune }, correlationId: corr_9f1c2e7a }
+        apiKeyScope:
+          summary: API key scope does not cover this operation
+          value: { code: PERMISSION_DENIED, message: API key scope sales.invoice.view does not allow sales.invoice.create, details: { scopes: [sales.invoice.view] }, correlationId: corr_9f1c2e7a }
+        platformOnly:
+          summary: Platform-administrator route
+          value: { code: PLATFORM_ONLY, message: This area is restricted to platform administrators, correlationId: corr_9f1c2e7a }
+
+NotFound:
+  description: No such record in this company/tenant (ids from other tenants also return 404 — no existence leakage, E2E-04).
+  headers:
+    X-Correlation-Id: { $ref: '../components/headers.yaml#/XCorrelationId' }
+  content:
+    application/json:
+      schema: { $ref: '../components/schemas/common.yaml#/Error' }
+      examples:
+        notFound:
+          summary: Unknown id
+          value: { code: NOT_FOUND, message: Record inv_zzz not found, correlationId: corr_9f1c2e7a }
+        referencedRecordMissing:
+          summary: A referenced record in the body does not exist
+          value: { code: NOT_FOUND, message: Customer cust_nope not found, field: partyId, correlationId: corr_9f1c2e7a }
+        crossTenant:
+          summary: Id belongs to another tenant — indistinguishable from unknown
+          value: { code: NOT_FOUND, message: Record inv_01j8k3 not found, correlationId: corr_9f1c2e7a }
+
+Conflict:
+  description: State or concurrency conflict — stale `expectedVersion`, idempotency replay with a different payload, action not valid in the current status, duplicate, or record referenced elsewhere.
+  headers:
+    X-Correlation-Id: { $ref: '../components/headers.yaml#/XCorrelationId' }
+  content:
+    application/json:
+      schema: { $ref: '../components/schemas/common.yaml#/Error' }
+      examples:
+        staleVersion:
+          summary: Optimistic concurrency — someone else saved first
+          value: { code: CONFLICT, message: Someone else changed this record — reload to see their changes, details: { expectedVersion: 3, currentVersion: 4, updatedBy: Priya Sharma, updatedAt: '2026-09-13T09:10:11Z' }, correlationId: corr_9f1c2e7a }
+        idempotencyPayloadMismatch:
+          summary: Same Idempotency-Key, different payload
+          value: { code: IDEMPOTENCY_CONFLICT, message: Idempotency-Key was already used with a different payload, details: { idempotencyKey: 6f1a2c3e-9d4b-4a7e-8c11-0f2e5a7b9c3d, originalRequestAt: '2026-09-13T09:00:02Z' }, correlationId: corr_9f1c2e7a }
+        invalidState:
+          summary: Action not allowed in current status
+          value: { code: INVALID_STATE, message: 'Only Draft or Approved invoices can be posted (current: Cancelled)', details: { status: Cancelled, allowed: [Draft, Approved] }, correlationId: corr_9f1c2e7a }
+        alreadyReversed:
+          summary: Document already reversed
+          value: { code: ALREADY_REVERSED, message: Invoice INV/2026-27/00042 was already reversed by INV/2026-27/00051, details: { reversedById: inv_01j9x1 }, correlationId: corr_9f1c2e7a }
+        duplicate:
+          summary: Duplicate code / number / fingerprint
+          value: { code: DUPLICATE, message: Supplier invoice number BS-7781 already booked for Bharat Steel in FY 2026-27 (VINV/2026-27/00019), field: supplierInvoiceNo, details: { existingId: vinv_00019 }, correlationId: corr_9f1c2e7a }
+        referenced:
+          summary: Delete blocked because the record is referenced
+          value: { code: REFERENCED, message: Customer Arlene Traders is referenced by 14 documents — deactivate or block instead, details: { references: { salesInvoices: 12, receipts: 2 } }, correlationId: corr_9f1c2e7a }
+        planLimit:
+          summary: Plan limit reached
+          value: { code: PLAN_LIMIT, message: Growth plan allows 3 companies (3 in use), details: { metric: companies, limit: 3, used: 3 }, correlationId: corr_9f1c2e7a }
+
+Unprocessable:
+  description: Request is well-formed but violates a business rule (accounting balance, stock, credit, dimensions, allocation, statutory readiness …). Nothing was written.
+  headers:
+    X-Correlation-Id: { $ref: '../components/headers.yaml#/XCorrelationId' }
+  content:
+    application/json:
+      schema: { $ref: '../components/schemas/common.yaml#/Error' }
+      examples:
+        unbalanced:
+          summary: Journal does not balance
+          value: { code: UNBALANCED, message: Debits 118000.00 do not equal credits 100000.00, details: { totalDr: 118000, totalCr: 100000, difference: 18000 }, correlationId: corr_9f1c2e7a }
+        negativeStock:
+          summary: Would drive stock negative and policy is Block
+          value: { code: NEGATIVE_STOCK, message: 'Insufficient stock for Steel Rod 4mm in Main Warehouse: on hand 120, requested 150', details: { itemId: item_stl4, warehouseId: wh_main, onHand: 120, requested: 150 }, correlationId: corr_9f1c2e7a }
+        insufficientAvailable:
+          summary: Reservation cannot be fulfilled
+          value: { code: INSUFFICIENT_AVAILABLE, message: 'Only 40 available for Tea Crate (reserved 80 of 120 on hand)', details: { itemId: item_crate, available: 40 }, correlationId: corr_9f1c2e7a }
+        creditHold:
+          summary: Customer credit policy blocks the document
+          value: { code: CREDIT_BLOCK, message: 'Exposure ₹6,45,000 exceeds credit limit ₹5,00,000 (policy: Block)', details: { exposure: 645000, limit: 500000, mode: Block, needsApproval: false }, correlationId: corr_9f1c2e7a }
+        controlAccount:
+          summary: Party required on control account
+          value: { code: CONTROL_ACCOUNT, message: Accounts Receivable (1100) requires a customer on the line, field: 'lines[0].partyId', correlationId: corr_9f1c2e7a }
+        dimensionRequired:
+          summary: Account requires a dimension
+          value: { code: DIMENSION_REQUIRED, message: Travel (5500) requires a Department dimension, field: 'lines[1].dimensions.Department', correlationId: corr_9f1c2e7a }
+        overAllocation:
+          summary: Allocation exceeds outstanding / receipt amount
+          value: { code: OVER_ALLOCATION, message: Allocations 60000.00 exceed receipt amount 50000.00, details: { allocated: 60000, amount: 50000 }, correlationId: corr_9f1c2e7a }
+        commentRequired:
+          summary: Approval step needs a comment
+          value: { code: COMMENT_REQUIRED, message: A comment is required for this approval step, field: comment, correlationId: corr_9f1c2e7a }
+        eInvoiceNotReady:
+          summary: e-Invoice readiness failed
+          value: { code: EINV_NOT_READY, message: Document is not ready for IRP submission, details: { issues: ['Customer GSTIN missing', 'HSN missing on line 2'] }, correlationId: corr_9f1c2e7a }
+        eInvoiceWindow:
+          summary: IRN cancel window (24 h) elapsed
+          value: { code: EINV_WINDOW, message: IRN can only be cancelled within 24 hours of generation, details: { generatedAt: '2026-09-11T10:00:00Z' }, correlationId: corr_9f1c2e7a }
+        checklistBlocked:
+          summary: Period close checklist has blockers
+          value: { code: CHECKLIST_BLOCKED, message: 3 blocking items on the close checklist, details: { blockers: ['4 draft journals dated in period', 'Bank reconciliation not confirmed for HDFC', 'GSTR-3B not generated'] }, correlationId: corr_9f1c2e7a }
+        makerChecker:
+          summary: Segregation of duties
+          value: { code: MAKER_CHECKER, message: The checker must be different from the maker, correlationId: corr_9f1c2e7a }
+
+PeriodLocked:
+  description: The document date falls in a Soft Closed / Locked period (`PERIOD_LOCKED`). Reopen through Admin › Periods (elevated approval) or change the date.
+  headers:
+    X-Correlation-Id: { $ref: '../components/headers.yaml#/XCorrelationId' }
+  content:
+    application/json:
+      schema: { $ref: '../components/schemas/common.yaml#/Error' }
+      examples:
+        locked:
+          summary: Period locked
+          value: { code: PERIOD_LOCKED, message: Period Aug 2026 is Locked — posting is not allowed, field: date, details: { period: '2026-08', status: Locked, lockedBy: Rahul Mehta, lockedAt: '2026-09-05T11:30:00Z' }, correlationId: corr_9f1c2e7a }
+        softClosed:
+          summary: Soft closed — only Finance Admin may post
+          value: { code: PERIOD_LOCKED, message: Period Aug 2026 is Soft Closed — requires accounting.period.post, field: date, details: { period: '2026-08', status: Soft Closed }, correlationId: corr_9f1c2e7a }
+        future:
+          summary: Period not yet opened
+          value: { code: PERIOD_LOCKED, message: Period Nov 2026 is not open, field: date, details: { period: '2026-11', status: Future }, correlationId: corr_9f1c2e7a }
+
+Gone:
+  description: The link/token has expired (`EXPIRED`).
+  headers:
+    X-Correlation-Id: { $ref: '../components/headers.yaml#/XCorrelationId' }
+  content:
+    application/json:
+      schema: { $ref: '../components/schemas/common.yaml#/Error' }
+      examples:
+        expired:
+          summary: Expired token
+          value: { code: EXPIRED, message: This invitation expired on 2026-09-01 — ask your administrator to resend it, correlationId: corr_9f1c2e7a }
+
+PayloadTooLarge:
+  description: Upload exceeds the size limit (`PAYLOAD_TOO_LARGE`).
+  headers:
+    X-Correlation-Id: { $ref: '../components/headers.yaml#/XCorrelationId' }
+  content:
+    application/json:
+      schema: { $ref: '../components/schemas/common.yaml#/Error' }
+      examples:
+        tooLarge:
+          summary: File too big
+          value: { code: PAYLOAD_TOO_LARGE, message: File exceeds 25 MB, details: { limitBytes: 26214400, sizeBytes: 31457280 }, correlationId: corr_9f1c2e7a }
+
+TooManyRequests:
+  description: Rate limit exceeded (`RATE_LIMITED`).
+  headers:
+    X-Correlation-Id: { $ref: '../components/headers.yaml#/XCorrelationId' }
+    RateLimit-Limit: { $ref: '../components/headers.yaml#/RateLimitLimit' }
+    RateLimit-Remaining: { $ref: '../components/headers.yaml#/RateLimitRemaining' }
+    Retry-After: { $ref: '../components/headers.yaml#/RetryAfter' }
+  content:
+    application/json:
+      schema: { $ref: '../components/schemas/common.yaml#/Error' }
+      examples:
+        limited:
+          summary: Too many requests
+          value: { code: RATE_LIMITED, message: Rate limit of 600 requests/minute exceeded — retry after 30 s, correlationId: corr_9f1c2e7a }
+
+ProviderError:
+  description: An external provider (IRP, e-Way bill, GSTN, bank, rate provider, e-mail/SMS gateway) is unavailable or timed out. The integration log entry is left in a recoverable state — do **not** blindly retry; use the `retry` endpoint.
+  headers:
+    X-Correlation-Id: { $ref: '../components/headers.yaml#/XCorrelationId' }
+  content:
+    application/json:
+      schema: { $ref: '../components/schemas/common.yaml#/Error' }
+      examples:
+        timeout:
+          summary: Provider timeout (integration log status Timeout)
+          value: { code: PROVIDER_UNAVAILABLE, message: IRP did not respond within 30 s — the request is recorded as Timeout and can be retried, details: { provider: IRP, integrationLogId: ilog_5f2a, status: Timeout }, correlationId: corr_9f1c2e7a }
+        rejected:
+          summary: Provider rejected the payload (integration log status Rejected)
+          value: { code: PROVIDER_UNAVAILABLE, message: 'IRP rejected the document: 2150 Duplicate IRN', details: { provider: IRP, providerCode: '2150', integrationLogId: ilog_5f2b, status: Rejected }, correlationId: corr_9f1c2e7a }
+        credentialsExpired:
+          summary: Provider credential expired
+          value: { code: PROVIDER_UNAVAILABLE, message: EWB credential for 27AAPFU0939F1ZV expired on 2026-08-31 — rotate it under Integrations, details: { provider: EWB, credentialId: cred_ewb_mh }, correlationId: corr_9f1c2e7a }

@@ -1,0 +1,1046 @@
+# Banking (tag: Banking). src/modules/banking/actions.ts.
+
+# ── bank & cash accounts ──────────────────────────────────────────────────
+
+/banking/accounts:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Banking]
+    summary: Bank & cash accounts with book / cleared balances
+    operationId: listBankAccounts
+    x-permission: banking.account.view
+    x-frd: [FR-BNK-001]
+    parameters:
+      - { name: kind, in: query, schema: { type: string, enum: [Bank, Cash] } }
+      - $ref: '../components/parameters.yaml#/IncludeInactive'
+    responses:
+      '200':
+        description: Accounts
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/banking.yaml#/BankAccount' } } } }
+            examples:
+              list: { summary: Bank + cash, value: { data: [{ $ref: '#/components/examples/BankAccountHdfc/value' }, { id: acc_1300, companyId: co_acme, code: '1300', name: Cash in hand, kind: Cash, currency: INR, status: Active, openingBalance: 50000, bookBalance: 68100, clearedBalance: 68100, unclearedCount: 0, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:00:00Z', version: 2 }] } }
+              empty: { summary: None, value: { data: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Banking]
+    summary: Add a bank or cash account (creates the GL account)
+    operationId: createBankAccount
+    x-permission: banking.account.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/banking.yaml#/BankAccountCreate' }
+          examples:
+            bank: { summary: INR current account, value: { code: '1310', name: HDFC Bank — CA 0042, kind: Bank, bankName: HDFC Bank, accountNumber: '50200012340042', ifsc: HDFC0000123, branch: Andheri East, currency: INR, openingBalance: 1250000 } }
+            foreignBank: { summary: USD EEFC account (fixed currency), value: { code: '1320', name: HDFC EEFC USD, kind: Bank, bankName: HDFC Bank, accountNumber: '50200012340099', ifsc: HDFC0000123, currency: USD, openingBalance: 0 } }
+            cash: { summary: Petty cash, value: { code: '1301', name: Petty cash — Andheri, kind: Cash, currency: INR, openingBalance: 5000 } }
+    responses:
+      '201':
+        description: Created
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/banking.yaml#/BankAccount' }
+            examples:
+              created: { $ref: '../components/examples/banking.yaml#/BankAccountHdfc' }
+      '400':
+        description: Validation
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              ifsc: { summary: Bad IFSC, value: { code: VALIDATION, message: "IFSC must be 4 letters, 0, 6 alphanumerics", field: ifsc, correlationId: corr_9f1c2e7a } }
+              accountNumber: { summary: Short account number, value: { code: VALIDATION, message: Account number is required (6+ digits), field: accountNumber, correlationId: corr_9f1c2e7a } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/banking/accounts/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Banking]
+    summary: Get a bank / cash account
+    operationId: getBankAccount
+    x-permission: banking.account.view
+    responses:
+      '200':
+        description: Account
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/banking.yaml#/BankAccount' }
+            examples:
+              bank: { $ref: '../components/examples/banking.yaml#/BankAccountHdfc' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Banking]
+    summary: Update bank details / opening balance (until posted)
+    operationId: updateBankAccount
+    x-permission: banking.account.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/banking.yaml#/BankAccountPatch' }
+          examples:
+            branch: { summary: Branch rename, value: { expectedVersion: 2, branch: Andheri East (Chakala) } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/banking.yaml#/BankAccount' }
+            examples:
+              updated: { $ref: '../components/examples/banking.yaml#/BankAccountHdfc' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/banking/accounts/{id}/ledger:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Banking]
+    summary: Bank book (journal lines on the account with cleared state)
+    operationId: getBankAccountLedger
+    x-permission: banking.account.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+      - { name: cleared, in: query, schema: { type: boolean }, description: Filter cleared / uncleared entries. }
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+    responses:
+      '200':
+        description: Entries
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/banking.yaml#/BankBookEntry' } }
+                    opening: { type: number }
+                    closing: { type: number }
+            examples:
+              rows: { summary: "Two entries, one uncleared", value: { data: [{ journalId: jnl_298, number: JV/2026-27/00298, date: '2026-09-02', narration: Receipt RCP/2026-27/00215 — Arlene Traders, sourceType: Receipt, sourceId: rcp_00215, sourceNumber: RCP/2026-27/00215, docNumber: RCP/2026-27/00215, dr: 118000, cr: 0, amount: 118000, partyName: Arlene Traders, cleared: true, clearedBy: sl_1 }, { journalId: jnl_405, number: JV/2026-27/00405, date: '2026-09-12', narration: Payment PAY/2026-27/00131 — Bharat Steel, sourceType: Payment, sourceId: pay_00131, sourceNumber: PAY/2026-27/00131, docNumber: PAY/2026-27/00131, dr: 0, cr: 295000, amount: -295000, partyName: Bharat Steel Ltd, cleared: false }], opening: 2200450, closing: 2318450, meta: { nextCursor: null, limit: 25, total: 2 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── vouchers ──────────────────────────────────────────────────────────────
+
+/banking/vouchers:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Banking]
+    summary: List bank vouchers
+    description: "Tabs → All · Draft · Posted · Reversed. Query examples — `?voucherType=Contra` · `?bankAccountId=acc_1310` · `?method=Cheque` · `?uncleared=true`."
+    operationId: listBankVouchers
+    x-permission: banking.voucher.view
+    x-frd: [FR-BNK-002]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: voucherType, in: query, schema: { $ref: '../components/schemas/banking.yaml#/VoucherType' } }
+      - { name: bankAccountId, in: query, schema: { type: string } }
+      - { name: method, in: query, schema: { type: string } }
+      - { name: uncleared, in: query, schema: { type: boolean } }
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Vouchers
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/banking.yaml#/BankVoucher' } }
+            examples:
+              firstPage: { summary: Vouchers, value: { data: [{ $ref: '#/components/examples/BankVoucherPosted/value' }], meta: { nextCursor: null, limit: 25, total: 1, counts: { All: 38, Draft: 1, Posted: 36, Reversed: 1 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Banking]
+    summary: Create a bank voucher (Draft)
+    operationId: createBankVoucher
+    x-permission: banking.voucher.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/banking.yaml#/BankVoucherCreate' }
+          examples:
+            payment: { summary: Payment — bank charges, value: { date: '2026-09-13', voucherType: Payment, bankAccountId: acc_1310, counterAccountId: acc_5300, amount: 1180, method: Internal, narration: Bank charges September } }
+            receipt: { summary: Receipt — interest credited, value: { date: '2026-09-13', voucherType: Receipt, bankAccountId: acc_1310, counterAccountId: acc_4800, amount: 2350, method: Internal, narration: Savings interest Q2 } }
+            deposit: { summary: Deposit — cash to bank, value: { date: '2026-09-13', voucherType: Deposit, bankAccountId: acc_1310, counterAccountId: acc_1300, amount: 50000, method: Cash, narration: Cash deposit from Andheri store } }
+            contra: { summary: Contra — bank to bank, value: { date: '2026-09-13', voucherType: Contra, bankAccountId: acc_1310, counterAccountId: acc_1311, amount: 500000, method: RTGS, instrumentRef: RTGS26091300221, narration: Sweep to ICICI OD } }
+            cheque: { summary: Withdrawal by cheque, value: { date: '2026-09-13', voucherType: Withdrawal, bankAccountId: acc_1310, counterAccountId: acc_1300, amount: 20000, method: Cheque, instrumentRef: '004521', narration: Petty cash top-up } }
+            partyPayment: { summary: Payment to a supplier (control account → party), value: { date: '2026-09-13', voucherType: Payment, bankAccountId: acc_1310, counterAccountId: acc_2100, partyType: Supplier, partyId: sup_landlord, amount: 25000, method: NEFT, instrumentRef: N26091300987, narration: Rent September } }
+    responses:
+      '201':
+        description: Draft voucher
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/banking.yaml#/BankVoucher' }
+            examples:
+              draft: { summary: Draft, value: { id: bv_0038, companyId: co_acme, number: BV/DRAFT, docType: Bank Voucher, date: '2026-09-13', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: None, voucherType: Payment, bankAccountId: acc_1310, bankAccountName: HDFC Bank — CA 0042, counterAccountId: acc_5300, counterAccountName: Bank charges, amount: 1180, method: Internal, narration: Bank charges September, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 1180, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 1180 }, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400':
+        description: Validation
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              sameAccount: { summary: Both sides equal, value: { code: VALIDATION, message: Both sides cannot be the same account, field: counterAccountId, correlationId: corr_9f1c2e7a } }
+              chequeNo: { summary: Cheque without number, value: { code: VALIDATION, message: Cheque number is required, field: instrumentRef, correlationId: corr_9f1c2e7a } }
+              party: { summary: Control account without party, value: { code: CONTROL_ACCOUNT, message: Accounts Payable is a control account — choose the party, field: partyId, correlationId: corr_9f1c2e7a } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/banking/vouchers/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Banking]
+    summary: Get a voucher
+    operationId: getBankVoucher
+    x-permission: banking.voucher.view
+    responses:
+      '200':
+        description: Voucher
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/banking.yaml#/BankVoucher' }
+            examples:
+              posted: { $ref: '../components/examples/banking.yaml#/BankVoucherPosted' }
+              reversed: { summary: Reversed, value: { id: bv_0037, companyId: co_acme, number: BV/2026-27/00037, docType: Bank Voucher, date: '2026-09-13', branchId: br_ho, status: Reversed, currency: INR, rate: 1, partyType: None, voucherType: Payment, bankAccountId: acc_1310, bankAccountName: HDFC Bank — CA 0042, counterAccountId: acc_5300, counterAccountName: Bank charges, amount: 1180, method: Internal, narration: Bank charges September, reversalReason: Charges reversed by the bank, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 1180, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 1180 }, journalId: jnl_bv_37, journalNumber: JV/2026-27/00402, postedAt: '2026-09-13T10:00:00Z', postedBy: Priya Sharma, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-14T09:00:00Z', version: 4 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Banking]
+    summary: Edit a Draft voucher
+    operationId: updateBankVoucher
+    x-permission: banking.voucher.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/banking.yaml#/BankVoucherPatch' }
+          examples:
+            amount: { summary: Amount and reference, value: { expectedVersion: 1, amount: 1298, instrumentRef: CHG-SEP } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/banking.yaml#/BankVoucher' }
+            examples:
+              updated: { summary: Updated, value: { id: bv_0038, companyId: co_acme, number: BV/DRAFT, docType: Bank Voucher, date: '2026-09-13', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: None, voucherType: Payment, bankAccountId: acc_1310, bankAccountName: HDFC Bank — CA 0042, counterAccountId: acc_5300, counterAccountName: Bank charges, amount: 1298, method: Internal, instrumentRef: CHG-SEP, narration: Bank charges September, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 1298, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 1298 }, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:30:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Banking]
+    summary: Delete a Draft voucher
+    operationId: deleteBankVoucher
+    x-permission: banking.voucher.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/banking/vouchers/{id}/post:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Banking]
+    summary: Post a voucher (allocates number, posts the journal)
+    operationId: postBankVoucher
+    x-permission: banking.voucher.post
+    x-idempotent: true
+    x-events: [DocumentPosted, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Posted
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/banking.yaml#/BankVoucher' }
+            examples:
+              payment: { summary: Payment posted, value: { document: { $ref: '#/components/examples/BankVoucherPosted/value' }, outcome: posted, journal: { id: jnl_bv_38, companyId: co_acme, number: JV/2026-27/00403, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Bank Voucher, sourceId: bv_0038, sourceNumber: BV/2026-27/00038, narration: Payment · Bank charges September, lines: [{ id: jl_1, accountId: acc_5300, accountCode: '5300', accountName: Bank charges, dr: 1180, cr: 0, drBase: 1180, crBase: 0, dimensions: { Branch: br_ho } }, { id: jl_2, accountId: acc_1310, accountCode: '1310', accountName: HDFC Bank — CA 0042, dr: 0, cr: 1180, drBase: 0, crBase: 1180, dimensions: { Branch: br_ho } }], totalDr: 1180, totalCr: 1180, idempotencyKey: 'bv_0038:post', postedAt: '2026-09-13T10:00:00Z', postedBy: Priya Sharma, correlationId: corr_bv38, createdAt: '2026-09-13T10:00:00Z', updatedAt: '2026-09-13T10:00:00Z', version: 1 }, warnings: [] } }
+              contra: { summary: Contra posted (bank ↔ bank), value: { document: { id: bv_0039, companyId: co_acme, number: BV/2026-27/00039, docType: Bank Voucher, date: '2026-09-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: None, voucherType: Contra, bankAccountId: acc_1310, bankAccountName: HDFC Bank — CA 0042, counterAccountId: acc_1311, counterAccountName: ICICI Bank — OD 7781, amount: 500000, method: RTGS, instrumentRef: RTGS26091300221, narration: Sweep to ICICI OD, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 500000, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 500000 }, journalId: jnl_bv_39, journalNumber: JV/2026-27/00404, postedAt: '2026-09-13T10:05:00Z', postedBy: Priya Sharma, createdAt: '2026-09-13T09:50:00Z', updatedAt: '2026-09-13T10:05:00Z', version: 2 }, outcome: posted, warnings: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/banking/vouchers/{id}/reverse:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Banking]
+    summary: Reverse a posted voucher (blocked while matched on a statement)
+    operationId: reverseBankVoucher
+    x-permission: banking.voucher.reverse
+    x-idempotent: true
+    x-events: [DocumentReversed, JournalReversed]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Charges reversed by the bank } }
+    responses:
+      '200':
+        description: Reversed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/banking.yaml#/BankVoucher' }
+            examples:
+              reversed: { summary: Reversed, value: { document: { id: bv_0038, companyId: co_acme, number: BV/2026-27/00038, docType: Bank Voucher, date: '2026-09-13', branchId: br_ho, status: Reversed, currency: INR, rate: 1, partyType: None, voucherType: Payment, bankAccountId: acc_1310, bankAccountName: HDFC Bank — CA 0042, counterAccountId: acc_5300, counterAccountName: Bank charges, amount: 1180, method: Internal, narration: Bank charges September, reversalReason: Charges reversed by the bank, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 1180, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 1180 }, journalId: jnl_bv_38, journalNumber: JV/2026-27/00403, postedAt: '2026-09-13T10:00:00Z', postedBy: Priya Sharma, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-14T09:00:00Z', version: 4 }, outcome: reversed, warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: State conflict
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              notPosted: { summary: Not posted, value: { code: INVALID_STATE, message: Only posted vouchers can be reversed, correlationId: corr_9f1c2e7a } }
+              matched: { summary: Matched on a statement, value: { code: INVALID_STATE, message: Voucher is matched on a bank statement — unmatch it first, details: { statementLineId: sl_9 }, correlationId: corr_9f1c2e7a } }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/banking/vouchers/{id}/pdf:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Banking]
+    summary: Voucher PDF
+    operationId: getBankVoucherPdf
+    x-permission: banking.voucher.view
+    responses:
+      '200':
+        description: PDF
+        headers:
+          Content-Disposition: { $ref: '../components/headers.yaml#/ContentDisposition' }
+        content:
+          application/pdf:
+            schema: { type: string, format: binary }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── statement formats ─────────────────────────────────────────────────────
+
+/banking/statement-formats:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Banking]
+    summary: Column-mapping formats (built-in + saved)
+    operationId: listStatementFormats
+    x-permission: banking.statement.view
+    parameters:
+      - { name: bankAccountId, in: query, schema: { type: string } }
+    responses:
+      '200':
+        description: Formats
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/banking.yaml#/StatementFormatRecord' } } } }
+            examples:
+              list: { summary: Built-ins + one saved, value: { data: [{ id: sf_hdfc, companyId: co_acme, name: HDFC NetBanking CSV, dateCol: Date, descCol: Narration, refCol: Chq./Ref.No., debitCol: Withdrawal Amt., creditCol: Deposit Amt., balanceCol: Closing Balance, dateFormat: DD/MM/YYYY, builtIn: true, usedCount: 6, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: sf_icici, companyId: co_acme, name: ICICI Corporate CSV, dateCol: Transaction Date, descCol: Transaction Remarks, refCol: Cheque Number, debitCol: Withdrawal Amount (INR ), creditCol: Deposit Amount (INR ), balanceCol: Balance (INR ), dateFormat: DD/MM/YYYY, builtIn: true, usedCount: 0, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: sf_generic, companyId: co_acme, name: Generic (ISO date), dateCol: date, descCol: description, refCol: reference, debitCol: debit, creditCol: credit, balanceCol: balance, dateFormat: YYYY-MM-DD, builtIn: true, usedCount: 0, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: sf_kotak, companyId: co_acme, name: Kotak XLS export, dateCol: Txn Date, descCol: Description, refCol: Ref No, debitCol: Dr Amount, creditCol: Cr Amount, dateFormat: DD-MM-YYYY, builtIn: false, bankAccountId: acc_1312, usedCount: 2, createdAt: '2026-07-02T09:00:00Z', updatedAt: '2026-07-02T09:00:00Z', version: 1 }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Banking]
+    summary: Save a format
+    operationId: createStatementFormat
+    x-permission: banking.statement.import
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/banking.yaml#/StatementFormat'
+              - { type: object, properties: { bankAccountId: { type: string } } }
+          examples:
+            kotak: { summary: Kotak export, value: { name: Kotak XLS export, dateCol: Txn Date, descCol: Description, refCol: Ref No, debitCol: Dr Amount, creditCol: Cr Amount, dateFormat: DD-MM-YYYY, bankAccountId: acc_1312 } }
+    responses:
+      '201':
+        description: Saved
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/banking.yaml#/StatementFormatRecord' }
+            examples:
+              saved: { summary: Saved, value: { id: sf_kotak, companyId: co_acme, name: Kotak XLS export, dateCol: Txn Date, descCol: Description, refCol: Ref No, debitCol: Dr Amount, creditCol: Cr Amount, dateFormat: DD-MM-YYYY, builtIn: false, bankAccountId: acc_1312, usedCount: 0, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/banking/statement-formats/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  put:
+    tags: [Banking]
+    summary: Replace a saved format
+    operationId: updateStatementFormat
+    x-permission: banking.statement.import
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/banking.yaml#/StatementFormat' }
+          examples:
+            kotak: { summary: Add balance column, value: { name: Kotak XLS export, dateCol: Txn Date, descCol: Description, refCol: Ref No, debitCol: Dr Amount, creditCol: Cr Amount, balanceCol: Balance, dateFormat: DD-MM-YYYY } }
+    responses:
+      '200':
+        description: Saved
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/banking.yaml#/StatementFormatRecord' }
+            examples:
+              saved: { summary: Saved, value: { id: sf_kotak, companyId: co_acme, name: Kotak XLS export, dateCol: Txn Date, descCol: Description, refCol: Ref No, debitCol: Dr Amount, creditCol: Cr Amount, balanceCol: Balance, dateFormat: DD-MM-YYYY, builtIn: false, bankAccountId: acc_1312, usedCount: 2, createdAt: '2026-07-02T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Banking]
+    summary: Delete a saved format (built-ins cannot be deleted)
+    operationId: deleteStatementFormat
+    x-permission: banking.statement.import
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── statements ────────────────────────────────────────────────────────────
+
+/banking/statements:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Banking]
+    summary: Imported statements
+    operationId: listBankStatements
+    x-permission: banking.statement.view
+    x-frd: [FR-REC-001]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: bankAccountId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/Status'
+    responses:
+      '200':
+        description: Statements
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/banking.yaml#/BankStatement' } }
+            examples:
+              firstPage: { summary: Statements, value: { data: [{ $ref: '#/components/examples/BankStatementSep/value' }], meta: { nextCursor: null, limit: 25, total: 6 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Banking]
+    summary: Upload a statement file (dry run → preview)
+    description: "Multipart upload parsed with the chosen format (or auto-detected). Returns a `StatementImportPreview` with per-row errors / duplicates (fingerprint) and balance-continuity checks; nothing is stored until `POST /banking/statements/commit`."
+    operationId: previewBankStatement
+    x-permission: banking.statement.import
+    x-frd: [FR-REC-001, FR-REC-002]
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [file, bankAccountId]
+            properties:
+              file: { type: string, format: binary, description: CSV / XLSX ≤ 10 MB. }
+              bankAccountId: { type: string, example: acc_1310 }
+              formatId: { type: string, description: Saved format id; omit to auto-detect by header row., example: sf_hdfc }
+              format: { type: string, description: Inline JSON `StatementFormat` for a one-off mapping. }
+              openingBalance: { type: number, example: 2200450 }
+              closingBalance: { type: number, example: 2318450 }
+          encoding:
+            file: { contentType: 'text/csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
+          examples:
+            hdfc: { summary: HDFC CSV, value: { bankAccountId: acc_1310, formatId: sf_hdfc, openingBalance: 2200450, closingBalance: 2318450 } }
+            autoDetect: { summary: Auto-detect header, value: { bankAccountId: acc_1310 } }
+    responses:
+      '200':
+        description: Preview
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/banking.yaml#/StatementImportPreview' }
+            examples:
+              clean: { summary: All rows importable, value: { previewId: prv_7c1d, bankAccountId: acc_1310, fileName: hdfc_sep.csv, fingerprint: fp_file_44aa, format: { name: HDFC NetBanking CSV, dateCol: Date, descCol: Narration, refCol: Chq./Ref.No., debitCol: Withdrawal Amt., creditCol: Deposit Amt., balanceCol: Closing Balance, dateFormat: DD/MM/YYYY }, detectedColumns: [Date, Narration, Chq./Ref.No., Value Dt, Withdrawal Amt., Deposit Amt., Closing Balance], lines: [{ row: 1, date: '2026-09-02', description: NEFT CR ARLENE TRADERS INV 00042, reference: N260902001122, debit: 0, credit: 118000, balance: 2318450, fingerprint: fp_9a1b2c3d }, { row: 2, date: '2026-09-05', description: CHRG SMS ALERT, reference: '', debit: 1180, credit: 0, balance: 2317270, fingerprint: fp_11aa22bb }], importable: 2, skipped: 0, periodFrom: '2026-09-02', periodTo: '2026-09-05', openingBalance: 2200450, closingBalance: 2317270, computedClosing: 2317270, errors: [], warnings: [] } }
+              withIssues: { summary: "Duplicates, bad date, continuity error", value: { previewId: prv_7c1e, bankAccountId: acc_1310, fileName: hdfc_sep_v2.csv, fingerprint: fp_file_44ab, format: { name: HDFC NetBanking CSV, dateCol: Date, descCol: Narration, refCol: Chq./Ref.No., debitCol: Withdrawal Amt., creditCol: Deposit Amt., dateFormat: DD/MM/YYYY }, lines: [{ row: 1, date: '2026-09-02', description: NEFT CR ARLENE TRADERS INV 00042, reference: N260902001122, debit: 0, credit: 118000, fingerprint: fp_9a1b2c3d, duplicate: 'Row 1: already imported in hdfc_sep.csv' }, { row: 2, date: '', description: CHRG, reference: '', debit: 1180, credit: 0, fingerprint: fp_zz, error: 'Row 2: unreadable date "31/02/2026"' }], importable: 0, skipped: 2, periodFrom: '', periodTo: '', openingBalance: 2200450, closingBalance: 2318450, computedClosing: 2200450, errors: [No importable rows, 'Balance continuity: opening 2200450 + net 0 = 2200450, but closing entered is 2318450'], warnings: ['Overlaps the previous statement (2026-09-01 → 2026-09-10); duplicate lines are skipped by fingerprint'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Duplicate file
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              fingerprint: { summary: Same file already imported, value: { code: DUPLICATE, message: This exact file was already imported (duplicate fingerprint), details: { statementId: stm_0006, fileName: hdfc_sep.csv }, correlationId: corr_9f1c2e7a } }
+      '413': { $ref: '../components/responses.yaml#/PayloadTooLarge' }
+      '422':
+        description: Unparseable
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              columns: { summary: Columns not found, value: { code: VALIDATION, message: 'Column "Withdrawal Amt." not found in the file header', field: format.debitCol, details: { detectedColumns: [Date, Particulars, Debit, Credit] }, correlationId: corr_9f1c2e7a } }
+              currency: { summary: Currency mismatch, value: { code: VALIDATION, message: Statement currency USD does not match the account (INR), field: bankAccountId, correlationId: corr_9f1c2e7a } }
+
+/banking/statements/commit:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Banking]
+    summary: Commit a previewed statement (stores statement + lines)
+    operationId: commitBankStatement
+    x-permission: banking.statement.import
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/banking.yaml#/StatementCommitRequest' }
+          examples:
+            commit: { summary: Commit, value: { previewId: prv_7c1d, openingBalance: 2200450, closingBalance: 2317270 } }
+            saveFormat: { summary: Commit and save the mapping, value: { previewId: prv_7c1d, openingBalance: 2200450, closingBalance: 2317270, saveFormatAs: HDFC CSV (2026 layout) } }
+    responses:
+      '201':
+        description: Imported
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/banking.yaml#/BankStatement' }
+            examples:
+              imported: { $ref: '../components/examples/banking.yaml#/BankStatementSep' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '410':
+        description: Preview expired
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              expired: { summary: Preview older than 30 min, value: { code: EXPIRED, message: Preview prv_7c1d has expired — upload the file again, correlationId: corr_9f1c2e7a } }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/banking/statements/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Banking]
+    summary: Get a statement
+    operationId: getBankStatement
+    x-permission: banking.statement.view
+    responses:
+      '200':
+        description: Statement
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/banking.yaml#/BankStatement' }
+            examples:
+              imported: { $ref: '../components/examples/banking.yaml#/BankStatementSep' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  delete:
+    tags: [Banking]
+    summary: Delete a statement with no matched lines
+    operationId: deleteBankStatement
+    x-permission: banking.statement.import
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/banking/statements/{id}/lines:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Banking]
+    summary: Statement lines
+    operationId: listBankStatementLines
+    x-permission: banking.statement.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+    responses:
+      '200':
+        description: Lines
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/banking.yaml#/StatementLine' } }
+            examples:
+              lines: { summary: Matched + unmatched, value: { data: [{ $ref: '#/components/examples/StatementLineMatched/value' }, { $ref: '#/components/examples/StatementLineUnmatched/value' }], meta: { nextCursor: null, limit: 25, total: 2, counts: { All: 41, Unmatched: 4, Matched: 36, Excluded: 1 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── reconciliation ────────────────────────────────────────────────────────
+
+/banking/reconciliation:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Banking]
+    summary: Reconciliation workspace for an account + window (live summary + suggestions)
+    operationId: getReconciliationWorkspace
+    x-permission: banking.reconciliation.view
+    x-frd: [FR-REC-003, FR-REC-004]
+    parameters:
+      - { name: bankAccountId, in: query, required: true, schema: { type: string }, example: acc_1310 }
+      - { name: from, in: query, required: true, schema: { type: string, format: date }, example: '2026-09-01' }
+      - { name: to, in: query, required: true, schema: { type: string, format: date }, example: '2026-09-30' }
+    responses:
+      '200':
+        description: Workspace
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/banking.yaml#/ReconciliationWorkspace' }
+            examples:
+              open: { summary: Unexplained difference, value: { bankAccountId: acc_1310, bankAccountName: HDFC Bank — CA 0042, from: '2026-09-01', to: '2026-09-30', statementId: stm_0006, statementBalance: 2317270, bookBalance: 2318450, difference: -1180, openingBook: 2200450, adjustedBook: 2318450, unexplained: -1180, unmatchedStatement: [{ $ref: '#/components/examples/StatementLineUnmatched/value' }], unmatchedBook: [{ journalId: jnl_405, number: JV/2026-27/00405, date: '2026-09-12', narration: Payment PAY/2026-27/00131 — Bharat Steel, sourceType: Payment, sourceId: pay_00131, sourceNumber: PAY/2026-27/00131, docNumber: PAY/2026-27/00131, dr: 0, cr: 295000, amount: -295000, partyName: Bharat Steel Ltd, cleared: false }], cleared: [], clearedAmount: 118000, suggestions: [{ statementLineId: sl_2, journalId: jnl_405, docNumber: PAY/2026-27/00131, confidence: 0.86, reason: 'Amount equal · 1 day apart · party "BHARAT STEEL"' }], canConfirm: false, lastConfirmed: { id: brs_08, number: BRS/2026-27/08, periodTo: '2026-08-31' } } }
+              balanced: { summary: Ready to confirm, value: { bankAccountId: acc_1310, bankAccountName: HDFC Bank — CA 0042, from: '2026-09-01', to: '2026-09-30', statementId: stm_0006, statementBalance: 2317270, bookBalance: 2317270, difference: 0, openingBook: 2200450, adjustedBook: 2317270, unexplained: 0, unmatchedStatement: [], unmatchedBook: [], cleared: [], clearedAmount: 116820, suggestions: [], canConfirm: true } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/banking/reconciliation/match:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Banking]
+    summary: Match statement line(s) to book entr(ies)
+    operationId: matchStatementLines
+    x-permission: banking.reconciliation.match
+    x-frd: [FR-REC-004]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/banking.yaml#/BankMatchRequest' }
+          examples:
+            oneToOne: { summary: 1:1, value: { statementLineIds: [sl_1], journalIds: [jnl_298] } }
+            oneToMany: { summary: 1:n — one bank credit clears two receipts, value: { statementLineIds: [sl_7], journalIds: [jnl_310, jnl_311], note: Customer paid two invoices in one NEFT } }
+            manyToOne: { summary: n:1 — two bank debits for one payment batch, value: { statementLineIds: [sl_12, sl_13], journalIds: [jnl_405] } }
+    responses:
+      '200':
+        description: Matched
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/banking.yaml#/BankMatchResult' }
+            examples:
+              matched: { summary: Matched, value: { matchGroupId: mg_31, lines: [{ $ref: '#/components/examples/StatementLineMatched/value' }], clearedJournalIds: [jnl_298] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Already matched / cleared
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              lineMatched: { summary: Line already matched, value: { code: INVALID_STATE, message: A selected statement line is already matched, details: { statementLineId: sl_1 }, correlationId: corr_9f1c2e7a } }
+              entryCleared: { summary: Book entry already cleared, value: { code: INVALID_STATE, message: A selected book entry is already cleared, details: { journalId: jnl_298 }, correlationId: corr_9f1c2e7a } }
+      '422':
+        description: Amounts differ
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              mismatch: { summary: Statement ≠ book, value: { code: AMOUNT_MISMATCH, message: 'Amounts differ: statement 118000 vs book 116820 — create an adjustment for the difference of 1180', details: { statement: 118000, book: 116820, difference: 1180 }, correlationId: corr_9f1c2e7a } }
+
+/banking/reconciliation/lines/{lineId}/unmatch:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/LineId'
+  post:
+    tags: [Banking]
+    summary: Unmatch a statement line (whole match group)
+    operationId: unmatchStatementLine
+    x-permission: banking.reconciliation.match
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Matched to the wrong receipt } }
+    responses:
+      '200':
+        description: Unmatched
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/banking.yaml#/StatementLine' }
+            examples:
+              unmatched: { $ref: '../components/examples/banking.yaml#/StatementLineUnmatched' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: State conflict
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              notMatched: { summary: Not matched, value: { code: INVALID_STATE, message: Line is not matched, correlationId: corr_9f1c2e7a } }
+              confirmed: { summary: In a confirmed reconciliation, value: { code: INVALID_STATE, message: Line belongs to a confirmed reconciliation — reopen it first, details: { reconciliationId: brs_08 }, correlationId: corr_9f1c2e7a } }
+
+/banking/reconciliation/lines/{lineId}/exclude:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/LineId'
+  post:
+    tags: [Banking]
+    summary: Exclude a statement line (bank error / reversal pair)
+    operationId: excludeStatementLine
+    x-permission: banking.reconciliation.match
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Bank error — reversed on the next line } }
+    responses:
+      '200':
+        description: Excluded
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/banking.yaml#/StatementLine' }
+            examples:
+              excluded: { summary: Excluded, value: { id: sl_3, companyId: co_acme, statementId: stm_0006, bankAccountId: acc_1310, date: '2026-09-08', description: REV CHRG SMS ALERT, reference: '', debit: 0, credit: 1180, balance: 2318450, fingerprint: fp_rev1, status: Excluded, excludeReason: Bank error — reversed on the next line, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T11:00:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/banking/reconciliation/adjustments:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Banking]
+    summary: Create + post an adjustment voucher for a statement line and match it
+    operationId: createReconciliationAdjustment
+    x-permission: banking.voucher.post
+    x-frd: [FR-REC-005]
+    x-idempotent: true
+    x-events: [DocumentPosted, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/banking.yaml#/ReconAdjustmentRequest' }
+          examples:
+            charges: { summary: Bank charges, value: { statementLineId: sl_2, counterAccountId: acc_5300, narration: Bank charges September } }
+            interest: { summary: Interest credited, value: { statementLineId: sl_9, voucherType: Receipt, counterAccountId: acc_4800, narration: Savings interest Q2 } }
+            unknownReceipt: { summary: Unidentified receipt parked on suspense, value: { statementLineId: sl_10, voucherType: Receipt, counterAccountId: acc_2900, narration: Unidentified NEFT — to be allocated } }
+    responses:
+      '201':
+        description: Voucher posted and line matched
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/banking.yaml#/BankVoucher' }
+                    line: { $ref: '../components/schemas/banking.yaml#/StatementLine' }
+            examples:
+              charges: { summary: Charges voucher, value: { document: { $ref: '#/components/examples/BankVoucherPosted/value' }, outcome: posted, line: { id: sl_2, companyId: co_acme, statementId: stm_0006, bankAccountId: acc_1310, date: '2026-09-05', description: CHRG SMS ALERT, reference: '', debit: 1180, credit: 0, balance: 2317270, fingerprint: fp_11aa22bb, status: Matched, matchedJournalIds: [jnl_bv_38], matchedDocNumber: BV/2026-27/00038, matchGroupId: mg_32, matchedAt: '2026-09-13T11:10:00Z', matchedBy: Priya Sharma, matchReason: Adjustment voucher, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T11:10:00Z', version: 2 }, warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/banking/reconciliations:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Banking]
+    summary: Confirmed / draft reconciliation statements (BRS)
+    operationId: listReconciliations
+    x-permission: banking.reconciliation.view
+    x-frd: [FR-REC-006]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: bankAccountId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/Status'
+    responses:
+      '200':
+        description: Reconciliations
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/banking.yaml#/Reconciliation' } }
+            examples:
+              firstPage: { summary: BRS list, value: { data: [{ $ref: '#/components/examples/ReconciliationConfirmed/value' }], meta: { nextCursor: null, limit: 25, total: 5 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Banking]
+    summary: Confirm the reconciliation for a window (snapshot BRS)
+    description: "Fails `422 UNBALANCED` unless statement balance = book balance adjusted for timing items. Needs `banking.reconciliation.confirm`."
+    operationId: confirmReconciliation
+    x-permission: banking.reconciliation.confirm
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/banking.yaml#/ReconciliationInput' }
+          examples:
+            september: { summary: September, value: { bankAccountId: acc_1310, periodFrom: '2026-09-01', periodTo: '2026-09-30', notes: Two payments in transit } }
+    responses:
+      '201':
+        description: Confirmed
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/banking.yaml#/Reconciliation' }
+            examples:
+              confirmed: { $ref: '../components/examples/banking.yaml#/ReconciliationConfirmed' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Does not balance
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              unbalanced: { summary: Unexplained difference, value: { code: UNBALANCED, message: 'Reconciliation does not balance: statement 2317270 vs book 2318450 adjusted for timing 2318450 — unexplained -1180. Match or create adjustments first.', details: { statementBalance: 2317270, bookBalance: 2318450, adjustedBook: 2318450, unexplained: -1180 }, correlationId: corr_9f1c2e7a } }
+
+/banking/reconciliations/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Banking]
+    summary: Get a BRS
+    operationId: getReconciliation
+    x-permission: banking.reconciliation.view
+    responses:
+      '200':
+        description: Reconciliation
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/banking.yaml#/Reconciliation' }
+            examples:
+              confirmed: { $ref: '../components/examples/banking.yaml#/ReconciliationConfirmed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/banking/reconciliations/{id}/reopen:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Banking]
+    summary: Reopen a confirmed BRS (lines become editable again)
+    operationId: reopenReconciliation
+    x-permission: banking.reconciliation.confirm
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Late bank charges found for 28 Sep } }
+    responses:
+      '200':
+        description: Draft again
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/banking.yaml#/Reconciliation' }
+            examples:
+              reopened: { summary: Reopened, value: { id: brs_09, companyId: co_acme, number: BRS/2026-27/09, bankAccountId: acc_1310, bankAccountName: HDFC Bank — CA 0042, periodFrom: '2026-09-01', periodTo: '2026-09-30', statementId: stm_0006, statementBalance: 2317270, bookBalance: 2317270, clearedCount: 40, clearedAmount: 116820, unmatchedStatement: [], unmatchedBook: [], adjustments: [], difference: 0, status: Draft, confirmedBy: Priya Sharma, confirmedAt: '2026-10-02T10:00:00Z', notes: 'Two payments in transit\nReopened: Late bank charges found for 28 Sep', createdAt: '2026-10-02T10:00:00Z', updatedAt: '2026-10-03T09:00:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/banking/reconciliations/{id}/pdf:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Banking]
+    summary: BRS PDF
+    operationId: getReconciliationPdf
+    x-permission: banking.reconciliation.view
+    responses:
+      '200':
+        description: PDF
+        headers:
+          Content-Disposition: { $ref: '../components/headers.yaml#/ContentDisposition' }
+        content:
+          application/pdf:
+            schema: { type: string, format: binary }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── settings ──────────────────────────────────────────────────────────────
+
+/banking/settings:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Banking]
+    summary: Banking settings (reconciliation tolerances)
+    operationId: getBankingSettings
+    x-permission: banking.account.view
+    responses:
+      '200':
+        description: Settings
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/banking.yaml#/BankingSettings' }
+            examples:
+              current: { summary: Current, value: { reconToleranceDays: 3, reconToleranceAmt: 1, reconAutoSuggestThreshold: 0.7 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  put:
+    tags: [Banking]
+    summary: Update banking settings
+    operationId: updateBankingSettings
+    x-permission: banking.settings.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/banking.yaml#/BankingSettings' }
+          examples:
+            wider: { summary: Wider date window, value: { reconToleranceDays: 5, reconAutoSuggestThreshold: 0.6 } }
+    responses:
+      '200':
+        description: Saved
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/banking.yaml#/BankingSettings' }
+            examples:
+              saved: { summary: Saved, value: { reconToleranceDays: 5, reconToleranceAmt: 1, reconAutoSuggestThreshold: 0.6 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }

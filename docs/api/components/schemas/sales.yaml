@@ -1,0 +1,526 @@
+# Sales & receivables (src/modules/sales/types.ts, actions.ts, fulfilment.ts, core.ts)
+
+# ── quotations ────────────────────────────────────────────────────────────
+
+QuotationStatus:
+  type: string
+  enum: [Draft, Sent, Accepted, Declined, Converted, Expired, Cancelled]
+
+QuotationCreate:
+  allOf:
+    - $ref: './document.yaml#/DocHeaderInput'
+    - type: object
+      required: [partyId, lines]
+      properties:
+        leadId: { type: string, description: CRM lead this quotation was created from., example: lead_metro }
+        validUntil: { type: string, format: date, description: Defaults to date + `salesQuoteValidityDays`. }
+
+QuotationPatch:
+  allOf:
+    - $ref: './document.yaml#/DocHeaderInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+
+Quotation:
+  allOf:
+    - $ref: './document.yaml#/DocHeader'
+    - type: object
+      required: [status]
+      properties:
+        status: { $ref: '#/QuotationStatus' }
+        sentAt: { type: string, format: date-time, readOnly: true }
+        sentTo: { type: string, readOnly: true }
+        acceptedAt: { type: string, format: date-time, readOnly: true }
+        declinedReason: { type: string, readOnly: true }
+        convertedToId: { type: string, readOnly: true, example: so_00087 }
+        convertedToNumber: { type: string, readOnly: true, example: SO/2026-27/00087 }
+        supersededById: { type: string, readOnly: true, description: Newer revision. }
+        leadId: { type: string }
+
+# ── sales orders ──────────────────────────────────────────────────────────
+
+SalesOrderStatus:
+  type: string
+  enum: [Draft, Submitted, Approved, Returned, Rejected, Confirmed, Partially Delivered, Delivered, Closed, Short Closed, Cancelled]
+
+SalesOrderCreate:
+  allOf:
+    - $ref: './document.yaml#/DocHeaderInput'
+    - type: object
+      required: [partyId, lines]
+      properties:
+        expectedDate: { type: string, format: date, example: '2026-09-25' }
+        reservationExpiry: { type: string, format: date, description: When reservations lapse (default date + `salesReservationDays`). }
+
+SalesOrderPatch:
+  allOf:
+    - $ref: './document.yaml#/DocHeaderInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+    - type: object
+      properties:
+        expectedDate: { type: string, format: date }
+
+SalesOrderAmendment:
+  type: object
+  required: [at, by, reason, changes]
+  properties:
+    at: { type: string, format: date-time }
+    by: { type: string }
+    reason: { type: string }
+    changes: { type: string, example: 'Line 1 qty 100 → 120; line 3 removed' }
+
+CreditCheck:
+  type: object
+  description: Result of `engine.checkCredit` at submit time.
+  required: [ok, mode, exposure, limit]
+  properties:
+    ok: { type: boolean }
+    mode: { type: string, enum: [Warn, Block, Override] }
+    exposure: { type: number, example: 645000 }
+    limit: { type: number, example: 500000 }
+    message: { type: string, example: 'Exposure ₹6,45,000 exceeds credit limit ₹5,00,000' }
+    needsApproval: { type: boolean, description: Override mode — routed for approval with the exception flag. }
+    at: { type: string, format: date-time }
+
+SalesOrder:
+  allOf:
+    - $ref: './document.yaml#/DocHeader'
+    - type: object
+      required: [status]
+      properties:
+        status: { $ref: '#/SalesOrderStatus' }
+        expectedDate: { type: string, format: date }
+        confirmedAt: { type: string, format: date-time, readOnly: true }
+        confirmedBy: { type: string, readOnly: true }
+        reservationExpiry: { type: string, format: date }
+        amendments: { type: array, readOnly: true, items: { $ref: '#/SalesOrderAmendment' } }
+        shortCloseReason: { type: string, readOnly: true }
+        creditCheck: { $ref: '#/CreditCheck', readOnly: true }
+        quantities:
+          type: object
+          readOnly: true
+          description: Roll-up across lines.
+          properties:
+            ordered: { type: number, example: 120 }
+            reserved: { type: number, example: 80 }
+            delivered: { type: number, example: 30 }
+            invoiced: { type: number, example: 30 }
+            pending: { type: number, example: 90 }
+
+OrderSubmitResult:
+  type: object
+  description: Outcome of submitting an order — credit check + workflow.
+  required: [outcome, order, creditCheck]
+  properties:
+    outcome: { type: string, enum: [routed-for-approval, confirmed] }
+    order: { $ref: '#/SalesOrder' }
+    creditCheck: { $ref: '#/CreditCheck' }
+    approval: { $ref: './approvals.yaml#/ApprovalRequest' }
+    reservations: { type: array, items: { $ref: './document.yaml#/Reservation' } }
+    warnings: { type: array, items: { type: string } }
+
+ConfirmOrderRequest:
+  type: object
+  properties:
+    reserve: { type: boolean, description: Reserve stock for all stock lines (default `salesAutoReserveOnConfirm`). }
+    warehouseId: { type: string, description: Reserve from this warehouse (default line / company warehouse). }
+
+ReserveLineRequest:
+  type: object
+  required: [lineId, qty, warehouseId]
+  properties:
+    lineId: { type: string, example: ln_so_1 }
+    qty: { type: number, example: 80 }
+    warehouseId: { type: string, example: wh_main }
+    expiresAt: { type: string, format: date-time }
+
+AmendOrderRequest:
+  type: object
+  required: [lines, reason]
+  properties:
+    lines: { type: array, minItems: 1, items: { $ref: './document.yaml#/DocLineInput' }, description: Full replacement line set (delivered/invoiced quantities cannot be reduced below what was fulfilled). }
+    reason: { type: string, minLength: 10, example: Customer increased the order after site measurement }
+    expectedDate: { type: string, format: date }
+
+# ── deliveries ────────────────────────────────────────────────────────────
+
+DeliveryStatus:
+  type: string
+  enum: [Draft, Posted, Reversed, Cancelled]
+
+DeliveryCreate:
+  allOf:
+    - $ref: './document.yaml#/DocHeaderInput'
+    - type: object
+      required: [partyId, lines, warehouseId]
+      properties:
+        sourceId: { type: string, description: Sales order id when delivering against an order (lines must reference `sourceLineId`)., example: so_00087 }
+        vehicleNo: { type: string, example: MH02AB1234 }
+        transporter: { type: string, example: Speedy Transport Co }
+
+DeliveryPatch:
+  allOf:
+    - $ref: './document.yaml#/DocHeaderInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+    - type: object
+      properties:
+        vehicleNo: { type: string }
+        transporter: { type: string }
+
+Delivery:
+  allOf:
+    - $ref: './document.yaml#/DocHeader'
+    - type: object
+      required: [status]
+      properties:
+        status: { $ref: '#/DeliveryStatus' }
+        vehicleNo: { type: string }
+        transporter: { type: string }
+        invoiced: { type: boolean, readOnly: true }
+
+# ── sales invoices ────────────────────────────────────────────────────────
+
+SalesInvoiceStatus:
+  type: string
+  enum: [Draft, Submitted, Approved, Returned, Rejected, Posted, Settled, Reversed, Cancelled]
+
+SalesInvoiceCreate:
+  allOf:
+    - $ref: './document.yaml#/DocHeaderInput'
+    - type: object
+      required: [partyId, lines]
+      properties:
+        sourceType: { type: string, enum: [Sales Order, Delivery], description: Set together with `sourceId` when invoicing an order or a delivery. }
+        sourceId: { type: string, example: so_00087 }
+        deliveryIds: { type: array, items: { type: string }, description: Additional deliveries consolidated into this invoice. }
+        tdsSectionId: { type: string, description: TDS the customer will deduct (194C…)., example: tds_194c }
+        roundTotal: { type: boolean, default: true }
+        headerDiscountPct: { type: number, minimum: 0, maximum: 100 }
+
+SalesInvoicePatch:
+  allOf:
+    - $ref: './document.yaml#/DocHeaderInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+    - type: object
+      properties:
+        tdsSectionId: { type: string }
+        roundTotal: { type: boolean }
+        headerDiscountPct: { type: number }
+
+SalesInvoice:
+  allOf:
+    - $ref: './document.yaml#/DocHeader'
+    - type: object
+      required: [status]
+      properties:
+        status: { $ref: '#/SalesInvoiceStatus' }
+        tdsSectionId: { type: string }
+        roundTotal: { type: boolean }
+        deliveryIds: { type: array, items: { type: string } }
+        headerDiscountPct: { type: number }
+        openItemId: { type: string, readOnly: true, example: oi_2 }
+        writeOffReason: { type: string, readOnly: true }
+        emailedAt: { type: string, format: date-time, readOnly: true }
+        emailedTo: { type: string, readOnly: true }
+        overdueDays: { type: integer, readOnly: true, example: 0 }
+        canReverse: { type: boolean, readOnly: true }
+        reverseBlockReason: { type: string, readOnly: true, example: Receipts or credits are allocated to this invoice — reverse those first }
+
+InvoiceSubmitResult:
+  type: object
+  description: '`submit` routes for approval when a rule matches, otherwise posts immediately.'
+  required: [outcome, invoice]
+  properties:
+    outcome: { type: string, enum: [routed-for-approval, posted] }
+    invoice: { $ref: '#/SalesInvoice' }
+    approval: { $ref: './approvals.yaml#/ApprovalRequest' }
+    creditCheck: { $ref: '#/CreditCheck' }
+    journal: { $ref: './document.yaml#/Journal' }
+    journals: { type: array, items: { $ref: './document.yaml#/Journal' } }
+    stockMovements: { type: array, items: { $ref: './document.yaml#/StockMovement' } }
+    openItems: { type: array, items: { $ref: './document.yaml#/OpenItem' } }
+    warnings: { type: array, items: { type: string } }
+
+ApplyCreditRequest:
+  type: object
+  required: [creditOpenItemId, amount]
+  properties:
+    creditOpenItemId: { type: string, description: Open item of a credit note / unapplied receipt (direction Credit)., example: oi_cn_7 }
+    amount: { type: number, example: 18000 }
+
+EwayBillRequest:
+  type: object
+  required: [distanceKm]
+  properties:
+    vehicleNo: { type: string, description: Required for Road unless `transporterId` is given., example: MH02AB1234 }
+    transporterId: { type: string, description: Transporter GSTIN (Part-A only)., example: 27AABCT1332L1ZU }
+    distanceKm: { type: number, minimum: 1, example: 120 }
+    mode: { type: string, enum: [Road, Rail, Air, Ship], default: Road }
+
+StatutoryResult:
+  type: object
+  required: [document, integrationLog]
+  properties:
+    document: { type: object, additionalProperties: true, description: The document with updated `statutory`. }
+    statutory: { $ref: './document.yaml#/StatutoryInfo' }
+    integrationLog: { $ref: './system.yaml#/IntegrationLog' }
+    attachment: { $ref: './system.yaml#/Attachment', description: Signed e-invoice PDF when accepted. }
+
+# ── credit notes & returns ────────────────────────────────────────────────
+
+CreditNoteStatus:
+  type: string
+  enum: [Draft, Submitted, Approved, Returned, Rejected, Posted, Reversed, Cancelled]
+
+CreditNoteCreate:
+  allOf:
+    - $ref: './document.yaml#/DocHeaderInput'
+    - type: object
+      required: [invoiceId, reasonCode, lines]
+      properties:
+        invoiceId: { type: string, example: inv_01j8k3 }
+        reasonCode: { type: string, example: RET-DMG }
+        reasonText: { type: string, example: 20 crates damaged in transit — accepted back }
+        goodsReturn: { type: boolean, default: false, description: Creates a Sales Return and stock-in on post. }
+        returnWarehouseId: { type: string, example: wh_main }
+        lines: { type: array, minItems: 1, items: { $ref: './document.yaml#/DocLineInput' }, description: Must reference invoice lines (`sourceLineId`); qty ≤ returnable qty. }
+
+CreditNotePatch:
+  allOf:
+    - $ref: './document.yaml#/DocHeaderInput'
+    - $ref: './common.yaml#/ExpectedVersion'
+    - type: object
+      properties:
+        reasonCode: { type: string }
+        reasonText: { type: string }
+        goodsReturn: { type: boolean }
+        returnWarehouseId: { type: string }
+
+CreditNote:
+  allOf:
+    - $ref: './document.yaml#/DocHeader'
+    - type: object
+      required: [status, invoiceId, invoiceNumber, reasonCode, goodsReturn]
+      properties:
+        status: { $ref: '#/CreditNoteStatus' }
+        invoiceId: { type: string }
+        invoiceNumber: { type: string, readOnly: true, example: INV/2026-27/00042 }
+        reasonCode: { type: string }
+        reasonText: { type: string }
+        goodsReturn: { type: boolean }
+        returnWarehouseId: { type: string }
+        allocated: { type: number, readOnly: true, description: Applied against the invoice open item on post. }
+        unapplied: { type: number, readOnly: true, description: Remaining credit (open item direction Credit). }
+        creditOpenItemId: { type: string, readOnly: true }
+        salesReturnId: { type: string, readOnly: true }
+
+SalesReturn:
+  allOf:
+    - $ref: './document.yaml#/DocHeader'
+    - type: object
+      required: [status, creditNoteId, creditNoteNumber, invoiceId, invoiceNumber, reasonCode]
+      properties:
+        status: { type: string, enum: [Posted, Reversed] }
+        creditNoteId: { type: string }
+        creditNoteNumber: { type: string }
+        invoiceId: { type: string }
+        invoiceNumber: { type: string }
+        reasonCode: { type: string }
+
+# ── receipts ──────────────────────────────────────────────────────────────
+
+ReceiptMethod:
+  type: string
+  enum: [Cash, Bank, Cheque, UPI, Gateway, NEFT, RTGS, IMPS]
+
+ReceiptAllocation:
+  type: object
+  required: [openItemId, amount]
+  properties:
+    openItemId: { type: string, example: oi_1 }
+    docId: { type: string, readOnly: true, example: inv_00031 }
+    docNumber: { type: string, readOnly: true, example: INV/2026-27/00031 }
+    amount: { type: number, description: In receipt currency; ≤ outstanding., example: 50000 }
+
+ReceiptCreate:
+  type: object
+  required: [partyId, date, method, bankAccountId, amount]
+  properties:
+    partyId: { type: string, example: cust_arlene }
+    date: { type: string, format: date }
+    branchId: { type: string }
+    currency: { type: string, description: Receipt currency (default customer currency)., example: INR }
+    rate: { type: number, description: Rate to base for FX receipts. }
+    method: { $ref: '#/ReceiptMethod' }
+    reference: { type: string, description: UTR / cheque no. / gateway ref., example: UTR N246509132 }
+    bankAccountId: { type: string, description: Bank or cash account (control type Bank/Cash)., example: acc_1310 }
+    amount: { type: number, description: Gross amount received before charges / TDS., example: 50000 }
+    charges: { type: number, default: 0, description: Bank charges deducted (expensed). }
+    tds: { type: number, default: 0, description: TDS deducted by the customer (Dr TDS receivable). }
+    allocations: { type: array, items: { $ref: '#/ReceiptAllocation' }, description: Unallocated remainder becomes an advance (Credit open item). }
+    chequeDate: { type: string, format: date }
+    chequeBank: { type: string }
+    notes: { type: string }
+    dimensions: { $ref: './common.yaml#/KeyValue' }
+
+ReceiptPatch:
+  allOf:
+    - $ref: './common.yaml#/ExpectedVersion'
+    - type: object
+      properties:
+        date: { type: string, format: date }
+        method: { $ref: '#/ReceiptMethod' }
+        reference: { type: string }
+        bankAccountId: { type: string }
+        amount: { type: number }
+        charges: { type: number }
+        tds: { type: number }
+        allocations: { type: array, items: { $ref: '#/ReceiptAllocation' } }
+        chequeDate: { type: string, format: date }
+        chequeBank: { type: string }
+        notes: { type: string }
+
+Receipt:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/ReceiptCreate'
+    - type: object
+      required: [number, docType, status, partyName, allocations, unapplied, totals]
+      properties:
+        number: { type: string, readOnly: true, example: RCP/2026-27/00210 }
+        docType: { type: string, readOnly: true, const: Receipt }
+        status: { type: string, enum: [Draft, Posted, Reversed, Cancelled], readOnly: true }
+        partyType: { type: string, readOnly: true, const: Customer }
+        partyName: { type: string, readOnly: true, example: Arlene Traders }
+        partySnapshot: { $ref: './document.yaml#/PartySnapshot' }
+        rateSource: { type: string, readOnly: true }
+        allocations: { type: array, items: { $ref: '#/ReceiptAllocation' } }
+        unapplied: { type: number, readOnly: true, description: amount − charges − tds − Σ allocations, example: 0 }
+        advanceOpenItemId: { type: string, readOnly: true }
+        totals: { $ref: './document.yaml#/DocTotals' }
+        journalId: { type: string, readOnly: true }
+        journalNumber: { type: string, readOnly: true }
+        fxGainLoss: { type: number, readOnly: true, description: Realised FX on settlement (base currency)., example: 0 }
+        postedAt: { type: string, format: date-time, readOnly: true }
+        postedBy: { type: string, readOnly: true }
+        reversedById: { type: string, readOnly: true }
+        reversalReason: { type: string, readOnly: true }
+        correlationId: { type: string, readOnly: true }
+        lines: { type: array, readOnly: true, items: { $ref: './document.yaml#/DocLine' }, description: Always empty for receipts (kept for DocHeader compatibility). }
+
+# ── AR ────────────────────────────────────────────────────────────────────
+
+AgeingRow:
+  type: object
+  required: [customerId, customer, current, d030, d3160, d6190, d90p, total, overdue, credits, net, oldestDays, creditLimit]
+  properties:
+    customerId: { type: string, example: cust_arlene }
+    customer: { type: string, example: Arlene Traders }
+    gstin: { type: string }
+    current: { type: number, example: 118000 }
+    d030: { type: number, example: 50000 }
+    d3160: { type: number, example: 0 }
+    d6190: { type: number, example: 0 }
+    d90p: { type: number, example: 0 }
+    total: { type: number, example: 168000 }
+    overdue: { type: number, example: 50000 }
+    credits: { type: number, description: Unapplied credits / advances., example: 0 }
+    net: { type: number, example: 168000 }
+    oldestDays: { type: integer, example: 9 }
+    creditLimit: { type: number, example: 500000 }
+
+AgeingReport:
+  type: object
+  required: [asAt, rows, totals, scope]
+  properties:
+    asAt: { type: string, format: date }
+    rows: { type: array, items: { $ref: '#/AgeingRow' } }
+    totals: { $ref: '#/AgeingRow' }
+    scope: { $ref: './common.yaml#/Scope' }
+
+CollectionRow:
+  type: object
+  required: [customerId, customer, outstanding, overdue, oldestDays, credits, openFollowUps, items]
+  properties:
+    customerId: { type: string }
+    customer: { type: string }
+    outstanding: { type: number }
+    overdue: { type: number }
+    oldestDays: { type: integer }
+    credits: { type: number }
+    creditLimit: { type: number }
+    promise: { $ref: './crm.yaml#/Activity' }
+    lastActivity: { $ref: './crm.yaml#/Activity' }
+    openFollowUps: { type: integer }
+    items: { type: array, items: { $ref: './document.yaml#/OpenItem' } }
+
+CollectionsReport:
+  type: object
+  required: [kpis, rows, scope]
+  properties:
+    kpis:
+      type: object
+      properties:
+        overdueTotal: { type: number, example: 610000 }
+        overdueCustomers: { type: integer, example: 4 }
+        promisesDue7d: { type: number, example: 50000 }
+        dso: { type: number, example: 41 }
+    rows: { type: array, items: { $ref: '#/CollectionRow' } }
+    scope: { $ref: './common.yaml#/Scope' }
+
+ReminderRequest:
+  type: object
+  properties:
+    channel: { type: string, enum: [email, sms, in-app], default: email }
+    to: { type: array, items: { type: string } }
+    invoiceIds: { type: array, items: { type: string }, description: "Specific invoices (default: all overdue)." }
+    message: { type: string }
+    templateId: { type: string }
+
+PromiseToPayRequest:
+  type: object
+  required: [amount, date]
+  properties:
+    amount: { type: number, example: 50000 }
+    date: { type: string, format: date, example: '2026-09-20' }
+    invoiceId: { type: string }
+    notes: { type: string }
+
+StatementRow:
+  type: object
+  required: [date, docType, docNumber, debit, credit, balance]
+  properties:
+    date: { type: string, format: date }
+    docType: { type: string }
+    docId: { type: string }
+    docNumber: { type: string }
+    reference: { type: string }
+    dueDate: { type: string, format: date }
+    debit: { type: number }
+    credit: { type: number }
+    balance: { type: number }
+    overdueDays: { type: integer }
+
+CustomerStatement:
+  type: object
+  required: [customer, from, to, currency, opening, closing, rows, ageing]
+  properties:
+    customer: { $ref: './masters.yaml#/Customer' }
+    from: { type: string, format: date }
+    to: { type: string, format: date }
+    currency: { type: string }
+    opening: { type: number }
+    closing: { type: number }
+    rows: { type: array, items: { $ref: '#/StatementRow' } }
+    ageing: { $ref: '#/AgeingRow' }
+    scope: { $ref: './common.yaml#/Scope' }
+
+SalesSettings:
+  type: object
+  properties:
+    salesDuplicateRefRule: { type: string, enum: [warn, block], example: warn }
+    salesDiscountThresholdPct: { type: number, example: 10 }
+    salesOverInvoiceTolerancePct: { type: number, example: 2 }
+    salesDefaultTerms: { type: string, example: Net 30 }
+    salesQuoteValidityDays: { type: integer, example: 14 }
+    salesReservationDays: { type: integer, example: 14 }
+    salesAutoReserveOnConfirm: { type: boolean, example: true }

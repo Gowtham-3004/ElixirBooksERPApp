@@ -1,0 +1,277 @@
+# Cross-cutting records (src/store/types.ts:918-1107) and system endpoints.
+
+BackgroundJob:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [type, name, status, attempts, maxAttempts, correlationId]
+      properties:
+        type: { type: string, example: export }
+        name: { type: string, example: 'Sales invoices export (CSV)' }
+        status: { type: string, enum: [Queued, Running, Completed, Failed, Dead-letter, Retrying] }
+        attempts: { type: integer, example: 1 }
+        maxAttempts: { type: integer, example: 3 }
+        lastError: { type: string }
+        payload: { type: object, additionalProperties: true }
+        idempotencyKey: { type: string }
+        correlationId: { type: string, example: corr_9f1c2e7a }
+        startedAt: { $ref: './common.yaml#/Timestamp' }
+        finishedAt: { $ref: './common.yaml#/Timestamp' }
+        resultUrl: { type: string, description: Download / result link when the job produces a file., example: /v1/jobs/exports/exp_4421/download }
+
+ExportJob:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [name, entity, format, filters, scope, status, rows, requestedBy, masked]
+      properties:
+        name: { type: string, example: Sales invoices — Posted — Sep 2026 }
+        entity: { type: string, example: salesInvoices }
+        format: { type: string, enum: [csv, xlsx, pdf, json, zip] }
+        filters: { type: object, additionalProperties: true, example: { status: [Posted], dateFrom: '2026-09-01', dateTo: '2026-09-30' } }
+        scope: { type: string, example: 'Acme Trading · Head Office · Sep 2026 · INR' }
+        status: { type: string, enum: [Queued, Running, Ready, Expired, Failed] }
+        rows: { type: integer, example: 1240 }
+        requestedBy: { type: string, example: Priya Sharma }
+        readyAt: { $ref: './common.yaml#/Timestamp' }
+        expiresAt: { $ref: './common.yaml#/Timestamp' }
+        masked: { type: boolean, description: Sensitive columns masked per the caller's permissions. }
+        schedule:
+          type: object
+          description: Present for scheduled report exports.
+          properties:
+            frequency: { type: string, enum: [Daily, Weekly, Monthly, Quarterly] }
+            nextRunAt: { $ref: './common.yaml#/Timestamp' }
+            recipients: { type: array, items: { type: string, format: email } }
+
+ExportRequest:
+  type: object
+  required: [format]
+  properties:
+    format: { type: string, enum: [csv, xlsx, pdf, json, zip] }
+    filters: { type: object, additionalProperties: true, description: Same query filters as the list endpoint. }
+    columns: { type: array, items: { type: string }, description: Column keys to include (default visible columns). }
+    ids: { type: array, items: { type: string }, description: Export only the selected rows. }
+    name: { type: string }
+
+ImportErrorRow:
+  type: object
+  required: [row, field, code, message]
+  properties:
+    row: { type: integer, example: 14 }
+    field: { type: string, example: gstin }
+    code: { type: string, example: FORMAT }
+    message: { type: string, example: GSTIN must be 15 characters }
+
+ImportJob:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [entity, fileName, fingerprint, rows, valid, errors, duplicates, status, errorRows, by]
+      properties:
+        entity: { type: string, enum: [customers, suppliers, items, accounts, price-list-entries, exchange-rates, opening-balances, timesheets, usage-records, bank-statements, budgets], example: customers }
+        fileName: { type: string, example: customers-sep.csv }
+        fingerprint: { type: string, description: SHA-256 of the file; the same file cannot be committed twice., example: 'sha256:9f8e…' }
+        rows: { type: integer, example: 120 }
+        valid: { type: integer, example: 117 }
+        errors: { type: integer, example: 2 }
+        duplicates: { type: integer, example: 1 }
+        status: { type: string, enum: [Dry-run, Committed, Failed, Cancelled] }
+        errorRows: { type: array, items: { $ref: '#/ImportErrorRow' } }
+        mapping: { type: object, additionalProperties: { type: string }, description: CSV column → field mapping used., example: { 'Customer Name': name, GSTIN: gstin } }
+        committedAt: { $ref: './common.yaml#/Timestamp' }
+        by: { type: string, example: Priya Sharma }
+        summary:
+          type: object
+          description: Present after commit.
+          properties:
+            created: { type: integer, example: 110 }
+            updated: { type: integer, example: 7 }
+            skipped: { type: integer, example: 3 }
+
+ImportTemplate:
+  type: object
+  required: [entity, columns, sample]
+  properties:
+    entity: { type: string, example: customers }
+    columns:
+      type: array
+      items:
+        type: object
+        required: [field, label, required]
+        properties:
+          field: { type: string, example: name }
+          label: { type: string, example: Customer name }
+          required: { type: boolean }
+          type: { type: string, example: string }
+          allowed: { type: array, items: { type: string } }
+    duplicateKeys: { type: array, items: { type: string }, example: [code, gstin] }
+    sample: { type: string, description: Sample CSV (header + one row)., example: "code,name,gstin,taxTreatment\nC-0101,Arlene Traders,27AAPFU0939F1ZV,Registered" }
+
+Attachment:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [objectType, objectId, name, size, mime, scanState, uploadedBy, at, fileVersion]
+      properties:
+        objectType: { type: string, example: Sales Invoice }
+        objectId: { type: string, example: inv_01j8k3 }
+        name: { type: string, example: PO-ARL-2291.pdf }
+        size: { type: integer, description: Bytes., example: 184320 }
+        mime: { type: string, example: application/pdf }
+        scanState: { type: string, enum: [Scanning, Clean, Blocked], description: Files are quarantined until the scan completes; executables (`.exe .bat .sh .js .msi .cmd`) are always Blocked. }
+        statutory: { type: boolean, description: System-generated statutory file (signed e-invoice PDF) — read-only. }
+        uploadedBy: { type: string, example: Priya Sharma }
+        at: { $ref: './common.yaml#/Timestamp' }
+        fileVersion: { type: integer, example: 1 }
+        downloadUrl: { type: string, readOnly: true, example: /v1/attachments/att_3c9e/content }
+
+Notification:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [at, type, title, read]
+      properties:
+        at: { $ref: './common.yaml#/Timestamp' }
+        userId: { type: string, example: usr_priya }
+        type: { type: string, enum: [approval, integration, import, export, due, system, security] }
+        title: { type: string, example: Approval needed — INV/2026-27/00042 }
+        body: { type: string, example: 'Arlene Traders · ₹1,18,000 · submitted by Priya Sharma' }
+        link: { type: string, example: '#/approvals?id=apr_6c1d' }
+        read: { type: boolean }
+        status: { type: string, enum: [queued, sent, delivered, failed] }
+        channel: { type: string, enum: [in-app, email, sms] }
+
+AuditEvent:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [at, actor, action, objectType, result, correlationId, channel]
+      properties:
+        at: { $ref: './common.yaml#/Timestamp' }
+        actor: { type: string, example: Priya Sharma }
+        actorId: { type: string, example: usr_priya }
+        tenantId: { type: string, example: tnt_acme }
+        action: { type: string, description: "Dot-separated verb (`invoice.posted`, `auth.login`, `period.locked` …).", example: invoice.posted }
+        objectType: { type: string, example: Sales Invoice }
+        objectId: { type: string, example: inv_01j8k3 }
+        objectNumber: { type: string, example: INV/2026-27/00042 }
+        result: { type: string, enum: [Success, Failure, Denied] }
+        detail: { type: string, example: 'Posted ₹1,18,000 · JV/2026-27/00311' }
+        correlationId: { type: string, example: corr_9f1c2e7a }
+        channel: { type: string, enum: [web, api, import, worker, system] }
+        before: { type: object, additionalProperties: true, description: Snapshot before (masked for sensitive fields). }
+        after: { type: object, additionalProperties: true }
+        sensitive: { type: boolean }
+
+IntegrationLog:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [provider, action, objectType, objectId, requestFingerprint, idempotencyKey, request, status, at, correlationId]
+      properties:
+        provider: { type: string, enum: [IRP, EWB, GSTN, Bank, RateProvider, Email, SMS, Webhook] }
+        action: { type: string, example: GenerateIRN }
+        objectType: { type: string, example: Sales Invoice }
+        objectId: { type: string, example: inv_01j8k3 }
+        objectNumber: { type: string, example: INV/2026-27/00042 }
+        requestFingerprint: { type: string, example: 'sha256:1b7d…' }
+        idempotencyKey: { type: string, example: 'inv_01j8k3:irn:1' }
+        request: { type: object, additionalProperties: true }
+        response: { type: object, additionalProperties: true }
+        status: { type: string, enum: [Queued, Submitted, Accepted, Rejected, Failed, Cancelled, Timeout] }
+        providerRef: { type: string, example: '112010036563789' }
+        errorCode: { type: string, example: '2150' }
+        errorMessage: { type: string }
+        at: { $ref: './common.yaml#/Timestamp' }
+        correlationId: { type: string }
+
+SearchResult:
+  type: object
+  required: [collection, id, title, subtitle, link]
+  properties:
+    collection: { type: string, example: salesInvoices }
+    id: { type: string, example: inv_01j8k3 }
+    title: { type: string, example: INV/2026-27/00042 }
+    subtitle: { type: string, example: 'Arlene Traders · ₹1,18,000 · Posted' }
+    status: { type: string, example: Posted }
+    link: { type: string, example: '#/sales/invoices/inv_01j8k3' }
+    score: { type: number, example: 0.92 }
+
+SearchResponse:
+  type: object
+  required: [q, results, menu]
+  properties:
+    q: { type: string, example: arlene }
+    results: { type: array, items: { $ref: '#/SearchResult' } }
+    menu:
+      type: array
+      description: Matching navigation entries.
+      items:
+        type: object
+        properties:
+          label: { type: string, example: Customers }
+          link: { type: string, example: '#/masters/customers' }
+    truncated: { type: boolean }
+
+EnumCatalog:
+  type: object
+  description: Every status / enum list used by the API, keyed by schema name, so clients can render tabs and badges without hard-coding.
+  additionalProperties:
+    type: array
+    items: { type: string }
+  example:
+    DocStatus: [Draft, Submitted, Approved, Returned, Rejected, Posted, Settled, Reversed, Cancelled, Closed]
+    SalesInvoiceStatus: [Draft, Submitted, Approved, Returned, Rejected, Posted, Settled, Reversed, Cancelled]
+    ErrorCode: [VALIDATION, NOT_FOUND, CONFLICT]
+    documentCollections: [salesInvoices, purchaseOrders, journals]
+
+Health:
+  type: object
+  required: [status, version, time]
+  properties:
+    status: { type: string, enum: [ok, degraded, down] }
+    version: { type: string, example: 1.0.0 }
+    time: { $ref: './common.yaml#/Timestamp' }
+    checks:
+      type: object
+      additionalProperties: { type: string, enum: [ok, degraded, down] }
+      example: { database: ok, queue: ok, irp: degraded }
+
+DocumentActivity:
+  type: object
+  required: [audit, approvals, notifications]
+  properties:
+    audit: { type: array, items: { $ref: '#/AuditEvent' } }
+    approvals: { type: array, items: { $ref: './approvals.yaml#/ApprovalRequest' } }
+    notifications: { type: array, items: { $ref: '#/Notification' } }
+
+ProjectedJournal:
+  type: object
+  description: Preview of the journal that **would** be posted for a draft document (no ids / numbers).
+  required: [projected, lines, totalDr, totalCr, balanced]
+  properties:
+    projected: { type: boolean, const: true }
+    lines: { type: array, items: { $ref: './document.yaml#/JournalLine' } }
+    totalDr: { type: number }
+    totalCr: { type: number }
+    balanced: { type: boolean }
+    warnings: { type: array, items: { type: string } }
+
+PdfRequest:
+  type: object
+  properties:
+    templateId: { type: string, description: "Document template (default: company default for the doc type)." }
+    copy: { type: string, enum: [Original, Duplicate, Triplicate], default: Original }
+    language: { type: string, example: en-IN }
+
+NumberPreview:
+  type: object
+  required: [docType, series, next, allocation]
+  properties:
+    docType: { type: string, example: Sales Invoice }
+    series: { type: string, example: INV/2026-27/ }
+    next: { type: string, example: INV/2026-27/00043 }
+    allocation: { type: string, enum: [On save, On post] }
+    fy: { type: string, example: '2026-27' }
+    branchId: { type: string, example: br_ho }

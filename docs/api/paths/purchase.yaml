@@ -1,0 +1,1122 @@
+# Purchase part 1 (tag: Purchase): requisitions, RFQs & quotes, purchase orders, GRNs. src/modules/purchase/actions.ts
+
+# ── requisitions ──────────────────────────────────────────────────────────
+
+/purchase/requisitions:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Purchase]
+    summary: List requisitions
+    description: "Tabs → All · Draft · Pending approval (`status=Submitted`) · Approved · Converted · Rejected. Query examples — `?requesterId=emp_005` · `?needByTo=2026-09-30` · `?status=Approved`."
+    operationId: listRequisitions
+    x-permission: purchase.requisition.view
+    x-frd: [FR-PUR-001]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: requesterId, in: query, schema: { type: string } }
+      - { name: needByTo, in: query, schema: { type: string, format: date } }
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Requisitions
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/purchase.yaml#/Requisition' } }
+            examples:
+              firstPage: { summary: Requisitions, value: { data: [{ $ref: '#/components/examples/RequisitionApproved/value' }], meta: { nextCursor: null, limit: 25, total: 1, counts: { All: 31, Draft: 2, 'Pending approval': 1, Approved: 4, Converted: 22, Rejected: 2 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Purchase]
+    summary: Create a requisition (Draft)
+    operationId: createRequisition
+    x-permission: purchase.requisition.create
+    x-events: [DocumentCreated]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/purchase.yaml#/RequisitionCreate' }
+          examples:
+            stock: { summary: Stock replenishment, value: { date: '2026-09-13', needByDate: '2026-09-30', purpose: Q3 raw material top-up, department: dim_dept_ops, lines: [{ itemId: item_stl4, qty: 5000, rate: 48, purpose: Replenish Surat stock }] } }
+            service: { summary: Service / free-text line, value: { date: '2026-09-13', needByDate: '2026-10-05', purpose: AMC for compressors, lines: [{ itemName: Compressor AMC 2026-27, qty: 1, uom: YR, rate: 60000, accountId: acc_5210 }] } }
+    responses:
+      '201':
+        description: Draft requisition
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/Requisition' }
+            examples:
+              draft: { summary: Draft, value: { id: req_00032, companyId: co_acme, number: DRAFT-PR-32, docType: Requisition, date: '2026-09-13', branchId: br_surat, status: Draft, currency: INR, rate: 1, partyType: None, requesterId: emp_005, requesterName: Suresh Patel, department: dim_dept_ops, needByDate: '2026-09-30', purpose: Q3 raw material top-up, lines: [{ id: ln_pr_1, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, qty: 5000, uom: KG, rate: 48, discountPct: 0, discountAmt: 0, taxable: 240000, taxRate: 0, taxAmt: 0, taxComponents: {}, amount: 240000, purpose: Replenish Surat stock }], totals: { subtotal: 240000, discount: 0, taxable: 240000, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 240000, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 240000 }, estimatedTotal: 240000, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/purchase/requisitions/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Purchase]
+    summary: Get a requisition
+    operationId: getRequisition
+    x-permission: purchase.requisition.view
+    responses:
+      '200':
+        description: Requisition
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/Requisition' }
+            examples:
+              approved: { $ref: '../components/examples/purchase.yaml#/RequisitionApproved' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Purchase]
+    summary: Edit a Draft / Returned requisition
+    operationId: updateRequisition
+    x-permission: purchase.requisition.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/purchase.yaml#/RequisitionPatch' }
+          examples:
+            needBy: { summary: Change need-by date, value: { expectedVersion: 1, needByDate: '2026-10-05' } }
+            lines: { summary: Replace lines, value: { expectedVersion: 1, lines: [{ itemId: item_stl4, qty: 6000, rate: 48 }, { itemId: item_stl6, qty: 2000, rate: 51 }] } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/Requisition' }
+            examples:
+              updated: { $ref: '../components/examples/purchase.yaml#/RequisitionApproved' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Purchase]
+    summary: Delete a Draft requisition
+    operationId: deleteRequisition
+    x-permission: purchase.requisition.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/purchase/requisitions/{id}/submit:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Submit (workflow or auto-approve)
+    operationId: submitRequisition
+    x-permission: purchase.requisition.submit
+    x-idempotent: true
+    x-workflow-doc-type: Requisition
+    x-events: [DocumentSubmitted, DocumentApproved]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Outcome
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/purchase.yaml#/Requisition' }
+            examples:
+              routed: { summary: outcome = routed-for-approval, value: { document: { id: req_00032, companyId: co_acme, number: PR/2026-27/00032, docType: Requisition, date: '2026-09-13', branchId: br_surat, status: Submitted, currency: INR, rate: 1, partyType: None, requesterName: Suresh Patel, needByDate: '2026-09-30', lines: [], totals: { subtotal: 240000, discount: 0, taxable: 240000, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 240000, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 240000 }, approvalId: apr_pr_32, submittedAt: '2026-09-13T09:12:04Z', createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 }, outcome: routed-for-approval, approval: { id: apr_pr_32, companyId: co_acme, docType: Requisition, collection: requisitions, docId: req_00032, docNumber: PR/2026-27/00032, amount: 240000, currency: INR, branchId: br_surat, requesterId: usr_suresh, requesterName: Suresh Patel, steps: [{ order: 1, name: Purchase manager, approverType: Role, approverRef: role_purchmgr, approverLabel: Purchase Manager, status: Pending, commentRequired: false }], currentStep: 0, status: Pending, submittedAt: '2026-09-13T09:12:04Z', history: [], createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }, warnings: [] } }
+              approved: { summary: outcome = approved (no rule), value: { document: { $ref: '#/components/examples/RequisitionApproved/value' }, outcome: approved, warnings: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/purchase/requisitions/{id}/decide:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Approve / reject directly (shortcut for the approval action)
+    operationId: decideRequisition
+    x-permission: purchase.requisition.approve
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/purchase.yaml#/RequisitionDecision' }
+          examples:
+            approve: { summary: Approve, value: { decision: Approved, comment: Within Q3 budget } }
+            reject: { summary: Reject, value: { decision: Rejected, comment: Stock on hand covers Q3 — resubmit in Oct } }
+    responses:
+      '200':
+        description: Decided
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/Requisition' }
+            examples:
+              approved: { $ref: '../components/examples/purchase.yaml#/RequisitionApproved' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/purchase/requisitions/{id}/cancel:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Cancel (not when Converted)
+    operationId: cancelRequisition
+    x-permission: purchase.requisition.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            cancel: { summary: Cancel, value: { reason: Requirement covered by existing PO/SRT/0118 } }
+    responses:
+      '200':
+        description: Cancelled
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/Requisition' }
+            examples:
+              cancelled: { summary: Cancelled, value: { id: req_00032, companyId: co_acme, number: PR/2026-27/00032, docType: Requisition, date: '2026-09-13', branchId: br_surat, status: Cancelled, currency: INR, rate: 1, partyType: None, requesterName: Suresh Patel, needByDate: '2026-09-30', lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 0, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 0 }, cancelReason: Requirement covered by existing PO/SRT/0118, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T10:00:00Z', version: 3 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/purchase/requisitions/{id}/convert-to-po:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Convert an Approved requisition into a Draft PO
+    operationId: convertRequisitionToPo
+    x-permission: purchase.order.create
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [supplierId], properties: { supplierId: { type: string }, expectedDate: { type: string, format: date }, warehouseId: { type: string } } }
+          examples:
+            supplier: { summary: Choose supplier, value: { supplierId: sup_bharatsteel, expectedDate: '2026-09-25' } }
+    responses:
+      '201':
+        description: Draft PO
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requisition, order]
+              properties:
+                requisition: { $ref: '../components/schemas/purchase.yaml#/Requisition' }
+                order: { $ref: '../components/schemas/purchase.yaml#/PurchaseOrder' }
+            examples:
+              converted: { summary: Converted, value: { requisition: { id: req_00031, companyId: co_acme, number: PR/2026-27/00031, docType: Requisition, date: '2026-09-10', branchId: br_surat, status: Converted, currency: INR, rate: 1, partyType: None, requesterName: Suresh Patel, needByDate: '2026-09-30', lines: [], totals: { subtotal: 240000, discount: 0, taxable: 240000, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 240000, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 240000 }, convertedToId: po_00118, convertedToNumber: DRAFT-PO-118, createdAt: '2026-09-10T09:00:00Z', updatedAt: '2026-09-11T09:00:00Z', version: 4 }, order: { id: po_00118, companyId: co_acme, number: DRAFT-PO-118, docType: Purchase Order, date: '2026-09-11', branchId: br_surat, status: Draft, currency: INR, rate: 1, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, expectedDate: '2026-09-25', requisitionId: req_00031, requisitionNumber: PR/2026-27/00031, lines: [], totals: { subtotal: 240000, discount: 0, taxable: 240000, tax: 43200, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 283200, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 283200 }, amendments: [], createdAt: '2026-09-11T09:00:00Z', updatedAt: '2026-09-11T09:00:00Z', version: 1 } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── RFQs ──────────────────────────────────────────────────────────────────
+
+/purchase/rfqs:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Purchase]
+    summary: List RFQs
+    description: Tabs → All · Draft · Sent · Quoted · Awarded.
+    operationId: listRfqs
+    x-permission: purchase.requisition.view
+    x-frd: [FR-PUR-002]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/SupplierId'
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: RFQs
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/purchase.yaml#/Rfq' } }
+            examples:
+              firstPage: { summary: RFQs, value: { data: [{ id: rfq_00008, companyId: co_acme, number: RFQ/2026-27/00008, docType: RFQ, date: '2026-09-05', dueDate: '2026-09-10', branchId: br_ho, status: Quoted, currency: INR, rate: 1, partyType: None, supplierIds: [sup_bharatsteel, sup_national], sentAt: '2026-09-05T11:00:00Z', requisitionId: req_00031, requisitionNumber: PR/2026-27/00031, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 0, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 0 }, quoteCount: 2, createdAt: '2026-09-05T10:00:00Z', updatedAt: '2026-09-09T10:00:00Z', version: 4 }], meta: { nextCursor: null, limit: 25, total: 1, counts: { All: 8, Draft: 1, Sent: 1, Quoted: 2, Awarded: 4 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Purchase]
+    summary: Create an RFQ (Draft)
+    operationId: createRfq
+    x-permission: purchase.requisition.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/purchase.yaml#/RfqCreate' }
+          examples:
+            fromRequisition: { summary: From an approved requisition, value: { date: '2026-09-13', dueDate: '2026-09-18', requisitionId: req_00031, supplierIds: [sup_bharatsteel, sup_national], lines: [{ itemId: item_stl4, qty: 5000 }] } }
+            adHoc: { summary: "Ad-hoc, three suppliers", value: { date: '2026-09-13', dueDate: '2026-09-20', supplierIds: [sup_globalpack, sup_shree, sup_kiranag], lines: [{ itemId: item_box, qty: 10000 }, { itemId: item_crate, qty: 500 }], notes: Delivery to Surat; quote freight separately } }
+    responses:
+      '201':
+        description: Draft RFQ
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/Rfq' }
+            examples:
+              draft: { summary: Draft, value: { id: rfq_00009, companyId: co_acme, number: DRAFT-RFQ-9, docType: RFQ, date: '2026-09-13', dueDate: '2026-09-18', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: None, supplierIds: [sup_bharatsteel, sup_national], requisitionId: req_00031, requisitionNumber: PR/2026-27/00031, lines: [{ id: ln_rfq_1, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, qty: 5000, uom: KG, rate: 0, discountPct: 0, discountAmt: 0, taxable: 0, taxRate: 0, taxAmt: 0, taxComponents: {}, amount: 0 }], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 0, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 0 }, quoteCount: 0, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/purchase/rfqs/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Purchase]
+    summary: Get an RFQ
+    operationId: getRfq
+    x-permission: purchase.requisition.view
+    responses:
+      '200':
+        description: RFQ
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/Rfq' }
+            examples:
+              quoted: { summary: Quoted, value: { id: rfq_00008, companyId: co_acme, number: RFQ/2026-27/00008, docType: RFQ, date: '2026-09-05', dueDate: '2026-09-10', branchId: br_ho, status: Quoted, currency: INR, rate: 1, partyType: None, supplierIds: [sup_bharatsteel, sup_national], sentAt: '2026-09-05T11:00:00Z', requisitionId: req_00031, requisitionNumber: PR/2026-27/00031, lines: [{ id: ln_rfq_1, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, qty: 5000, uom: KG, rate: 0, discountPct: 0, discountAmt: 0, taxable: 0, taxRate: 0, taxAmt: 0, taxComponents: {}, amount: 0 }], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 0, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 0 }, quoteCount: 2, createdAt: '2026-09-05T10:00:00Z', updatedAt: '2026-09-09T10:00:00Z', version: 4 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/purchase/rfqs/{id}/send:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Send the RFQ to the suppliers (Draft → Sent)
+    operationId: sendRfq
+    x-permission: purchase.requisition.submit
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Sent
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [document, emails]
+              properties:
+                document: { $ref: '../components/schemas/purchase.yaml#/Rfq' }
+                emails: { type: array, items: { $ref: '../components/schemas/common.yaml#/EmailResult' } }
+            examples:
+              sent: { summary: Sent to 2 suppliers, value: { document: { id: rfq_00009, companyId: co_acme, number: RFQ/2026-27/00009, docType: RFQ, date: '2026-09-13', dueDate: '2026-09-18', branchId: br_ho, status: Sent, currency: INR, rate: 1, partyType: None, supplierIds: [sup_bharatsteel, sup_national], sentAt: '2026-09-13T09:12:04Z', lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 0, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 0 }, quoteCount: 0, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 }, emails: [{ integrationLogId: ilog_email_r1, status: Queued, to: [sales@bharatsteel.example], sentAt: '2026-09-13T09:12:04Z' }, { integrationLogId: ilog_email_r2, status: Queued, to: [quotes@national.example], sentAt: '2026-09-13T09:12:04Z' }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '502': { $ref: '../components/responses.yaml#/ProviderError' }
+
+/purchase/rfqs/{id}/quotes:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Purchase]
+    summary: Quotes received
+    operationId: listRfqQuotes
+    x-permission: purchase.requisition.view
+    responses:
+      '200':
+        description: Quotes
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/purchase.yaml#/SupplierQuote' } } } }
+            examples:
+              two: { summary: Two quotes, value: { data: [{ id: sq_1, companyId: co_acme, rfqId: rfq_00008, rfqNumber: RFQ/2026-27/00008, supplierId: sup_bharatsteel, supplierName: Bharat Steel Industries, quoteRef: BS-Q-2291, date: '2026-09-08', validUntil: '2026-09-30', leadTimeDays: 7, currency: INR, paymentTerms: Net 45, lines: [{ lineId: ln_rfq_1, itemId: item_stl4, itemName: Steel Rod 4mm, qty: 5000, uom: KG, rate: 47.5, amount: 237500 }], total: 237500, status: Received, createdAt: '2026-09-08T10:00:00Z', updatedAt: '2026-09-08T10:00:00Z', version: 1 }, { id: sq_2, companyId: co_acme, rfqId: rfq_00008, rfqNumber: RFQ/2026-27/00008, supplierId: sup_national, supplierName: National Metals, date: '2026-09-09', validUntil: '2026-09-25', leadTimeDays: 10, currency: INR, paymentTerms: Net 30, lines: [{ lineId: ln_rfq_1, itemId: item_stl4, itemName: Steel Rod 4mm, qty: 5000, uom: KG, rate: 48.2, amount: 241000 }], total: 241000, status: Received, createdAt: '2026-09-09T10:00:00Z', updatedAt: '2026-09-09T10:00:00Z', version: 1 }] } }
+              none: { summary: None yet, value: { data: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  post:
+    tags: [Purchase]
+    summary: Record a supplier quotation
+    operationId: recordRfqQuote
+    x-permission: purchase.requisition.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/purchase.yaml#/SupplierQuoteInput' }
+          examples:
+            quote: { summary: Quote with terms, value: { supplierId: sup_bharatsteel, quoteRef: BS-Q-2291, date: '2026-09-08', validUntil: '2026-09-30', leadTimeDays: 7, paymentTerms: Net 45, rates: { ln_rfq_1: 47.5 }, notes: Freight included } }
+    responses:
+      '201':
+        description: Quote recorded (RFQ → Quoted)
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/SupplierQuote' }
+            examples:
+              recorded: { summary: Recorded, value: { id: sq_1, companyId: co_acme, rfqId: rfq_00008, rfqNumber: RFQ/2026-27/00008, supplierId: sup_bharatsteel, supplierName: Bharat Steel Industries, quoteRef: BS-Q-2291, date: '2026-09-08', validUntil: '2026-09-30', leadTimeDays: 7, currency: INR, paymentTerms: Net 45, lines: [{ lineId: ln_rfq_1, itemId: item_stl4, itemName: Steel Rod 4mm, qty: 5000, uom: KG, rate: 47.5, amount: 237500 }], total: 237500, notes: Freight included, status: Received, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/purchase/rfqs/{id}/comparison:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Purchase]
+    summary: Quote comparison matrix
+    operationId: getRfqComparison
+    x-permission: purchase.requisition.view
+    responses:
+      '200':
+        description: Comparison
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/RfqComparison' }
+            examples:
+              comparison: { summary: Two suppliers, value: { rfq: { id: rfq_00008, companyId: co_acme, number: RFQ/2026-27/00008, docType: RFQ, date: '2026-09-05', branchId: br_ho, status: Quoted, currency: INR, rate: 1, partyType: None, supplierIds: [sup_bharatsteel, sup_national], lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 0, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 0 }, quoteCount: 2, createdAt: '2026-09-05T10:00:00Z', updatedAt: '2026-09-09T10:00:00Z', version: 4 }, quotes: [], lines: [{ lineId: ln_rfq_1, itemName: Steel Rod 4mm, qty: 5000, rates: { sup_bharatsteel: 47.5, sup_national: 48.2 }, lowestSupplierId: sup_bharatsteel }], recommendation: { supplierId: sup_bharatsteel, total: 237500, reason: Lowest total and shorter lead time (7 d vs 10 d) } } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/purchase/rfqs/{id}/award:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Award a quote → creates a Draft PO
+    operationId: awardRfq
+    x-permission: purchase.order.create
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [quoteId], properties: { quoteId: { type: string }, expectedDate: { type: string, format: date } } }
+          examples:
+            award: { summary: Award lowest, value: { quoteId: sq_1, expectedDate: '2026-09-25' } }
+    responses:
+      '201':
+        description: PO created
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rfq, order]
+              properties:
+                rfq: { $ref: '../components/schemas/purchase.yaml#/Rfq' }
+                order: { $ref: '../components/schemas/purchase.yaml#/PurchaseOrder' }
+            examples:
+              awarded: { summary: Awarded, value: { rfq: { id: rfq_00008, companyId: co_acme, number: RFQ/2026-27/00008, docType: RFQ, date: '2026-09-05', branchId: br_ho, status: Awarded, currency: INR, rate: 1, partyType: None, supplierIds: [sup_bharatsteel, sup_national], awardedSupplierId: sup_bharatsteel, awardedQuoteId: sq_1, poId: po_00118, poNumber: DRAFT-PO-118, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 0, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 0 }, quoteCount: 2, createdAt: '2026-09-05T10:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 5 }, order: { id: po_00118, companyId: co_acme, number: DRAFT-PO-118, docType: Purchase Order, date: '2026-09-13', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, expectedDate: '2026-09-25', rfqId: rfq_00008, rfqNumber: RFQ/2026-27/00008, lines: [], totals: { subtotal: 237500, discount: 0, taxable: 237500, tax: 42750, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 280250, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 280250 }, amendments: [], createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── purchase orders ───────────────────────────────────────────────────────
+
+/purchase/orders:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Purchase]
+    summary: List purchase orders
+    description: "Tabs → All · Draft · Awaiting approval (`status=Submitted`) · Approved · Partially received · Closed · Cancelled. Query examples — `?partyId=sup_bharatsteel` · `?status=Approved,Partially Received` · `?expectedDateTo=2026-09-20` · `?amountMin=100000`."
+    operationId: listPurchaseOrders
+    x-permission: purchase.order.view
+    x-frd: [FR-PUR-010]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/PartyId'
+      - { name: expectedDateTo, in: query, schema: { type: string, format: date } }
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+      - $ref: '../components/parameters.yaml#/AmountMin'
+      - $ref: '../components/parameters.yaml#/AmountMax'
+      - $ref: '../components/parameters.yaml#/BranchFilter'
+      - $ref: '../components/parameters.yaml#/UpdatedSince'
+    responses:
+      '200':
+        description: Purchase orders
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/purchase.yaml#/PurchaseOrder' } }
+            examples:
+              firstPage: { summary: Open POs, value: { data: [{ $ref: '#/components/examples/PurchaseOrderApproved/value' }], meta: { nextCursor: null, limit: 25, total: 1, counts: { All: 96, Draft: 3, 'Awaiting approval': 2, Approved: 8, 'Partially received': 4, Closed: 75, Cancelled: 4 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Purchase]
+    summary: Create a purchase order (Draft)
+    description: Purchase prices resolve from the supplier price list; tax context uses the supplier state (IGST for inter-state). Supplier must be Active (`409 PARTY_BLOCKED` otherwise).
+    operationId: createPurchaseOrder
+    x-permission: purchase.order.create
+    x-events: [DocumentCreated]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/purchase.yaml#/PurchaseOrderCreate' }
+          examples:
+            goods: { summary: Stock purchase with expected dates, value: { partyId: sup_bharatsteel, date: '2026-09-13', expectedDate: '2026-09-25', warehouseId: wh_main, lines: [{ itemId: item_stl4, qty: 5000, rate: 48, taxRateId: tax_gst18, expectedDate: '2026-09-25' }, { itemId: item_stl6, qty: 2000, rate: 51, taxRateId: tax_gst18, expectedDate: '2026-09-30' }] } }
+            service: { summary: Service PO (no stock), value: { partyId: sup_consult, date: '2026-09-13', lines: [{ itemId: item_consult, qty: 40, rate: 2000, taxRateId: tax_gst18, accountId: acc_5530, dimensions: { Department: dim_dept_fin } }] } }
+            import: { summary: Import in USD, value: { partyId: sup_shenzhen, date: '2026-09-13', currency: USD, expectedDate: '2026-10-20', lines: [{ itemId: item_electrode, qty: 10000, rate: 0.35, taxRateId: tax_gst0 }], charges: [{ name: Sea freight, amount: 800, accountId: acc_5030 }], terms: FOB Shenzhen; 30% advance } }
+            withCharges: { summary: With freight charge line and notes, value: { partyId: sup_globalpack, date: '2026-09-13', expectedDate: '2026-09-18', lines: [{ itemId: item_box, qty: 1000, rate: 25, taxRateId: tax_gst18 }], charges: [{ name: Freight, amount: 1500, taxRateId: tax_gst18, accountId: acc_5030 }], notes: Deliver before 10 am } }
+    responses:
+      '201':
+        description: Draft PO
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/PurchaseOrder' }
+            examples:
+              draft: { summary: Draft, value: { id: po_00121, companyId: co_acme, number: DRAFT-PO-121, docType: Purchase Order, date: '2026-09-13', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, expectedDate: '2026-09-25', warehouseId: wh_main, lines: [{ id: ln_po_1, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, hsn: '7214', qty: 5000, uom: KG, rate: 48, discountPct: 0, discountAmt: 0, taxable: 240000, taxRateId: tax_gst18, taxRate: 18, taxAmt: 43200, taxComponents: { CGST: 21600, SGST: 21600 }, amount: 283200, warehouseId: wh_main, expectedDate: '2026-09-25', pendingQty: 5000 }], totals: { subtotal: 240000, discount: 0, taxable: 240000, tax: 43200, components: { CGST: 21600, SGST: 21600 }, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 283200, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 283200 }, amendments: [], fulfilment: { ordered: 5000, received: 0, accepted: 0, rejected: 0, invoiced: 0, returned: 0, pending: 5000 }, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/purchase/orders/bulk:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Purchase]
+    summary: Bulk submit / print selected POs
+    operationId: bulkPurchaseOrders
+    x-permission: purchase.order.submit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/BulkRequest' }
+          examples:
+            submit: { summary: Submit drafts, value: { ids: [po_00121, po_00122], action: submit } }
+            print: { summary: Print selected (returns a merged PDF export job), value: { ids: [po_00118, po_00121], action: print } }
+    responses:
+      '200':
+        description: Per-id results
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/BulkResult' }
+            examples:
+              allSucceeded: { $ref: '../components/examples/common.yaml#/BulkAllSucceeded' }
+              partialFailure: { $ref: '../components/examples/common.yaml#/BulkPartialFailure' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/purchase/orders/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Purchase]
+    summary: Get a purchase order (with fulfilment)
+    operationId: getPurchaseOrder
+    x-permission: purchase.order.view
+    responses:
+      '200':
+        description: PO
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/PurchaseOrder' }
+            examples:
+              approved: { $ref: '../components/examples/purchase.yaml#/PurchaseOrderApproved' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Purchase]
+    summary: Edit a Draft / Returned PO
+    operationId: updatePurchaseOrder
+    x-permission: purchase.order.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/purchase.yaml#/PurchaseOrderPatch' }
+          examples:
+            fieldsOnly: { summary: Expected date + terms, value: { expectedVersion: 1, expectedDate: '2026-09-28', terms: Net 45 } }
+            replaceLines: { summary: Replace lines, value: { expectedVersion: 1, lines: [{ itemId: item_stl4, qty: 6000, rate: 47.5, taxRateId: tax_gst18 }] } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/PurchaseOrder' }
+            examples:
+              updated: { $ref: '../components/examples/purchase.yaml#/PurchaseOrderApproved' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Purchase]
+    summary: Delete a Draft PO
+    operationId: deletePurchaseOrder
+    x-permission: purchase.order.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/purchase/orders/{id}/submit:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Submit (workflow or auto-approve; allocates number)
+    operationId: submitPurchaseOrder
+    x-permission: purchase.order.submit
+    x-idempotent: true
+    x-workflow-doc-type: Purchase Order
+    x-events: [DocumentSubmitted, DocumentApproved]
+    x-frd: [FR-PUR-011]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Outcome
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/purchase.yaml#/PurchaseOrder' }
+            examples:
+              routed: { summary: outcome = routed-for-approval, value: { document: { id: po_00121, companyId: co_acme, number: PO/2026-27/00121, docType: Purchase Order, date: '2026-09-13', branchId: br_ho, status: Submitted, currency: INR, rate: 1, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, lines: [], totals: { subtotal: 240000, discount: 0, taxable: 240000, tax: 43200, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 283200, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 283200 }, amendments: [], approvalId: apr_po_121, submittedAt: '2026-09-13T09:12:04Z', createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 }, outcome: routed-for-approval, approval: { id: apr_po_121, companyId: co_acme, docType: Purchase Order, collection: purchaseOrders, docId: po_00121, docNumber: PO/2026-27/00121, amount: 283200, currency: INR, branchId: br_ho, requesterId: usr_suresh, requesterName: Suresh Patel, ruleId: wf_po_50k, ruleName: Purchase orders above ₹50k, ruleVersion: 1, steps: [{ order: 1, name: Purchase manager, approverType: Role, approverRef: role_purchmgr, approverLabel: Purchase Manager, status: Pending, commentRequired: false }], currentStep: 0, status: Pending, submittedAt: '2026-09-13T09:12:04Z', history: [], createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }, warnings: [] } }
+              approved: { summary: outcome = approved (no rule), value: { document: { $ref: '#/components/examples/PurchaseOrderApproved/value' }, outcome: approved, warnings: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/purchase/orders/{id}/amend:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Amend an Approved PO (revision bump, reason ≥ 10 chars)
+    description: "Received quantities cannot be reduced below what was received. Material changes may re-trigger the workflow (`outcome: routed-for-approval`)."
+    operationId: amendPurchaseOrder
+    x-permission: purchase.order.edit
+    x-frd: [FR-PUR-012]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/purchase.yaml#/AmendPoRequest' }
+          examples:
+            qty: { summary: Increase quantity, value: { reason: Production plan revised — need 1 t more, lines: [{ id: ln_po_1, itemId: item_stl4, qty: 6000, rate: 48, taxRateId: tax_gst18, expectedDate: '2026-09-30' }] } }
+            date: { summary: Push expected date, value: { reason: Supplier confirmed a 5-day delay on 12 Sep, expectedDate: '2026-09-30', lines: [{ id: ln_po_1, itemId: item_stl4, qty: 5000, rate: 48, taxRateId: tax_gst18, expectedDate: '2026-09-30' }] } }
+    responses:
+      '200':
+        description: Amended (revision + 1)
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/purchase.yaml#/PurchaseOrder' }
+            examples:
+              amended: { summary: Revision 2, value: { document: { id: po_00118, companyId: co_acme, number: PO/SRT/0118/26-27, docType: Purchase Order, date: '2026-09-11', branchId: br_surat, status: Partially Received, currency: INR, rate: 1, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, expectedDate: '2026-09-30', lines: [], totals: { subtotal: 288000, discount: 0, taxable: 288000, tax: 51840, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 339840, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 339840 }, amendments: [{ at: '2026-09-13T09:12:04Z', by: Suresh Patel, reason: Production plan revised — need 1 t more, revision: 2, summary: 'Line 1 qty 5000 → 6000; expected date 25 Sep → 30 Sep' }], revision: 2, fulfilment: { ordered: 6000, received: 3000, accepted: 2950, rejected: 50, invoiced: 2950, returned: 0, pending: 3000 }, createdAt: '2026-09-11T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 7 }, outcome: amended, warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/purchase/orders/{id}/short-close:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Short-close the unreceived balance
+    operationId: shortClosePurchaseOrder
+    x-permission: purchase.order.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Supplier cannot fulfil the remaining 2 t this quarter } }
+    responses:
+      '200':
+        description: Short closed
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/PurchaseOrder' }
+            examples:
+              closed: { summary: Short Closed, value: { id: po_00118, companyId: co_acme, number: PO/SRT/0118/26-27, docType: Purchase Order, date: '2026-09-11', branchId: br_surat, status: Short Closed, currency: INR, rate: 1, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, lines: [], totals: { subtotal: 240000, discount: 0, taxable: 240000, tax: 43200, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 283200, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 283200 }, amendments: [], shortCloseReason: Supplier cannot fulfil the remaining 2 t this quarter, fulfilment: { ordered: 5000, received: 3000, accepted: 2950, rejected: 50, invoiced: 2950, returned: 0, pending: 0 }, createdAt: '2026-09-11T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 7 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/purchase/orders/{id}/cancel:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Cancel a PO with nothing received
+    operationId: cancelPurchaseOrder
+    x-permission: purchase.order.edit
+    x-events: [DocumentCancelled]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            cancel: { summary: Cancel, value: { reason: Duplicate of PO/2026-27/00120 } }
+    responses:
+      '200':
+        description: Cancelled
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/PurchaseOrder' }
+            examples:
+              cancelled: { summary: Cancelled, value: { id: po_00122, companyId: co_acme, number: PO/2026-27/00122, docType: Purchase Order, date: '2026-09-13', branchId: br_ho, status: Cancelled, currency: INR, rate: 1, partyType: Supplier, partyId: sup_globalpack, partyName: Global Packaging Co, lines: [], totals: { subtotal: 25000, discount: 0, taxable: 25000, tax: 4500, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 29500, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 29500 }, amendments: [], cancelReason: Duplicate of PO/2026-27/00120, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T10:00:00Z', version: 3 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/purchase/orders/{id}/email:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: E-mail the PO to the supplier (records emailedAt)
+    operationId: emailPurchaseOrder
+    x-permission: purchase.order.view
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/EmailRequest' }
+          examples:
+            default: { summary: Supplier contact, value: { to: [sales@bharatsteel.example], subject: Purchase order PO/SRT/0118/26-27, message: Please confirm delivery by 25 Sep. } }
+    responses:
+      '202':
+        description: Queued
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmailResult' }
+            examples:
+              queued: { $ref: '../components/examples/common.yaml#/EmailResult' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '502': { $ref: '../components/responses.yaml#/ProviderError' }
+
+/purchase/orders/{id}/remaining-lines:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Purchase]
+    summary: Lines with pending quantity (for GRN / invoice forms)
+    operationId: getPoRemainingLines
+    x-permission: purchase.order.view
+    responses:
+      '200':
+        description: Remaining lines
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/purchase.yaml#/PoLine' } } } }
+            examples:
+              pending: { summary: 2 t pending, value: { data: [{ id: ln_po_1, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, hsn: '7214', qty: 5000, uom: KG, rate: 48, discountPct: 0, discountAmt: 0, taxable: 240000, taxRateId: tax_gst18, taxRate: 18, taxAmt: 43200, taxComponents: {}, amount: 283200, receivedQty: 3000, acceptedQty: 2950, rejectedQty: 50, invoicedQty: 2950, cancelledQty: 0, pendingQty: 2000 }] } }
+              none: { summary: Fully received, value: { data: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/purchase/orders/{id}/grns:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Create a GRN draft for the PO's remaining quantities
+    operationId: createGrnFromPo
+    x-permission: purchase.grn.create
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { type: object, properties: { warehouseId: { type: string }, lines: { type: array, items: { $ref: '../components/schemas/purchase.yaml#/GrnLineInput' } } } }
+          examples:
+            allRemaining: { summary: Everything pending, value: {} }
+            partial: { summary: Partial receipt with QC, value: { warehouseId: wh_main, lines: [{ poLineId: ln_po_1, itemId: item_stl4, receivedQty: 3000, acceptedQty: 2950, rejectedQty: 50, disposition: Return to supplier, qcNote: 50 KG rusted, batch: B-2609-11, bin: A-01 }] } }
+    responses:
+      '201':
+        description: Draft GRN
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/Grn' }
+            examples:
+              draft: { summary: Draft GRN, value: { id: grn_00077, companyId: co_acme, number: DRAFT-GRN-77, docType: GRN, date: '2026-09-12', branchId: br_surat, status: Draft, qcStatus: Pending, currency: INR, rate: 1, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, poId: po_00118, poNumber: PO/SRT/0118/26-27, warehouseId: wh_main, lines: [], totals: { subtotal: 141600, discount: 0, taxable: 141600, tax: 25488, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 167088, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 167088 }, createdAt: '2026-09-12T10:30:00Z', updatedAt: '2026-09-12T10:30:00Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/purchase/orders/{id}/vendor-invoices:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Create a vendor invoice draft from the PO (invoiceable GRN quantities)
+    operationId: createVendorInvoiceFromPo
+    x-permission: purchase.invoice.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [supplierInvoiceNumber, supplierInvoiceDate], properties: { supplierInvoiceNumber: { type: string }, supplierInvoiceDate: { type: string, format: date }, grnIds: { type: array, items: { type: string } }, date: { type: string, format: date } } }
+          examples:
+            fromGrns: { summary: Against specific GRNs, value: { supplierInvoiceNumber: BS-7781, supplierInvoiceDate: '2026-09-12', grnIds: [grn_00077] } }
+    responses:
+      '201':
+        description: Draft vendor invoice
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/VendorInvoice' }
+            examples:
+              draft: { summary: Draft, value: { id: vinv_00019, companyId: co_acme, number: DRAFT-VINV-19, docType: Vendor Invoice, date: '2026-09-13', dueDate: '2026-10-28', branchId: br_surat, status: Draft, matchStatus: Pending, currency: INR, rate: 1, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, supplierInvoiceNumber: BS-7781, supplierInvoiceDate: '2026-09-12', poId: po_00118, poNumber: PO/SRT/0118/26-27, grnIds: [grn_00077], grnNumbers: [GRN/2026-27/00077], lines: [], totals: { subtotal: 141600, discount: 0, taxable: 141600, tax: 25488, components: {}, breakup: [], charges: 0, tds: 2832, roundOff: 0, total: 167088, paid: 0, credited: 0, writtenOff: 0, due: 164256, baseTotal: 167088 }, tdsSectionId: tds_194c, reverseCharge: false, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T09:00:00Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+# ── GRNs ──────────────────────────────────────────────────────────────────
+
+/purchase/grns:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Purchase]
+    summary: List goods receipts
+    description: "Tabs → All · Draft · Posted · With rejections (`withRejections=true`) · Reversed. Query examples — `?poId=po_00118` · `?warehouseId=wh_main` · `?qcStatus=Pending`."
+    operationId: listGrns
+    x-permission: purchase.grn.view
+    x-frd: [FR-PUR-020]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: qcStatus, in: query, schema: { type: string, enum: [Pending, Accepted, Partial Accept, Rejected] } }
+      - { name: withRejections, in: query, schema: { type: boolean } }
+      - { name: poId, in: query, schema: { type: string } }
+      - { name: invoiced, in: query, schema: { type: boolean } }
+      - $ref: '../components/parameters.yaml#/PartyId'
+      - $ref: '../components/parameters.yaml#/WarehouseId'
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: GRNs
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/purchase.yaml#/Grn' } }
+            examples:
+              firstPage: { summary: GRNs, value: { data: [{ $ref: '#/components/examples/GrnPosted/value' }], meta: { nextCursor: null, limit: 25, total: 1, counts: { All: 80, Draft: 1, Posted: 76, 'With rejections': 6, Reversed: 3 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Purchase]
+    summary: Create a GRN (against a PO or direct)
+    description: Over-receipt beyond `overReceiptTolerancePct` → `422`. Batch/serial/expiry required per item tracking. `heldQty` keeps quantity in quarantine until a quality inspection completes.
+    operationId: createGrn
+    x-permission: purchase.grn.create
+    x-events: [DocumentCreated]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/purchase.yaml#/GrnCreate' }
+          examples:
+            fromPoWithQc: { summary: Against PO with QC rejection, value: { date: '2026-09-12', poId: po_00118, warehouseId: wh_main, supplierChallan: DC-BS-4471, vehicleNo: GJ05AB9876, receivedBy: Suresh Patel, lines: [{ poLineId: ln_po_1, itemId: item_stl4, receivedQty: 3000, acceptedQty: 2950, rejectedQty: 50, disposition: Return to supplier, qcNote: 50 KG rusted, batch: B-2609-11, bin: A-01 }] } }
+            direct: { summary: Direct receipt (no PO), value: { date: '2026-09-13', partyId: sup_kiranag, warehouseId: wh_andheri, supplierChallan: KA-118, lines: [{ itemId: item_chai, receivedQty: 500, rate: 88, taxRateId: tax_gst5, batch: CH-2609 }] } }
+            serialHold: { summary: Serial-tracked with QC hold, value: { date: '2026-09-13', poId: po_00123, warehouseId: wh_main, lines: [{ poLineId: ln_po_20, itemId: item_frame, receivedQty: 10, acceptedQty: 0, rejectedQty: 0, heldQty: 10, serials: [SN-00201, SN-00202, SN-00203, SN-00204, SN-00205, SN-00206, SN-00207, SN-00208, SN-00209, SN-00210] }] } }
+    responses:
+      '201':
+        description: Draft GRN
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/Grn' }
+            examples:
+              draft: { summary: Draft, value: { id: grn_00077, companyId: co_acme, number: DRAFT-GRN-77, docType: GRN, date: '2026-09-12', branchId: br_surat, status: Draft, qcStatus: Partial Accept, currency: INR, rate: 1, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, poId: po_00118, poNumber: PO/SRT/0118/26-27, warehouseId: wh_main, supplierChallan: DC-BS-4471, lines: [], totals: { subtotal: 141600, discount: 0, taxable: 141600, tax: 25488, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 167088, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 167088 }, createdAt: '2026-09-12T10:30:00Z', updatedAt: '2026-09-12T10:30:00Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Over-receipt / tracking rules
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              overReceipt: { summary: Beyond tolerance, value: { code: VALIDATION, message: 'Steel Rod 4mm: receiving 2500 exceeds pending 2000 + 5% tolerance', field: 'lines[0].receivedQty', correlationId: corr_9f1c2e7a } }
+              batchRequired: { summary: Batch missing, value: { code: BATCH_REQUIRED, message: Steel Rod 4mm is batch-tracked — batch number required, field: 'lines[0].batch', correlationId: corr_9f1c2e7a } }
+              serialDup: { summary: Serial already in stock, value: { code: SERIAL_DUP, message: Serial SN-00201 already exists in Main Warehouse, field: 'lines[0].serials', correlationId: corr_9f1c2e7a } }
+
+/purchase/grns/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Purchase]
+    summary: Get a GRN
+    operationId: getGrn
+    x-permission: purchase.grn.view
+    responses:
+      '200':
+        description: GRN
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/Grn' }
+            examples:
+              posted: { $ref: '../components/examples/purchase.yaml#/GrnPosted' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Purchase]
+    summary: Continue / edit a Draft GRN
+    operationId: updateGrn
+    x-permission: purchase.grn.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/purchase.yaml#/GrnPatch' }
+          examples:
+            qc: { summary: Record QC result, value: { expectedVersion: 1, lines: [{ id: ln_g1, poLineId: ln_po_1, itemId: item_stl4, receivedQty: 3000, acceptedQty: 2950, rejectedQty: 50, disposition: Return to supplier, qcNote: 50 KG rusted, batch: B-2609-11 }] } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/Grn' }
+            examples:
+              updated: { $ref: '../components/examples/purchase.yaml#/GrnPosted' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Purchase]
+    summary: Delete a Draft GRN
+    operationId: deleteGrn
+    x-permission: purchase.grn.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/purchase/grns/{id}/post:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Post a GRN (stock in accepted qty, GRNI accrual, PO quantities)
+    description: Stock-in of accepted (and held → quarantine) quantities at PO rate, journal Dr Inventory / Cr GRNI accrual, PO `receivedQty` updated (status → Partially Received / Received). Rejected quantities create a quality inspection record when QC is enabled. Idempotent.
+    operationId: postGrn
+    x-permission: purchase.grn.post
+    x-idempotent: true
+    x-events: [DocumentPosted, PurchaseReceived, StockMoved, JournalPosted]
+    x-frd: [FR-PUR-021]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Posted
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/purchase.yaml#/Grn' }
+            examples:
+              posted: { summary: Stock in + GRNI journal, value: { document: { $ref: '#/components/examples/GrnPosted/value' }, outcome: posted, journal: { id: jnl_grn_77, companyId: co_acme, number: JV/2026-27/00306, date: '2026-09-12', period: '2026-09', fy: '2026-27', branchId: br_surat, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: GRN, sourceId: grn_00077, sourceNumber: GRN/2026-27/00077, narration: GRN GRN/2026-27/00077 · Bharat Steel Industries, lines: [{ id: j1, accountId: acc_1210, accountCode: '1210', accountName: Inventory — Raw Material, dr: 141600, cr: 0, drBase: 141600, crBase: 0, dimensions: {} }, { id: j2, accountId: acc_2110, accountCode: '2110', accountName: GRNI accrual, dr: 0, cr: 141600, drBase: 0, crBase: 141600, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, dimensions: {} }], totalDr: 141600, totalCr: 141600, idempotencyKey: 'grn:grn_00077:post', postedAt: '2026-09-12T11:00:00Z', postedBy: Suresh Patel, correlationId: corr_grn77, createdAt: '2026-09-12T11:00:00Z', updatedAt: '2026-09-12T11:00:00Z', version: 1 }, stockMovements: [{ id: sm_50, companyId: co_acme, date: '2026-09-12', itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, warehouseId: wh_main, warehouseName: Main Warehouse, bin: A-01, qty: 2950, uom: KG, baseQty: 2950, batch: B-2609-11, rate: 48, value: 141600, type: GRN, sourceType: GRN, sourceId: grn_00077, sourceNumber: GRN/2026-27/00077, journalId: jnl_grn_77, balanceAfter: 4190, createdAt: '2026-09-12T11:00:00Z', updatedAt: '2026-09-12T11:00:00Z', version: 1 }], relatedDocuments: [{ collection: purchaseOrders, id: po_00118, number: PO/SRT/0118/26-27, status: Partially Received }, { collection: qualityInspections, id: qi_0007, number: QI/2026-27/00007, status: Open }], warnings: ['50 KG rejected — disposition Return to supplier; raise a debit note'] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/purchase/grns/{id}/reverse:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Reverse a posted GRN (not invoiced / returned)
+    operationId: reverseGrn
+    x-permission: purchase.grn.reverse
+    x-idempotent: true
+    x-events: [DocumentReversed, StockReversed, JournalReversed]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Goods booked to the wrong warehouse — re-receiving at Surat } }
+    responses:
+      '200':
+        description: Reversed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/purchase.yaml#/Grn' }
+            examples:
+              reversed: { summary: "Stock out, GRNI reversed, PO quantities rolled back", value: { document: { id: grn_00078, companyId: co_acme, number: GRN/2026-27/00078, docType: GRN, date: '2026-09-13', branchId: br_ho, status: Reversed, qcStatus: Accepted, currency: INR, rate: 1, partyType: Supplier, partyId: sup_globalpack, partyName: Global Packaging Co, poId: po_00120, poNumber: PO/2026-27/00120, warehouseId: wh_main, lines: [], totals: { subtotal: 25000, discount: 0, taxable: 25000, tax: 4500, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 29500, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 29500 }, reversalReason: Goods booked to the wrong warehouse — re-receiving at Surat, invoiced: false, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 4 }, outcome: reversed, journal: { id: jnl_grn_78r, companyId: co_acme, number: JV/2026-27/00337, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Reversal, sourceType: GRN, sourceId: grn_00078, sourceNumber: GRN/2026-27/00078, narration: Reversal of JV/2026-27/00308, lines: [], totalDr: 25000, totalCr: 25000, reversalOfId: jnl_grn_78, postedAt: '2026-09-13T11:00:00Z', postedBy: Suresh Patel, correlationId: corr_9f1c2e7a, createdAt: '2026-09-13T11:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 1 }, stockMovements: [{ id: sm_51, companyId: co_acme, date: '2026-09-13', itemId: item_box, itemCode: BOX-L, itemName: Carton box L, warehouseId: wh_main, qty: -1000, uom: NOS, baseQty: -1000, rate: 25, value: -25000, type: Purchase Return, sourceType: GRN Reversal, sourceId: grn_00078, sourceNumber: GRN/2026-27/00078, reversalOfId: sm_49, balanceAfter: 200, createdAt: '2026-09-13T11:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 1 }], relatedDocuments: [{ collection: purchaseOrders, id: po_00120, number: PO/2026-27/00120, status: Approved }], warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }

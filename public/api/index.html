@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Elixir Books ERP API — reference</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.17.14/swagger-ui.min.css" />
+  <style>
+    body { margin: 0; background: #fafafa; }
+    .topbar { display: none; }
+    .swagger-ui .info { margin: 24px 0; }
+    .swagger-ui .info .title small.version-stamp { background: #2563eb; }
+    .swagger-ui .opblock-tag { font-size: 18px; }
+    #banner { font: 13px/1.4 Inter, system-ui, sans-serif; background: #1e3a8a; color: #fff; padding: 8px 16px; }
+    #banner a { color: #bfdbfe; }
+  </style>
+</head>
+<body>
+  <div id="banner">
+    Elixir Books ERP · OpenAPI 3.1 contract · bundled from <code>docs/api</code> by <code>pnpm api:bundle</code> ·
+    <a href="./openapi.json">openapi.json</a>
+  </div>
+  <div id="swagger-ui"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.17.14/swagger-ui-bundle.min.js" crossorigin></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.17.14/swagger-ui-standalone-preset.min.js" crossorigin></script>
+  <script>
+    window.addEventListener('load', () => {
+      window.ui = SwaggerUIBundle({
+        url: './openapi.json',
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        docExpansion: 'none',
+        defaultModelsExpandDepth: 0,
+        displayRequestDuration: true,
+        filter: true,
+        tagsSorter: (a, b) => {
+          const order = ['Auth', 'Platform', 'Admin', 'Approvals', 'Masters', 'CRM', 'Sales', 'Purchase', 'Inventory', 'POS', 'Projects', 'Production', 'Accounting', 'Banking', 'Taxation', 'Payroll', 'Fixed Assets', 'Budgets', 'Reports', 'System'];
+          return order.indexOf(a) - order.indexOf(b);
+        },
+        operationsSorter: 'alpha',
+        persistAuthorization: true,
+        presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+        plugins: [SwaggerUIBundle.plugins.DownloadUrl],
+        layout: 'StandaloneLayout',
+      });
+    });
+  </script>
+</body>
+</html>

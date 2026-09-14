@@ -1,0 +1,1675 @@
+# Company administration part 2 (tag: Admin): number series, workflow rules, document templates, localization,
+# plan & usage, integrations (provider credentials, API keys, webhooks, integration log), audit, jobs, notification settings, data.
+
+# ── number series ─────────────────────────────────────────────────────────
+
+/number-series:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: List number series
+    description: Query examples — `?docType=Sales Invoice` · `?fy=2026-27` · `?branchId=br_ho` · `?status=Active`.
+    operationId: listNumberSeries
+    x-permission: admin.numbering.view
+    x-frd: [FR-DOC-001]
+    parameters:
+      - { name: docType, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/FiscalYear'
+      - $ref: '../components/parameters.yaml#/BranchFilter'
+      - { name: status, in: query, schema: { type: string, enum: [Active, Inactive] } }
+    responses:
+      '200':
+        description: Series
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/admin.yaml#/NumberSeries' } } } }
+            examples:
+              list:
+                summary: Two series
+                value:
+                  data:
+                    - { id: ns_inv_2627, companyId: co_acme, docType: Sales Invoice, fy: '2026-27', prefix: INV/2026-27/, suffix: '', padding: 5, next: 43, resetRule: FY, allocation: On post, status: Active, voids: [], preview: INV/2026-27/00043, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 44 }
+                    - { id: ns_po_2627_surat, companyId: co_acme, docType: Purchase Order, branchId: br_surat, fy: '2026-27', prefix: PO/SRT/, suffix: /26-27, padding: 4, next: 118, resetRule: FY, allocation: On save, status: Active, voids: [], preview: PO/SRT/0118/26-27, createdAt: '2026-05-01T09:00:00Z', updatedAt: '2026-09-12T14:00:00Z', version: 118 }
+              none: { summary: No series for filter, value: { data: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Admin]
+    summary: Create a number series
+    description: One Active series per (docType, branch, FY). Branch-specific series override the company-wide one.
+    operationId: createNumberSeries
+    x-permission: admin.numbering.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/admin.yaml#/NumberSeriesInput'
+              - { required: [docType, fy, prefix, padding, next, resetRule, allocation] }
+          examples:
+            companyWide: { summary: Company-wide FY series, value: { docType: Credit Note, fy: '2026-27', prefix: CN/2026-27/, suffix: '', padding: 5, next: 1, resetRule: FY, allocation: On post } }
+            branchMonthly: { summary: Branch series with monthly reset, value: { docType: POS Bill, branchId: br_andheri, fy: '2026-27', prefix: AND/, suffix: '', padding: 4, next: 1, resetRule: Monthly, allocation: On save } }
+    responses:
+      '201':
+        description: Series
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/NumberSeries' }
+            examples:
+              created: { $ref: '../components/examples/admin.yaml#/NumberSeriesInvoice' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/number-series/preview:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: Preview the next number for a document type
+    description: Resolves the series the way posting will (`engine.previewNumber`) — branch-specific first, then company-wide, by FY of `date`.
+    operationId: previewNumber
+    x-permission: admin.numbering.view
+    parameters:
+      - { name: docType, in: query, required: true, schema: { type: string }, example: Sales Invoice }
+      - { name: branchId, in: query, schema: { type: string }, example: br_ho }
+      - { name: date, in: query, schema: { type: string, format: date }, example: '2026-09-13' }
+    responses:
+      '200':
+        description: Preview
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/NumberPreview' }
+            examples:
+              invoice: { summary: Next invoice number, value: { docType: Sales Invoice, series: INV/2026-27/, next: INV/2026-27/00043, allocation: On post, fy: '2026-27', branchId: br_ho } }
+              branchSeries: { summary: Branch series wins, value: { docType: Purchase Order, series: PO/SRT/, next: PO/SRT/0118/26-27, allocation: On save, fy: '2026-27', branchId: br_surat } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/number-series/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Admin]
+    summary: Get a series (with void log)
+    operationId: getNumberSeries
+    x-permission: admin.numbering.view
+    responses:
+      '200':
+        description: Series
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/NumberSeries' }
+            examples:
+              invoice: { $ref: '../components/examples/admin.yaml#/NumberSeriesInvoice' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Admin]
+    summary: Update a series
+    description: '`next` may only move forward (`422 VALIDATION`); prefix changes on a series with allocations are audited.'
+    operationId: updateNumberSeries
+    x-permission: admin.numbering.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/admin.yaml#/NumberSeriesPatch' }
+          examples:
+            bumpNext: { summary: Skip ahead, value: { expectedVersion: 44, next: 100 } }
+            deactivate: { summary: Deactivate, value: { expectedVersion: 44, status: Inactive } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/NumberSeries' }
+            examples:
+              updated: { $ref: '../components/examples/admin.yaml#/NumberSeriesInvoice' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Admin]
+    summary: Delete a series that never allocated a number
+    operationId: deleteNumberSeries
+    x-permission: admin.numbering.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/number-series/{id}/void:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Admin]
+    summary: Void a number (gap with reason)
+    description: Records a gap in the sequence with a reason (statutory audit requirement). The number must belong to this series and not be in use by a posted document.
+    operationId: voidNumber
+    x-permission: admin.numbering.edit
+    x-frd: [FR-DOC-002]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/admin.yaml#/VoidNumberRequest' }
+          examples:
+            void: { summary: Void a consumed number, value: { number: INV/2026-27/00040, reason: Number was consumed by a cancelled draft during migration } }
+    responses:
+      '200':
+        description: Series with the new void entry
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/NumberSeries' }
+            examples:
+              voided: { $ref: '../components/examples/admin.yaml#/NumberSeriesInvoice' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── workflow rules ────────────────────────────────────────────────────────
+
+/workflow-rules:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: List workflow rules
+    description: Query examples — `?docType=Sales Invoice` · `?status=Active`.
+    operationId: listWorkflowRules
+    x-permission: admin.workflows.view
+    x-frd: [FR-WFL-001]
+    parameters:
+      - { name: docType, in: query, schema: { $ref: '../components/schemas/approvals.yaml#/WorkflowDocType' } }
+      - { name: status, in: query, schema: { type: string, enum: [Draft, Active, Retired] } }
+    responses:
+      '200':
+        description: Rules
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/approvals.yaml#/WorkflowRule' } } } }
+            examples:
+              rules:
+                summary: Active rules
+                value:
+                  data:
+                    - { id: wf_si_100k, companyId: co_acme, code: WF-SI-100K, name: Sales invoices above ₹1 lakh, docType: Sales Invoice, conditions: [{ field: amount, op: '>=', value: 100000 }], steps: [{ order: 1, name: Finance review, mode: Sequential, approverType: Role, approverRef: role_finadmin, approverLabel: Finance Admin, commentRequired: false, slaHours: 24, canDelegate: true }], ruleVersion: 2, status: Active, materialChangeFields: [lines, totals.total, partyId], allowSelfApproval: false, priority: 10, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-07-01T09:00:00Z', version: 3 }
+                    - { id: wf_pay_batch, companyId: co_acme, code: WF-PAYBATCH, name: Payment batches (maker-checker), docType: Payment Batch, conditions: [], steps: [{ order: 1, name: Treasury approval, mode: Sequential, approverType: Role, approverRef: role_treasury, approverLabel: Treasury, commentRequired: true, slaHours: 8, canDelegate: false }], ruleVersion: 1, status: Active, materialChangeFields: [lines], allowSelfApproval: false, priority: 5, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }
+              none: { summary: No rules, value: { data: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Admin]
+    summary: Create a workflow rule (Draft)
+    operationId: createWorkflowRule
+    x-permission: admin.workflows.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/approvals.yaml#/WorkflowRuleInput'
+              - { required: [code, name, docType, steps] }
+          examples:
+            amountThreshold: { summary: Single step above an amount, value: { code: WF-PO-50K, name: Purchase orders above ₹50k, docType: Purchase Order, conditions: [{ field: amount, op: '>=', value: 50000 }], steps: [{ order: 1, name: Purchase manager, mode: Sequential, approverType: Role, approverRef: role_purchmgr, approverLabel: Purchase Manager, commentRequired: false, slaHours: 24, canDelegate: true }], materialChangeFields: [lines, totals.total], allowSelfApproval: false, priority: 10 } }
+            twoStepEscalation: { summary: Manager then Finance with escalation, value: { code: WF-EXP-5K, name: Expense claims above ₹5,000, docType: Expense Claim, conditions: [{ field: amount, op: '>', value: 5000 }], steps: [{ order: 1, name: Line manager, mode: Sequential, approverType: Manager, approverRef: '', approverLabel: Reporting manager, commentRequired: false, slaHours: 48, canDelegate: true }, { order: 2, name: Finance review, mode: Sequential, approverType: Role, approverRef: role_finadmin, approverLabel: Finance Admin, commentRequired: true, slaHours: 24, canDelegate: false }], escalation: { afterHours: 72, toRole: role_owner, notify: true }, reminders: { afterHours: 24 }, materialChangeFields: [lines], allowSelfApproval: false, priority: 20 } }
+            branchScoped: { summary: Branch + exception condition, value: { code: WF-VINV-EXC, name: Vendor invoices with matching exceptions (Surat), docType: Vendor Invoice, conditions: [{ field: exception, op: '=', value: 'true' }, { field: branchId, op: in, value: [br_surat] }], steps: [{ order: 1, name: Exception review, mode: Parallel, approverType: Group, approverRef: grp_ap_review, approverLabel: AP review group, commentRequired: true, slaHours: 24, canDelegate: false }], materialChangeFields: [lines, totals.total], allowSelfApproval: false, priority: 1 } }
+    responses:
+      '201':
+        description: Draft rule
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/approvals.yaml#/WorkflowRule' }
+            examples:
+              draft: { summary: Created as Draft v1, value: { id: wf_po_50k, companyId: co_acme, code: WF-PO-50K, name: Purchase orders above ₹50k, docType: Purchase Order, conditions: [{ field: amount, op: '>=', value: 50000 }], steps: [{ order: 1, name: Purchase manager, mode: Sequential, approverType: Role, approverRef: role_purchmgr, approverLabel: Purchase Manager, commentRequired: false, slaHours: 24, canDelegate: true }], ruleVersion: 1, status: Draft, materialChangeFields: [lines, totals.total], allowSelfApproval: false, priority: 10, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/workflow-rules/test:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Admin]
+    summary: Test which rule a document would hit
+    description: Dry-run of `engine.resolveWorkflow` — returns the matching Active rule (highest priority) and the resolved approvers per step.
+    operationId: testWorkflowRules
+    x-permission: admin.workflows.view
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/approvals.yaml#/WorkflowTestRequest' }
+          examples:
+            bigInvoice: { summary: ₹2.5 lakh invoice, value: { docType: Sales Invoice, amount: 250000, branchId: br_ho } }
+            smallInvoice: { summary: ₹40k invoice — no rule, value: { docType: Sales Invoice, amount: 40000 } }
+    responses:
+      '200':
+        description: Result
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/approvals.yaml#/WorkflowTestResult' }
+            examples:
+              matched: { summary: Rule matched, value: { matched: true, rule: { id: wf_si_100k, companyId: co_acme, code: WF-SI-100K, name: Sales invoices above ₹1 lakh, docType: Sales Invoice, conditions: [{ field: amount, op: '>=', value: 100000 }], steps: [{ order: 1, name: Finance review, mode: Sequential, approverType: Role, approverRef: role_finadmin, approverLabel: Finance Admin, commentRequired: false, slaHours: 24, canDelegate: true }], ruleVersion: 2, status: Active, materialChangeFields: [], allowSelfApproval: false, priority: 10, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-07-01T09:00:00Z', version: 3 }, resolvedSteps: [{ order: 1, name: Finance review, approvers: [Rahul Mehta, Anita Rao] }] } }
+              noMatch: { summary: No rule — would post directly, value: { matched: false, reason: No Active rule for Sales Invoice with amount 40000 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/workflow-rules/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Admin]
+    summary: Get a rule (with version history)
+    operationId: getWorkflowRule
+    x-permission: admin.workflows.view
+    responses:
+      '200':
+        description: Rule
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/approvals.yaml#/WorkflowRule' }
+            examples:
+              active: { $ref: '../components/examples/admin.yaml#/WorkflowRuleSI' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Admin]
+    summary: Edit a rule
+    description: Editing an **Active** rule snapshots the prior conditions/steps into `versions` and bumps `ruleVersion`; in-flight approvals keep the version they started with.
+    operationId: updateWorkflowRule
+    x-permission: admin.workflows.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/approvals.yaml#/WorkflowRuleInput'
+              - $ref: '../components/schemas/common.yaml#/ExpectedVersion'
+              - { properties: { note: { type: string, description: Version note. } } }
+          examples:
+            raiseThreshold: { summary: Raise the threshold (new version), value: { expectedVersion: 3, conditions: [{ field: amount, op: '>=', value: 150000 }], note: Threshold raised per CFO memo } }
+            addStep: { summary: Add a second step, value: { expectedVersion: 3, steps: [{ order: 1, name: Finance review, mode: Sequential, approverType: Role, approverRef: role_finadmin, approverLabel: Finance Admin, commentRequired: false, slaHours: 24, canDelegate: true }, { order: 2, name: CFO sign-off, mode: Sequential, approverType: User, approverRef: usr_rahul, approverLabel: Rahul Mehta, commentRequired: true, slaHours: 24, canDelegate: false }] } }
+    responses:
+      '200':
+        description: Updated rule
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/approvals.yaml#/WorkflowRule' }
+            examples:
+              updated: { $ref: '../components/examples/admin.yaml#/WorkflowRuleSI' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Admin]
+    summary: Delete a Draft rule
+    operationId: deleteWorkflowRule
+    x-permission: admin.workflows.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/workflow-rules/{id}/activate:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Admin]
+    summary: Activate a Draft rule
+    operationId: activateWorkflowRule
+    x-permission: admin.workflows.edit
+    responses:
+      '200':
+        description: Active
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/approvals.yaml#/WorkflowRule' }
+            examples:
+              active: { $ref: '../components/examples/admin.yaml#/WorkflowRuleSI' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/workflow-rules/{id}/retire:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Admin]
+    summary: Retire an Active rule
+    description: New submissions stop matching; pending approvals continue on the retired version.
+    operationId: retireWorkflowRule
+    x-permission: admin.workflows.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            replaced: { summary: Replaced by another rule, value: { reason: Superseded by WF-SI-150K from 1 Oct } }
+    responses:
+      '200':
+        description: Retired
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/approvals.yaml#/WorkflowRule' }
+            examples:
+              retired: { summary: Retired, value: { id: wf_si_100k, companyId: co_acme, code: WF-SI-100K, name: Sales invoices above ₹1 lakh, docType: Sales Invoice, conditions: [{ field: amount, op: '>=', value: 100000 }], steps: [{ order: 1, name: Finance review, mode: Sequential, approverType: Role, approverRef: role_finadmin, approverLabel: Finance Admin, commentRequired: false, slaHours: 24, canDelegate: true }], ruleVersion: 2, status: Retired, materialChangeFields: [], allowSelfApproval: false, priority: 10, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 4 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/workflow-rules/{id}/duplicate:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Admin]
+    summary: Duplicate a rule as a new Draft
+    operationId: duplicateWorkflowRule
+    x-permission: admin.workflows.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [code, name], properties: { code: { type: string }, name: { type: string }, docType: { $ref: '../components/schemas/approvals.yaml#/WorkflowDocType' } } }
+          examples:
+            forCreditNotes: { summary: Same steps for credit notes, value: { code: WF-CN-100K, name: Credit notes above ₹1 lakh, docType: Credit Note } }
+    responses:
+      '201':
+        description: Draft copy
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/approvals.yaml#/WorkflowRule' }
+            examples:
+              copy: { summary: Copied, value: { id: wf_cn_100k, companyId: co_acme, code: WF-CN-100K, name: Credit notes above ₹1 lakh, docType: Credit Note, conditions: [{ field: amount, op: '>=', value: 100000 }], steps: [{ order: 1, name: Finance review, mode: Sequential, approverType: Role, approverRef: role_finadmin, approverLabel: Finance Admin, commentRequired: false, slaHours: 24, canDelegate: true }], ruleVersion: 1, status: Draft, materialChangeFields: [lines, totals.total, partyId], allowSelfApproval: false, priority: 10, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── document templates ────────────────────────────────────────────────────
+
+/document-templates:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: List document templates
+    operationId: listDocumentTemplates
+    x-permission: admin.templates.view
+    x-frd: [FR-DOC-005]
+    parameters:
+      - { name: docType, in: query, schema: { type: string } }
+      - { name: status, in: query, schema: { type: string, enum: [Active, Inactive] } }
+    responses:
+      '200':
+        description: Templates
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/admin.yaml#/DocumentTemplate' } } } }
+            examples:
+              list: { summary: Invoice templates, value: { data: [{ id: tpl_taxinv_v3, companyId: co_acme, code: TPL-TAXINV, name: Tax invoice (standard), docType: Sales Invoice, templateVersion: 3, header: '{{company.legalName}} · GSTIN {{company.gstin}}', declaration: We declare that this invoice shows the actual price of the goods described., footer: Subject to Mumbai jurisdiction, showBankDetails: true, showSignatory: true, variables: ['{{company.legalName}}', '{{doc.number}}'], status: Active, isDefault: true, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-08-01T09:00:00Z', version: 3 }, { id: tpl_taxinv_export, companyId: co_acme, code: TPL-TAXINV-EXP, name: Export invoice (LUT), docType: Sales Invoice, templateVersion: 1, header: '{{company.legalName}} — Supply under LUT without payment of IGST', declaration: 'LUT No. {{company.lut}}', footer: '', showBankDetails: true, showSignatory: true, variables: ['{{company.legalName}}', '{{company.lut}}'], status: Active, isDefault: false, createdAt: '2026-06-01T09:00:00Z', updatedAt: '2026-06-01T09:00:00Z', version: 1 }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Admin]
+    summary: Create a template
+    description: Header / declaration / footer accept governed `{{variables}}` only (unknown variables → `422`).
+    operationId: createDocumentTemplate
+    x-permission: admin.templates.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/admin.yaml#/DocumentTemplateInput'
+              - { required: [code, name, docType] }
+          examples:
+            quotation: { summary: Quotation template, value: { code: TPL-QUOTE, name: Quotation (standard), docType: Quotation, header: '{{company.tradeName}}', declaration: 'Prices valid until {{doc.validUntil}}.', footer: Thank you for your enquiry., showBankDetails: false, showSignatory: true } }
+            payslip: { summary: Payslip with bank details hidden, value: { code: TPL-PAYSLIP, name: Payslip, docType: Payslip, header: '{{company.legalName}} — Payslip for {{doc.period}}', declaration: '', footer: This is a system-generated document., showBankDetails: false, showSignatory: false } }
+    responses:
+      '201':
+        description: Template
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/DocumentTemplate' }
+            examples:
+              created: { $ref: '../components/examples/admin.yaml#/TemplateTaxInvoice' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/document-templates/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Admin]
+    summary: Get a template
+    operationId: getDocumentTemplate
+    x-permission: admin.templates.view
+    responses:
+      '200':
+        description: Template
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/DocumentTemplate' }
+            examples:
+              taxInvoice: { $ref: '../components/examples/admin.yaml#/TemplateTaxInvoice' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Admin]
+    summary: Edit a template (bumps templateVersion)
+    description: Documents already printed keep the version they were rendered with (`templateVersion` on the document).
+    operationId: updateDocumentTemplate
+    x-permission: admin.templates.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/admin.yaml#/DocumentTemplatePatch' }
+          examples:
+            footer: { summary: Change footer, value: { expectedVersion: 3, footer: Subject to Mumbai jurisdiction · E&OE } }
+            hideBank: { summary: Hide bank details, value: { expectedVersion: 3, showBankDetails: false } }
+    responses:
+      '200':
+        description: Updated (templateVersion + 1)
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/DocumentTemplate' }
+            examples:
+              updated: { $ref: '../components/examples/admin.yaml#/TemplateTaxInvoice' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/document-templates/{id}/set-default:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Admin]
+    summary: Make this the default template for its document type
+    operationId: setDefaultDocumentTemplate
+    x-permission: admin.templates.edit
+    responses:
+      '200':
+        description: Template (now default)
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/DocumentTemplate' }
+            examples:
+              default: { $ref: '../components/examples/admin.yaml#/TemplateTaxInvoice' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/document-templates/{id}/preview:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Admin]
+    summary: Render a preview PDF with sample data
+    operationId: previewDocumentTemplate
+    x-permission: admin.templates.view
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { type: object, properties: { sampleDocumentId: { type: string, description: Render with a real document instead of sample data. } } }
+          examples:
+            sample: { summary: Sample data, value: {} }
+            realDoc: { summary: Real invoice, value: { sampleDocumentId: inv_01j8k3 } }
+    responses:
+      '200':
+        description: PDF
+        content:
+          application/pdf:
+            schema: { type: string, format: binary }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── localization & plan ───────────────────────────────────────────────────
+
+/localization:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: Active localization pack, available packs and compatibility
+    operationId: getLocalization
+    x-permission: admin.company.view
+    x-frd: [FR-LOC-001]
+    responses:
+      '200':
+        description: State
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/LocalizationState' }
+            examples:
+              upgradeAvailable: { summary: "1.4 active, 1.5 available", value: { active: { id: lp_in_14, code: IN, name: India (GST), country: IN, packVersion: '1.4', status: Approved, capabilities: [gst, einvoice, ewaybill, tds, hsn], compatibleFrom: '1.2', releaseNotes: GSTR-3B table 4 changes, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', version: 1 }, activeVersion: '1.4', available: [{ id: lp_in_15, code: IN, name: India (GST), country: IN, packVersion: '1.5', status: Approved, capabilities: [gst, einvoice, ewaybill, tds, hsn, tcs], compatibleFrom: '1.4', releaseNotes: TCS 206C(1H) rules; e-invoice threshold ₹5 crore, createdAt: '2026-08-01T00:00:00Z', updatedAt: '2026-08-01T00:00:00Z', version: 1 }], upgradeAvailable: true, compatibility: ['Tax rate GST 28% cess rule changes in 1.5'] } }
+              upToDate: { summary: Nothing to upgrade, value: { active: { id: lp_ae_10, code: AE, name: UAE (VAT), country: AE, packVersion: '1.0', status: Approved, capabilities: [vat, trn], compatibleFrom: '1.0', releaseNotes: Initial, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', version: 1 }, activeVersion: '1.0', available: [], upgradeAvailable: false } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/localization/upgrade:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Admin]
+    summary: Upgrade to a newer pack version
+    description: Applies the pack's tax rules / statutory templates; blocked when the current version is not in the target's `compatibleFrom` range (`422`).
+    operationId: upgradeLocalization
+    x-permission: admin.company.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [packVersion], properties: { packVersion: { type: string, example: '1.5' } } }
+          examples:
+            to15: { summary: Upgrade to 1.5, value: { packVersion: '1.5' } }
+    responses:
+      '200':
+        description: Upgraded
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/LocalizationState' }
+            examples:
+              upgraded: { summary: Now 1.5, value: { active: { id: lp_in_15, code: IN, name: India (GST), country: IN, packVersion: '1.5', status: Approved, capabilities: [gst, einvoice, ewaybill, tds, hsn, tcs], compatibleFrom: '1.4', releaseNotes: TCS 206C(1H) rules, createdAt: '2026-08-01T00:00:00Z', updatedAt: '2026-08-01T00:00:00Z', version: 1 }, activeVersion: '1.5', available: [], upgradeAvailable: false } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/plan:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: Current plan, usage vs limits, entitled modules
+    operationId: getPlanUsage
+    x-permission: admin.company.view
+    x-frd: [FR-PLT-003]
+    responses:
+      '200':
+        description: Plan & usage
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/PlanUsage' }
+            examples:
+              growth: { summary: "Growth, healthy usage", value: { plan: { id: plan_std, code: GROWTH, name: Growth, tier: Growth, planVersion: 3, status: Active, modules: [home, approvals, crm, sales, purchase, inventory, pos, projects, accounting, banking, taxation, payroll, fixed-assets, budgets, reports, masters, admin], limits: { users: 25, companies: 3, invoicesPerMonth: 5000, storageMb: 20480 }, priceMonthly: 4999, currency: INR, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-07-01T00:00:00Z', version: 3 }, subscriptionState: Active, renewsAt: '2026-10-01', usage: { users: 7, companies: 2, invoicesPerMonth: 412, storageMb: 1830 }, limits: { users: 25, companies: 3, invoicesPerMonth: 5000, storageMb: 20480 }, entitledModules: [home, approvals, crm, sales, purchase, inventory, pos, projects, accounting, banking, taxation, payroll, fixed-assets, budgets, reports, masters, admin], availablePlans: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/plan/switch:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Admin]
+    summary: Switch plan (tenant owner)
+    description: Same rules as the platform endpoint — downgrades blocked by usage (`409 PLAN_LIMIT`).
+    operationId: switchPlan
+    x-permission: admin.company.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/admin.yaml#/PlanSwitchRequest' }
+          examples:
+            upgrade: { summary: Upgrade to Enterprise, value: { planId: plan_ent } }
+            downgrade: { summary: Downgrade to Lite, value: { planId: plan_lite } }
+    responses:
+      '200':
+        description: Switched
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/PlanUsage' }
+            examples:
+              enterprise: { summary: Now Enterprise, value: { plan: { id: plan_ent, code: ENTERPRISE, name: Enterprise, tier: Enterprise, planVersion: 1, status: Active, modules: [home, approvals, crm, sales, purchase, inventory, pos, projects, production, accounting, banking, taxation, payroll, fixed-assets, budgets, reports, masters, admin], limits: { users: 500, companies: 25, invoicesPerMonth: 100000, storageMb: 512000 }, priceMonthly: 14999, currency: INR, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', version: 1 }, subscriptionState: Active, renewsAt: '2026-10-01', usage: { users: 7, companies: 2, invoicesPerMonth: 412, storageMb: 1830 }, limits: { users: 500, companies: 25, invoicesPerMonth: 100000, storageMb: 512000 }, entitledModules: [home, approvals, crm, sales, purchase, inventory, pos, projects, production, accounting, banking, taxation, payroll, fixed-assets, budgets, reports, masters, admin] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── integrations: provider credentials ────────────────────────────────────
+
+/integrations/provider-credentials:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: List provider credentials (secrets masked)
+    operationId: listProviderCredentials
+    x-permission: admin.integrations.view
+    x-frd: [FR-INT-001]
+    parameters:
+      - { name: provider, in: query, schema: { type: string, enum: [IRP, EWB, GSTN, Bank, RateProvider, Email, SMS] } }
+      - { name: status, in: query, schema: { type: string, enum: [Active, Expired, Revoked] } }
+    responses:
+      '200':
+        description: Credentials
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/admin.yaml#/ProviderCredential' } } } }
+            examples:
+              list: { summary: IRP + EWB, value: { data: [{ id: cred_irp_mh, companyId: co_acme, provider: IRP, registrationId: reg_gst_mh, label: NIC IRP — Maharashtra, username: acme_mh_api, secretMasked: '••••••••7f2a', rotatedAt: '2026-08-01T09:00:00Z', expiresAt: '2027-01-31', status: Active, accessLog: [], createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-08-01T09:00:00Z', version: 3 }, { id: cred_ewb_mh, companyId: co_acme, provider: EWB, registrationId: reg_gst_mh, label: EWB — Maharashtra, username: acme_mh_ewb, secretMasked: '••••••••c91d', rotatedAt: '2026-02-01T09:00:00Z', expiresAt: '2026-08-31', status: Expired, accessLog: [], createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-08-31T00:00:00Z', version: 2 }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Admin]
+    summary: Add a provider credential
+    operationId: createProviderCredential
+    x-permission: admin.integrations.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/admin.yaml#/ProviderCredentialInput'
+              - { required: [provider, label, username, secret] }
+          examples:
+            irp: { summary: IRP for a GSTIN, value: { provider: IRP, registrationId: reg_gst_gj, label: NIC IRP — Gujarat, username: acme_gj_api, secret: 'p@ssw0rd-irp', expiresAt: '2027-03-31' } }
+            email: { summary: E-mail gateway (company-wide), value: { provider: Email, label: SES transactional, username: AKIA…, secret: 'wJalr…' } }
+    responses:
+      '201':
+        description: Credential (masked)
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/ProviderCredential' }
+            examples:
+              created: { $ref: '../components/examples/admin.yaml#/ProviderCredentialIrp' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/integrations/provider-credentials/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Admin]
+    summary: Get a credential (with access log)
+    operationId: getProviderCredential
+    x-permission: admin.integrations.view
+    responses:
+      '200':
+        description: Credential
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/ProviderCredential' }
+            examples:
+              irp: { $ref: '../components/examples/admin.yaml#/ProviderCredentialIrp' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Admin]
+    summary: Edit label / scope / expiry
+    operationId: updateProviderCredential
+    x-permission: admin.integrations.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/admin.yaml#/ProviderCredentialInput'
+              - $ref: '../components/schemas/common.yaml#/ExpectedVersion'
+          examples:
+            relabel: { summary: Relabel, value: { expectedVersion: 3, label: NIC IRP — Maharashtra (prod) } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/ProviderCredential' }
+            examples:
+              updated: { $ref: '../components/examples/admin.yaml#/ProviderCredentialIrp' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/integrations/provider-credentials/{id}/rotate:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Admin]
+    summary: Rotate the secret
+    operationId: rotateProviderCredential
+    x-permission: admin.integrations.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/admin.yaml#/RotateSecretRequest' }
+          examples:
+            rotate: { summary: New secret + expiry, value: { secret: 'n3w-s3cret', expiresAt: '2027-09-30' } }
+    responses:
+      '200':
+        description: Rotated (Active)
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/ProviderCredential' }
+            examples:
+              rotated: { $ref: '../components/examples/admin.yaml#/ProviderCredentialIrp' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/integrations/provider-credentials/{id}/revoke:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Admin]
+    summary: Revoke a credential
+    operationId: revokeProviderCredential
+    x-permission: admin.integrations.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            compromised: { summary: Suspected leak, value: { reason: Secret found in a shared document — revoked pending rotation } }
+    responses:
+      '200':
+        description: Revoked
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/ProviderCredential' }
+            examples:
+              revoked: { summary: Revoked, value: { id: cred_irp_mh, companyId: co_acme, provider: IRP, registrationId: reg_gst_mh, label: NIC IRP — Maharashtra, username: acme_mh_api, secretMasked: '••••••••7f2a', rotatedAt: '2026-08-01T09:00:00Z', status: Revoked, accessLog: [{ at: '2026-09-13T09:12:04Z', by: Rahul Mehta, action: Revoked — Secret found in a shared document }], createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 4 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── integrations: API keys ────────────────────────────────────────────────
+
+/integrations/api-keys:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: List API keys (masked)
+    operationId: listApiKeys
+    x-permission: admin.integrations.view
+    x-frd: [FR-INT-003]
+    parameters:
+      - { name: status, in: query, schema: { type: string, enum: [Active, Revoked] } }
+    responses:
+      '200':
+        description: Keys
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/admin.yaml#/ApiKey' } } } }
+            examples:
+              list: { summary: "One active, one revoked", value: { data: [{ id: key_wms, companyId: co_acme, name: Warehouse WMS sync, prefix: ebk_live_7a2f, keyMasked: 'ebk_live_7a2f••••••••••••••••', scopes: [inventory.stock.view, purchase.order.view], status: Active, lastUsedAt: '2026-09-13T08:00:00Z', expiresAt: '2027-03-31', createdAt: '2026-06-01T09:00:00Z', updatedAt: '2026-09-13T08:00:00Z', version: 2 }, { id: key_old, companyId: co_acme, name: Old reporting key, prefix: ebk_live_1c9d, keyMasked: 'ebk_live_1c9d••••••••••••••••', scopes: ['reports.*'], status: Revoked, revokedAt: '2026-07-01T00:00:00Z', revokedReason: Replaced, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-07-01T00:00:00Z', version: 2 }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Admin]
+    summary: Create an API key (full key returned once)
+    operationId: createApiKey
+    x-permission: admin.integrations.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/admin.yaml#/ApiKeyInput' }
+          examples:
+            readOnly: { summary: Read-only stock + PO, value: { name: Warehouse WMS sync, scopes: [inventory.stock.view, purchase.order.view], expiresAt: '2027-03-31' } }
+            salesWrite: { summary: Create orders from the web shop, value: { name: Web shop, scopes: [sales.order.create, sales.invoice.view, masters.customers.view, masters.items.view] } }
+            webhooks: { summary: Manage webhooks, value: { name: Integration platform, scopes: [webhooks.manage] } }
+    responses:
+      '201':
+        description: Key created — `key` is shown only in this response
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/ApiKeyCreated' }
+            examples:
+              created: { summary: Store the key now, value: { id: key_wms, companyId: co_acme, name: Warehouse WMS sync, prefix: ebk_live_7a2f, keyMasked: 'ebk_live_7a2f••••••••••••••••', key: ebk_live_7a2fK9mQ3xL8vN2pR5tY1wZ4bC6dE0fG, scopes: [inventory.stock.view, purchase.order.view], status: Active, expiresAt: '2027-03-31', createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/integrations/api-keys/{id}/revoke:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Admin]
+    summary: Revoke an API key (irreversible)
+    operationId: revokeApiKey
+    x-permission: admin.integrations.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            replaced: { summary: Replaced, value: { reason: Replaced by a scoped key for the new WMS vendor } }
+    responses:
+      '200':
+        description: Revoked
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/ApiKey' }
+            examples:
+              revoked: { summary: Revoked, value: { id: key_wms, companyId: co_acme, name: Warehouse WMS sync, prefix: ebk_live_7a2f, keyMasked: 'ebk_live_7a2f••••••••••••••••', scopes: [inventory.stock.view, purchase.order.view], status: Revoked, revokedAt: '2026-09-13T09:12:04Z', revokedReason: Replaced by a scoped key for the new WMS vendor, createdAt: '2026-06-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 3 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── integrations: webhooks ────────────────────────────────────────────────
+
+/integrations/webhooks:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: List webhooks
+    operationId: listWebhooks
+    x-permission: admin.integrations.view
+    x-frd: [FR-INT-004]
+    responses:
+      '200':
+        description: Webhooks
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/admin.yaml#/Webhook' } } } }
+            examples:
+              list: { summary: "One active, one paused", value: { data: [{ id: wh_wms, companyId: co_acme, url: 'https://wms.example.com/hooks/elixir', description: Push stock movements and PO status to WMS, events: [StockMoved, PurchaseReceived, DocumentPosted], secretMasked: 'whsec_••••••3f9a', status: Active, lastDeliveryAt: '2026-09-13T09:00:12Z', lastStatus: Success, failures: 0, createdAt: '2026-06-01T09:00:00Z', updatedAt: '2026-09-13T09:00:12Z', version: 5 }, { id: wh_crm, companyId: co_acme, url: 'https://crm.example.com/elixir', events: [InvoicePosted, ReceiptAllocated], secretMasked: 'whsec_••••••a1b2', status: Paused, lastDeliveryAt: '2026-09-12T18:00:00Z', lastStatus: Failed, failures: 10, createdAt: '2026-07-01T09:00:00Z', updatedAt: '2026-09-12T18:00:00Z', version: 14 }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Admin]
+    summary: Register a webhook
+    description: Events are the domain events listed under **Webhooks**. Deliveries are signed with `X-Elixir-Signature` (HMAC-SHA256 of the body with the secret) and retried with exponential back-off; 10 consecutive failures pause the webhook.
+    operationId: createWebhook
+    x-permission: admin.integrations.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/admin.yaml#/WebhookInput'
+              - { required: [url, events] }
+          examples:
+            wms: { summary: Stock + purchase events, value: { url: 'https://wms.example.com/hooks/elixir', description: Push stock movements and PO status to WMS, events: [StockMoved, PurchaseReceived, DocumentPosted] } }
+            finance: { summary: All finance events with own secret, value: { url: 'https://bi.example.com/elixir', events: [JournalPosted, JournalReversed, PaymentCompleted, PaymentFailed, PeriodLocked, PeriodReopened], secret: my-shared-secret-please-rotate } }
+    responses:
+      '201':
+        description: Webhook (secret masked)
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/Webhook' }
+            examples:
+              created: { $ref: '../components/examples/admin.yaml#/WebhookWms' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/integrations/webhooks/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Admin]
+    summary: Get a webhook
+    operationId: getWebhook
+    x-permission: admin.integrations.view
+    responses:
+      '200':
+        description: Webhook
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/Webhook' }
+            examples:
+              wms: { $ref: '../components/examples/admin.yaml#/WebhookWms' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Admin]
+    summary: Edit URL / events / secret; resume a paused webhook
+    operationId: updateWebhook
+    x-permission: admin.integrations.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/admin.yaml#/WebhookPatch'
+              - { properties: { status: { type: string, enum: [Active, Paused] } } }
+          examples:
+            addEvents: { summary: Subscribe to more events, value: { expectedVersion: 5, events: [StockMoved, StockReserved, StockReleased, PurchaseReceived, DocumentPosted] } }
+            resume: { summary: Resume after fixing the endpoint, value: { expectedVersion: 14, status: Active } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/Webhook' }
+            examples:
+              updated: { $ref: '../components/examples/admin.yaml#/WebhookWms' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Admin]
+    summary: Disable (soft-delete) a webhook
+    operationId: disableWebhook
+    x-permission: admin.integrations.edit
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/integrations/webhooks/{id}/test:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Admin]
+    summary: Send a test event
+    operationId: testWebhook
+    x-permission: admin.integrations.edit
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { type: object, properties: { event: { type: string, description: Event to simulate (default `WebhookTest`)., example: DocumentPosted } } }
+          examples:
+            ping: { summary: Generic ping, value: {} }
+            sample: { summary: Sample DocumentPosted payload, value: { event: DocumentPosted } }
+    responses:
+      '200':
+        description: Delivery attempt result
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/WebhookDelivery' }
+            examples:
+              success: { summary: 200 from endpoint, value: { id: whd_test1, event: WebhookTest, eventId: evt_test, attempt: 1, status: Success, responseStatus: 200, durationMs: 143, at: '2026-09-13T09:12:04Z' } }
+              failed: { summary: Endpoint returned 500, value: { id: whd_test2, event: WebhookTest, eventId: evt_test, attempt: 1, status: Failed, responseStatus: 500, durationMs: 812, at: '2026-09-13T09:12:04Z', error: 'HTTP 500: upstream timeout' } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/integrations/webhooks/{id}/deliveries:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Admin]
+    summary: Delivery log for a webhook
+    operationId: listWebhookDeliveries
+    x-permission: admin.integrations.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: status, in: query, schema: { type: string, enum: [Pending, Success, Failed] } }
+    responses:
+      '200':
+        description: Deliveries
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/admin.yaml#/WebhookDelivery' } }
+            examples:
+              firstPage: { summary: Recent deliveries, value: { data: [{ id: whd_9c1e, event: StockMoved, eventId: evt_01j8k6, attempt: 1, status: Success, responseStatus: 200, durationMs: 120, at: '2026-09-13T09:00:12Z' }, { id: whd_9c1d, event: DocumentPosted, eventId: evt_01j8k5, attempt: 3, status: Failed, responseStatus: 500, durationMs: 812, at: '2026-09-13T08:50:00Z', nextRetryAt: '2026-09-13T09:20:00Z', error: 'HTTP 500: upstream timeout' }], meta: { nextCursor: null, limit: 25, total: 2 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/integrations/webhooks/{id}/deliveries/{deliveryId}/retry:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+    - { name: deliveryId, in: path, required: true, schema: { type: string }, example: whd_9c1d }
+  post:
+    tags: [Admin]
+    summary: Retry a failed delivery now
+    operationId: retryWebhookDelivery
+    x-permission: admin.integrations.edit
+    responses:
+      '200':
+        description: New attempt
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/WebhookDelivery' }
+            examples:
+              retried: { summary: Succeeded on retry, value: { id: whd_9c1d, event: DocumentPosted, eventId: evt_01j8k5, attempt: 4, status: Success, responseStatus: 200, durationMs: 98, at: '2026-09-13T09:12:04Z' } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── integration log ───────────────────────────────────────────────────────
+
+/integrations/logs:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: Integration log (IRP / EWB / GSTN / bank / e-mail / SMS / webhook calls)
+    description: Query examples — `?provider=IRP&status=Rejected` · `?objectId=inv_01j8k3` · `?dateFrom=2026-09-01`.
+    operationId: listIntegrationLogs
+    x-permission: admin.integrations.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: provider, in: query, schema: { type: string, enum: [IRP, EWB, GSTN, Bank, RateProvider, Email, SMS, Webhook] } }
+      - { name: status, in: query, schema: { type: string }, style: form, explode: false, example: 'Rejected,Failed,Timeout' }
+      - { name: objectId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Log entries
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/system.yaml#/IntegrationLog' } }
+            examples:
+              firstPage:
+                summary: IRP accepted + EWB timeout
+                value:
+                  data:
+                    - { id: ilog_5f2a, companyId: co_acme, provider: IRP, action: GenerateIRN, objectType: Sales Invoice, objectId: inv_01j8k3, objectNumber: INV/2026-27/00042, requestFingerprint: 'sha256:1b7d', idempotencyKey: 'inv_01j8k3:irn:1', request: { Version: '1.1', DocDtls: { Typ: INV, No: INV/2026-27/00042, Dt: 13/09/2026 } }, response: { Irn: 35054cc24d97033afc24f49ec4444dbab81f542c999a4f3f4e7a6f6a4a5b1c2d, AckNo: '112010036563789', AckDt: '2026-09-13 14:42:10' }, status: Accepted, providerRef: '112010036563789', at: '2026-09-13T09:12:10Z', correlationId: corr_9f1c2e7a, createdAt: '2026-09-13T09:12:10Z', updatedAt: '2026-09-13T09:12:10Z', version: 1 }
+                    - { id: ilog_5f2b, companyId: co_acme, provider: EWB, action: GenerateEWB, objectType: Delivery, objectId: dlv_00340, objectNumber: DC/2026-27/00340, requestFingerprint: 'sha256:aa91', idempotencyKey: 'dlv_00340:ewb:1', request: { docNo: DC/2026-27/00340, distance: 120 }, status: Timeout, errorMessage: No response within 30 s, at: '2026-09-13T08:30:00Z', correlationId: corr_e1, createdAt: '2026-09-13T08:30:00Z', updatedAt: '2026-09-13T08:30:30Z', version: 2 }
+                  meta: { nextCursor: null, limit: 25, total: 2 }
+                  scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/integrations/logs/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Admin]
+    summary: Get a log entry (request + response payloads)
+    operationId: getIntegrationLog
+    x-permission: admin.integrations.view
+    responses:
+      '200':
+        description: Entry
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/IntegrationLog' }
+            examples:
+              rejected: { summary: IRP rejected duplicate, value: { id: ilog_5f2c, companyId: co_acme, provider: IRP, action: GenerateIRN, objectType: Sales Invoice, objectId: inv_01j8k7, objectNumber: INV/2026-27/00045, requestFingerprint: 'sha256:c0de', idempotencyKey: 'inv_01j8k7:irn:1', request: { Version: '1.1' }, response: { ErrorDetails: [{ ErrorCode: '2150', ErrorMessage: Duplicate IRN }] }, status: Rejected, errorCode: '2150', errorMessage: Duplicate IRN, at: '2026-09-13T09:15:00Z', correlationId: corr_r1, createdAt: '2026-09-13T09:15:00Z', updatedAt: '2026-09-13T09:15:00Z', version: 1 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/integrations/logs/{id}/retry:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Admin]
+    summary: Retry a Failed / Timeout call (same idempotency key)
+    operationId: retryIntegrationLog
+    x-permission: admin.integrations.edit
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: New log entry
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/IntegrationLog' }
+            examples:
+              accepted: { summary: Accepted on retry, value: { id: ilog_5f2d, companyId: co_acme, provider: EWB, action: GenerateEWB, objectType: Delivery, objectId: dlv_00340, objectNumber: DC/2026-27/00340, requestFingerprint: 'sha256:aa91', idempotencyKey: 'dlv_00340:ewb:1', request: { docNo: DC/2026-27/00340, distance: 120 }, response: { ewayBillNo: '271000123456', validUpto: '2026-09-15 23:59:00' }, status: Accepted, providerRef: '271000123456', at: '2026-09-13T09:12:04Z', correlationId: corr_9f1c2e7a, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '502': { $ref: '../components/responses.yaml#/ProviderError' }
+
+# ── audit ─────────────────────────────────────────────────────────────────
+
+/audit:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: Audit log (append-only)
+    description: Query examples — security-sensitive `?sensitive=true` · failures `?result=Failure,Denied` · by object `?objectType=Sales Invoice&objectId=inv_01j8k3` · by actor `?actorId=usr_priya` · workflow `?action=approval.*`. `before`/`after` are masked unless the caller has `admin.audit.export`.
+    operationId: listAudit
+    x-permission: admin.audit.view
+    x-frd: [FR-AUD-001, FR-AUD-002]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: actorId, in: query, schema: { type: string } }
+      - { name: action, in: query, schema: { type: string }, description: Exact action or prefix with `*`., example: 'invoice.*' }
+      - { name: objectType, in: query, schema: { type: string } }
+      - { name: objectId, in: query, schema: { type: string } }
+      - { name: result, in: query, schema: { type: string }, style: form, explode: false, example: 'Failure,Denied' }
+      - { name: channel, in: query, schema: { type: string, enum: [web, api, import, worker, system] } }
+      - { name: sensitive, in: query, schema: { type: boolean } }
+      - { name: correlationId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Events
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/system.yaml#/AuditEvent' } }
+            examples:
+              firstPage:
+                summary: Mixed events
+                value:
+                  data:
+                    - { id: aud_4, companyId: co_acme, at: '2026-09-13T09:12:04Z', actor: Rahul Mehta, actorId: usr_rahul, action: invoice.posted, objectType: Sales Invoice, objectId: inv_01j8k3, objectNumber: INV/2026-27/00042, result: Success, detail: 'Posted ₹1,18,000 · JV/2026-27/00311', correlationId: corr_9f1c2e7a, channel: api, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+                    - { id: aud_5, companyId: co_acme, at: '2026-09-13T09:05:00Z', actor: Vikram Nair, actorId: usr_vikram, action: invoice.post, objectType: Sales Invoice, objectId: inv_01j8k3, result: Denied, detail: Requires sales.invoice.post, correlationId: corr_d1, channel: web, createdAt: '2026-09-13T09:05:00Z', updatedAt: '2026-09-13T09:05:00Z', version: 1 }
+                    - { id: aud_6, companyId: co_acme, at: '2026-09-13T08:00:00Z', actor: Rahul Mehta, actorId: usr_rahul, action: user.mfa_disabled, objectType: User, objectId: usr_vikram, result: Success, correlationId: corr_s1, channel: web, sensitive: true, before: { mfaEnabled: true }, after: { mfaEnabled: false }, createdAt: '2026-09-13T08:00:00Z', updatedAt: '2026-09-13T08:00:00Z', version: 1 }
+                  meta: { nextCursor: eyJhdCI6IjIwMjYtMDktMTNUMDg6MDA6MDBaIn0, limit: 25, total: 4120, counts: { All: 4120, 'Security-sensitive': 38, 'Failures & denials': 61, Workflow: 402, 'System & workers': 1210 } }
+                  scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z', masked: true }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/audit/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Admin]
+    summary: Get an audit event (before/after diff)
+    operationId: getAuditEvent
+    x-permission: admin.audit.view
+    responses:
+      '200':
+        description: Event
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/AuditEvent' }
+            examples:
+              withDiff: { summary: Master edit with diff, value: { id: aud_7, companyId: co_acme, at: '2026-09-12T11:00:00Z', actor: Priya Sharma, actorId: usr_priya, action: customer.updated, objectType: Customer, objectId: cust_arlene, objectNumber: C-0101, result: Success, correlationId: corr_c1, channel: web, before: { creditLimit: 300000, paymentTerms: Net 30 }, after: { creditLimit: 500000, paymentTerms: Net 45 }, createdAt: '2026-09-12T11:00:00Z', updatedAt: '2026-09-12T11:00:00Z', version: 1 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/audit/export:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Admin]
+    summary: Export the audit log (masked unless auditor)
+    operationId: exportAudit
+    x-permission: admin.audit.export
+    x-frd: [FR-EXPORT-001]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/system.yaml#/ExportRequest' }
+          examples:
+            csv: { summary: CSV for a month, value: { format: csv, filters: { dateFrom: '2026-08-01', dateTo: '2026-08-31' } } }
+            sensitiveOnly: { summary: Security-sensitive events as JSON, value: { format: json, filters: { sensitive: true } } }
+    responses:
+      '202': { $ref: '../components/responses.yaml#/Accepted' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+# ── jobs ──────────────────────────────────────────────────────────────────
+
+/jobs:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: Background jobs
+    description: Query examples — `?status=Failed,Dead-letter` · `?type=export`.
+    operationId: listJobs
+    x-permission: admin.jobs.view
+    x-frd: [FR-JOB-001]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: status, in: query, schema: { type: string }, style: form, explode: false, example: 'Failed,Dead-letter' }
+      - { name: type, in: query, schema: { type: string }, example: export }
+    responses:
+      '200':
+        description: Jobs
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/system.yaml#/BackgroundJob' } }
+            examples:
+              firstPage: { summary: "One running, one dead-letter", value: { data: [{ id: job_export_4421, companyId: co_acme, type: export, name: 'Sales invoices export (CSV)', status: Running, attempts: 1, maxAttempts: 3, correlationId: corr_9f1c2e7a, startedAt: '2026-09-13T09:12:05Z', createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:05Z', version: 2 }, { id: job_irn_sync, companyId: co_acme, type: statutory-sync, name: Sync from IRP, status: Dead-letter, attempts: 3, maxAttempts: 3, lastError: IRP returned 503 three times, correlationId: corr_s9, startedAt: '2026-09-13T06:00:00Z', finishedAt: '2026-09-13T06:04:00Z', createdAt: '2026-09-13T06:00:00Z', updatedAt: '2026-09-13T06:04:00Z', version: 4 }], meta: { nextCursor: null, limit: 25, total: 2 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/jobs/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Admin]
+    summary: Get a job
+    operationId: getJob
+    x-permission: admin.jobs.view
+    responses:
+      '200':
+        description: Job
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/BackgroundJob' }
+            examples:
+              completed: { summary: Completed export, value: { id: job_export_4421, companyId: co_acme, type: export, name: 'Sales invoices export (CSV)', status: Completed, attempts: 1, maxAttempts: 3, correlationId: corr_9f1c2e7a, startedAt: '2026-09-13T09:12:05Z', finishedAt: '2026-09-13T09:12:40Z', resultUrl: /v1/export-jobs/exp_4421/download, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:40Z', version: 3 } }
+              failed: { summary: Failed with error, value: { id: job_irn_sync, companyId: co_acme, type: statutory-sync, name: Sync from IRP, status: Dead-letter, attempts: 3, maxAttempts: 3, lastError: IRP returned 503 three times, correlationId: corr_s9, createdAt: '2026-09-13T06:00:00Z', updatedAt: '2026-09-13T06:04:00Z', version: 4 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/jobs/{id}/retry:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Admin]
+    summary: Retry a Failed / Dead-letter job now (idempotent replay)
+    operationId: retryJob
+    x-permission: admin.jobs.edit
+    responses:
+      '202': { $ref: '../components/responses.yaml#/Accepted' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/export-jobs:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: Export jobs (register/report exports, scheduled reports)
+    operationId: listExportJobs
+    x-permission: admin.jobs.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: status, in: query, schema: { type: string }, style: form, explode: false, example: 'Ready' }
+      - { name: mine, in: query, schema: { type: boolean }, description: Only my exports. }
+    responses:
+      '200':
+        description: Exports
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/system.yaml#/ExportJob' } }
+            examples:
+              firstPage: { summary: Ready + scheduled, value: { data: [{ id: exp_4421, companyId: co_acme, name: Sales invoices — Posted — Sep 2026, entity: salesInvoices, format: csv, filters: { status: [Posted], dateFrom: '2026-09-01', dateTo: '2026-09-30' }, scope: 'Acme Trading · Head Office · Sep 2026 · INR', status: Ready, rows: 1240, requestedBy: Priya Sharma, readyAt: '2026-09-13T09:12:40Z', expiresAt: '2026-09-14T09:12:40Z', masked: false, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:40Z', version: 3 }, { id: exp_sched_pl, companyId: co_acme, name: P&L (monthly), entity: 'report:pl', format: pdf, filters: { preset: MTD }, scope: Acme Trading · All branches, status: Queued, rows: 0, requestedBy: Rahul Mehta, masked: false, schedule: { frequency: Monthly, nextRunAt: '2026-10-01T02:00:00Z', recipients: [cfo@acme.example] }, createdAt: '2026-08-01T09:00:00Z', updatedAt: '2026-09-01T02:00:00Z', version: 2 }], meta: { nextCursor: null, limit: 25, total: 2 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/export-jobs/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Admin]
+    summary: Get an export job
+    operationId: getExportJob
+    x-permission: admin.jobs.view
+    responses:
+      '200':
+        description: Export job
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/ExportJob' }
+            examples:
+              ready: { summary: Ready to download, value: { id: exp_4421, companyId: co_acme, name: Sales invoices — Posted — Sep 2026, entity: salesInvoices, format: csv, filters: { status: [Posted] }, scope: 'Acme Trading · Head Office · Sep 2026 · INR', status: Ready, rows: 1240, requestedBy: Priya Sharma, readyAt: '2026-09-13T09:12:40Z', expiresAt: '2026-09-14T09:12:40Z', masked: false, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:40Z', version: 3 } }
+              expired: { summary: Link expired — request again, value: { id: exp_4300, companyId: co_acme, name: AR ageing — Aug 2026, entity: 'report:ar-ageing', format: xlsx, filters: {}, scope: Acme Trading, status: Expired, rows: 88, requestedBy: Priya Sharma, readyAt: '2026-09-01T10:00:00Z', expiresAt: '2026-09-02T10:00:00Z', masked: false, createdAt: '2026-09-01T09:59:00Z', updatedAt: '2026-09-02T10:00:00Z', version: 4 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/export-jobs/{id}/download:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Admin]
+    summary: Download an export file
+    operationId: downloadExport
+    x-permission: admin.jobs.view
+    responses:
+      '200':
+        description: File (CSV / XLSX / PDF / JSON)
+        headers:
+          Content-Disposition: { $ref: '../components/headers.yaml#/ContentDisposition' }
+        content:
+          text/csv:
+            schema: { type: string }
+          application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            schema: { type: string, format: binary }
+          application/pdf:
+            schema: { type: string, format: binary }
+          application/json:
+            schema: { type: object, additionalProperties: true }
+            examples:
+              json: { summary: JSON export, value: { rows: [{ number: INV/2026-27/00042, partyName: Arlene Traders, total: 118000 }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '410': { $ref: '../components/responses.yaml#/Gone' }
+
+/export-jobs/{id}/rerun:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Admin]
+    summary: Request the same export again (same filters/scope)
+    operationId: rerunExport
+    x-permission: admin.jobs.edit
+    responses:
+      '202': { $ref: '../components/responses.yaml#/Accepted' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/export-jobs/{id}/schedule:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  delete:
+    tags: [Admin]
+    summary: Cancel a scheduled export
+    operationId: cancelScheduledExport
+    x-permission: admin.jobs.edit
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── notification settings ─────────────────────────────────────────────────
+
+/notification-settings:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: Event → template → channel settings
+    operationId: listNotificationSettings
+    x-permission: admin.company.view
+    x-frd: [FR-NTF-001]
+    responses:
+      '200':
+        description: Settings
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/admin.yaml#/NotificationSetting' } } } }
+            examples:
+              list: { summary: Excerpt, value: { data: [{ id: nset_approval, companyId: co_acme, event: approval.requested, label: Approval requested, category: approval, template: 'Approval needed — {{doc.number}} ({{doc.party}} · {{doc.amount}})', channels: { inApp: true, email: true, sms: false }, enabled: true, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: nset_due, companyId: co_acme, event: invoice.overdue, label: Invoice overdue, category: due, template: '{{doc.number}} is {{doc.daysOverdue}} days overdue', channels: { inApp: true, email: false, sms: false }, enabled: true, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/notification-settings/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  put:
+    tags: [Admin]
+    summary: Update a notification setting
+    operationId: updateNotificationSetting
+    x-permission: admin.company.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/admin.yaml#/NotificationSettingInput'
+              - $ref: '../components/schemas/common.yaml#/ExpectedVersion'
+          examples:
+            enableSms: { summary: Add SMS channel, value: { expectedVersion: 1, channels: { inApp: true, email: true, sms: true } } }
+            disable: { summary: Disable the event, value: { expectedVersion: 1, enabled: false } }
+            template: { summary: Change template, value: { expectedVersion: 1, template: '[Action needed] {{doc.number}} from {{doc.party}} awaits your approval' } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/NotificationSetting' }
+            examples:
+              updated: { summary: SMS enabled, value: { id: nset_approval, companyId: co_acme, event: approval.requested, label: Approval requested, category: approval, template: 'Approval needed — {{doc.number}} ({{doc.party}} · {{doc.amount}})', channels: { inApp: true, email: true, sms: true }, enabled: true, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/notification-settings/deliveries:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: Notification delivery log
+    operationId: listNotificationDeliveries
+    x-permission: admin.company.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: status, in: query, schema: { type: string, enum: [queued, sent, delivered, failed] } }
+      - { name: channel, in: query, schema: { type: string, enum: [in-app, email, sms] } }
+    responses:
+      '200':
+        description: Deliveries
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/admin.yaml#/NotificationDelivery' } }
+            examples:
+              firstPage: { summary: One failed e-mail, value: { data: [{ id: ndl_4a1, event: approval.requested, channel: email, to: rahul@acme.example, status: failed, at: '2026-09-13T09:12:10Z', error: SMTP 550 mailbox full }, { id: ndl_4a0, event: approval.requested, channel: in-app, to: usr_rahul, status: delivered, at: '2026-09-13T09:12:04Z' }], meta: { nextCursor: null, limit: 25, total: 2 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/notification-settings/deliveries/{id}/retry:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Admin]
+    summary: Retry a failed delivery
+    operationId: retryNotificationDelivery
+    x-permission: admin.company.edit
+    responses:
+      '200':
+        description: New attempt
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/NotificationDelivery' }
+            examples:
+              sent: { summary: Sent, value: { id: ndl_4a1, event: approval.requested, channel: email, to: rahul@acme.example, status: sent, at: '2026-09-13T09:20:00Z' } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── data & demo ───────────────────────────────────────────────────────────
+
+/data/stats:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Admin]
+    summary: Collection counts and storage
+    operationId: getDataStats
+    x-permission: admin.data.view
+    responses:
+      '200':
+        description: Stats
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/admin.yaml#/DataStats' }
+            examples:
+              stats: { summary: Snapshot, value: { collections: { customers: 12, suppliers: 10, items: 18, salesInvoices: 142, purchaseOrders: 96, journals: 611, stockMovements: 1480, audit: 4120 }, storageMb: 1830, seedVersion: v2, isDemo: true } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/data/export:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Admin]
+    summary: Export all company data (JSON)
+    operationId: exportAllData
+    x-permission: admin.data.export
+    responses:
+      '202': { $ref: '../components/responses.yaml#/Accepted' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/data/reset-demo:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Admin]
+    summary: Reset demo data (demo tenants only)
+    description: Re-seeds the company with the demo dataset. Refused for non-demo tenants (`403`). Requires typing the company code as confirmation.
+    operationId: resetDemoData
+    x-permission: admin.data.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [confirmCode], properties: { confirmCode: { type: string, example: ACME } } }
+          examples:
+            confirm: { summary: Confirm with company code, value: { confirmCode: ACME } }
+    responses:
+      '202': { $ref: '../components/responses.yaml#/Accepted' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }

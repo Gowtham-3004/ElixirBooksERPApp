@@ -1,0 +1,1704 @@
+# Masters part 2 (tag: Masters): chart of accounts, dimensions, tax rates, TDS sections, currencies, exchange rates,
+# simple masters (payment terms, UOMs, HSN, reason codes, salespersons), reference data, imports.
+
+# ── chart of accounts ─────────────────────────────────────────────────────
+
+/accounts:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Masters]
+    summary: List accounts (chart of accounts)
+    description: "Tabs → All · Assets · Liabilities · Equity · Income · Expenses (`type`) · Control (`isControl=true`) · Inactive. Query examples — `?type=Expense&groupId=grp_opex` · `?controlType=Bank` · `?postingAllowed=true` · `?q=receivable`."
+    operationId: listAccounts
+    x-permission: masters.accounts.view
+    x-frd: [FR-ACC-001]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: type, in: query, schema: { type: string, enum: [Asset, Liability, Equity, Income, Expense] } }
+      - { name: groupId, in: query, schema: { type: string } }
+      - { name: isControl, in: query, schema: { type: boolean } }
+      - { name: controlType, in: query, schema: { type: string, enum: [AR, AP, Bank, Cash, Inventory, Tax, Employee, FixedAsset, WIP] } }
+      - { name: postingAllowed, in: query, schema: { type: boolean } }
+      - { name: withBalances, in: query, schema: { type: boolean, default: true } }
+    responses:
+      '200':
+        description: Accounts
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/Account' } }
+                    groups: { type: array, items: { $ref: '../components/schemas/masters.yaml#/AccountGroup' } }
+            examples:
+              firstPage: { summary: Excerpt with groups, value: { data: [{ id: acc_1100, companyId: co_acme, code: '1100', name: Accounts Receivable, groupId: grp_ca, groupName: Current assets, type: Asset, normalBalance: Dr, isControl: true, controlType: AR, postingAllowed: true, currencyBehaviour: Any, requiredDimensions: [], prohibitedDimensions: [], status: Active, balance: 1264000, hasPostings: true, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: acc_1310, companyId: co_acme, code: '1310', name: HDFC Bank — Current, groupId: grp_ca, groupName: Current assets, type: Asset, normalBalance: Dr, isControl: true, controlType: Bank, postingAllowed: true, currencyBehaviour: Base, requiredDimensions: [], prohibitedDimensions: [], status: Active, isBank: true, bankDetails: { bankName: HDFC Bank, accountNumber: '50200012344412', ifsc: HDFC0000240, branch: Nariman Point, currency: INR }, balance: 3120400, hasPostings: true, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }], groups: [{ id: grp_ca, companyId: co_acme, code: CA, name: Current assets, type: Asset, order: 10, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }], meta: { nextCursor: null, limit: 25, total: 62, counts: { All: 62, Assets: 18, Liabilities: 14, Equity: 3, Income: 6, Expenses: 21, Control: 12, Inactive: 2 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Masters]
+    summary: Create an account
+    description: Duplicate rule on `code`. Header (non-posting) accounts set `postingAllowed=false`. Control accounts require `controlType`.
+    operationId: createAccount
+    x-permission: masters.accounts.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/AccountInput'
+              - { required: [code, name, type, normalBalance] }
+          examples:
+            expense: { summary: Expense with required dimension, value: { code: '5540', name: Software subscriptions, groupId: grp_opex, type: Expense, normalBalance: Dr, isControl: false, postingAllowed: true, currencyBehaviour: Base, requiredDimensions: [Department] } }
+            bank: { summary: Bank account (control), value: { code: '1330', name: Axis Bank — Current, groupId: grp_ca, type: Asset, normalBalance: Dr, isControl: true, controlType: Bank, postingAllowed: true, currencyBehaviour: Base, isBank: true, bankDetails: { bankName: Axis Bank, accountNumber: '917020012345678', ifsc: UTIB0000012, branch: Fort, currency: INR }, openingBalance: 0 } }
+            usdBank: { summary: USD (fixed-currency) EEFC account, value: { code: '1340', name: HDFC EEFC USD, groupId: grp_ca, type: Asset, normalBalance: Dr, isControl: true, controlType: Bank, postingAllowed: true, currencyBehaviour: Fixed, fixedCurrency: USD, isBank: true } }
+            header: { summary: Header (no posting), value: { code: '5000-H', name: Cost of sales (header), groupId: grp_cogs, type: Expense, normalBalance: Dr, isControl: false, postingAllowed: false } }
+    responses:
+      '201':
+        description: Account
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Account' }
+            examples:
+              created: { $ref: '../components/examples/masters.yaml#/AccountTravel' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/accounts/bulk:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Masters]
+    summary: Bulk activate / deactivate accounts
+    operationId: bulkAccounts
+    x-permission: masters.accounts.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/BulkRequest' }
+          examples:
+            deactivate: { summary: Deactivate unused accounts, value: { ids: [acc_5590, acc_4100], action: deactivate } }
+    responses:
+      '200':
+        description: Per-id results
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/BulkResult' }
+            examples:
+              allSucceeded: { $ref: '../components/examples/common.yaml#/BulkAllSucceeded' }
+              partialFailure: { summary: Control account refused, value: { requested: 2, succeeded: 1, failed: 1, results: [{ id: acc_5590, ok: true, status: Inactive }, { id: acc_1100, ok: false, code: INVALID_STATE, message: Control accounts referenced in defaults cannot be deactivated }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/accounts/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Masters]
+    summary: Get an account
+    operationId: getAccount
+    x-permission: masters.accounts.view
+    responses:
+      '200':
+        description: Account
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Account' }
+            examples:
+              control: { $ref: '../components/examples/masters.yaml#/AccountAR' }
+              expense: { $ref: '../components/examples/masters.yaml#/AccountTravel' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Masters]
+    summary: Update an account
+    description: '`type`, `normalBalance`, `controlType` and `currencyBehaviour` are locked once postings exist (`409 INVALID_STATE`); `openingBalance` is locked once opening balances are posted.'
+    operationId: updateAccount
+    x-permission: masters.accounts.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/masters.yaml#/AccountPatch' }
+          examples:
+            dimensions: { summary: Require a dimension, value: { expectedVersion: 2, requiredDimensions: [Department, CostCentre] } }
+            rename: { summary: Rename + regroup, value: { expectedVersion: 2, name: Travel & conveyance, groupId: grp_opex } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Account' }
+            examples:
+              updated: { $ref: '../components/examples/masters.yaml#/AccountTravel' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Masters]
+    summary: Delete an account (no postings, not a default/control)
+    operationId: deleteAccount
+    x-permission: masters.accounts.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/accounts/{id}/status:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Masters]
+    summary: Activate / deactivate an account
+    operationId: setAccountStatus
+    x-permission: masters.accounts.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [status], properties: { status: { $ref: '../components/schemas/masters.yaml#/MasterStatus' } } }
+          examples:
+            deactivate: { summary: Deactivate, value: { status: Inactive } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Account' }
+            examples:
+              updated: { $ref: '../components/examples/masters.yaml#/AccountTravel' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/accounts/{id}/ledger:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Masters]
+    summary: Account ledger (opening, movements, closing)
+    operationId: getAccountLedger
+    x-permission: accounting.ledger.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/ReportFrom'
+      - $ref: '../components/parameters.yaml#/ReportTo'
+      - $ref: '../components/parameters.yaml#/BranchFilter'
+      - $ref: '../components/parameters.yaml#/DimensionType'
+      - $ref: '../components/parameters.yaml#/DimensionId'
+    responses:
+      '200':
+        description: Ledger
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/LedgerResponse' }
+            examples:
+              ledger: { summary: AR ledger for Sep, value: { accountId: acc_1100, accountCode: '1100', accountName: Accounts Receivable, from: '2026-09-01', to: '2026-09-30', opening: 1196000, closing: 1264000, totalDebit: 118000, totalCredit: 50000, rows: [{ date: '2026-09-02', journalId: jnl_00298, journalNumber: JV/2026-27/00298, sourceType: Receipt, sourceId: rcp_00201, sourceNumber: RCP/2026-27/00201, narration: Receipt from Arlene Traders, partyName: Arlene Traders, dimensions: {}, debit: 0, credit: 50000, balance: 1146000 }, { date: '2026-09-13', journalId: jnl_01j8k4, journalNumber: JV/2026-27/00311, sourceType: Sales Invoice, sourceId: inv_01j8k3, sourceNumber: INV/2026-27/00042, narration: Sales invoice INV/2026-27/00042, partyName: Arlene Traders, dimensions: {}, debit: 118000, credit: 0, balance: 1264000 }], scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { summary: No movements, value: { accountId: acc_4100, accountCode: '4100', accountName: Other income, from: '2026-09-01', to: '2026-09-30', opening: 0, closing: 0, totalDebit: 0, totalCredit: 0, rows: [], scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/account-groups:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Masters]
+    summary: List account groups (tree)
+    operationId: listAccountGroups
+    x-permission: masters.accounts.view
+    responses:
+      '200':
+        description: Groups
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/AccountGroup' } } } }
+            examples:
+              tree: { summary: Excerpt, value: { data: [{ id: grp_assets, companyId: co_acme, code: A, name: Assets, type: Asset, order: 1, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: grp_ca, companyId: co_acme, code: CA, name: Current assets, parentId: grp_assets, type: Asset, order: 10, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: grp_opex, companyId: co_acme, code: OPEX, name: Operating expenses, type: Expense, order: 50, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Masters]
+    summary: Create an account group
+    operationId: createAccountGroup
+    x-permission: masters.accounts.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/AccountGroupInput'
+              - { required: [code, name, type] }
+          examples:
+            child: { summary: Sub-group, value: { code: OPEX-IT, name: IT & software, parentId: grp_opex, type: Expense, order: 55 } }
+    responses:
+      '201':
+        description: Group
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/AccountGroup' }
+            examples:
+              created: { summary: Created, value: { id: grp_opex_it, companyId: co_acme, code: OPEX-IT, name: IT & software, parentId: grp_opex, type: Expense, order: 55, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/account-groups/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  patch:
+    tags: [Masters]
+    summary: Update an account group
+    operationId: updateAccountGroup
+    x-permission: masters.accounts.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/AccountGroupInput'
+              - $ref: '../components/schemas/common.yaml#/ExpectedVersion'
+          examples:
+            rename: { summary: Rename / reorder, value: { expectedVersion: 1, name: "IT, software & cloud", order: 56 } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/AccountGroup' }
+            examples:
+              updated: { summary: Updated, value: { id: grp_opex_it, companyId: co_acme, code: OPEX-IT, name: "IT, software & cloud", parentId: grp_opex, type: Expense, order: 56, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:15:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Masters]
+    summary: Delete an empty account group
+    operationId: deleteAccountGroup
+    x-permission: masters.accounts.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── dimensions ────────────────────────────────────────────────────────────
+
+/dimensions:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Masters]
+    summary: List dimensions
+    description: Query examples — `?type=Department` · `?status=Active` · `?parentId=dim_dept_sales`.
+    operationId: listDimensions
+    x-permission: masters.accounts.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/DimensionType'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: parentId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/Q'
+    responses:
+      '200':
+        description: Dimensions
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/Dimension' } } } }
+            examples:
+              departments: { summary: Departments, value: { data: [{ id: dim_dept_sales, companyId: co_acme, type: Department, code: SALES, name: Sales, status: Active, color: '#0ea5e9', createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: dim_dept_fin, companyId: co_acme, type: Department, code: FIN, name: Finance, status: Active, color: '#16a34a', createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }] } }
+              none: { summary: None, value: { data: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Masters]
+    summary: Create a dimension value
+    operationId: createDimension
+    x-permission: masters.accounts.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/DimensionInput'
+              - { required: [type, code, name] }
+          examples:
+            department: { summary: Department, value: { type: Department, code: MKT, name: Marketing, color: '#f59e0b' } }
+            costCentreChild: { summary: Cost centre under a parent, value: { type: CostCentre, code: CC-MUM-SALES, name: Mumbai sales, parentId: dim_cc_mum } }
+    responses:
+      '201':
+        description: Dimension
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Dimension' }
+            examples:
+              created: { summary: Created, value: { id: dim_dept_mkt, companyId: co_acme, type: Department, code: MKT, name: Marketing, status: Active, color: '#f59e0b', createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/dimensions/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Masters]
+    summary: Get a dimension
+    operationId: getDimension
+    x-permission: masters.accounts.view
+    responses:
+      '200':
+        description: Dimension
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Dimension' }
+            examples:
+              dept: { summary: Department, value: { id: dim_dept_sales, companyId: co_acme, type: Department, code: SALES, name: Sales, status: Active, color: '#0ea5e9', createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Masters]
+    summary: Update a dimension (rename / parent / colour / status)
+    operationId: updateDimension
+    x-permission: masters.accounts.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/DimensionInput'
+              - $ref: '../components/schemas/common.yaml#/ExpectedVersion'
+              - { properties: { status: { $ref: '../components/schemas/masters.yaml#/MasterStatus' } } }
+          examples:
+            rename: { summary: Rename, value: { expectedVersion: 1, name: Sales & Marketing } }
+            deactivate: { summary: Deactivate, value: { expectedVersion: 1, status: Inactive } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Dimension' }
+            examples:
+              updated: { summary: Updated, value: { id: dim_dept_sales, companyId: co_acme, type: Department, code: SALES, name: Sales & Marketing, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Masters]
+    summary: Delete an unused dimension value
+    operationId: deleteDimension
+    x-permission: masters.accounts.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── tax rates ─────────────────────────────────────────────────────────────
+
+/tax-rates:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Masters]
+    summary: List tax rates
+    operationId: listTaxRates
+    x-permission: taxation.returns.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: type, in: query, schema: { type: string, enum: [GST, VAT, None] } }
+      - { name: treatment, in: query, schema: { type: string, enum: [Taxable, Exempt, Nil-rated, Non-GST, Zero-rated] } }
+    responses:
+      '200':
+        description: Tax rates
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/TaxRate' } } } }
+            examples:
+              gst: { summary: GST slabs, value: { data: [{ id: tax_gst5, companyId: co_acme, code: GST5, name: GST 5%, rate: 5, components: [{ name: CGST, rate: 2.5 }, { name: SGST, rate: 2.5 }], type: GST, treatment: Taxable, reverseCharge: false, effectiveFrom: '2017-07-01', ruleVersion: IN-1.4, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: tax_gst18, companyId: co_acme, code: GST18, name: GST 18%, rate: 18, components: [{ name: CGST, rate: 9 }, { name: SGST, rate: 9 }], type: GST, treatment: Taxable, reverseCharge: false, effectiveFrom: '2017-07-01', ruleVersion: IN-1.4, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: tax_rcm18, companyId: co_acme, code: RCM18, name: GST 18% (reverse charge), rate: 18, components: [{ name: CGST, rate: 9 }, { name: SGST, rate: 9 }], type: GST, treatment: Taxable, reverseCharge: true, effectiveFrom: '2017-07-01', ruleVersion: IN-1.4, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Masters]
+    summary: Create a tax rate
+    description: Components must sum to `rate` (`422`). Output/input accounts must be Tax control accounts.
+    operationId: createTaxRate
+    x-permission: taxation.returns.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/TaxRateInput'
+              - { required: [code, name, rate, components, type, treatment, effectiveFrom] }
+          examples:
+            gstWithCess: { summary: GST 28% + cess, value: { code: GST28C, name: GST 28% + 12% cess, rate: 28, components: [{ name: CGST, rate: 14 }, { name: SGST, rate: 14 }], type: GST, treatment: Taxable, cessRate: 12, effectiveFrom: '2026-10-01', outputAccountIds: { CGST: acc_2300, SGST: acc_2301, IGST: acc_2302, CESS: acc_2303 } } }
+            exempt: { summary: Exempt, value: { code: EXEMPT, name: Exempt supply, rate: 0, components: [], type: GST, treatment: Exempt, effectiveFrom: '2017-07-01' } }
+            vat: { summary: UAE VAT 5%, value: { code: VAT5, name: VAT 5%, rate: 5, components: [{ name: VAT, rate: 5 }], type: VAT, treatment: Taxable, effectiveFrom: '2018-01-01' } }
+    responses:
+      '201':
+        description: Tax rate
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/TaxRate' }
+            examples:
+              created: { $ref: '../components/examples/masters.yaml#/TaxRateGst18' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/tax-rates/calculate:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Masters]
+    summary: Try-it tax calculator
+    description: Runs `engine.computeLineTax` with the tax context of the party / branch / place of supply (intra vs inter-state, treatment, reverse charge, inclusive pricing) and explains the result.
+    operationId: calculateTax
+    x-permission: taxation.returns.view
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/masters.yaml#/TaxCalcRequest' }
+          examples:
+            intraState: { summary: Intra-state registered customer, value: { taxRateId: tax_gst18, qty: 10, rate: 1000, discountPct: 5, partyType: Customer, partyId: cust_arlene, placeOfSupplyCode: '27' } }
+            interState: { summary: Inter-state → IGST, value: { taxRateId: tax_gst18, qty: 10, rate: 1000, partyType: Customer, partyId: cust_globaltech, placeOfSupplyCode: '29' } }
+            inclusive: { summary: Tax-inclusive retail price, value: { taxRateId: tax_gst12, qty: 1, rate: 1120, taxInclusive: true } }
+            export: { summary: Overseas customer → zero-rated, value: { taxRateId: tax_gst18, qty: 100, rate: 60, partyType: Customer, partyId: cust_ustech } }
+    responses:
+      '200':
+        description: Calculation
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/TaxCalcResult' }
+            examples:
+              intraState: { summary: CGST + SGST, value: { taxable: 9500, taxRate: 18, taxAmt: 1710, taxComponents: { CGST: 855, SGST: 855 }, amount: 11210, reverseCharge: false, explanation: ['Intra-state (27 → 27): CGST 9% + SGST 9%', 'Customer is Registered — taxable', 'Discount 5% applied before tax'] } }
+              interState: { summary: IGST, value: { taxable: 10000, taxRate: 18, taxAmt: 1800, taxComponents: { IGST: 1800 }, amount: 11800, reverseCharge: false, explanation: ['Inter-state (27 → 29): IGST 18%'] } }
+              inclusive: { summary: Backed out of inclusive price, value: { taxable: 1000, taxRate: 12, taxAmt: 120, taxComponents: { CGST: 60, SGST: 60 }, amount: 1120, reverseCharge: false, explanation: ['Tax-inclusive: 1120 ÷ 1.12 = 1000 taxable'] } }
+              zeroRated: { summary: Export zero-rated, value: { taxable: 6000, taxRate: 0, taxAmt: 0, taxComponents: {}, amount: 6000, reverseCharge: false, explanation: ['Customer treatment Overseas — zero-rated export (LUT)'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/tax-rates/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Masters]
+    summary: Get a tax rate
+    operationId: getTaxRate
+    x-permission: taxation.returns.view
+    responses:
+      '200':
+        description: Tax rate
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/TaxRate' }
+            examples:
+              gst18: { $ref: '../components/examples/masters.yaml#/TaxRateGst18' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Masters]
+    summary: Update a tax rate (account mapping, validity, status)
+    description: Rate/components are immutable once used on posted documents — end-date the rate and create a new one.
+    operationId: updateTaxRate
+    x-permission: taxation.returns.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/TaxRateInput'
+              - $ref: '../components/schemas/common.yaml#/ExpectedVersion'
+              - { properties: { status: { $ref: '../components/schemas/masters.yaml#/MasterStatus' } } }
+          examples:
+            accounts: { summary: Map accounts, value: { expectedVersion: 1, outputAccountIds: { CGST: acc_2300, SGST: acc_2301, IGST: acc_2302 }, inputAccountIds: { CGST: acc_1400, SGST: acc_1401, IGST: acc_1402 } } }
+            endDate: { summary: End-date, value: { expectedVersion: 1, effectiveTo: '2026-09-30', status: Inactive } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/TaxRate' }
+            examples:
+              updated: { $ref: '../components/examples/masters.yaml#/TaxRateGst18' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Masters]
+    summary: Delete an unused tax rate
+    operationId: deleteTaxRate
+    x-permission: taxation.returns.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── TDS sections ──────────────────────────────────────────────────────────
+
+/tds-sections:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Masters]
+    summary: List TDS / TCS sections
+    operationId: listTdsSections
+    x-permission: taxation.tds.view
+    parameters:
+      - { name: kind, in: query, schema: { type: string, enum: [TDS, TCS] } }
+      - $ref: '../components/parameters.yaml#/Status'
+    responses:
+      '200':
+        description: Sections
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/TdsSection' } } } }
+            examples:
+              list: { summary: 194C / 194J / 206C, value: { data: [{ id: tds_194c, companyId: co_acme, section: 194C, description: Payment to contractors, rate: 2, ratePanMissing: 20, thresholdPerTxn: 30000, thresholdAnnual: 100000, basis: Earlier, applicability: Supplier, kind: TDS, accountId: acc_2310, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: tds_194j, companyId: co_acme, section: 194J, description: Professional fees, rate: 10, ratePanMissing: 20, thresholdPerTxn: 30000, thresholdAnnual: 30000, basis: Earlier, applicability: Supplier, kind: TDS, accountId: acc_2310, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: tcs_206c, companyId: co_acme, section: 206C(1H), description: TCS on sale of goods, rate: 0.1, ratePanMissing: 1, thresholdPerTxn: 0, thresholdAnnual: 5000000, basis: Payment, applicability: Customer, kind: TCS, accountId: acc_1410, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Masters]
+    summary: Create a TDS / TCS section
+    operationId: createTdsSection
+    x-permission: taxation.tds.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/TdsSectionInput'
+              - { required: [section, description, rate, ratePanMissing, basis, applicability, kind] }
+          examples:
+            rent: { summary: 194I rent, value: { section: 194I, description: Rent — land/building, rate: 10, ratePanMissing: 20, thresholdPerTxn: 0, thresholdAnnual: 240000, basis: Earlier, applicability: Supplier, kind: TDS, accountId: acc_2310 } }
+            salary: { summary: 192 salary, value: { section: '192', description: Salary, rate: 0, ratePanMissing: 20, thresholdPerTxn: 0, thresholdAnnual: 0, basis: Payment, applicability: Employee, kind: TDS, accountId: acc_2310 } }
+    responses:
+      '201':
+        description: Section
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/TdsSection' }
+            examples:
+              created: { summary: Created, value: { id: tds_194i, companyId: co_acme, section: 194I, description: Rent — land/building, rate: 10, ratePanMissing: 20, thresholdPerTxn: 0, thresholdAnnual: 240000, basis: Earlier, applicability: Supplier, kind: TDS, accountId: acc_2310, status: Active, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/tds-sections/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Masters]
+    summary: Get a section
+    operationId: getTdsSection
+    x-permission: taxation.tds.view
+    responses:
+      '200':
+        description: Section
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/TdsSection' }
+            examples:
+              s194c: { summary: 194C, value: { id: tds_194c, companyId: co_acme, section: 194C, description: Payment to contractors, rate: 2, ratePanMissing: 20, thresholdPerTxn: 30000, thresholdAnnual: 100000, basis: Earlier, applicability: Supplier, kind: TDS, accountId: acc_2310, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Masters]
+    summary: Update a section (rates / thresholds / status)
+    operationId: updateTdsSection
+    x-permission: taxation.tds.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/TdsSectionInput'
+              - $ref: '../components/schemas/common.yaml#/ExpectedVersion'
+              - { properties: { status: { $ref: '../components/schemas/masters.yaml#/MasterStatus' } } }
+          examples:
+            threshold: { summary: New annual threshold, value: { expectedVersion: 1, thresholdAnnual: 150000 } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/TdsSection' }
+            examples:
+              updated: { summary: Updated, value: { id: tds_194c, companyId: co_acme, section: 194C, description: Payment to contractors, rate: 2, ratePanMissing: 20, thresholdPerTxn: 30000, thresholdAnnual: 150000, basis: Earlier, applicability: Supplier, kind: TDS, accountId: acc_2310, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Masters]
+    summary: Delete an unused section
+    operationId: deleteTdsSection
+    x-permission: taxation.tds.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── currencies & exchange rates ───────────────────────────────────────────
+
+/currencies:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Masters]
+    summary: List currencies
+    operationId: listCurrencies
+    x-permission: masters.accounts.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Status'
+    responses:
+      '200':
+        description: Currencies
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/Currency' } } } }
+            examples:
+              list: { summary: INR / USD / AED, value: { data: [{ id: cur_inr, code: INR, name: Indian Rupee, symbol: ₹, minorUnits: 2, roundingIncrement: 0.01, roundingMode: HalfUp, status: Active, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', version: 1 }, { id: cur_usd, code: USD, name: US Dollar, symbol: $, minorUnits: 2, roundingIncrement: 0.01, roundingMode: HalfUp, status: Active, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', version: 1 }, { id: cur_aed, code: AED, name: UAE Dirham, symbol: د.إ, minorUnits: 2, roundingIncrement: 0.01, roundingMode: HalfUp, status: Active, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', version: 1 }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Masters]
+    summary: Add a currency
+    operationId: createCurrency
+    x-permission: masters.accounts.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/CurrencyInput'
+              - { required: [code, name, symbol, minorUnits] }
+          examples:
+            jpy: { summary: Zero-decimal currency, value: { code: JPY, name: Japanese Yen, symbol: '¥', minorUnits: 0, roundingIncrement: 1, roundingMode: HalfUp } }
+            chf: { summary: 0.05 rounding, value: { code: CHF, name: Swiss Franc, symbol: CHF, minorUnits: 2, roundingIncrement: 0.05, roundingMode: HalfEven } }
+    responses:
+      '201':
+        description: Currency
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Currency' }
+            examples:
+              created: { summary: Created, value: { id: cur_jpy, code: JPY, name: Japanese Yen, symbol: '¥', minorUnits: 0, roundingIncrement: 1, roundingMode: HalfUp, status: Active, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/currencies/{code}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Code'
+  patch:
+    tags: [Masters]
+    summary: Update rounding / status
+    operationId: updateCurrency
+    x-permission: masters.accounts.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/CurrencyInput'
+              - $ref: '../components/schemas/common.yaml#/ExpectedVersion'
+              - { properties: { status: { $ref: '../components/schemas/masters.yaml#/MasterStatus' } } }
+          examples:
+            deactivate: { summary: Deactivate, value: { expectedVersion: 1, status: Inactive } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Currency' }
+            examples:
+              updated: { summary: Updated, value: { id: cur_jpy, code: JPY, name: Japanese Yen, symbol: '¥', minorUnits: 0, roundingIncrement: 1, roundingMode: HalfUp, status: Inactive, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:20:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/exchange-rates:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Masters]
+    summary: List exchange rates
+    description: Tabs → All · Pending approval · Approved · Rejected. Query examples — `?base=USD&quote=INR` · `?type=Closing` · `?effectiveFrom=2026-09-01&effectiveTo=2026-09-30` · `?status=Pending`.
+    operationId: listExchangeRates
+    x-permission: masters.accounts.view
+    x-frd: [FR-FX-001, FR-FX-002]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: base, in: query, schema: { type: string } }
+      - { name: quote, in: query, schema: { type: string } }
+      - { name: type, in: query, schema: { type: string, enum: [Spot, Closing, Average, Manual, Historical, Imported] } }
+      - { name: status, in: query, schema: { type: string, enum: [Pending, Approved, Rejected] } }
+      - { name: effectiveFrom, in: query, schema: { type: string, format: date } }
+      - { name: effectiveTo, in: query, schema: { type: string, format: date } }
+    responses:
+      '200':
+        description: Rates
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/ExchangeRate' } }
+            examples:
+              firstPage: { summary: Approved + pending, value: { data: [{ id: fx_usd_inr_20260912, companyId: co_acme, base: USD, quote: INR, rate: 83.42, direction: Multiply, type: Closing, effectiveAt: '2026-09-12', source: RBI reference rate, status: Approved, approvedBy: system, createdAt: '2026-09-12T18:00:00Z', updatedAt: '2026-09-12T18:00:00Z', version: 1 }, { id: fx_usd_inr_manual_1, companyId: co_acme, base: USD, quote: INR, rate: 83.9, direction: Multiply, type: Manual, effectiveAt: '2026-09-13', source: Bank deal slip 4471, reason: Forward contract rate for the Sep shipment, status: Pending, approvalId: apr_fx_1, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }], meta: { nextCursor: null, limit: 25, total: 2, counts: { All: 210, 'Pending approval': 1, Approved: 208, Rejected: 1 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Masters]
+    summary: Add a rate
+    description: Manual and Imported rates are inserted `Pending` and routed through the `Exchange Rate` workflow; provider rates (Spot / Closing / Average) are Approved on insert. One rate per pair + type + date.
+    operationId: createExchangeRate
+    x-permission: masters.accounts.create
+    x-workflow-doc-type: Exchange Rate
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/masters.yaml#/ExchangeRateInput' }
+          examples:
+            manual: { summary: Manual (needs approval), value: { base: USD, quote: INR, rate: 83.9, type: Manual, effectiveAt: '2026-09-13', source: Bank deal slip 4471, reason: Forward contract rate for the Sep shipment } }
+            closing: { summary: Provider closing rate, value: { base: USD, quote: INR, rate: 83.42, type: Closing, effectiveAt: '2026-09-12', source: RBI reference rate } }
+            average: { summary: Monthly average for P&L translation, value: { base: AED, quote: INR, rate: 22.71, type: Average, effectiveAt: '2026-08-31', source: Computed from daily closes } }
+    responses:
+      '201':
+        description: Rate (Pending or Approved)
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rate, outcome]
+              properties:
+                rate: { $ref: '../components/schemas/masters.yaml#/ExchangeRate' }
+                outcome: { type: string, enum: [routed-for-approval, approved] }
+                approval: { $ref: '../components/schemas/approvals.yaml#/ApprovalRequest' }
+            examples:
+              pending: { summary: Manual → routed, value: { rate: { id: fx_usd_inr_manual_1, companyId: co_acme, base: USD, quote: INR, rate: 83.9, direction: Multiply, type: Manual, effectiveAt: '2026-09-13', source: Bank deal slip 4471, reason: Forward contract rate for the Sep shipment, status: Pending, approvalId: apr_fx_1, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }, outcome: routed-for-approval, approval: { id: apr_fx_1, companyId: co_acme, docType: Exchange Rate, collection: exchangeRates, docId: fx_usd_inr_manual_1, docNumber: USD/INR 2026-09-13, amount: 83.9, currency: INR, branchId: br_ho, requesterId: usr_anita, requesterName: Anita Rao, steps: [{ order: 1, name: Treasury approval, approverType: Role, approverRef: role_treasury, approverLabel: Treasury, status: Pending, commentRequired: false }], currentStep: 0, status: Pending, submittedAt: '2026-09-13T09:12:04Z', history: [], createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } } }
+              approved: { summary: Closing → approved on insert, value: { rate: { id: fx_usd_inr_20260912, companyId: co_acme, base: USD, quote: INR, rate: 83.42, direction: Multiply, type: Closing, effectiveAt: '2026-09-12', source: RBI reference rate, status: Approved, approvedBy: system, createdAt: '2026-09-12T18:00:00Z', updatedAt: '2026-09-12T18:00:00Z', version: 1 }, outcome: approved } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/exchange-rates/resolve:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Masters]
+    summary: Resolve the rate a document would use (tester)
+    description: '`engine.resolveRate` — approved rate of the requested type on the date, falling back to the nearest prior approved rate; inverse pairs are derived.'
+    operationId: resolveExchangeRate
+    x-permission: masters.accounts.view
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/masters.yaml#/RateResolveRequest' }
+          examples:
+            exact: { summary: Rate on a date, value: { from: USD, to: INR, date: '2026-09-12' } }
+            fallback: { summary: Weekend — falls back, value: { from: USD, to: INR, date: '2026-09-13', type: Closing } }
+            inverse: { summary: Inverse pair, value: { from: INR, to: USD, date: '2026-09-12' } }
+    responses:
+      '200':
+        description: Resolution
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/RateResolution' }
+            examples:
+              exact: { summary: Exact date, value: { rate: 83.42, type: Closing, source: RBI reference rate, at: '2026-09-12', id: fx_usd_inr_20260912, fallback: false } }
+              fallback: { summary: Nearest prior, value: { rate: 83.42, type: Closing, source: RBI reference rate, at: '2026-09-12', id: fx_usd_inr_20260912, fallback: true } }
+              inverse: { summary: Derived inverse, value: { rate: 0.011988, type: Closing, source: 'Inverse of USD/INR 83.42', at: '2026-09-12', id: fx_usd_inr_20260912, fallback: false } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/exchange-rates/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Masters]
+    summary: Get a rate (audit trail)
+    operationId: getExchangeRate
+    x-permission: masters.accounts.view
+    responses:
+      '200':
+        description: Rate
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/ExchangeRate' }
+            examples:
+              approved: { $ref: '../components/examples/masters.yaml#/ExchangeRateApproved' }
+              pending: { $ref: '../components/examples/masters.yaml#/ExchangeRatePending' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/exchange-rates/{id}/approve:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Masters]
+    summary: Approve a pending rate (shortcut for the approval action)
+    operationId: approveExchangeRate
+    x-permission: masters.accounts.approve
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Comment' }
+          examples:
+            ok: { summary: Approve, value: { comment: Matches bank confirmation } }
+    responses:
+      '200':
+        description: Approved
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/ExchangeRate' }
+            examples:
+              approved: { summary: Approved, value: { id: fx_usd_inr_manual_1, companyId: co_acme, base: USD, quote: INR, rate: 83.9, direction: Multiply, type: Manual, effectiveAt: '2026-09-13', source: Bank deal slip 4471, reason: Forward contract rate for the Sep shipment, status: Approved, approvedBy: Rahul Mehta, approvalId: apr_fx_1, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:30:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/exchange-rates/{id}/reject:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Masters]
+    summary: Reject a pending rate
+    operationId: rejectExchangeRate
+    x-permission: masters.accounts.approve
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reject: { summary: Reject, value: { reason: Rate differs from bank confirmation (83.72) — please re-enter } }
+    responses:
+      '200':
+        description: Rejected
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/ExchangeRate' }
+            examples:
+              rejected: { summary: Rejected, value: { id: fx_usd_inr_manual_1, companyId: co_acme, base: USD, quote: INR, rate: 83.9, direction: Multiply, type: Manual, effectiveAt: '2026-09-13', source: Bank deal slip 4471, reason: Rate differs from bank confirmation (83.72), status: Rejected, approvedBy: Rahul Mehta, approvalId: apr_fx_1, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:30:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── simple masters ────────────────────────────────────────────────────────
+
+/payment-terms:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Masters]
+    summary: List payment terms
+    operationId: listPaymentTerms
+    x-permission: masters.customers.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Status'
+    responses:
+      '200':
+        description: Terms
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/PaymentTerm' } } } }
+            examples:
+              list: { summary: Terms, value: { data: [{ id: pt_net30, companyId: co_acme, code: NET30, name: Net 30, days: 30, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: pt_2_10_net30, companyId: co_acme, code: 2-10-NET30, name: '2/10 net 30', days: 30, discountPct: 2, discountDays: 10, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Masters]
+    summary: Create a payment term
+    operationId: createPaymentTerm
+    x-permission: masters.customers.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/PaymentTermInput'
+              - { required: [code, name, days] }
+          examples:
+            plain: { summary: Net 45, value: { code: NET45, name: Net 45, days: 45 } }
+            earlyDiscount: { summary: Early-payment discount, value: { code: 2-10-NET30, name: '2/10 net 30', days: 30, discountPct: 2, discountDays: 10 } }
+    responses:
+      '201':
+        description: Term
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/PaymentTerm' }
+            examples:
+              created: { summary: Created, value: { id: pt_net45, companyId: co_acme, code: NET45, name: Net 45, days: 45, status: Active, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/payment-terms/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  patch:
+    tags: [Masters]
+    summary: Update a payment term
+    operationId: updatePaymentTerm
+    x-permission: masters.customers.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/PaymentTermInput'
+              - $ref: '../components/schemas/common.yaml#/ExpectedVersion'
+              - { properties: { status: { $ref: '../components/schemas/masters.yaml#/MasterStatus' } } }
+          examples:
+            deactivate: { summary: Deactivate, value: { expectedVersion: 1, status: Inactive } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/PaymentTerm' }
+            examples:
+              updated: { summary: Updated, value: { id: pt_net45, companyId: co_acme, code: NET45, name: Net 45, days: 45, status: Inactive, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:20:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Masters]
+    summary: Delete an unused payment term
+    operationId: deletePaymentTerm
+    x-permission: masters.customers.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/uoms:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Masters]
+    summary: List units of measure
+    operationId: listUoms
+    x-permission: masters.items.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Status'
+    responses:
+      '200':
+        description: UOMs
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/Uom' } } } }
+            examples:
+              list: { summary: UOMs, value: { data: [{ id: uom_kg, companyId: co_acme, code: KG, name: Kilogram, decimals: 3, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: uom_nos, companyId: co_acme, code: NOS, name: Numbers, decimals: 0, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Masters]
+    summary: Create a UOM
+    operationId: createUom
+    x-permission: masters.items.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/UomInput'
+              - { required: [code, name] }
+          examples:
+            ltr: { summary: Litre, value: { code: LTR, name: Litre, decimals: 2 } }
+            hr: { summary: Hour (services), value: { code: HR, name: Hour, decimals: 2 } }
+    responses:
+      '201':
+        description: UOM
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Uom' }
+            examples:
+              created: { summary: Created, value: { id: uom_ltr, companyId: co_acme, code: LTR, name: Litre, decimals: 2, status: Active, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/uoms/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  patch:
+    tags: [Masters]
+    summary: Update a UOM
+    operationId: updateUom
+    x-permission: masters.items.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/UomInput'
+              - $ref: '../components/schemas/common.yaml#/ExpectedVersion'
+              - { properties: { status: { $ref: '../components/schemas/masters.yaml#/MasterStatus' } } }
+          examples:
+            rename: { summary: Rename, value: { expectedVersion: 1, name: Litres } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Uom' }
+            examples:
+              updated: { summary: Updated, value: { id: uom_ltr, companyId: co_acme, code: LTR, name: Litres, decimals: 2, status: Active, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:20:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Masters]
+    summary: Delete an unused UOM
+    operationId: deleteUom
+    x-permission: masters.items.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/hsn-codes:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Masters]
+    summary: List HSN / SAC codes
+    operationId: listHsnCodes
+    x-permission: masters.items.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Q'
+      - { name: type, in: query, schema: { type: string, enum: [HSN, SAC] } }
+    responses:
+      '200':
+        description: Codes
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/HsnCode' } } } }
+            examples:
+              list: { summary: Codes, value: { data: [{ id: hsn_7214, companyId: co_acme, code: '7214', description: Bars and rods of iron or non-alloy steel, type: HSN, defaultTaxRateId: tax_gst18, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: sac_998311, companyId: co_acme, code: '998311', description: Management consulting services, type: SAC, defaultTaxRateId: tax_gst18, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Masters]
+    summary: Create an HSN / SAC code
+    operationId: createHsnCode
+    x-permission: masters.items.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/HsnCodeInput'
+              - { required: [code, description, type] }
+          examples:
+            hsn: { summary: HSN with default rate, value: { code: '4415', description: Packing cases of wood, type: HSN, defaultTaxRateId: tax_gst12 } }
+            sac: { summary: SAC, value: { code: '998719', description: Maintenance and repair of other machinery, type: SAC, defaultTaxRateId: tax_gst18 } }
+    responses:
+      '201':
+        description: Code
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/HsnCode' }
+            examples:
+              created: { summary: Created, value: { id: hsn_4415, companyId: co_acme, code: '4415', description: Packing cases of wood, type: HSN, defaultTaxRateId: tax_gst12, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/hsn-codes/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  patch:
+    tags: [Masters]
+    summary: Update an HSN / SAC code
+    operationId: updateHsnCode
+    x-permission: masters.items.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/HsnCodeInput'
+              - $ref: '../components/schemas/common.yaml#/ExpectedVersion'
+          examples:
+            rate: { summary: Change default rate, value: { expectedVersion: 1, defaultTaxRateId: tax_gst18 } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/HsnCode' }
+            examples:
+              updated: { summary: Updated, value: { id: hsn_4415, companyId: co_acme, code: '4415', description: Packing cases of wood, type: HSN, defaultTaxRateId: tax_gst18, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:20:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Masters]
+    summary: Delete an unused code
+    operationId: deleteHsnCode
+    x-permission: masters.items.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/reason-codes:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Masters]
+    summary: List reason codes
+    operationId: listReasonCodes
+    x-permission: masters.customers.view
+    parameters:
+      - { name: category, in: query, schema: { type: string, enum: [Return, Adjustment, Reversal, Period, Credit, Rejection, Other] } }
+      - $ref: '../components/parameters.yaml#/Status'
+    responses:
+      '200':
+        description: Reason codes
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/ReasonCode' } } } }
+            examples:
+              list: { summary: Codes, value: { data: [{ id: rc_return_damaged, companyId: co_acme, code: RET-DMG, name: Damaged in transit, category: Return, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: rc_adj_count, companyId: co_acme, code: ADJ-CNT, name: Count variance, category: Adjustment, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Masters]
+    summary: Create a reason code
+    operationId: createReasonCode
+    x-permission: masters.customers.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/ReasonCodeInput'
+              - { required: [code, name, category] }
+          examples:
+            reversal: { summary: Reversal reason, value: { code: REV-DUP, name: Duplicate booking, category: Reversal } }
+    responses:
+      '201':
+        description: Reason code
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/ReasonCode' }
+            examples:
+              created: { summary: Created, value: { id: rc_rev_dup, companyId: co_acme, code: REV-DUP, name: Duplicate booking, category: Reversal, status: Active, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/reason-codes/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  patch:
+    tags: [Masters]
+    summary: Update a reason code
+    operationId: updateReasonCode
+    x-permission: masters.customers.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/ReasonCodeInput'
+              - $ref: '../components/schemas/common.yaml#/ExpectedVersion'
+              - { properties: { status: { $ref: '../components/schemas/masters.yaml#/MasterStatus' } } }
+          examples:
+            deactivate: { summary: Deactivate, value: { expectedVersion: 1, status: Inactive } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/ReasonCode' }
+            examples:
+              updated: { summary: Updated, value: { id: rc_rev_dup, companyId: co_acme, code: REV-DUP, name: Duplicate booking, category: Reversal, status: Inactive, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:20:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Masters]
+    summary: Delete an unused reason code
+    operationId: deleteReasonCode
+    x-permission: masters.customers.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/salespersons:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Masters]
+    summary: List salespersons
+    operationId: listSalespersons
+    x-permission: masters.customers.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Status'
+    responses:
+      '200':
+        description: Salespersons
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/Salesperson' } } } }
+            examples:
+              list: { summary: Salespersons, value: { data: [{ id: sp_vikram, companyId: co_acme, code: SP-VN, name: Vikram Nair, employeeId: emp_003, target: 2500000, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: sp_priya, companyId: co_acme, code: SP-PS, name: Priya Sharma, employeeId: emp_002, target: 4000000, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Masters]
+    summary: Create a salesperson
+    operationId: createSalesperson
+    x-permission: masters.customers.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/SalespersonInput'
+              - { required: [code, name] }
+          examples:
+            linked: { summary: Linked to an employee with target, value: { code: SP-SP, name: Suresh Patel, employeeId: emp_005, target: 1800000 } }
+            external: { summary: External agent, value: { code: SP-AG1, name: Coastal Agencies } }
+    responses:
+      '201':
+        description: Salesperson
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Salesperson' }
+            examples:
+              created: { summary: Created, value: { id: sp_suresh, companyId: co_acme, code: SP-SP, name: Suresh Patel, employeeId: emp_005, target: 1800000, status: Active, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/salespersons/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  patch:
+    tags: [Masters]
+    summary: Update a salesperson
+    operationId: updateSalesperson
+    x-permission: masters.customers.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/schemas/masters.yaml#/SalespersonInput'
+              - $ref: '../components/schemas/common.yaml#/ExpectedVersion'
+              - { properties: { status: { $ref: '../components/schemas/masters.yaml#/MasterStatus' } } }
+          examples:
+            target: { summary: New target, value: { expectedVersion: 1, target: 3000000 } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/masters.yaml#/Salesperson' }
+            examples:
+              updated: { summary: Updated, value: { id: sp_vikram, companyId: co_acme, code: SP-VN, name: Vikram Nair, employeeId: emp_003, target: 3000000, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Masters]
+    summary: Delete an unused salesperson
+    operationId: deleteSalesperson
+    x-permission: masters.customers.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── reference data ────────────────────────────────────────────────────────
+
+/countries:
+  get:
+    tags: [Masters]
+    summary: Countries (read-only)
+    operationId: listCountries
+    x-company-scoped: false
+    responses:
+      '200':
+        description: Countries
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/Country' } } } }
+            examples:
+              list: { summary: Supported packs, value: { data: [{ code: IN, name: India, currency: INR, localizationPack: IN }, { code: AE, name: United Arab Emirates, currency: AED, localizationPack: AE }, { code: GB, name: United Kingdom, currency: GBP, localizationPack: GB }, { code: SG, name: Singapore, currency: SGD, localizationPack: SG }, { code: US, name: United States, currency: USD, localizationPack: US }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/countries/{code}/states:
+  parameters:
+    - $ref: '../components/parameters.yaml#/Code'
+  get:
+    tags: [Masters]
+    summary: States / emirates with GST state codes (read-only)
+    operationId: listStates
+    x-company-scoped: false
+    responses:
+      '200':
+        description: States
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/masters.yaml#/State' } } } }
+            examples:
+              india: { summary: India excerpt, value: { data: [{ code: '24', name: Gujarat, alpha: GJ }, { code: '27', name: Maharashtra, alpha: MH }, { code: '29', name: Karnataka, alpha: KA }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── imports ───────────────────────────────────────────────────────────────
+
+/import-templates/{entity}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - { name: entity, in: path, required: true, schema: { type: string, enum: [customers, suppliers, items, accounts, price-list-entries, exchange-rates, opening-balances, timesheets, usage-records, bank-statements, budgets] }, example: customers }
+  get:
+    tags: [Masters]
+    summary: Import template (columns, validation, sample CSV)
+    operationId: getImportTemplate
+    x-permission: masters.customers.view
+    x-frd: [FR-IMP-001]
+    responses:
+      '200':
+        description: Template
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/ImportTemplate' }
+            examples:
+              customers: { summary: Customers, value: { entity: customers, columns: [{ field: code, label: Code, required: false, type: string }, { field: name, label: Name, required: true, type: string }, { field: gstin, label: GSTIN, required: false, type: string }, { field: taxTreatment, label: Tax treatment, required: false, type: string, allowed: [Registered, Unregistered, Composition, SEZ, Export, Overseas, Deemed Export] }, { field: state, label: State, required: false, type: string }, { field: creditLimit, label: Credit limit, required: false, type: number }], duplicateKeys: [gstin], sample: "code,name,gstin,taxTreatment,state,creditLimit\nC-0101,Arlene Traders,27AAPFU0939F1ZV,Registered,Maharashtra,500000" } }
+              items: { summary: Items, value: { entity: items, columns: [{ field: code, label: SKU / code, required: true, type: string }, { field: name, label: Name, required: true, type: string }, { field: type, label: Type, required: false, allowed: [Goods, Service, Consumable, Asset, Raw Material, Finished Good, Semi-Finished] }, { field: uom, label: Base UOM, required: true }, { field: hsn, label: HSN / SAC, required: false }, { field: taxRate, label: Tax rate code, required: false }, { field: salesPrice, label: Sales price, required: false, type: number }], duplicateKeys: [code], sample: "code,name,type,uom,hsn,taxRate,salesPrice\nSTL-4,Steel Rod 4mm,Raw Material,KG,7214,GST18,62" } }
+          text/csv:
+            schema: { type: string }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/imports:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Masters]
+    summary: Import log
+    operationId: listImports
+    x-permission: masters.customers.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: entity, in: query, schema: { type: string } }
+      - { name: status, in: query, schema: { type: string, enum: [Dry-run, Committed, Failed, Cancelled] } }
+    responses:
+      '200':
+        description: Imports
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/system.yaml#/ImportJob' } }
+            examples:
+              firstPage: { summary: Recent imports, value: { data: [{ id: imp_7c1a, companyId: co_acme, entity: customers, fileName: customers-sep.csv, fingerprint: 'sha256:9f8e2b', rows: 120, valid: 117, errors: 2, duplicates: 1, status: Committed, errorRows: [], summary: { created: 110, updated: 7, skipped: 3 }, committedAt: '2026-09-13T09:20:00Z', by: Priya Sharma, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:20:00Z', version: 2 }], meta: { nextCursor: null, limit: 25, total: 6 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Masters]
+    summary: Upload a CSV and dry-run it
+    description: |
+      Multipart upload → parse → apply `mapping` (CSV column → field) → validate every row (required, format, references,
+      duplicates against existing data and within the file) → returns an `ImportJob` in `Dry-run` with per-row errors.
+      Nothing is written until `POST /imports/{id}/commit`. The same file (fingerprint) cannot be committed twice (`409 DUPLICATE`).
+      `entity=bank-statements` additionally takes `bankAccountId` and `formatId`; `price-list-entries` takes `priceListId`.
+    operationId: createImport
+    x-permission: masters.customers.create
+    x-idempotent: true
+    x-frd: [FR-IMP-001]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [entity, file]
+            properties:
+              entity: { type: string, enum: [customers, suppliers, items, accounts, price-list-entries, exchange-rates, opening-balances, timesheets, usage-records, bank-statements, budgets] }
+              file: { type: string, format: binary }
+              mapping: { type: string, description: JSON object of CSV column → field; auto-detected from the header when omitted., example: '{"Customer Name":"name","GSTIN":"gstin"}' }
+              updateExisting: { type: boolean, default: false, description: Update records matched by duplicate key instead of skipping them. }
+              priceListId: { type: string }
+              bankAccountId: { type: string }
+              formatId: { type: string }
+          examples:
+            customers: { summary: Customers with explicit mapping, value: { entity: customers, file: '(binary customers-sep.csv)', mapping: '{"Customer Name":"name","GSTIN":"gstin","State":"state","Credit Limit":"creditLimit"}', updateExisting: 'true' } }
+            items: { summary: Items (auto mapping), value: { entity: items, file: '(binary items.csv)' } }
+            priceEntries: { summary: Price-list entries into a list, value: { entity: price-list-entries, file: '(binary wholesale-2026.csv)', priceListId: pl_wholesale } }
+            bankStatement: { summary: Bank statement with saved format, value: { entity: bank-statements, file: '(binary hdfc-sep.csv)', bankAccountId: acc_1310, formatId: fmt_hdfc_csv } }
+    responses:
+      '201':
+        description: Dry-run result
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/ImportJob' }
+            examples:
+              withErrors: { $ref: '../components/examples/masters.yaml#/ImportDryRun' }
+              clean: { summary: All rows valid, value: { id: imp_7c1b, companyId: co_acme, entity: items, fileName: items.csv, fingerprint: 'sha256:c3d4', rows: 18, valid: 18, errors: 0, duplicates: 0, status: Dry-run, mapping: { code: code, name: name, type: type, uom: uom }, errorRows: [], by: Priya Sharma, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '413': { $ref: '../components/responses.yaml#/PayloadTooLarge' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/imports/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Masters]
+    summary: Get an import job
+    operationId: getImport
+    x-permission: masters.customers.view
+    responses:
+      '200':
+        description: Import job
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/ImportJob' }
+            examples:
+              dryRun: { $ref: '../components/examples/masters.yaml#/ImportDryRun' }
+              committed: { $ref: '../components/examples/masters.yaml#/ImportCommitted' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  delete:
+    tags: [Masters]
+    summary: Cancel a dry-run
+    operationId: cancelImport
+    x-permission: masters.customers.create
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/imports/{id}/commit:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Masters]
+    summary: Commit the valid rows of a dry-run
+    description: Writes valid rows in one transaction (error rows are skipped, duplicates skipped or updated per `updateExisting`), audits the import and marks the job `Committed`. More than 2 000 rows → `202` background job.
+    operationId: commitImport
+    x-permission: masters.customers.create
+    x-idempotent: true
+    x-events: [DocumentCreated]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { type: object, properties: { skipErrorRows: { type: boolean, default: true }, updateExisting: { type: boolean } } }
+          examples:
+            default: { summary: Commit valid rows, value: {} }
+            updateDuplicates: { summary: Update matched records, value: { updateExisting: true } }
+    responses:
+      '200':
+        description: Committed (synchronous)
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/system.yaml#/ImportJob' }
+            examples:
+              committed: { $ref: '../components/examples/masters.yaml#/ImportCommitted' }
+      '202': { $ref: '../components/responses.yaml#/Accepted' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/imports/{id}/errors:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Masters]
+    summary: Error rows (JSON or CSV download)
+    operationId: getImportErrors
+    x-permission: masters.customers.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Format'
+    responses:
+      '200':
+        description: Errors
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/system.yaml#/ImportErrorRow' } } } }
+            examples:
+              rows: { summary: Three rows, value: { data: [{ row: 14, field: gstin, code: FORMAT, message: GSTIN must be 15 characters }, { row: 58, field: state, code: UNKNOWN, message: Unknown Indian state name }, { row: 77, field: gstin, code: DUPLICATE, message: Matches existing customer C-0101 Arlene Traders }] } }
+              none: { summary: No errors, value: { data: [] } }
+          text/csv:
+            schema: { type: string }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }

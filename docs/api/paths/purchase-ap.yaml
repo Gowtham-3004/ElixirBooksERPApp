@@ -1,0 +1,1564 @@
+# Purchase part 2 (tag: Purchase): vendor invoices & matching exceptions, debit notes / returns, payments,
+# payment batches (maker-checker), AP ageing / due schedule / statements, settings.
+# src/modules/purchase/invoiceActions.ts, paymentActions.ts
+
+# ── vendor invoices ───────────────────────────────────────────────────────
+
+/purchase/vendor-invoices:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Purchase]
+    summary: List vendor invoices
+    description: "Tabs → All · Draft · Exception (`matchStatus=Exception`) · Ready to post (`status=Approved`) · Posted · Unpaid (`unpaid=true`) · Reversed/cancelled. Query examples — `?partyId=sup_bharatsteel&status=Posted` · `?matchStatus=Exception` · `?dueTo=2026-09-20&unpaid=true`."
+    operationId: listVendorInvoices
+    x-permission: purchase.invoice.view
+    x-frd: [FR-PUR-030]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: matchStatus, in: query, schema: { $ref: '../components/schemas/purchase.yaml#/MatchStatus' } }
+      - { name: unpaid, in: query, schema: { type: boolean } }
+      - { name: dueTo, in: query, schema: { type: string, format: date } }
+      - { name: poId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/PartyId'
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+      - $ref: '../components/parameters.yaml#/AmountMin'
+      - $ref: '../components/parameters.yaml#/AmountMax'
+    responses:
+      '200':
+        description: Vendor invoices
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/purchase.yaml#/VendorInvoice' } }
+            examples:
+              firstPage: { summary: Posted + exception, value: { data: [{ $ref: '#/components/examples/VendorInvoicePosted/value' }, { $ref: '#/components/examples/VendorInvoiceException/value' }], meta: { nextCursor: null, limit: 25, total: 2, counts: { All: 88, Draft: 2, Exception: 1, 'Ready to post': 3, Posted: 78, Unpaid: 14, 'Reversed/cancelled': 4 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Purchase]
+    summary: Book a vendor invoice (Draft)
+    description: |
+      Sources: **from PO** (`poId` + lines with `poLineId`), **from GRN** (`grnIds` + lines with `grnLineId` — 3-way match),
+      or **direct / expense** (no PO; matching Not Required; account per line). Duplicate detection on supplier + supplier
+      invoice number within `duplicateInvoiceScope` → `409 DUPLICATE`. Input tax, reverse charge and TDS computed server-side.
+    operationId: createVendorInvoice
+    x-permission: purchase.invoice.create
+    x-events: [DocumentCreated]
+    x-frd: [FR-PUR-030, FR-PUR-031]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/purchase.yaml#/VendorInvoiceCreate' }
+          examples:
+            fromGrn: { summary: Against PO + GRN (3-way), value: { partyId: sup_bharatsteel, date: '2026-09-13', supplierInvoiceNumber: BS-7781, supplierInvoiceDate: '2026-09-12', poId: po_00118, grnIds: [grn_00077], lines: [{ poLineId: ln_po_1, grnId: grn_00077, grnLineId: ln_g1, itemId: item_stl4, qty: 2950, rate: 48, taxRateId: tax_gst18 }] } }
+            fromPo: { summary: "Against PO only (2-way, services)", value: { partyId: sup_consult, date: '2026-09-13', supplierInvoiceNumber: MA-2026-118, supplierInvoiceDate: '2026-09-10', poId: po_00124, lines: [{ poLineId: ln_po_30, itemId: item_consult, qty: 40, rate: 2000, taxRateId: tax_gst18, accountId: acc_5530 }], tdsSectionId: tds_194j } }
+            directExpense: { summary: Direct expense invoice (no PO), value: { partyId: sup_transport, date: '2026-09-13', supplierInvoiceNumber: ST-0912-77, supplierInvoiceDate: '2026-09-12', lines: [{ itemName: Freight — Surat to Mumbai, qty: 1, uom: TRIP, rate: 18000, taxRateId: tax_gst5, accountId: acc_5030, dimensions: { CostCentre: dim_cc_logistics } }], tdsSectionId: tds_194c } }
+            reverseCharge: { summary: Reverse-charge supply (unregistered legal services), value: { partyId: sup_vinod, date: '2026-09-13', supplierInvoiceNumber: VA-44, supplierInvoiceDate: '2026-09-11', reverseCharge: true, lines: [{ itemName: Legal opinion — lease agreement, qty: 1, uom: JOB, rate: 25000, taxRateId: tax_rcm18, accountId: acc_5530 }], tdsSectionId: tds_194j } }
+            withChargesLandedCost: { summary: Import with freight as landed cost, value: { partyId: sup_shenzhen, date: '2026-09-13', currency: USD, supplierInvoiceNumber: SZ-INV-2026-0912, supplierInvoiceDate: '2026-09-10', poId: po_00125, grnIds: [grn_00080], freightAsLandedCost: true, lines: [{ poLineId: ln_po_40, grnId: grn_00080, grnLineId: ln_g40, itemId: item_electrode, qty: 10000, rate: 0.35, taxRateId: tax_gst0 }], charges: [{ name: Sea freight, amount: 800, accountId: acc_5030 }] } }
+    responses:
+      '201':
+        description: Draft vendor invoice
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/VendorInvoice' }
+            examples:
+              draft: { summary: Draft, value: { id: vinv_00019, companyId: co_acme, number: DRAFT-VINV-19, docType: Vendor Invoice, date: '2026-09-13', dueDate: '2026-10-28', branchId: br_surat, status: Draft, matchStatus: Pending, currency: INR, rate: 1, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, supplierInvoiceNumber: BS-7781, supplierInvoiceDate: '2026-09-12', poId: po_00118, poNumber: PO/SRT/0118/26-27, grnIds: [grn_00077], grnNumbers: [GRN/2026-27/00077], lines: [{ id: ln_v1, poLineId: ln_po_1, grnId: grn_00077, grnLineId: ln_g1, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, hsn: '7214', qty: 2950, uom: KG, rate: 48, discountPct: 0, discountAmt: 0, taxable: 141600, taxRateId: tax_gst18, taxRate: 18, taxAmt: 25488, taxComponents: { IGST: 25488 }, amount: 167088, poRate: 48, poQty: 5000, grnQty: 2950 }], totals: { subtotal: 141600, discount: 0, taxable: 141600, tax: 25488, components: { IGST: 25488 }, breakup: [], charges: 0, tds: 2832, tdsSection: 194C, roundOff: 0, total: 167088, paid: 0, credited: 0, writtenOff: 0, due: 164256, baseTotal: 167088 }, tdsSectionId: tds_194c, reverseCharge: false, openExceptions: 0, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T09:00:00Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Duplicate supplier invoice
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              duplicate: { summary: Same supplier invoice number in scope, value: { code: DUPLICATE, message: Supplier invoice number BS-7781 already booked for Bharat Steel in FY 2026-27 (VINV/2026-27/00019), field: supplierInvoiceNumber, details: { existingId: vinv_00019, scope: Supplier+FY }, correlationId: corr_9f1c2e7a } }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/purchase/vendor-invoices/check-duplicate:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Purchase]
+    summary: Duplicate check before booking
+    operationId: checkDuplicateVendorInvoice
+    x-permission: purchase.invoice.view
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/purchase.yaml#/DuplicateCheckRequest' }
+          examples:
+            check: { summary: Check, value: { partyId: sup_bharatsteel, supplierInvoiceNumber: BS-7781, supplierInvoiceDate: '2026-09-12', amount: 167088 } }
+    responses:
+      '200':
+        description: Result
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/DuplicateCheckResult' }
+            examples:
+              duplicate: { summary: Duplicate found, value: { duplicate: true, scope: Supplier+FY, existing: { $ref: '#/components/examples/VendorInvoicePosted/value' }, similar: [] } }
+              clean: { summary: No duplicate, value: { duplicate: false, scope: Supplier+FY, similar: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/purchase/vendor-invoices/bulk:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Purchase]
+    summary: Bulk — create a payment proposal / print selected
+    operationId: bulkVendorInvoices
+    x-permission: purchase.payment.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/BulkRequest' }
+          examples:
+            proposal: { summary: Create payment proposal from selected posted invoices, value: { ids: [vinv_00019, vinv_00022, vinv_00023], action: create-payment-proposal } }
+            print: { summary: Print booking copies, value: { ids: [vinv_00019], action: print } }
+    responses:
+      '200':
+        description: Per-id results (+ proposal id when created)
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/BulkResult'
+                - type: object
+                  properties:
+                    batch: { $ref: '../components/schemas/purchase.yaml#/PaymentBatch' }
+            examples:
+              proposal: { summary: Proposal created, value: { requested: 3, succeeded: 3, failed: 0, results: [{ id: vinv_00019, ok: true }, { id: vinv_00022, ok: true }, { id: vinv_00023, ok: true }], batch: { $ref: '#/components/examples/PaymentBatchApproved/value' } } }
+              partialFailure: { $ref: '../components/examples/common.yaml#/BulkPartialFailure' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/purchase/vendor-invoices/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Purchase]
+    summary: Get a vendor invoice
+    operationId: getVendorInvoice
+    x-permission: purchase.invoice.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Expand'
+    responses:
+      '200':
+        description: Vendor invoice
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/VendorInvoice' }
+            examples:
+              posted: { $ref: '../components/examples/purchase.yaml#/VendorInvoicePosted' }
+              exception: { $ref: '../components/examples/purchase.yaml#/VendorInvoiceException' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Purchase]
+    summary: Edit a Draft vendor invoice
+    operationId: updateVendorInvoice
+    x-permission: purchase.invoice.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/purchase.yaml#/VendorInvoicePatch' }
+          examples:
+            header: { summary: Supplier invoice details, value: { expectedVersion: 1, supplierInvoiceNumber: BS-7781A, supplierInvoiceDate: '2026-09-12', dueDate: '2026-10-27' } }
+            lines: { summary: Correct a rate, value: { expectedVersion: 1, lines: [{ id: ln_v1, poLineId: ln_po_1, grnId: grn_00077, grnLineId: ln_g1, itemId: item_stl4, qty: 2950, rate: 48.5, taxRateId: tax_gst18 }] } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/VendorInvoice' }
+            examples:
+              updated: { $ref: '../components/examples/purchase.yaml#/VendorInvoicePosted' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Purchase]
+    summary: Delete a Draft vendor invoice
+    operationId: deleteVendorInvoice
+    x-permission: purchase.invoice.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/purchase/vendor-invoices/{id}/submit:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Submit — runs 2/3/4-way matching
+    description: |
+      Runs matching per `matchingMode` and tolerances (price, qty, tax, charges, missing GRN):
+      - all within tolerance / not required → `matchStatus: Matched|Not Required`, invoice `Approved` (`outcome: approved`);
+      - variances → `matchStatus: Exception`, invoice `Submitted`, one `MatchException` per variance (`outcome: exception`),
+        optionally an approval request when a `Vendor Invoice` rule matches (`outcome: routed-for-approval`).
+    operationId: submitVendorInvoice
+    x-permission: purchase.invoice.submit
+    x-idempotent: true
+    x-workflow-doc-type: Vendor Invoice
+    x-events: [DocumentSubmitted, PurchaseMatched, DocumentApproved]
+    x-frd: [FR-PUR-032, FR-PUR-033]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Outcome
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/VendorInvoiceSubmitResult' }
+            examples:
+              matched: { summary: outcome = approved (3-way matched), value: { outcome: approved, invoice: { id: vinv_00019, companyId: co_acme, number: VINV/2026-27/00019, docType: Vendor Invoice, date: '2026-09-13', dueDate: '2026-10-28', branchId: br_surat, status: Approved, matchStatus: Matched, matchMode: 3-way, currency: INR, rate: 1, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, supplierInvoiceNumber: BS-7781, supplierInvoiceDate: '2026-09-12', poId: po_00118, poNumber: PO/SRT/0118/26-27, grnIds: [grn_00077], grnNumbers: [GRN/2026-27/00077], lines: [], totals: { subtotal: 141600, discount: 0, taxable: 141600, tax: 25488, components: {}, breakup: [], charges: 0, tds: 2832, roundOff: 0, total: 167088, paid: 0, credited: 0, writtenOff: 0, due: 164256, baseTotal: 167088 }, reverseCharge: false, openExceptions: 0, submittedAt: '2026-09-13T09:12:04Z', createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 }, match: { status: Matched, mode: 3-way, tolerance: '2% / ₹500', exceptions: [], checks: [{ lineId: ln_v1, itemName: Steel Rod 4mm, check: Price, expected: 48, actual: 48, variance: 0, withinTolerance: true }, { lineId: ln_v1, itemName: Steel Rod 4mm, check: Qty, expected: 2950, actual: 2950, variance: 0, withinTolerance: true }, { lineId: ln_v1, itemName: Steel Rod 4mm, check: Tax, expected: 25488, actual: 25488, variance: 0, withinTolerance: true }] }, warnings: [] } }
+              exception: { summary: outcome = exception (price variance 6%), value: { outcome: exception, invoice: { $ref: '#/components/examples/VendorInvoiceException/value' }, match: { status: Exception, mode: 3-way, tolerance: '2% / ₹500', exceptions: [{ $ref: '#/components/examples/MatchExceptionOpen/value' }], checks: [{ lineId: ln_v2, itemName: Carton box L, check: Price, expected: 25, actual: 26.5, variance: 1.5, withinTolerance: false }, { lineId: ln_v2, itemName: Carton box L, check: Qty, expected: 1000, actual: 1000, variance: 0, withinTolerance: true }] }, warnings: ['1 matching exception raised — resolve and approve before posting'] } }
+              notRequired: { summary: outcome = approved (direct expense — matching not required), value: { outcome: approved, invoice: { id: vinv_00024, companyId: co_acme, number: VINV/2026-27/00024, docType: Vendor Invoice, date: '2026-09-13', dueDate: '2026-09-28', branchId: br_ho, status: Approved, matchStatus: Not Required, currency: INR, rate: 1, partyType: Supplier, partyId: sup_transport, partyName: Speedy Transport Co, supplierInvoiceNumber: ST-0912-77, supplierInvoiceDate: '2026-09-12', grnIds: [], grnNumbers: [], lines: [], totals: { subtotal: 18000, discount: 0, taxable: 18000, tax: 900, components: {}, breakup: [], charges: 0, tds: 360, roundOff: 0, total: 18900, paid: 0, credited: 0, writtenOff: 0, due: 18540, baseTotal: 18900 }, tdsSectionId: tds_194c, reverseCharge: false, openExceptions: 0, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 }, match: { status: Not Required, mode: 3-way, exceptions: [], checks: [] }, warnings: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/purchase/vendor-invoices/{id}/matching:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Purchase]
+    summary: Matching detail (PO vs GRN vs invoice, exceptions)
+    operationId: getVendorInvoiceMatching
+    x-permission: purchase.invoice.view
+    responses:
+      '200':
+        description: Match result
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/MatchResult' }
+            examples:
+              exception: { summary: One open exception, value: { status: Exception, mode: 3-way, tolerance: '2% / ₹500', exceptions: [{ $ref: '#/components/examples/MatchExceptionOpen/value' }], checks: [{ lineId: ln_v2, itemName: Carton box L, check: Price, expected: 25, actual: 26.5, variance: 1.5, withinTolerance: false }] } }
+              matched: { summary: Matched, value: { status: Matched, mode: 3-way, tolerance: '2% / ₹500', exceptions: [], checks: [{ lineId: ln_v1, itemName: Steel Rod 4mm, check: Price, expected: 48, actual: 48, variance: 0, withinTolerance: true }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/purchase/vendor-invoices/{id}/post:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Post an Approved vendor invoice (AP, input tax, GRNI clearing, TDS)
+    description: Blocked while exceptions are open (`422 MATCH_EXCEPTION`). Journal Dr expense/inventory-or-GRNI + input tax (or RCM output+input) / Cr AP (+ Cr TDS payable). Creates the AP open item. Idempotent.
+    operationId: postVendorInvoice
+    x-permission: purchase.invoice.post
+    x-idempotent: true
+    x-events: [DocumentPosted, PurchaseInvoiced, JournalPosted]
+    x-frd: [FR-PUR-034]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Posted
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/purchase.yaml#/VendorInvoice' }
+            examples:
+              posted: { summary: "GRNI cleared, AP + TDS", value: { document: { $ref: '#/components/examples/VendorInvoicePosted/value' }, outcome: posted, journal: { id: jnl_vinv_19, companyId: co_acme, number: JV/2026-27/00309, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_surat, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Vendor Invoice, sourceId: vinv_00019, sourceNumber: VINV/2026-27/00019, narration: Vendor invoice BS-7781 · Bharat Steel Industries, lines: [{ id: j1, accountId: acc_2110, accountCode: '2110', accountName: GRNI accrual, dr: 141600, cr: 0, drBase: 141600, crBase: 0, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, dimensions: {} }, { id: j2, accountId: acc_1402, accountCode: '1402', accountName: GST Input IGST, dr: 25488, cr: 0, drBase: 25488, crBase: 0, dimensions: {}, taxComponent: IGST }, { id: j3, accountId: acc_2100, accountCode: '2100', accountName: Accounts Payable, dr: 0, cr: 164256, drBase: 0, crBase: 164256, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, dimensions: {} }, { id: j4, accountId: acc_2310, accountCode: '2310', accountName: TDS payable, dr: 0, cr: 2832, drBase: 0, crBase: 2832, dimensions: {} }], totalDr: 167088, totalCr: 167088, idempotencyKey: 'vinv:vinv_00019:post', postedAt: '2026-09-13T09:30:00Z', postedBy: Rahul Mehta, correlationId: corr_v19, createdAt: '2026-09-13T09:30:00Z', updatedAt: '2026-09-13T09:30:00Z', version: 1 }, openItems: [{ id: oi_ap_19, companyId: co_acme, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, docType: Vendor Invoice, docId: vinv_00019, docNumber: VINV/2026-27/00019, date: '2026-09-13', dueDate: '2026-10-28', currency: INR, originalAmount: 164256, baseAmount: 164256, rate: 1, outstanding: 164256, baseOutstanding: 164256, direction: Debit, status: Open, settlements: [], branchId: br_surat, createdAt: '2026-09-13T09:30:00Z', updatedAt: '2026-09-13T09:30:00Z', version: 1 }], relatedDocuments: [{ collection: purchaseOrders, id: po_00118, number: PO/SRT/0118/26-27, status: Partially Received }, { collection: tdsEntries, id: tds_e_41, number: 194C · BS-7781, status: Deducted }], warnings: [] } }
+              reverseCharge: { summary: Reverse charge — output + input tax lines, value: { document: { id: vinv_00025, companyId: co_acme, number: VINV/2026-27/00025, docType: Vendor Invoice, date: '2026-09-13', dueDate: '2026-09-28', branchId: br_ho, status: Posted, matchStatus: Not Required, currency: INR, rate: 1, partyType: Supplier, partyId: sup_vinod, partyName: Vinod Associates, supplierInvoiceNumber: VA-44, supplierInvoiceDate: '2026-09-11', grnIds: [], grnNumbers: [], lines: [], totals: { subtotal: 25000, discount: 0, taxable: 25000, tax: 4500, components: { CGST: 2250, SGST: 2250 }, breakup: [], charges: 0, tds: 2500, roundOff: 0, total: 25000, paid: 0, credited: 0, writtenOff: 0, due: 22500, baseTotal: 25000 }, tdsSectionId: tds_194j, reverseCharge: true, journalId: jnl_vinv_25, journalNumber: JV/2026-27/00338, openItemId: oi_ap_25, postedAt: '2026-09-13T09:40:00Z', postedBy: Rahul Mehta, openExceptions: 0, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T09:40:00Z', version: 3 }, outcome: posted, journal: { id: jnl_vinv_25, companyId: co_acme, number: JV/2026-27/00338, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Vendor Invoice, sourceId: vinv_00025, sourceNumber: VINV/2026-27/00025, narration: Vendor invoice VA-44 · Vinod Associates (RCM), lines: [{ id: j1, accountId: acc_5530, accountCode: '5530', accountName: Professional fees, dr: 25000, cr: 0, drBase: 25000, crBase: 0, dimensions: {} }, { id: j2, accountId: acc_1400, accountCode: '1400', accountName: GST Input CGST, dr: 2250, cr: 0, drBase: 2250, crBase: 0, dimensions: {}, taxComponent: CGST }, { id: j3, accountId: acc_1401, accountCode: '1401', accountName: GST Input SGST, dr: 2250, cr: 0, drBase: 2250, crBase: 0, dimensions: {}, taxComponent: SGST }, { id: j4, accountId: acc_2300, accountCode: '2300', accountName: GST Output CGST (RCM), dr: 0, cr: 2250, drBase: 0, crBase: 2250, dimensions: {}, taxComponent: CGST }, { id: j5, accountId: acc_2301, accountCode: '2301', accountName: GST Output SGST (RCM), dr: 0, cr: 2250, drBase: 0, crBase: 2250, dimensions: {}, taxComponent: SGST }, { id: j6, accountId: acc_2100, accountCode: '2100', accountName: Accounts Payable, dr: 0, cr: 22500, drBase: 0, crBase: 22500, partyType: Supplier, partyId: sup_vinod, partyName: Vinod Associates, dimensions: {} }, { id: j7, accountId: acc_2310, accountCode: '2310', accountName: TDS payable, dr: 0, cr: 2500, drBase: 0, crBase: 2500, dimensions: {} }], totalDr: 29500, totalCr: 29500, postedAt: '2026-09-13T09:40:00Z', postedBy: Rahul Mehta, correlationId: corr_v25, createdAt: '2026-09-13T09:40:00Z', updatedAt: '2026-09-13T09:40:00Z', version: 1 }, warnings: ['Reverse charge: ₹4,500 GST payable in cash (not by ITC)'] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Open exceptions or accounting rules
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              openExceptions: { summary: Exceptions unresolved, value: { code: MATCH_EXCEPTION, message: 1 matching exception is still open — resolve and approve it first, details: { exceptionIds: [mex_1] }, correlationId: corr_9f1c2e7a } }
+              dimensionRequired: { summary: Expense account needs a dimension, value: { code: DIMENSION_REQUIRED, message: Professional fees (5530) requires a Department dimension, field: 'lines[0].dimensions.Department', correlationId: corr_9f1c2e7a } }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/purchase/vendor-invoices/{id}/reverse:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Reverse a posted vendor invoice (unpaid)
+    operationId: reverseVendorInvoice
+    x-permission: purchase.invoice.reverse
+    x-idempotent: true
+    x-events: [DocumentReversed, JournalReversed]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { $ref: '../components/examples/common.yaml#/ReasonReverseDated' }
+    responses:
+      '200':
+        description: Reversed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/purchase.yaml#/VendorInvoice' }
+            examples:
+              reversed: { summary: "Reversed; GRNI re-accrued, open item closed", value: { document: { id: vinv_00019, companyId: co_acme, number: VINV/2026-27/00019, docType: Vendor Invoice, date: '2026-09-13', dueDate: '2026-10-28', branchId: br_surat, status: Reversed, matchStatus: Matched, currency: INR, rate: 1, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, supplierInvoiceNumber: BS-7781, supplierInvoiceDate: '2026-09-12', grnIds: [grn_00077], grnNumbers: [GRN/2026-27/00077], lines: [], totals: { subtotal: 141600, discount: 0, taxable: 141600, tax: 25488, components: {}, breakup: [], charges: 0, tds: 2832, roundOff: 0, total: 167088, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 167088 }, reverseCharge: false, reversalReason: Duplicate booking discovered during bank reconciliation, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-15T10:00:00Z', version: 6 }, outcome: reversed, journal: { id: jnl_vinv_19r, companyId: co_acme, number: JV/2026-27/00345, date: '2026-09-15', period: '2026-09', fy: '2026-27', branchId: br_surat, currency: INR, rate: 1, status: Posted, type: Reversal, sourceType: Vendor Invoice, sourceId: vinv_00019, sourceNumber: VINV/2026-27/00019, narration: Reversal of JV/2026-27/00309, lines: [], totalDr: 167088, totalCr: 167088, reversalOfId: jnl_vinv_19, postedAt: '2026-09-15T10:00:00Z', postedBy: Rahul Mehta, correlationId: corr_9f1c2e7a, createdAt: '2026-09-15T10:00:00Z', updatedAt: '2026-09-15T10:00:00Z', version: 1 }, warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/purchase/vendor-invoices/{id}/cancel:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Cancel a non-posted vendor invoice (closes its exceptions)
+    operationId: cancelVendorInvoice
+    x-permission: purchase.invoice.edit
+    x-events: [DocumentCancelled]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            cancel: { summary: Cancel, value: { reason: Supplier will re-issue the invoice with the PO price } }
+    responses:
+      '200':
+        description: Cancelled
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/VendorInvoice' }
+            examples:
+              cancelled: { summary: Cancelled, value: { id: vinv_00020, companyId: co_acme, number: DRAFT-VINV-20, docType: Vendor Invoice, date: '2026-09-13', branchId: br_ho, status: Cancelled, matchStatus: Exception, currency: INR, rate: 1, partyType: Supplier, partyId: sup_globalpack, partyName: Global Packaging Co, supplierInvoiceNumber: GP-9911, supplierInvoiceDate: '2026-09-12', grnIds: [grn_00079], grnNumbers: [GRN/2026-27/00079], lines: [], totals: { subtotal: 26500, discount: 0, taxable: 26500, tax: 4770, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 31270, paid: 0, credited: 0, writtenOff: 0, due: 31270, baseTotal: 31270 }, reverseCharge: false, cancelReason: Supplier will re-issue the invoice with the PO price, openExceptions: 0, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 4 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/purchase/vendor-invoices/{id}/debit-notes:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Create a debit note draft against this invoice
+    operationId: createDebitNoteFromInvoice
+    x-permission: purchase.invoice.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [reasonCode, lines], properties: { reasonCode: { type: string }, goodsReturn: { type: boolean }, returnWarehouseId: { type: string }, lines: { type: array, items: { $ref: '../components/schemas/document.yaml#/DocLineInput' } } } }
+          examples:
+            priceDiff: { summary: Price difference (no goods), value: { reasonCode: DN-PRICE, lines: [{ sourceLineId: ln_v2, itemId: item_box, qty: 1000, rate: 1.5, taxRateId: tax_gst18 }] } }
+    responses:
+      '201':
+        description: Draft debit note
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/DebitNote' }
+            examples:
+              draft: { summary: Draft, value: { id: dn_00009, companyId: co_acme, number: DRAFT-DN-9, docType: Debit Note, date: '2026-09-13', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: Supplier, partyId: sup_globalpack, partyName: Global Packaging Co, invoiceId: vinv_00020, invoiceNumber: VINV/2026-27/00020, reasonCode: DN-PRICE, goodsReturn: false, lines: [], totals: { subtotal: 1500, discount: 0, taxable: 1500, tax: 270, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 1770, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 1770 }, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+# ── matching exceptions ───────────────────────────────────────────────────
+
+/purchase/exceptions:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Purchase]
+    summary: Matching exceptions workbench
+    description: "Tabs → Open · Unassigned (`assigned=false`) · Assigned to me (`assignedToId=me`) · Resolved · Approved · All. Query examples — `?type=Price variance` · `?invoiceId=vinv_00020`."
+    operationId: listMatchExceptions
+    x-permission: purchase.invoice.view
+    x-frd: [FR-PUR-033]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: status, in: query, schema: { type: string }, style: form, explode: false, example: 'Open,Assigned' }
+      - { name: type, in: query, schema: { $ref: '../components/schemas/purchase.yaml#/ExceptionType' } }
+      - { name: assigned, in: query, schema: { type: boolean } }
+      - { name: assignedToId, in: query, schema: { type: string }, description: Use `me` for the caller. }
+      - { name: invoiceId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/SupplierId'
+    responses:
+      '200':
+        description: Exceptions
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/purchase.yaml#/MatchException' } }
+            examples:
+              firstPage: { summary: Open exceptions, value: { data: [{ $ref: '#/components/examples/MatchExceptionOpen/value' }], meta: { nextCursor: null, limit: 25, total: 1, counts: { Open: 1, Unassigned: 1, 'Assigned to me': 0, Resolved: 0, Approved: 12, All: 13 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/purchase/exceptions/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Purchase]
+    summary: Get an exception (side-by-side PO / GRN / invoice values)
+    operationId: getMatchException
+    x-permission: purchase.invoice.view
+    responses:
+      '200':
+        description: Exception
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/MatchException' }
+            examples:
+              open: { $ref: '../components/examples/purchase.yaml#/MatchExceptionOpen' }
+              approved: { summary: Resolved and approved, value: { id: mex_1, companyId: co_acme, invoiceId: vinv_00020, invoiceNumber: VINV/2026-27/00020, supplierId: sup_globalpack, supplierName: Global Packaging Co, poId: po_00120, poNumber: PO/2026-27/00120, grnId: grn_00079, grnNumber: GRN/2026-27/00079, lineId: ln_v2, itemName: Carton box L, type: Price variance, poValue: 25, invoiceValue: 26.5, variance: 1.5, variancePct: 6, tolerance: '2% / ₹500', status: Approved, assignedToId: usr_meena, assignedToName: Meena Joshi, resolution: Accept invoice value, resolutionReason: Supplier price list revised 1 Sep — accepted by purchase manager, resolvedBy: Meena Joshi, resolvedAt: '2026-09-13T10:00:00Z', approvedBy: Rahul Mehta, approvedAt: '2026-09-13T10:30:00Z', raisedAt: '2026-09-13T09:12:04Z', createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T10:30:00Z', version: 4 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/purchase/exceptions/{id}/assign:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Assign the exception to a user (Open → Assigned)
+    operationId: assignMatchException
+    x-permission: purchase.invoice.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [userId], properties: { userId: { type: string, example: usr_meena } } }
+          examples:
+            assign: { summary: Assign, value: { userId: usr_meena } }
+    responses:
+      '200':
+        description: Assigned
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/MatchException' }
+            examples:
+              assigned: { summary: Assigned, value: { id: mex_1, companyId: co_acme, invoiceId: vinv_00020, invoiceNumber: DRAFT-VINV-20, supplierName: Global Packaging Co, type: Price variance, poValue: 25, invoiceValue: 26.5, variance: 1.5, variancePct: 6, tolerance: '2% / ₹500', status: Assigned, assignedToId: usr_meena, assignedToName: Meena Joshi, raisedAt: '2026-09-13T09:12:04Z', createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:20:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/purchase/exceptions/{id}/resolve:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Resolve (Accept invoice value / Adjust to PO / Request debit note)
+    description: '`Adjust to PO` rewrites the invoice line to the PO rate/qty; `Request debit note` creates a draft debit note for the variance. Reason ≥ 10 characters.'
+    operationId: resolveMatchException
+    x-permission: purchase.invoice.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/purchase.yaml#/ExceptionResolveRequest' }
+          examples:
+            accept: { summary: Accept invoice value, value: { resolution: Accept invoice value, reason: Supplier price list revised 1 Sep — accepted by purchase manager } }
+            adjust: { summary: Adjust to PO, value: { resolution: Adjust to PO, reason: Supplier agreed to honour PO rate; revised invoice to follow } }
+            debitNote: { summary: Request debit note, value: { resolution: Request debit note, reason: Short delivery of 20 boxes confirmed by stores } }
+    responses:
+      '200':
+        description: Resolved (awaiting approval)
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [exception]
+              properties:
+                exception: { $ref: '../components/schemas/purchase.yaml#/MatchException' }
+                invoice: { $ref: '../components/schemas/purchase.yaml#/VendorInvoice' }
+                debitNote: { $ref: '../components/schemas/purchase.yaml#/DebitNote' }
+            examples:
+              accepted: { summary: Accepted invoice value, value: { exception: { id: mex_1, companyId: co_acme, invoiceId: vinv_00020, invoiceNumber: DRAFT-VINV-20, supplierName: Global Packaging Co, type: Price variance, poValue: 25, invoiceValue: 26.5, variance: 1.5, variancePct: 6, tolerance: '2% / ₹500', status: Resolved, assignedToId: usr_meena, assignedToName: Meena Joshi, resolution: Accept invoice value, resolutionReason: Supplier price list revised 1 Sep — accepted by purchase manager, resolvedBy: Meena Joshi, resolvedAt: '2026-09-13T10:00:00Z', raisedAt: '2026-09-13T09:12:04Z', createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T10:00:00Z', version: 3 } } }
+              debitNote: { summary: Debit note drafted, value: { exception: { id: mex_2, companyId: co_acme, invoiceId: vinv_00021, invoiceNumber: DRAFT-VINV-21, supplierName: Shree Packaging, type: Qty variance, grnValue: 980, invoiceValue: 1000, variance: 20, variancePct: 2, tolerance: '2% / ₹500', status: Resolved, resolution: Request debit note, resolutionReason: Short delivery of 20 boxes confirmed by stores, resolvedBy: Meena Joshi, resolvedAt: '2026-09-13T10:05:00Z', raisedAt: '2026-09-13T09:30:00Z', createdAt: '2026-09-13T09:30:00Z', updatedAt: '2026-09-13T10:05:00Z', version: 3 }, debitNote: { id: dn_00010, companyId: co_acme, number: DRAFT-DN-10, docType: Debit Note, date: '2026-09-13', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: Supplier, partyId: sup_shree, partyName: Shree Packaging, invoiceId: vinv_00021, reasonCode: DN-SHORT, goodsReturn: false, lines: [], totals: { subtotal: 500, discount: 0, taxable: 500, tax: 90, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 590, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 590 }, createdAt: '2026-09-13T10:05:00Z', updatedAt: '2026-09-13T10:05:00Z', version: 1 } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/purchase/exceptions/{id}/approve:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Approve a resolved exception (not by the resolver)
+    description: When all exceptions of the invoice are approved the invoice becomes `Approved` / `Matched`.
+    operationId: approveMatchException
+    x-permission: purchase.invoice.approve
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [comment], properties: { comment: { type: string, minLength: 3 } } }
+          examples:
+            approve: { summary: Approve, value: { comment: Variance justified by supplier notice } }
+    responses:
+      '200':
+        description: Approved
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [exception, invoice]
+              properties:
+                exception: { $ref: '../components/schemas/purchase.yaml#/MatchException' }
+                invoice: { $ref: '../components/schemas/purchase.yaml#/VendorInvoice' }
+            examples:
+              approved: { summary: Invoice now Approved, value: { exception: { id: mex_1, companyId: co_acme, invoiceId: vinv_00020, invoiceNumber: VINV/2026-27/00020, supplierName: Global Packaging Co, type: Price variance, poValue: 25, invoiceValue: 26.5, variance: 1.5, variancePct: 6, tolerance: '2% / ₹500', status: Approved, resolution: Accept invoice value, resolvedBy: Meena Joshi, approvedBy: Rahul Mehta, approvedAt: '2026-09-13T10:30:00Z', raisedAt: '2026-09-13T09:12:04Z', createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T10:30:00Z', version: 4 }, invoice: { id: vinv_00020, companyId: co_acme, number: VINV/2026-27/00020, docType: Vendor Invoice, date: '2026-09-13', dueDate: '2026-10-13', branchId: br_ho, status: Approved, matchStatus: Matched, matchMode: 3-way, currency: INR, rate: 1, partyType: Supplier, partyId: sup_globalpack, partyName: Global Packaging Co, supplierInvoiceNumber: GP-9911, supplierInvoiceDate: '2026-09-12', grnIds: [grn_00079], grnNumbers: [GRN/2026-27/00079], lines: [], totals: { subtotal: 26500, discount: 0, taxable: 26500, tax: 4770, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 31270, paid: 0, credited: 0, writtenOff: 0, due: 31270, baseTotal: 31270 }, reverseCharge: false, openExceptions: 0, createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T10:30:00Z', version: 5 } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403':
+        description: Self-approval or permission
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              selfApproval: { summary: Resolver cannot approve, value: { code: SELF_APPROVAL, message: The user who resolved an exception cannot approve it, correlationId: corr_9f1c2e7a } }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── debit notes & purchase returns ────────────────────────────────────────
+
+/purchase/debit-notes:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Purchase]
+    summary: List debit notes
+    description: Tabs → All · Draft · Posted · Goods returns (`goodsReturn=true`) · Reversed.
+    operationId: listDebitNotes
+    x-permission: purchase.invoice.view
+    x-frd: [FR-PUR-040]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: goodsReturn, in: query, schema: { type: boolean } }
+      - $ref: '../components/parameters.yaml#/PartyId'
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Debit notes
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/purchase.yaml#/DebitNote' } }
+            examples:
+              firstPage: { summary: Debit notes, value: { data: [{ id: dn_00008, companyId: co_acme, number: DN/2026-27/00008, docType: Debit Note, date: '2026-09-12', branchId: br_surat, status: Posted, currency: INR, rate: 1, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, grnId: grn_00077, grnNumber: GRN/2026-27/00077, reasonCode: REJ-QC, goodsReturn: true, returnWarehouseId: wh_main, purchaseReturnId: pret_0004, purchaseReturnNumber: PRN/2026-27/00004, settledAgainstInvoice: false, openItemId: oi_dn_8, lines: [], totals: { subtotal: 2400, discount: 0, taxable: 2400, tax: 432, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 2832, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 2832 }, createdAt: '2026-09-12T12:00:00Z', updatedAt: '2026-09-12T12:05:00Z', version: 3 }], meta: { nextCursor: null, limit: 25, total: 1, counts: { All: 9, Draft: 1, Posted: 7, 'Goods returns': 4, Reversed: 1 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Purchase]
+    summary: Create a debit note (against invoice or GRN)
+    operationId: createDebitNote
+    x-permission: purchase.invoice.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/purchase.yaml#/DebitNoteCreate' }
+          examples:
+            grnRejection: { summary: Return rejected GRN quantity, value: { partyId: sup_bharatsteel, date: '2026-09-12', grnId: grn_00077, reasonCode: REJ-QC, goodsReturn: true, returnWarehouseId: wh_main, lines: [{ sourceLineId: ln_g1, itemId: item_stl4, qty: 50, rate: 48, taxRateId: tax_gst18 }] } }
+            invoicePrice: { summary: Price difference against a posted invoice, value: { partyId: sup_globalpack, date: '2026-09-13', invoiceId: vinv_00020, reasonCode: DN-PRICE, goodsReturn: false, lines: [{ sourceLineId: ln_v2, itemId: item_box, qty: 1000, rate: 1.5, taxRateId: tax_gst18 }] } }
+    responses:
+      '201':
+        description: Draft debit note
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/DebitNote' }
+            examples:
+              draft: { summary: Draft, value: { id: dn_00008, companyId: co_acme, number: DRAFT-DN-8, docType: Debit Note, date: '2026-09-12', branchId: br_surat, status: Draft, currency: INR, rate: 1, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, grnId: grn_00077, grnNumber: GRN/2026-27/00077, reasonCode: REJ-QC, goodsReturn: true, returnWarehouseId: wh_main, lines: [], totals: { subtotal: 2400, discount: 0, taxable: 2400, tax: 432, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 2832, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 2832 }, createdAt: '2026-09-12T12:00:00Z', updatedAt: '2026-09-12T12:00:00Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/purchase/debit-notes/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Purchase]
+    summary: Get a debit note
+    operationId: getDebitNote
+    x-permission: purchase.invoice.view
+    responses:
+      '200':
+        description: Debit note
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/DebitNote' }
+            examples:
+              posted: { summary: Posted with purchase return, value: { id: dn_00008, companyId: co_acme, number: DN/2026-27/00008, docType: Debit Note, date: '2026-09-12', branchId: br_surat, status: Posted, currency: INR, rate: 1, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, grnId: grn_00077, grnNumber: GRN/2026-27/00077, reasonCode: REJ-QC, goodsReturn: true, returnWarehouseId: wh_main, purchaseReturnId: pret_0004, purchaseReturnNumber: PRN/2026-27/00004, settledAgainstInvoice: false, openItemId: oi_dn_8, lines: [{ id: ln_dn1, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, hsn: '7214', qty: 50, uom: KG, rate: 48, discountPct: 0, discountAmt: 0, taxable: 2400, taxRateId: tax_gst18, taxRate: 18, taxAmt: 432, taxComponents: { IGST: 432 }, amount: 2832, warehouseId: wh_main, sourceLineId: ln_g1, sourceDocId: grn_00077 }], totals: { subtotal: 2400, discount: 0, taxable: 2400, tax: 432, components: { IGST: 432 }, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 2832, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 2832 }, journalId: jnl_dn_8, journalNumber: JV/2026-27/00307, postedAt: '2026-09-12T12:05:00Z', postedBy: Rahul Mehta, createdAt: '2026-09-12T12:00:00Z', updatedAt: '2026-09-12T12:05:00Z', version: 3 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  delete:
+    tags: [Purchase]
+    summary: Delete a Draft debit note
+    operationId: deleteDebitNote
+    x-permission: purchase.invoice.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/purchase/debit-notes/{id}/post:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Post a debit note (settle invoice or create supplier credit; goods return stock-out)
+    operationId: postDebitNote
+    x-permission: purchase.invoice.post
+    x-idempotent: true
+    x-events: [DocumentPosted, JournalPosted, StockMoved]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Posted
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/purchase.yaml#/DebitNote' }
+            examples:
+              goodsReturn: { summary: Purchase return + stock out + supplier credit, value: { document: { id: dn_00008, companyId: co_acme, number: DN/2026-27/00008, docType: Debit Note, date: '2026-09-12', branchId: br_surat, status: Posted, currency: INR, rate: 1, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, grnId: grn_00077, grnNumber: GRN/2026-27/00077, reasonCode: REJ-QC, goodsReturn: true, returnWarehouseId: wh_main, purchaseReturnId: pret_0004, purchaseReturnNumber: PRN/2026-27/00004, settledAgainstInvoice: false, openItemId: oi_dn_8, lines: [], totals: { subtotal: 2400, discount: 0, taxable: 2400, tax: 432, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 2832, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 2832 }, journalId: jnl_dn_8, journalNumber: JV/2026-27/00307, postedAt: '2026-09-12T12:05:00Z', postedBy: Rahul Mehta, createdAt: '2026-09-12T12:00:00Z', updatedAt: '2026-09-12T12:05:00Z', version: 3 }, outcome: posted, journal: { id: jnl_dn_8, companyId: co_acme, number: JV/2026-27/00307, date: '2026-09-12', period: '2026-09', fy: '2026-27', branchId: br_surat, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Debit Note, sourceId: dn_00008, sourceNumber: DN/2026-27/00008, narration: Debit note DN/2026-27/00008 · Bharat Steel Industries, lines: [{ id: j1, accountId: acc_2100, accountCode: '2100', accountName: Accounts Payable, dr: 2832, cr: 0, drBase: 2832, crBase: 0, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, dimensions: {} }, { id: j2, accountId: acc_1210, accountCode: '1210', accountName: Inventory — Raw Material, dr: 0, cr: 2400, drBase: 0, crBase: 2400, dimensions: {} }, { id: j3, accountId: acc_1402, accountCode: '1402', accountName: GST Input IGST, dr: 0, cr: 432, drBase: 0, crBase: 432, dimensions: {}, taxComponent: IGST }], totalDr: 2832, totalCr: 2832, postedAt: '2026-09-12T12:05:00Z', postedBy: Rahul Mehta, correlationId: corr_dn8, createdAt: '2026-09-12T12:05:00Z', updatedAt: '2026-09-12T12:05:00Z', version: 1 }, stockMovements: [{ id: sm_60, companyId: co_acme, date: '2026-09-12', itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, warehouseId: wh_main, qty: -50, uom: KG, baseQty: -50, batch: B-2609-11, rate: 48, value: -2400, type: Purchase Return, sourceType: Purchase Return, sourceId: pret_0004, sourceNumber: PRN/2026-27/00004, balanceAfter: 4140, createdAt: '2026-09-12T12:05:00Z', updatedAt: '2026-09-12T12:05:00Z', version: 1 }], openItems: [{ id: oi_dn_8, companyId: co_acme, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, docType: Debit Note, docId: dn_00008, docNumber: DN/2026-27/00008, date: '2026-09-12', dueDate: '2026-09-12', currency: INR, originalAmount: 2832, baseAmount: 2832, rate: 1, outstanding: 2832, baseOutstanding: 2832, direction: Credit, status: Open, settlements: [], branchId: br_surat, createdAt: '2026-09-12T12:05:00Z', updatedAt: '2026-09-12T12:05:00Z', version: 1 }], relatedDocuments: [{ collection: purchaseReturns, id: pret_0004, number: PRN/2026-27/00004, status: Posted }], warnings: [] } }
+              settledAgainstInvoice: { summary: Applied to the invoice open item, value: { document: { id: dn_00009, companyId: co_acme, number: DN/2026-27/00009, docType: Debit Note, date: '2026-09-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: Supplier, partyId: sup_globalpack, partyName: Global Packaging Co, invoiceId: vinv_00020, invoiceNumber: VINV/2026-27/00020, reasonCode: DN-PRICE, goodsReturn: false, settledAgainstInvoice: true, lines: [], totals: { subtotal: 1500, discount: 0, taxable: 1500, tax: 270, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 1770, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 1770 }, journalId: jnl_dn_9, journalNumber: JV/2026-27/00341, postedAt: '2026-09-13T11:00:00Z', postedBy: Rahul Mehta, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T11:00:00Z', version: 3 }, outcome: posted, openItems: [{ id: oi_ap_20, companyId: co_acme, partyType: Supplier, partyId: sup_globalpack, partyName: Global Packaging Co, docType: Vendor Invoice, docId: vinv_00020, docNumber: VINV/2026-27/00020, date: '2026-09-13', dueDate: '2026-10-13', currency: INR, originalAmount: 31270, baseAmount: 31270, rate: 1, outstanding: 29500, baseOutstanding: 29500, direction: Debit, status: Partially Settled, settlements: [{ id: st_dn9, date: '2026-09-13', docType: Debit Note, docId: dn_00009, docNumber: DN/2026-27/00009, amount: 1770, baseAmount: 1770, rate: 1, fxGainLoss: 0 }], branchId: br_ho, createdAt: '2026-09-13T10:40:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 2 }], warnings: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/purchase/debit-notes/{id}/reverse:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Reverse a posted debit note (and its purchase return)
+    operationId: reverseDebitNote
+    x-permission: purchase.invoice.reverse
+    x-idempotent: true
+    x-events: [DocumentReversed, JournalReversed, StockReversed]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Supplier replaced the rejected material instead of crediting } }
+    responses:
+      '200':
+        description: Reversed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/purchase.yaml#/DebitNote' }
+            examples:
+              reversed: { summary: Reversed, value: { document: { id: dn_00008, companyId: co_acme, number: DN/2026-27/00008, docType: Debit Note, date: '2026-09-12', branchId: br_surat, status: Reversed, currency: INR, rate: 1, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, reasonCode: REJ-QC, goodsReturn: true, reversalReason: Supplier replaced the rejected material instead of crediting, lines: [], totals: { subtotal: 2400, discount: 0, taxable: 2400, tax: 432, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 2832, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 2832 }, createdAt: '2026-09-12T12:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 4 }, outcome: reversed, relatedDocuments: [{ collection: purchaseReturns, id: pret_0004, number: PRN/2026-27/00004, status: Reversed }], warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/purchase/returns:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Purchase]
+    summary: List purchase returns
+    operationId: listPurchaseReturns
+    x-permission: purchase.invoice.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/PartyId'
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Returns
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/purchase.yaml#/PurchaseReturn' } }
+            examples:
+              firstPage: { summary: Returns, value: { data: [{ id: pret_0004, companyId: co_acme, number: PRN/2026-27/00004, docType: Purchase Return, date: '2026-09-12', branchId: br_surat, status: Posted, currency: INR, rate: 1, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, debitNoteId: dn_00008, debitNoteNumber: DN/2026-27/00008, grnId: grn_00077, grnNumber: GRN/2026-27/00077, warehouseId: wh_main, lines: [], totals: { subtotal: 2400, discount: 0, taxable: 2400, tax: 432, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 2832, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 2832 }, createdAt: '2026-09-12T12:05:00Z', updatedAt: '2026-09-12T12:05:00Z', version: 1 }], meta: { nextCursor: null, limit: 25, total: 1 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+# ── payments ──────────────────────────────────────────────────────────────
+
+/purchase/payments:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Purchase]
+    summary: List supplier payments
+    description: Tabs → All · Draft · Completed · Reversed/failed. Query examples — `?method=NEFT` · `?partyId=sup_bharatsteel` · `?batchId=pb_00012`.
+    operationId: listPayments
+    x-permission: purchase.payment.view
+    x-frd: [FR-PMT-001]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: method, in: query, schema: { type: string }, style: form, explode: false }
+      - { name: batchId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/PartyId'
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Payments
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/purchase.yaml#/Payment' } }
+            examples:
+              firstPage: { summary: Payments, value: { data: [{ $ref: '#/components/examples/PaymentCompleted/value' }], meta: { nextCursor: null, limit: 25, total: 1, counts: { All: 61, Draft: 1, Completed: 57, 'Reversed/failed': 3 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Purchase]
+    summary: Create a supplier payment (Draft)
+    description: Allocations target the supplier's open Debit items; TDS per allocation defaults from the section (`Payment`/`Earlier` basis). Without allocations `grossAmount` is paid as an advance. Supplier bank account must be Approved.
+    operationId: createPayment
+    x-permission: purchase.payment.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/purchase.yaml#/PaymentCreate' }
+          examples:
+            single: { summary: Pay one invoice by NEFT, value: { partyId: sup_bharatsteel, date: '2026-09-13', method: NEFT, bankAccountId: acc_1310, utr: N246509999, allocations: [{ openItemId: oi_ap_19, amount: 164256 }] } }
+            multiWithTds: { summary: Two invoices with TDS at payment, value: { partyId: sup_transport, date: '2026-09-13', method: RTGS, bankAccountId: acc_1310, tdsSectionId: tds_194c, allocations: [{ openItemId: oi_ap_22, amount: 18900, tds: 360 }, { openItemId: oi_ap_23, amount: 19100, tds: 400 }] } }
+            advance: { summary: Advance to supplier (no allocations), value: { partyId: sup_shenzhen, date: '2026-09-13', currency: USD, rate: 83.42, method: RTGS, bankAccountId: acc_1340, grossAmount: 1050, chargesAmount: 15, chargesAccountId: acc_5400, notes: 30% advance on PO/2026-27/00125 } }
+            cheque: { summary: Cheque with instrument date, value: { partyId: sup_vinod, date: '2026-09-13', method: Cheque, bankAccountId: acc_1310, utr: '004601', instrumentDate: '2026-09-15', allocations: [{ openItemId: oi_ap_25, amount: 22500 }] } }
+    responses:
+      '201':
+        description: Draft payment
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/Payment' }
+            examples:
+              draft: { summary: Draft, value: { id: pay_00061, companyId: co_acme, number: DRAFT-PAY-61, docType: Payment, date: '2026-09-13', branchId: br_ho, status: Draft, currency: INR, rate: 1, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, method: NEFT, bankAccountId: acc_1310, bankAccountName: HDFC Bank — Current, utr: N246509999, allocations: [{ id: pa_1, openItemId: oi_ap_19, docType: Vendor Invoice, docId: vinv_00019, docNumber: VINV/2026-27/00019, outstanding: 164256, amount: 164256, tds: 0 }], tdsAmount: 0, chargesAmount: 0, grossAmount: 164256, netAmount: 164256, unappliedAmount: 0, lines: [], totals: { subtotal: 164256, discount: 0, taxable: 164256, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 164256, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 164256 }, createdAt: '2026-09-13T13:50:00Z', updatedAt: '2026-09-13T13:50:00Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422':
+        description: Allocation / bank rules
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              overAllocation: { summary: Exceeds outstanding, value: { code: OVER_ALLOCATION, message: 'VINV/2026-27/00019: allocation 200000.00 exceeds outstanding 164256.00', field: 'allocations[0].amount', correlationId: corr_9f1c2e7a } }
+              bankPending: { summary: Supplier bank details not approved, value: { code: PENDING_APPROVAL, message: Supplier bank account XXXXXXXX9901 is awaiting approval — payments cannot use it, correlationId: corr_9f1c2e7a } }
+
+/purchase/payments/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Purchase]
+    summary: Get a payment
+    operationId: getPayment
+    x-permission: purchase.payment.view
+    responses:
+      '200':
+        description: Payment
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/Payment' }
+            examples:
+              completed: { $ref: '../components/examples/purchase.yaml#/PaymentCompleted' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Purchase]
+    summary: Edit a Draft payment
+    operationId: updatePayment
+    x-permission: purchase.payment.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/purchase.yaml#/PaymentPatch' }
+          examples:
+            utr: { summary: Add UTR, value: { expectedVersion: 1, utr: N246509999 } }
+            reallocate: { summary: Change allocations, value: { expectedVersion: 1, allocations: [{ openItemId: oi_ap_19, amount: 100000 }] } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/Payment' }
+            examples:
+              updated: { $ref: '../components/examples/purchase.yaml#/PaymentCompleted' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+  delete:
+    tags: [Purchase]
+    summary: Delete a Draft payment
+    operationId: deletePayment
+    x-permission: purchase.payment.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/purchase/payments/{id}/post:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Post a payment (bank journal, settle AP, TDS, advance, FX)
+    description: Individual payments above the `Payment` workflow threshold go `Pending Approval`; otherwise posted immediately as Completed. Publishes `PaymentCompleted`.
+    operationId: postPayment
+    x-permission: purchase.payment.post
+    x-idempotent: true
+    x-workflow-doc-type: Payment
+    x-events: [DocumentPosted, PaymentCompleted, JournalPosted]
+    x-frd: [FR-PMT-002]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Outcome
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/purchase.yaml#/Payment' }
+            examples:
+              completed: { summary: outcome = completed, value: { document: { $ref: '#/components/examples/PaymentCompleted/value' }, outcome: completed, journal: { id: jnl_pay_61, companyId: co_acme, number: JV/2026-27/00340, date: '2026-09-13', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Payment, sourceId: pay_00061, sourceNumber: PAY/2026-27/00061, narration: Payment PAY/2026-27/00061 · Bharat Steel Industries, lines: [{ id: j1, accountId: acc_2100, accountCode: '2100', accountName: Accounts Payable, dr: 164256, cr: 0, drBase: 164256, crBase: 0, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, dimensions: {} }, { id: j2, accountId: acc_1310, accountCode: '1310', accountName: HDFC Bank — Current, dr: 0, cr: 164256, drBase: 0, crBase: 164256, dimensions: {} }], totalDr: 164256, totalCr: 164256, postedAt: '2026-09-13T14:00:00Z', postedBy: Anita Rao, correlationId: corr_p61, createdAt: '2026-09-13T14:00:00Z', updatedAt: '2026-09-13T14:00:00Z', version: 1 }, openItems: [{ id: oi_ap_19, companyId: co_acme, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, docType: Vendor Invoice, docId: vinv_00019, docNumber: VINV/2026-27/00019, date: '2026-09-13', dueDate: '2026-10-28', currency: INR, originalAmount: 164256, baseAmount: 164256, rate: 1, outstanding: 0, baseOutstanding: 0, direction: Debit, status: Settled, settlements: [{ id: st_p61, date: '2026-09-13', docType: Payment, docId: pay_00061, docNumber: PAY/2026-27/00061, amount: 164256, baseAmount: 164256, rate: 1, fxGainLoss: 0 }], branchId: br_surat, createdAt: '2026-09-13T09:30:00Z', updatedAt: '2026-09-13T14:00:00Z', version: 2 }], warnings: [] } }
+              pendingApproval: { summary: outcome = routed-for-approval (above threshold), value: { document: { id: pay_00062, companyId: co_acme, number: DRAFT-PAY-62, docType: Payment, date: '2026-09-13', branchId: br_ho, status: Pending Approval, currency: INR, rate: 1, partyType: Supplier, partyId: sup_national, partyName: National Metals, method: RTGS, bankAccountId: acc_1310, bankAccountName: HDFC Bank — Current, allocations: [], tdsAmount: 0, chargesAmount: 0, grossAmount: 1200000, netAmount: 1200000, unappliedAmount: 1200000, lines: [], totals: { subtotal: 1200000, discount: 0, taxable: 1200000, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 1200000, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 1200000 }, approvalId: apr_pay_62, createdAt: '2026-09-13T13:00:00Z', updatedAt: '2026-09-13T14:05:00Z', version: 2 }, outcome: routed-for-approval, approval: { id: apr_pay_62, companyId: co_acme, docType: Payment, collection: payments, docId: pay_00062, docNumber: DRAFT-PAY-62, amount: 1200000, currency: INR, branchId: br_ho, requesterId: usr_anita, requesterName: Anita Rao, steps: [{ order: 1, name: Treasury approval, approverType: Role, approverRef: role_treasury, approverLabel: Treasury, status: Pending, commentRequired: true }], currentStep: 0, status: Pending, submittedAt: '2026-09-13T14:05:00Z', history: [], createdAt: '2026-09-13T14:05:00Z', updatedAt: '2026-09-13T14:05:00Z', version: 1 }, warnings: [] } }
+              advanceUsdWithCharges: { summary: "USD advance — Credit open item, charges expensed", value: { document: { id: pay_00063, companyId: co_acme, number: PAY/2026-27/00063, docType: Payment, date: '2026-09-13', branchId: br_ho, status: Completed, currency: USD, rate: 83.42, partyType: Supplier, partyId: sup_shenzhen, partyName: Shenzhen Electro Ltd, method: RTGS, bankAccountId: acc_1340, bankAccountName: HDFC EEFC USD, allocations: [], tdsAmount: 0, chargesAmount: 15, chargesAccountId: acc_5400, grossAmount: 1050, netAmount: 1065, unappliedAmount: 1050, advanceOpenItemId: oi_adv_sz1, lines: [], totals: { subtotal: 1050, discount: 0, taxable: 1050, tax: 0, components: {}, breakup: [], charges: 15, tds: 0, roundOff: 0, total: 1050, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 87591 }, journalId: jnl_pay_63, journalNumber: JV/2026-27/00342, postedAt: '2026-09-13T14:10:00Z', postedBy: Anita Rao, createdAt: '2026-09-13T14:00:00Z', updatedAt: '2026-09-13T14:10:00Z', version: 2 }, outcome: completed, openItems: [{ id: oi_adv_sz1, companyId: co_acme, partyType: Supplier, partyId: sup_shenzhen, partyName: Shenzhen Electro Ltd, docType: Payment, docId: pay_00063, docNumber: PAY/2026-27/00063, date: '2026-09-13', dueDate: '2026-09-13', currency: USD, originalAmount: 1050, baseAmount: 87591, rate: 83.42, outstanding: 1050, baseOutstanding: 87591, direction: Credit, status: Open, settlements: [], branchId: br_ho, createdAt: '2026-09-13T14:10:00Z', updatedAt: '2026-09-13T14:10:00Z', version: 1 }], warnings: ['USD 1,050 recorded as supplier advance'] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/purchase/payments/{id}/reverse:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Reverse a completed payment
+    description: Blocked when the advance was applied or the payment is matched on a bank statement. Batch line (if any) is marked Failed.
+    operationId: reversePayment
+    x-permission: purchase.payment.reverse
+    x-idempotent: true
+    x-events: [DocumentReversed, PaymentFailed, JournalReversed]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            returned: { summary: NEFT returned by bank, value: { reason: NEFT returned — beneficiary account closed (bank ref R-1189) } }
+    responses:
+      '200':
+        description: Reversed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/purchase.yaml#/Payment' }
+            examples:
+              reversed: { summary: Invoice open again, value: { document: { id: pay_00061, companyId: co_acme, number: PAY/2026-27/00061, docType: Payment, date: '2026-09-13', branchId: br_ho, status: Reversed, currency: INR, rate: 1, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, method: NEFT, bankAccountId: acc_1310, bankAccountName: HDFC Bank — Current, utr: N246509999, allocations: [], tdsAmount: 0, chargesAmount: 0, grossAmount: 164256, netAmount: 164256, unappliedAmount: 0, reversalReason: NEFT returned — beneficiary account closed (bank ref R-1189), lines: [], totals: { subtotal: 164256, discount: 0, taxable: 164256, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 164256, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 164256 }, createdAt: '2026-09-13T13:50:00Z', updatedAt: '2026-09-14T09:00:00Z', version: 4 }, outcome: reversed, openItems: [{ id: oi_ap_19, companyId: co_acme, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, docType: Vendor Invoice, docId: vinv_00019, docNumber: VINV/2026-27/00019, date: '2026-09-13', dueDate: '2026-10-28', currency: INR, originalAmount: 164256, baseAmount: 164256, rate: 1, outstanding: 164256, baseOutstanding: 164256, direction: Debit, status: Open, settlements: [], branchId: br_surat, createdAt: '2026-09-13T09:30:00Z', updatedAt: '2026-09-14T09:00:00Z', version: 3 }], warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/purchase/suppliers/{id}/open-items:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Purchase]
+    summary: Open invoices and credits of a supplier (for allocation)
+    operationId: listSupplierOpenItems
+    x-permission: purchase.payment.view
+    responses:
+      '200':
+        description: Open items
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [invoices, credits]
+              properties:
+                invoices: { type: array, items: { $ref: '../components/schemas/document.yaml#/OpenItem' } }
+                credits: { type: array, items: { $ref: '../components/schemas/document.yaml#/OpenItem' } }
+            examples:
+              open: { summary: "One invoice, one debit-note credit", value: { invoices: [{ id: oi_ap_19, companyId: co_acme, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, docType: Vendor Invoice, docId: vinv_00019, docNumber: VINV/2026-27/00019, date: '2026-09-13', dueDate: '2026-10-28', currency: INR, originalAmount: 164256, baseAmount: 164256, rate: 1, outstanding: 164256, baseOutstanding: 164256, direction: Debit, status: Open, settlements: [], branchId: br_surat, createdAt: '2026-09-13T09:30:00Z', updatedAt: '2026-09-13T09:30:00Z', version: 1 }], credits: [{ id: oi_dn_8, companyId: co_acme, partyType: Supplier, partyId: sup_bharatsteel, partyName: Bharat Steel Industries, docType: Debit Note, docId: dn_00008, docNumber: DN/2026-27/00008, date: '2026-09-12', dueDate: '2026-09-12', currency: INR, originalAmount: 2832, baseAmount: 2832, rate: 1, outstanding: 2832, baseOutstanding: 2832, direction: Credit, status: Open, settlements: [], branchId: br_surat, createdAt: '2026-09-12T12:05:00Z', updatedAt: '2026-09-12T12:05:00Z', version: 1 }] } }
+              none: { summary: Nothing open, value: { invoices: [], credits: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+# ── payment batches (maker-checker) ───────────────────────────────────────
+
+/purchase/batches:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/BranchId'
+  get:
+    tags: [Purchase]
+    summary: List payment batches
+    description: Tabs → All · In progress · Awaiting approval · Completed · Failed/reversed.
+    operationId: listPaymentBatches
+    x-permission: purchase.batch.view
+    x-frd: [FR-PMT-003]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Batches
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/purchase.yaml#/PaymentBatch' } }
+            examples:
+              firstPage: { summary: Batches, value: { data: [{ $ref: '#/components/examples/PaymentBatchApproved/value' }], meta: { nextCursor: null, limit: 25, total: 1, counts: { All: 12, 'In progress': 1, 'Awaiting approval': 0, Completed: 10, 'Failed/reversed': 1 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Purchase]
+    summary: Create a payment proposal (batch) from open items
+    description: Groups the selected open items by supplier into batch lines with TDS computed and the supplier's approved bank details. Suppliers with pending bank approval are rejected (`422`).
+    operationId: createPaymentProposal
+    x-permission: purchase.batch.create
+    x-idempotent: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/purchase.yaml#/PaymentProposalRequest' }
+          examples:
+            dueThisWeek: { summary: Everything due this week, value: { openItemIds: [oi_ap_19, oi_ap_22, oi_ap_23], bankAccountId: acc_1310, method: NEFT, date: '2026-09-15' } }
+            partialAmounts: { summary: Partial amounts per invoice, value: { openItemIds: [oi_ap_19], bankAccountId: acc_1310, method: RTGS, amounts: { oi_ap_19: 100000 }, notes: Part payment as agreed } }
+    responses:
+      '201':
+        description: Batch (Created)
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/PaymentBatch' }
+            examples:
+              created: { summary: Created, value: { id: pb_00012, companyId: co_acme, number: PB/2026-27/00012, docType: Payment Batch, date: '2026-09-15', branchId: br_ho, currency: INR, bankAccountId: acc_1310, bankAccountName: HDFC Bank — Current, method: NEFT, status: Created, lines: [{ id: pbl_1, supplierId: sup_bharatsteel, supplierName: Bharat Steel Industries, openItemIds: [oi_ap_19], docNumbers: [VINV/2026-27/00019], amount: 164256, tds: 0, net: 164256, bankName: HDFC Bank, accountNumber: XXXXXXXX4412, ifsc: HDFC0000240, status: Pending }, { id: pbl_2, supplierId: sup_transport, supplierName: Speedy Transport Co, openItemIds: [oi_ap_22, oi_ap_23], docNumbers: [VINV/2026-27/00022, VINV/2026-27/00023], amount: 38000, tds: 760, net: 37240, bankName: ICICI Bank, accountNumber: XXXXXXXX0091, ifsc: ICIC0000012, status: Pending }], total: 202256, makerId: usr_anita, makerName: Anita Rao, createdAt: '2026-09-13T08:50:00Z', updatedAt: '2026-09-13T08:50:00Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/purchase/batches/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Purchase]
+    summary: Get a batch
+    operationId: getPaymentBatch
+    x-permission: purchase.batch.view
+    responses:
+      '200':
+        description: Batch
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/PaymentBatch' }
+            examples:
+              approved: { $ref: '../components/examples/purchase.yaml#/PaymentBatchApproved' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Purchase]
+    summary: Edit batch lines (Created / Returned)
+    operationId: updatePaymentBatchLines
+    x-permission: purchase.batch.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/purchase.yaml#/PaymentBatchLinesPatch' }
+          examples:
+            partial: { summary: "Reduce one line, remove another", value: { expectedVersion: 1, lines: [{ id: pbl_1, amount: 100000, note: Part payment }, { id: pbl_2, remove: true }] } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/PaymentBatch' }
+            examples:
+              updated: { $ref: '../components/examples/purchase.yaml#/PaymentBatchApproved' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/purchase/batches/{id}/submit:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Submit the batch for checker approval
+    operationId: submitPaymentBatch
+    x-permission: purchase.batch.submit
+    x-idempotent: true
+    x-workflow-doc-type: Payment Batch
+    x-events: [DocumentSubmitted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Submitted
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/purchase.yaml#/PaymentBatch' }
+            examples:
+              submitted: { summary: Routed to Treasury, value: { document: { id: pb_00012, companyId: co_acme, number: PB/2026-27/00012, docType: Payment Batch, date: '2026-09-15', branchId: br_ho, currency: INR, bankAccountId: acc_1310, bankAccountName: HDFC Bank — Current, method: NEFT, status: Submitted, lines: [], total: 202256, makerId: usr_anita, makerName: Anita Rao, approvalId: apr_7e2f, submittedAt: '2026-09-13T09:00:00Z', createdAt: '2026-09-13T08:50:00Z', updatedAt: '2026-09-13T09:00:00Z', version: 2 }, outcome: routed-for-approval, approval: { id: apr_7e2f, companyId: co_acme, docType: Payment Batch, collection: paymentBatches, docId: pb_00012, docNumber: PB/2026-27/00012, amount: 202256, currency: INR, branchId: br_ho, requesterId: usr_anita, requesterName: Anita Rao, ruleId: wf_pay_batch, ruleName: Payment batches (maker-checker), ruleVersion: 1, steps: [{ order: 1, name: Treasury approval, approverType: Role, approverRef: role_treasury, approverLabel: Treasury, status: Pending, commentRequired: true }], currentStep: 0, status: Pending, submittedAt: '2026-09-13T09:00:00Z', history: [], createdAt: '2026-09-13T09:00:00Z', updatedAt: '2026-09-13T09:00:00Z', version: 1 }, warnings: [] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/purchase/batches/{id}/decide:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Checker decision (Approve / Reject / Return) — checker ≠ maker
+    operationId: decidePaymentBatch
+    x-permission: purchase.batch.approve
+    x-events: [PaymentApproved]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/purchase.yaml#/BatchDecision' }
+          examples:
+            approve: { summary: Approve, value: { action: Approve, comment: Verified against AP ageing and bank balance } }
+            return: { summary: Return for edits, value: { action: Return, comment: Remove Speedy Transport — invoice under dispute } }
+            reject: { summary: Reject, value: { action: Reject, comment: Cash position insufficient this week } }
+    responses:
+      '200':
+        description: Decided
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/PaymentBatch' }
+            examples:
+              approved: { $ref: '../components/examples/purchase.yaml#/PaymentBatchApproved' }
+              returned: { summary: Returned, value: { id: pb_00012, companyId: co_acme, number: PB/2026-27/00012, docType: Payment Batch, date: '2026-09-15', branchId: br_ho, currency: INR, bankAccountId: acc_1310, bankAccountName: HDFC Bank — Current, method: NEFT, status: Returned, lines: [], total: 202256, makerId: usr_anita, makerName: Anita Rao, checkerName: Rahul Mehta, notes: Remove Speedy Transport — invoice under dispute, createdAt: '2026-09-13T08:50:00Z', updatedAt: '2026-09-13T10:00:00Z', version: 3 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403':
+        description: Maker cannot check
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              makerChecker: { summary: Same user, value: { code: MAKER_CHECKER, message: The checker must be different from the maker, correlationId: corr_9f1c2e7a } }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/purchase/batches/{id}/bank-file:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Generate the bank upload file (CSV)
+    operationId: generateBatchBankFile
+    x-permission: purchase.batch.post
+    responses:
+      '200':
+        description: File generated (download in body; batch records fileName / fileGeneratedAt)
+        headers:
+          Content-Disposition: { $ref: '../components/headers.yaml#/ContentDisposition' }
+        content:
+          text/csv:
+            schema: { type: string }
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/PaymentBatch' }
+            examples:
+              generated: { summary: Batch with file, value: { id: pb_00012, companyId: co_acme, number: PB/2026-27/00012, docType: Payment Batch, date: '2026-09-15', branchId: br_ho, currency: INR, bankAccountId: acc_1310, bankAccountName: HDFC Bank — Current, method: NEFT, status: Approved, lines: [], total: 202256, makerId: usr_anita, makerName: Anita Rao, checkerName: Rahul Mehta, fileGeneratedAt: '2026-09-13T10:30:00Z', fileName: PB-2026-27-00012-HDFC.csv, createdAt: '2026-09-13T08:50:00Z', updatedAt: '2026-09-13T10:30:00Z', version: 5 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/purchase/batches/{id}/mark-sent:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Mark the file as uploaded to the bank
+    operationId: markBatchSent
+    x-permission: purchase.batch.post
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { type: object, properties: { bankReference: { type: string, example: HDFC-BULK-77812 }, sentAt: { type: string, format: date-time } } }
+          examples:
+            withRef: { summary: With bank upload reference, value: { bankReference: HDFC-BULK-77812 } }
+            plain: { summary: Plain, value: {} }
+    responses:
+      '200':
+        description: Sent to bank
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/PaymentBatch' }
+            examples:
+              sent: { summary: Sent, value: { id: pb_00012, companyId: co_acme, number: PB/2026-27/00012, docType: Payment Batch, date: '2026-09-15', branchId: br_ho, currency: INR, bankAccountId: acc_1310, bankAccountName: HDFC Bank — Current, method: NEFT, status: Sent to bank, lines: [], total: 202256, makerId: usr_anita, makerName: Anita Rao, checkerName: Rahul Mehta, fileName: PB-2026-27-00012-HDFC.csv, sentAt: '2026-09-13T11:00:00Z', createdAt: '2026-09-13T08:50:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 6 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/purchase/batches/{id}/lines/{lineId}/result:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+    - $ref: '../components/parameters.yaml#/LineId'
+  post:
+    tags: [Purchase]
+    summary: Record the bank result for a line (UTR or failure)
+    operationId: setBatchLineResult
+    x-permission: purchase.batch.post
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/purchase.yaml#/BatchLineResult' }
+          examples:
+            accepted: { summary: Accepted with UTR, value: { result: Accepted, ref: N246509999 } }
+            failed: { summary: Failed, value: { result: Failed, ref: R-1189 account closed } }
+    responses:
+      '200':
+        description: Batch with updated line
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/PaymentBatch' }
+            examples:
+              accepted: { summary: Line accepted, value: { id: pb_00012, companyId: co_acme, number: PB/2026-27/00012, docType: Payment Batch, date: '2026-09-15', branchId: br_ho, currency: INR, bankAccountId: acc_1310, bankAccountName: HDFC Bank — Current, method: NEFT, status: Sent to bank, lines: [{ id: pbl_1, supplierId: sup_bharatsteel, supplierName: Bharat Steel Industries, openItemIds: [oi_ap_19], docNumbers: [VINV/2026-27/00019], amount: 164256, tds: 0, net: 164256, status: Accepted, utr: N246509999 }, { id: pbl_2, supplierId: sup_transport, supplierName: Speedy Transport Co, openItemIds: [oi_ap_22, oi_ap_23], docNumbers: [VINV/2026-27/00022, VINV/2026-27/00023], amount: 38000, tds: 760, net: 37240, status: Pending }], total: 202256, makerId: usr_anita, makerName: Anita Rao, checkerName: Rahul Mehta, sentAt: '2026-09-13T11:00:00Z', createdAt: '2026-09-13T08:50:00Z', updatedAt: '2026-09-13T15:00:00Z', version: 7 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/purchase/batches/{id}/complete:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Complete the batch (posts a Payment per accepted line)
+    description: Accepted lines become posted Payments (AP settled, TDS, bank journal); failed lines stay open. Status → Completed or Partially Completed.
+    operationId: completePaymentBatch
+    x-permission: purchase.batch.post
+    x-idempotent: true
+    x-events: [PaymentCompleted, PaymentFailed, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    responses:
+      '200':
+        description: Completed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/purchase.yaml#/PaymentBatch' }
+                    payments: { type: array, items: { $ref: '../components/schemas/purchase.yaml#/Payment' } }
+            examples:
+              completed: { summary: All lines accepted, value: { document: { id: pb_00012, companyId: co_acme, number: PB/2026-27/00012, docType: Payment Batch, date: '2026-09-15', branchId: br_ho, currency: INR, bankAccountId: acc_1310, bankAccountName: HDFC Bank — Current, method: NEFT, status: Completed, lines: [{ id: pbl_1, supplierId: sup_bharatsteel, supplierName: Bharat Steel Industries, openItemIds: [oi_ap_19], docNumbers: [VINV/2026-27/00019], amount: 164256, tds: 0, net: 164256, status: Completed, utr: N246509999, paymentId: pay_00061, paymentNumber: PAY/2026-27/00061 }, { id: pbl_2, supplierId: sup_transport, supplierName: Speedy Transport Co, openItemIds: [oi_ap_22, oi_ap_23], docNumbers: [VINV/2026-27/00022, VINV/2026-27/00023], amount: 38000, tds: 760, net: 37240, status: Completed, utr: N246510001, paymentId: pay_00064, paymentNumber: PAY/2026-27/00064 }], total: 202256, makerId: usr_anita, makerName: Anita Rao, checkerName: Rahul Mehta, completedAt: '2026-09-13T16:00:00Z', createdAt: '2026-09-13T08:50:00Z', updatedAt: '2026-09-13T16:00:00Z', version: 9 }, outcome: completed, payments: [{ $ref: '#/components/examples/PaymentCompleted/value' }], warnings: [] } }
+              partial: { summary: One line failed → Partially Completed, value: { document: { id: pb_00012, companyId: co_acme, number: PB/2026-27/00012, docType: Payment Batch, date: '2026-09-15', branchId: br_ho, currency: INR, bankAccountId: acc_1310, bankAccountName: HDFC Bank — Current, method: NEFT, status: Partially Completed, lines: [{ id: pbl_1, supplierId: sup_bharatsteel, supplierName: Bharat Steel Industries, openItemIds: [oi_ap_19], docNumbers: [VINV/2026-27/00019], amount: 164256, tds: 0, net: 164256, status: Completed, utr: N246509999, paymentId: pay_00061, paymentNumber: PAY/2026-27/00061 }, { id: pbl_2, supplierId: sup_transport, supplierName: Speedy Transport Co, openItemIds: [oi_ap_22, oi_ap_23], docNumbers: [VINV/2026-27/00022, VINV/2026-27/00023], amount: 38000, tds: 760, net: 37240, status: Failed, error: R-1189 account closed }], total: 202256, makerId: usr_anita, makerName: Anita Rao, checkerName: Rahul Mehta, completedAt: '2026-09-13T16:00:00Z', createdAt: '2026-09-13T08:50:00Z', updatedAt: '2026-09-13T16:00:00Z', version: 9 }, outcome: partially-completed, payments: [{ $ref: '#/components/examples/PaymentCompleted/value' }], warnings: ['1 line failed — Speedy Transport Co remains unpaid'] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/purchase/batches/{id}/cancel:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Cancel a batch (before completion)
+    operationId: cancelPaymentBatch
+    x-permission: purchase.batch.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            cancel: { summary: Cancel, value: { reason: Bank upload rejected — file format changed; re-creating } }
+    responses:
+      '200':
+        description: Cancelled
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/PaymentBatch' }
+            examples:
+              cancelled: { summary: Cancelled, value: { id: pb_00013, companyId: co_acme, number: PB/2026-27/00013, docType: Payment Batch, date: '2026-09-15', branchId: br_ho, currency: INR, bankAccountId: acc_1310, bankAccountName: HDFC Bank — Current, method: NEFT, status: Cancelled, lines: [], total: 0, makerId: usr_anita, makerName: Anita Rao, notes: Bank upload rejected — file format changed; re-creating, createdAt: '2026-09-13T12:00:00Z', updatedAt: '2026-09-13T12:30:00Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/purchase/batches/{id}/reverse:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Purchase]
+    summary: Reverse a completed batch (reverses every payment)
+    operationId: reversePaymentBatch
+    x-permission: purchase.batch.reverse
+    x-idempotent: true
+    x-events: [DocumentReversed, PaymentFailed]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Bank processed the file twice — second run reversed } }
+    responses:
+      '200':
+        description: Reversed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/purchase.yaml#/PaymentBatch' }
+            examples:
+              reversed: { summary: Reversed, value: { document: { id: pb_00012, companyId: co_acme, number: PB/2026-27/00012, docType: Payment Batch, date: '2026-09-15', branchId: br_ho, currency: INR, bankAccountId: acc_1310, bankAccountName: HDFC Bank — Current, method: NEFT, status: Reversed, lines: [], total: 202256, makerId: usr_anita, makerName: Anita Rao, checkerName: Rahul Mehta, notes: Bank processed the file twice — second run reversed, createdAt: '2026-09-13T08:50:00Z', updatedAt: '2026-09-14T09:00:00Z', version: 10 }, outcome: reversed, relatedDocuments: [{ collection: payments, id: pay_00061, number: PAY/2026-27/00061, status: Reversed }, { collection: payments, id: pay_00064, number: PAY/2026-27/00064, status: Reversed }], warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+# ── AP reports & settings ─────────────────────────────────────────────────
+
+/purchase/ageing:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Purchase]
+    summary: AP ageing with due KPIs
+    operationId: getApAgeing
+    x-permission: purchase.invoice.view
+    x-frd: [FR-AP-001]
+    parameters:
+      - $ref: '../components/parameters.yaml#/AsAt'
+      - $ref: '../components/parameters.yaml#/SupplierId'
+      - { name: msmeOnly, in: query, schema: { type: boolean } }
+    responses:
+      '200':
+        description: Ageing
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/ApAgeingReport' }
+            examples:
+              withRows: { summary: Two suppliers, value: { asAt: '2026-09-13', kpis: { overdueNow: 12000, dueNext7: 164256, due8to14: 0, due15to30: 22500, advancesHeld: 87591 }, rows: [{ supplierId: sup_bharatsteel, supplier: Bharat Steel Industries, current: 164256, d030: 0, d3160: 0, d6190: 0, d90p: 0, total: 164256, overdue: 0, credits: 2832, isMsme: true }, { supplierId: sup_transport, supplier: Speedy Transport Co, current: 26000, d030: 12000, d3160: 0, d6190: 0, d90p: 0, total: 38000, overdue: 12000, credits: 0, isMsme: false }], totals: { supplierId: all, supplier: Total, current: 190256, d030: 12000, d3160: 0, d6190: 0, d90p: 0, total: 202256, overdue: 12000, credits: 2832 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { summary: Nothing payable, value: { asAt: '2026-09-13', kpis: { overdueNow: 0, dueNext7: 0, due8to14: 0, due15to30: 0, advancesHeld: 0 }, rows: [], totals: { supplierId: all, supplier: Total, current: 0, d030: 0, d3160: 0, d6190: 0, d90p: 0, total: 0, overdue: 0, credits: 0 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/purchase/due-schedule:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Purchase]
+    summary: Payments due by date (cash planning)
+    operationId: getApDueSchedule
+    x-permission: purchase.invoice.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/AsAt'
+      - { name: days, in: query, schema: { type: integer, default: 30 } }
+    responses:
+      '200':
+        description: Schedule
+        content:
+          application/json:
+            schema: { type: object, required: [rows, total], properties: { rows: { type: array, items: { $ref: '../components/schemas/purchase.yaml#/DueScheduleRow' } }, total: { type: number }, byWeek: { type: object, additionalProperties: { type: number } } } }
+            examples:
+              schedule: { summary: Next 30 days, value: { rows: [{ dueDate: '2026-09-04', supplierId: sup_transport, supplier: Speedy Transport Co, docId: vinv_00022, docNumber: VINV/2026-27/00022, outstanding: 12000, daysToDue: -9, isMsme: false }, { dueDate: '2026-10-28', supplierId: sup_bharatsteel, supplier: Bharat Steel Industries, docId: vinv_00019, docNumber: VINV/2026-27/00019, outstanding: 164256, daysToDue: 45, isMsme: true }], total: 176256, byWeek: { '2026-W37': 12000, '2026-W44': 164256 } } }
+              empty: { summary: Nothing due, value: { rows: [], total: 0, byWeek: {} } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/purchase/statements/{supplierId}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - { name: supplierId, in: path, required: true, schema: { type: string }, example: sup_bharatsteel }
+  get:
+    tags: [Purchase]
+    summary: Supplier statement
+    operationId: getSupplierStatement
+    x-permission: purchase.invoice.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/ReportFrom'
+      - $ref: '../components/parameters.yaml#/ReportTo'
+    responses:
+      '200':
+        description: Statement
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [supplier, from, to, currency, opening, closing, rows]
+              properties:
+                supplier: { $ref: '../components/schemas/masters.yaml#/Supplier' }
+                from: { type: string, format: date }
+                to: { type: string, format: date }
+                currency: { type: string }
+                opening: { type: number }
+                closing: { type: number }
+                rows: { type: array, items: { $ref: '../components/schemas/sales.yaml#/StatementRow' } }
+                scope: { $ref: '../components/schemas/common.yaml#/Scope' }
+            examples:
+              statement: { summary: Sep 2026, value: { supplier: { $ref: '#/components/examples/SupplierBharatSteel/value' }, from: '2026-09-01', to: '2026-09-30', currency: INR, opening: 0, closing: 161424, rows: [{ date: '2026-09-12', docType: Debit Note, docId: dn_00008, docNumber: DN/2026-27/00008, debit: 2832, credit: 0, balance: -2832 }, { date: '2026-09-13', docType: Vendor Invoice, docId: vinv_00019, docNumber: VINV/2026-27/00019, reference: BS-7781, dueDate: '2026-10-28', debit: 0, credit: 164256, balance: 161424 }], scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+          application/pdf:
+            schema: { type: string, format: binary }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/purchase/settings:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Purchase]
+    summary: Purchase module settings
+    operationId: getPurchaseSettings
+    x-permission: purchase.invoice.view
+    responses:
+      '200':
+        description: Settings
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/PurchaseSettings' }
+            examples:
+              current: { summary: 3-way matching, value: { matchingMode: 3-way, matchTolerancePct: 2, matchToleranceAmt: 500, overReceiptTolerancePct: 5, blockOnException: true, duplicateInvoiceScope: Supplier+FY, directInvoiceStock: true, grniAccountId: acc_2110 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  put:
+    tags: [Purchase]
+    summary: Update purchase settings
+    operationId: updatePurchaseSettings
+    x-permission: purchase.settings.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/purchase.yaml#/PurchaseSettings' }
+          examples:
+            fourWay: { summary: "4-way matching, tighter tolerance", value: { matchingMode: 4-way, matchTolerancePct: 1, matchToleranceAmt: 250, blockOnException: true } }
+            relaxed: { summary: "2-way, warn only", value: { matchingMode: 2-way, blockOnException: false, duplicateInvoiceScope: Supplier } }
+    responses:
+      '200':
+        description: Saved
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/purchase.yaml#/PurchaseSettings' }
+            examples:
+              saved: { summary: Saved, value: { matchingMode: 4-way, matchTolerancePct: 1, matchToleranceAmt: 250, overReceiptTolerancePct: 5, blockOnException: true, duplicateInvoiceScope: Supplier+FY, directInvoiceStock: true, grniAccountId: acc_2110 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }

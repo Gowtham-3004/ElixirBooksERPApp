@@ -1,0 +1,124 @@
+# Reusable admin / identity / platform payloads (ids follow src/store/seed/core.ts IDS).
+
+UserPriya:
+  summary: Active sales manager
+  value: { id: usr_priya, tenantId: tnt_acme, name: Priya Sharma, email: priya@acme.example, phone: '+91 98200 11223', roleIds: [role_salesmgr], companyIds: [co_acme, co_gulf], branchIds: [], status: Active, mfaEnabled: true, lastLoginAt: '2026-09-13T08:58:00Z', isPlatformAdmin: false, isTenantOwner: false, passwordSet: true, sessions: [{ id: s_1a2b, device: Chrome on Windows, at: '2026-09-13T08:58:00Z', ip: 103.21.58.10, current: true }, { id: s_9z8y, device: Safari on iPhone, at: '2026-09-11T19:20:00Z', ip: 49.36.12.7 }], sodWarnings: [], createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T08:58:00Z', version: 6 }
+
+UserAnilInvited:
+  summary: Invited accountant (not yet accepted)
+  value: { id: usr_anil, tenantId: tnt_acme, name: Anil Kumar, email: anil@acme.example, roleIds: [role_accountant], companyIds: [co_acme], branchIds: [], status: Invited, mfaEnabled: false, isPlatformAdmin: false, isTenantOwner: false, invitedAt: '2026-09-13T09:12:04Z', passwordSet: false, sodWarnings: [], createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+
+UserSuspended:
+  summary: Suspended user
+  value: { id: usr_vikram, tenantId: tnt_acme, name: Vikram Nair, email: vikram@acme.example, roleIds: [role_salesuser], companyIds: [co_acme], branchIds: [br_andheri], status: Suspended, mfaEnabled: false, lastLoginAt: '2026-08-30T10:00:00Z', passwordSet: true, sodWarnings: [], createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-02T11:00:00Z', version: 4 }
+
+RoleSalesMgr:
+  summary: Sales manager (system role)
+  value: { id: role_salesmgr, code: SALES_MGR, name: Sales Manager, description: Full sales cycle incl. posting and credit override, permissions: ['sales.*', 'crm.*', masters.customers.view, masters.customers.create, masters.customers.edit, masters.items.view, reports.sales.view], dataScope: company, isSystem: true, color: '#0ea5e9', userCount: 2, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }
+
+RoleArClerk:
+  summary: Custom AR clerk role
+  value: { id: role_arclerk, companyId: co_acme, code: ROLE_AR_CLERK, name: AR Clerk, description: Creates invoices and receipts; cannot post, permissions: [sales.invoice.view, sales.invoice.create, sales.invoice.edit, sales.receipt.view, sales.receipt.create, masters.customers.view], dataScope: branch, isSystem: false, color: '#f59e0b', userCount: 0, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+
+CompanyAcme:
+  summary: Acme Trading (India, INR)
+  value:
+    id: co_acme
+    tenantId: tnt_acme
+    code: ACME
+    legalName: Acme Trading Pvt Ltd
+    tradeName: Acme Trading
+    country: IN
+    baseCurrency: INR
+    reportingCurrency: USD
+    permittedCurrencies: [INR, USD, AED]
+    timeZone: Asia/Kolkata
+    locale: en-IN
+    language: en
+    fiscalYearStartMonth: 4
+    booksFrom: '2026-04-01'
+    openingBalanceDate: '2026-03-31'
+    nature: Trading
+    profiles: [Trading]
+    profileHistory: []
+    pan: AAPCA1234F
+    cin: U51909MH2015PTC262001
+    businessType: Private Limited
+    address: { line1: 14 Marine Drive, line2: Nariman Point, city: Mumbai, state: Maharashtra, stateCode: '27', pin: '400021', country: IN }
+    phone: '+91 22 4000 1234'
+    email: accounts@acme.example
+    website: 'https://acme.example'
+    logoText: A
+    brandColor: '#325CFF'
+    localizationPack: IN
+    localizationVersion: '1.4'
+    registrations:
+      - { id: reg_gst_mh, type: GSTIN, number: 27AAPCA1234F1Z5, state: Maharashtra, stateCode: '27', branchId: br_ho, status: Active, isSez: false }
+      - { id: reg_gst_gj, type: GSTIN, number: 24AAPCA1234F1Z1, state: Gujarat, stateCode: '24', branchId: br_surat, status: Active, isSez: false }
+    defaults: { warehouseId: wh_main, salesAccountId: acc_4000, purchaseAccountId: acc_5010, receivableAccountId: acc_1100, payableAccountId: acc_2100, bankAccountId: acc_1310, cashAccountId: acc_1300, roundOffAccountId: acc_4900, fxGainAccountId: acc_4910, fxLossAccountId: acc_5600, taxRateId: tax_gst18, paymentTerms: Net 30, priceListId: pl_wholesale, templateId: tpl_taxinv_v3, allowNegativeStock: false, valuationMethod: AVCO, matchingMode: 3-way, matchTolerancePct: 2, matchToleranceAmt: 500, creditPolicy: Warn, directInvoiceStock: true, negativeStockPolicy: Block, transitWarehouseId: wh_transit }
+    status: Active
+    onboarding: { nature: Done, legal: Done, address: Done, currency: Done, periods: Done, users: Done, masters: Done, opening: Done, bank: Done, numbering: Done, einvoice: Done }
+    baseCurrencyLocked: true
+    createdAt: '2026-04-01T09:00:00Z'
+    updatedAt: '2026-09-01T10:00:00Z'
+    version: 9
+
+CompanyGulf:
+  summary: Acme Gulf (UAE, AED) — second entity
+  value: { id: co_gulf, tenantId: tnt_acme, code: GULF, legalName: Acme Gulf Trading LLC, tradeName: Acme Gulf, country: AE, baseCurrency: AED, permittedCurrencies: [AED, USD, INR], timeZone: Asia/Dubai, locale: en-US, language: en, fiscalYearStartMonth: 1, booksFrom: '2026-01-01', openingBalanceDate: '2025-12-31', nature: Trading, profiles: [Trading], profileHistory: [], businessType: LLC, address: { line1: Office 1204 Latifa Tower, city: Dubai, state: Dubai, country: AE }, localizationPack: AE, localizationVersion: '1.0', registrations: [{ id: reg_trn_ae, type: TRN, number: '100234567800003', status: Active }], defaults: { allowNegativeStock: false, valuationMethod: AVCO, matchingMode: 3-way, matchTolerancePct: 2, matchToleranceAmt: 100, creditPolicy: Warn, directInvoiceStock: true }, status: Active, onboarding: { nature: Done, legal: Done, address: Done, currency: Done, periods: Done, users: Pending, masters: Pending, opening: Pending, bank: Pending, numbering: Done, einvoice: Done }, baseCurrencyLocked: false, createdAt: '2026-06-01T09:00:00Z', updatedAt: '2026-06-01T09:00:00Z', version: 2 }
+
+BranchHO:
+  summary: Head office (default)
+  value: { id: br_ho, companyId: co_acme, code: BR-001, name: Head Office, type: Office, address: { line1: 14 Marine Drive, city: Mumbai, state: Maharashtra, stateCode: '27', pin: '400021', country: IN }, registrationId: reg_gst_mh, gstin: 27AAPCA1234F1Z5, defaultWarehouseId: wh_main, status: Active, isDefault: true, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }
+
+BranchAndheri:
+  summary: Retail store branch
+  value: { id: br_andheri, companyId: co_acme, code: BR-002, name: Andheri Store, type: Store, address: { line1: Shop 4 Link Road, city: Mumbai, state: Maharashtra, stateCode: '27', pin: '400053', country: IN }, registrationId: reg_gst_mh, defaultWarehouseId: wh_andheri, status: Active, isDefault: false, createdAt: '2026-04-10T09:00:00Z', updatedAt: '2026-04-10T09:00:00Z', version: 1 }
+
+PeriodSepOpen:
+  summary: Current open period
+  value: { id: per_acme_2026-09, companyId: co_acme, fy: '2026-27', code: '2026-09', label: Sep 2026, start: '2026-09-01', end: '2026-09-30', status: Open, history: [{ at: '2026-09-01T00:00:00Z', by: system, action: Opened }], createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-01T00:00:00Z', version: 2 }
+
+PeriodAugLocked:
+  summary: Locked prior period
+  value: { id: per_acme_2026-08, companyId: co_acme, fy: '2026-27', code: '2026-08', label: Aug 2026, start: '2026-08-01', end: '2026-08-31', status: Locked, lockedAt: '2026-09-05T11:30:00Z', lockedBy: Rahul Mehta, history: [{ at: '2026-08-01T00:00:00Z', by: system, action: Opened }, { at: '2026-09-03T10:00:00Z', by: Rahul Mehta, action: Soft closed }, { at: '2026-09-05T11:30:00Z', by: Rahul Mehta, action: Locked, reason: Month-end close complete }], createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-05T11:30:00Z', version: 4 }
+
+NumberSeriesInvoice:
+  summary: Sales invoice series (company-wide, FY reset)
+  value: { id: ns_inv_2627, companyId: co_acme, docType: Sales Invoice, fy: '2026-27', prefix: INV/2026-27/, suffix: '', padding: 5, next: 43, resetRule: FY, allocation: On post, status: Active, voids: [{ number: INV/2026-27/00040, reason: Number was consumed by a cancelled draft during migration, at: '2026-09-10T12:00:00Z', by: Rahul Mehta }], preview: INV/2026-27/00043, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 44 }
+
+WorkflowRuleSI:
+  summary: Sales invoices above ₹1 lakh → Finance review
+  value: { id: wf_si_100k, companyId: co_acme, code: WF-SI-100K, name: Sales invoices above ₹1 lakh, docType: Sales Invoice, conditions: [{ field: amount, op: '>=', value: 100000 }], steps: [{ order: 1, name: Finance review, mode: Sequential, approverType: Role, approverRef: role_finadmin, approverLabel: Finance Admin, commentRequired: false, slaHours: 24, canDelegate: true }], ruleVersion: 2, status: Active, escalation: { afterHours: 48, toRole: role_owner, notify: true }, reminders: { afterHours: 24 }, materialChangeFields: [lines, totals.total, partyId], allowSelfApproval: false, priority: 10, versions: [{ ruleVersion: 1, at: '2026-04-01T09:00:00Z', by: Rahul Mehta, conditions: [{ field: amount, op: '>=', value: 50000 }], steps: [{ order: 1, name: Finance review, mode: Sequential, approverType: Role, approverRef: role_finadmin, approverLabel: Finance Admin, commentRequired: false, slaHours: 48, canDelegate: true }], note: Initial }], createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-07-01T09:00:00Z', version: 3 }
+
+TemplateTaxInvoice:
+  summary: Default tax invoice template
+  value: { id: tpl_taxinv_v3, companyId: co_acme, code: TPL-TAXINV, name: Tax invoice (standard), docType: Sales Invoice, templateVersion: 3, header: '{{company.legalName}} · GSTIN {{company.gstin}}', declaration: We declare that this invoice shows the actual price of the goods described., footer: Subject to Mumbai jurisdiction, showBankDetails: true, showSignatory: true, variables: ['{{company.legalName}}', '{{company.gstin}}', '{{doc.number}}', '{{doc.date}}', '{{party.name}}', '{{totals.total}}'], status: Active, isDefault: true, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-08-01T09:00:00Z', version: 3 }
+
+ApiKeyWms:
+  summary: Active integration key
+  value: { id: key_wms, companyId: co_acme, name: Warehouse WMS sync, prefix: ebk_live_7a2f, keyMasked: 'ebk_live_7a2f••••••••••••••••', scopes: [inventory.stock.view, purchase.order.view], status: Active, lastUsedAt: '2026-09-13T08:00:00Z', expiresAt: '2027-03-31', createdAt: '2026-06-01T09:00:00Z', updatedAt: '2026-09-13T08:00:00Z', version: 2 }
+
+WebhookWms:
+  summary: WMS webhook
+  value: { id: wh_wms, companyId: co_acme, url: 'https://wms.example.com/hooks/elixir', description: Push stock movements and PO status to WMS, events: [StockMoved, PurchaseReceived, DocumentPosted], secretMasked: 'whsec_••••••3f9a', status: Active, lastDeliveryAt: '2026-09-13T09:00:12Z', lastStatus: Success, failures: 0, createdAt: '2026-06-01T09:00:00Z', updatedAt: '2026-09-13T09:00:12Z', version: 5 }
+
+ProviderCredentialIrp:
+  summary: IRP credential (Maharashtra GSTIN)
+  value: { id: cred_irp_mh, companyId: co_acme, provider: IRP, registrationId: reg_gst_mh, label: NIC IRP — Maharashtra, username: acme_mh_api, secretMasked: '••••••••7f2a', rotatedAt: '2026-08-01T09:00:00Z', expiresAt: '2027-01-31', status: Active, accessLog: [{ at: '2026-09-13T09:12:04Z', by: system, action: Used for GenerateIRN INV/2026-27/00042 }], createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-08-01T09:00:00Z', version: 3 }
+
+PlanGrowth:
+  summary: Growth plan v3
+  value: { id: plan_std, code: GROWTH, name: Growth, tier: Growth, planVersion: 3, status: Active, modules: [home, approvals, crm, sales, purchase, inventory, pos, projects, accounting, banking, taxation, payroll, fixed-assets, budgets, reports, masters, admin], limits: { users: 25, companies: 3, invoicesPerMonth: 5000, storageMb: 20480 }, priceMonthly: 4999, currency: INR, tenantCount: 41, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-07-01T00:00:00Z', version: 3 }
+
+PlanLite:
+  summary: Lite plan
+  value: { id: plan_lite, code: LITE, name: Lite, tier: Lite, planVersion: 2, status: Active, modules: [home, approvals, sales, purchase, accounting, banking, taxation, reports, masters, admin], limits: { users: 5, companies: 1, invoicesPerMonth: 500, storageMb: 2048 }, priceMonthly: 999, currency: INR, tenantCount: 12, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', version: 2 }
+
+TenantAcme:
+  summary: Active tenant on Growth
+  value: { id: tnt_acme, name: Acme Group, planId: plan_std, planCode: GROWTH, subscriptionState: Active, renewsAt: '2026-10-01', ownerUserId: usr_rahul, ownerName: Rahul Mehta, usage: { users: 7, companies: 2, invoicesPerMonth: 412, storageMb: 1830 }, limits: { users: 25, companies: 3, invoicesPerMonth: 5000, storageMb: 20480 }, country: IN, mrr: 4999, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-01T00:00:00Z', version: 5 }
+
+TenantTrial:
+  summary: New trial tenant
+  value: { id: tnt_zen, name: Zen Foods, planId: plan_std, planCode: GROWTH, subscriptionState: Trial, trialEndsAt: '2026-09-27', ownerUserId: usr_zen_owner, ownerName: Meera Iyer, usage: { users: 1, companies: 1, invoicesPerMonth: 0, storageMb: 0 }, limits: { users: 25, companies: 3, invoicesPerMonth: 5000, storageMb: 20480 }, country: IN, mrr: 0, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }

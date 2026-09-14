@@ -1,0 +1,25 @@
+# Banking shared examples
+
+BankAccountHdfc:
+  summary: HDFC current account
+  value: { id: acc_1310, companyId: co_acme, code: '1310', name: HDFC Bank — CA 0042, kind: Bank, bankName: HDFC Bank, accountNumberMasked: '••••0042', ifsc: HDFC0000123, branch: Andheri East, currency: INR, status: Active, openingBalance: 1250000, bookBalance: 2318450, clearedBalance: 2023450, unclearedCount: 1, lastReconciliation: { id: brs_08, number: BRS/2026-27/08, periodTo: '2026-08-31', difference: 0 }, lastStatementTo: '2026-09-05', createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:00:00Z', version: 2 }
+
+BankVoucherPosted:
+  summary: Payment voucher, Posted
+  value: { id: bv_0038, companyId: co_acme, number: BV/2026-27/00038, docType: Bank Voucher, date: '2026-09-13', branchId: br_ho, status: Posted, currency: INR, rate: 1, partyType: None, voucherType: Payment, bankAccountId: acc_1310, bankAccountName: HDFC Bank — CA 0042, counterAccountId: acc_5300, counterAccountName: Bank charges, amount: 1180, method: Internal, narration: Bank charges September, statementLineId: sl_2, lines: [], totals: { subtotal: 0, discount: 0, taxable: 0, tax: 0, components: {}, breakup: [], charges: 0, tds: 0, roundOff: 0, total: 1180, paid: 0, credited: 0, writtenOff: 0, due: 0, baseTotal: 1180 }, journalId: jnl_bv_38, journalNumber: JV/2026-27/00403, postedAt: '2026-09-13T10:00:00Z', postedBy: Priya Sharma, clearedOn: '2026-09-05', createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T10:00:00Z', version: 3 }
+
+BankStatementSep:
+  summary: September statement, imported
+  value: { id: stm_0006, companyId: co_acme, bankAccountId: acc_1310, bankAccountName: HDFC Bank — CA 0042, fileName: hdfc_sep.csv, fingerprint: fp_file_44aa, periodFrom: '2026-09-02', periodTo: '2026-09-05', currency: INR, openingBalance: 2200450, closingBalance: 2317270, lineCount: 2, totalDebit: 1180, totalCredit: 118000, status: Imported, importedBy: Priya Sharma, importedAt: '2026-09-13T09:12:04Z', format: { name: HDFC NetBanking CSV, dateCol: Date, descCol: Narration, refCol: Chq./Ref.No., debitCol: Withdrawal Amt., creditCol: Deposit Amt., balanceCol: Closing Balance, dateFormat: DD/MM/YYYY }, matched: 0, unmatched: 2, excluded: 0, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+
+StatementLineMatched:
+  summary: Line matched to a receipt
+  value: { id: sl_1, companyId: co_acme, statementId: stm_0006, bankAccountId: acc_1310, date: '2026-09-02', description: NEFT CR ARLENE TRADERS INV 00042, reference: N260902001122, debit: 0, credit: 118000, balance: 2318450, fingerprint: fp_9a1b2c3d, status: Matched, matchedJournalIds: [jnl_298], matchedDocNumber: RCP/2026-27/00215, matchGroupId: mg_31, matchedAt: '2026-09-13T10:30:00Z', matchedBy: Priya Sharma, matchConfidence: 0.92, matchReason: 'Amount equal · 0 days apart · reference match "00042"', createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T10:30:00Z', version: 2 }
+
+StatementLineUnmatched:
+  summary: Bank charge, unmatched
+  value: { id: sl_2, companyId: co_acme, statementId: stm_0006, bankAccountId: acc_1310, date: '2026-09-05', description: CHRG SMS ALERT, reference: '', debit: 1180, credit: 0, balance: 2317270, fingerprint: fp_11aa22bb, status: Unmatched, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+
+ReconciliationConfirmed:
+  summary: September BRS, Confirmed
+  value: { id: brs_09, companyId: co_acme, number: BRS/2026-27/09, bankAccountId: acc_1310, bankAccountName: HDFC Bank — CA 0042, periodFrom: '2026-09-01', periodTo: '2026-09-30', statementId: stm_0006, statementBalance: 2317270, bookBalance: 2022270, clearedCount: 40, clearedAmount: 116820, unmatchedStatement: [], unmatchedBook: [{ journalId: jnl_405, number: PAY/2026-27/00131, date: '2026-09-30', amount: -295000, narration: Payment PAY/2026-27/00131 — Bharat Steel }], adjustments: [{ voucherId: bv_0038, number: BV/2026-27/00038, amount: -1180, narration: Bank charges September }], difference: 295000, status: Confirmed, confirmedBy: Priya Sharma, confirmedAt: '2026-10-02T10:00:00Z', notes: One payment in transit, createdAt: '2026-10-02T10:00:00Z', updatedAt: '2026-10-02T10:00:00Z', version: 1 }

@@ -1,0 +1,65 @@
+# Reusable examples shared across modules. Reference as '../components/examples/common.yaml#/Name'.
+
+EmptyList:
+  summary: No rows match
+  value:
+    data: []
+    meta: { nextCursor: null, limit: 25, total: 0, sort: 'date:desc', counts: {} }
+    scope: { companyId: co_acme, companyName: Acme Trading Pvt Ltd, branchId: br_ho, period: '2026-09', fy: '2026-27', currency: INR, asOf: '2026-09-13T09:12:04Z', masked: false }
+
+BulkAllSucceeded:
+  summary: Every id processed
+  value:
+    requested: 2
+    succeeded: 2
+    failed: 0
+    results:
+      - { id: cust_vimal, ok: true, status: Inactive }
+      - { id: cust_kiran, ok: true, status: Inactive }
+
+BulkPartialFailure:
+  summary: Some ids failed — inspect results
+  value:
+    requested: 3
+    succeeded: 2
+    failed: 1
+    results:
+      - { id: inv_01j8k3, ok: true, status: Submitted }
+      - { id: inv_01j8k7, ok: true, status: Posted }
+      - { id: inv_01j8k9, ok: false, code: INVALID_STATE, message: 'Only Draft invoices can be submitted (current: Cancelled)' }
+
+ReasonReverse:
+  summary: Reversal reason
+  value: { reason: Customer returned the full consignment on 12 Sep (RMA-118), reasonCodeId: rc_return_damaged }
+
+ReasonReverseDated:
+  summary: Reversal on a specific open-period date
+  value: { reason: Duplicate booking discovered during bank reconciliation, date: '2026-09-15' }
+
+ReasonCancel:
+  summary: Cancellation reason
+  value: { reason: Raised against the wrong customer account — re-issued as INV/2026-27/00044 }
+
+EmailDefault:
+  summary: Send to the party default billing contact
+  value: { to: [accounts@arlenetraders.in], subject: Tax invoice INV/2026-27/00042 from Acme Trading, message: Please find attached our invoice. Payment is due by 13 Oct 2026. }
+
+EmailWithCc:
+  summary: Extra recipients and a specific template
+  value: { to: [accounts@arlenetraders.in, arlene@arlenetraders.in], cc: [sales@acme.example], subject: Revised quotation QT/2026-27/00031, message: Revised as discussed — validity extended to 30 Sep., templateId: tpl_quote_v2 }
+
+EmailResult:
+  summary: Queued at the e-mail gateway
+  value: { integrationLogId: ilog_email_88a1, status: Queued, notificationId: ntf_2f8d, to: [accounts@arlenetraders.in], sentAt: '2026-09-13T09:12:04Z' }
+
+AttachmentClean:
+  summary: Scanned and clean
+  value: { id: att_3c9e, companyId: co_acme, objectType: Sales Invoice, objectId: inv_01j8k3, name: PO-ARL-2291.pdf, size: 184320, mime: application/pdf, scanState: Clean, statutory: false, uploadedBy: Priya Sharma, at: '2026-09-13T09:12:04Z', fileVersion: 1, downloadUrl: /v1/attachments/att_3c9e/content, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:09Z', version: 2 }
+
+AttachmentScanning:
+  summary: Just uploaded — still scanning
+  value: { id: att_3c9f, companyId: co_acme, objectType: Sales Invoice, objectId: inv_01j8k3, name: delivery-proof.jpg, size: 921600, mime: image/jpeg, scanState: Scanning, statutory: false, uploadedBy: Priya Sharma, at: '2026-09-13T09:12:04Z', fileVersion: 1, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+
+AttachmentStatutory:
+  summary: System-generated signed e-invoice PDF (read-only)
+  value: { id: att_irn_0042, companyId: co_acme, objectType: Sales Invoice, objectId: inv_01j8k3, name: INV-2026-27-00042-signed.pdf, size: 240113, mime: application/pdf, scanState: Clean, statutory: true, uploadedBy: system, at: '2026-09-13T09:20:00Z', fileVersion: 1, downloadUrl: /v1/attachments/att_irn_0042/content, createdAt: '2026-09-13T09:20:00Z', updatedAt: '2026-09-13T09:20:00Z', version: 1 }

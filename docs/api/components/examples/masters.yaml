@@ -1,0 +1,144 @@
+# Master data payloads (ids from src/store/seed/core.ts).
+
+CustomerArlene:
+  summary: B2B registered customer with credit limit
+  value:
+    id: cust_arlene
+    companyId: co_acme
+    code: C-0101
+    name: Arlene Traders
+    displayName: Arlene
+    group: Distributors
+    gstin: 27AAPFU0939F1ZV
+    pan: AAPFU0939F
+    taxTreatment: Registered
+    addresses:
+      - { id: adr_1, purpose: Both, label: Head office, isDefault: true, address: { line1: 21 Lamington Road, city: Mumbai, state: Maharashtra, stateCode: '27', pin: '400007', country: IN } }
+    contacts:
+      - { id: ct_1, name: Arlene D'Souza, email: accounts@arlenetraders.in, phone: '+91 98200 12345', designation: Proprietor, isDefault: true, purpose: Billing }
+    currency: INR
+    paymentTerms: Net 30
+    creditLimit: 500000
+    creditPolicy: Inherit
+    priceListId: pl_wholesale
+    salespersonId: sp_vikram
+    receivableAccountId: acc_1100
+    email: accounts@arlenetraders.in
+    phone: '+91 22 2380 1234'
+    status: Active
+    outstanding: 168000
+    overdue: 50000
+    unappliedCredits: 0
+    exposure: 245000
+    referenceCount: 14
+    createdAt: '2026-04-01T09:00:00Z'
+    updatedAt: '2026-09-12T11:00:00Z'
+    version: 4
+
+CustomerWalkin:
+  summary: B2C walk-in (unregistered, minimal)
+  value: { id: cust_walkin, companyId: co_acme, code: C-0199, name: Walk-in customer, taxTreatment: Unregistered, addresses: [], contacts: [], currency: INR, paymentTerms: Immediate, creditLimit: 0, creditPolicy: Block, status: Active, outstanding: 0, overdue: 0, unappliedCredits: 0, exposure: 0, referenceCount: 231, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }
+
+CustomerUsTech:
+  summary: Overseas customer in USD
+  value: { id: cust_ustech, companyId: co_acme, code: C-0150, name: US Tech Imports LLC, taxTreatment: Overseas, addresses: [{ id: adr_9, purpose: Both, isDefault: true, address: { line1: 500 Market St, city: San Francisco, state: CA, pin: '94105', country: US } }], contacts: [{ id: ct_9, name: Dana Whitfield, email: ap@ustech.example, isDefault: true }], currency: USD, paymentTerms: Net 45, creditLimit: 25000, creditPolicy: Warn, priceListId: pl_usd, status: Active, outstanding: 12000, overdue: 0, unappliedCredits: 0, exposure: 12000, referenceCount: 6, createdAt: '2026-05-01T09:00:00Z', updatedAt: '2026-05-01T09:00:00Z', version: 1 }
+
+CustomerBlocked:
+  summary: Blocked for new business
+  value: { id: cust_kiran, companyId: co_acme, code: C-0120, name: Kiran Enterprises, gstin: 27AABCK1234D1Z7, taxTreatment: Registered, addresses: [], contacts: [], currency: INR, paymentTerms: Net 30, creditLimit: 200000, creditPolicy: Block, status: Blocked, outstanding: 310000, overdue: 310000, unappliedCredits: 0, exposure: 310000, referenceCount: 9, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-02T11:00:00Z', version: 3 }
+
+SupplierBharatSteel:
+  summary: Registered supplier with approved bank details and TDS 194C
+  value:
+    id: sup_bharatsteel
+    companyId: co_acme
+    code: S-0201
+    name: Bharat Steel Industries
+    group: Raw material
+    gstin: 27AABCB1234C1Z2
+    pan: AABCB1234C
+    taxTreatment: Registered
+    addresses: [{ id: adr_s1, purpose: Both, isDefault: true, address: { line1: Plot 44 Taloja MIDC, city: Navi Mumbai, state: Maharashtra, stateCode: '27', pin: '410208', country: IN } }]
+    contacts: [{ id: ct_s1, name: Mahesh Gupta, email: sales@bharatsteel.example, phone: '+91 98210 55667', isDefault: true }]
+    currency: INR
+    purchaseTerms: Net 45
+    payableAccountId: acc_2100
+    bankDetails: [{ id: bk_1, bankName: HDFC Bank, accountNumber: XXXXXXXX4412, ifsc: HDFC0000240, accountName: Bharat Steel Industries, status: Approved, approvedBy: Rahul Mehta, approvedAt: '2026-04-05T10:00:00Z' }]
+    tdsSectionId: tds_194c
+    msmeNumber: UDYAM-MH-18-0012345
+    status: Active
+    payable: 412000
+    overdue: 0
+    isMsme: true
+    referenceCount: 22
+    createdAt: '2026-04-01T09:00:00Z'
+    updatedAt: '2026-08-20T09:00:00Z'
+    version: 5
+
+SupplierBankPending:
+  summary: New bank detail awaiting approval
+  value: { id: bk_2, bankName: ICICI Bank, accountNumber: XXXXXXXX9901, ifsc: ICIC0000012, accountName: Bharat Steel Industries, status: Pending Approval }
+
+ItemSteelRod:
+  summary: Stock item (Raw Material, batch tracked)
+  value: { id: item_stl4, companyId: co_acme, code: STL-4, name: Steel Rod 4mm, description: TMT 4mm 12 m lengths, type: Raw Material, group: Steel, baseUom: KG, altUoms: [{ uom: TON, factor: 1000 }], hsn: '7214', taxRateId: tax_gst18, salesAccountId: acc_4000, purchaseAccountId: acc_5010, inventoryAccountId: acc_1210, tracking: Batch, reorderLevel: 200, reorderQty: 500, safetyStock: 100, leadTimeDays: 7, salesPrice: 62, purchasePrice: 48, standardCost: 50, status: Active, isStock: true, barcode: '8901234567890', preferredSupplierId: sup_bharatsteel, onHand: 1240, available: 1160, avgRate: 49.8, belowReorder: false, referenceCount: 61, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-08-01T09:00:00Z', version: 3 }
+
+ItemConsulting:
+  summary: Service item (non-stock)
+  value: { id: item_consult, companyId: co_acme, code: SVC-CONSULT, name: Consulting (per hour), type: Service, group: Services, baseUom: HR, altUoms: [], hsn: '998311', taxRateId: tax_gst18, salesAccountId: acc_4010, tracking: None, reorderLevel: 0, reorderQty: 0, safetyStock: 0, leadTimeDays: 0, salesPrice: 2500, purchasePrice: 0, status: Active, isStock: false, onHand: 0, available: 0, avgRate: 0, belowReorder: false, referenceCount: 8, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }
+
+WarehouseMain:
+  summary: Main warehouse
+  value: { id: wh_main, companyId: co_acme, code: WH-MAIN, name: Main Warehouse, branchId: br_ho, bins: [A-01, A-02, B-01, B-02], type: Standard, address: { line1: Plot 12 MIDC, city: Navi Mumbai, state: Maharashtra, stateCode: '27', pin: '400710', country: IN }, status: Active, skuCount: 14, stockValue: 1842000, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }
+
+PriceListWholesale:
+  summary: Default sales price list
+  value: { id: pl_wholesale, companyId: co_acme, code: PL-WHOLESALE, name: Wholesale INR, type: Sales, currency: INR, taxInclusive: false, validFrom: '2026-04-01', scope: All, priority: 10, status: Active, isDefault: true, entryCount: 42, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }
+
+PriceListEntrySteel:
+  summary: Tiered entry
+  value: { id: ple_1, companyId: co_acme, priceListId: pl_wholesale, itemId: item_stl4, itemCode: STL-4, itemName: Steel Rod 4mm, uom: KG, minQty: 100, rate: 58, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }
+
+AccountAR:
+  summary: AR control account
+  value: { id: acc_1100, companyId: co_acme, code: '1100', name: Accounts Receivable, groupId: grp_ca, groupName: Current assets, type: Asset, subType: Receivable, normalBalance: Dr, isControl: true, controlType: AR, postingAllowed: true, currencyBehaviour: Any, requiredDimensions: [], prohibitedDimensions: [], openingBalance: 640000, status: Active, balance: 1264000, hasPostings: true, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }
+
+AccountTravel:
+  summary: Expense account requiring a Department dimension
+  value: { id: acc_5500, companyId: co_acme, code: '5500', name: Travel, groupId: grp_opex, groupName: Operating expenses, type: Expense, normalBalance: Dr, isControl: false, postingAllowed: true, currencyBehaviour: Base, requiredDimensions: [Department], prohibitedDimensions: [Customer], status: Active, balance: 184200, hasPostings: true, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-06-01T09:00:00Z', version: 2 }
+
+TaxRateGst18:
+  summary: GST 18% (CGST 9 + SGST 9 / IGST 18)
+  value: { id: tax_gst18, companyId: co_acme, code: GST18, name: GST 18%, rate: 18, components: [{ name: CGST, rate: 9 }, { name: SGST, rate: 9 }], type: GST, treatment: Taxable, reverseCharge: false, effectiveFrom: '2017-07-01', ruleVersion: IN-1.4, outputAccountIds: { CGST: acc_2300, SGST: acc_2301, IGST: acc_2302 }, inputAccountIds: { CGST: acc_1400, SGST: acc_1401, IGST: acc_1402 }, status: Active, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }
+
+ExchangeRateApproved:
+  summary: Approved closing rate
+  value: { id: fx_usd_inr_20260912, companyId: co_acme, base: USD, quote: INR, rate: 83.42, direction: Multiply, type: Closing, effectiveAt: '2026-09-12', source: RBI reference rate, status: Approved, approvedBy: system, createdAt: '2026-09-12T18:00:00Z', updatedAt: '2026-09-12T18:00:00Z', version: 1 }
+
+ExchangeRatePending:
+  summary: Manual rate awaiting approval
+  value: { id: fx_usd_inr_manual_1, companyId: co_acme, base: USD, quote: INR, rate: 83.9, direction: Multiply, type: Manual, effectiveAt: '2026-09-13', source: Bank deal slip 4471, reason: Forward contract rate for the Sep shipment, status: Pending, approvalId: apr_fx_1, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+
+ImportDryRun:
+  summary: Dry-run with 2 errors and 1 duplicate
+  value: { id: imp_7c1a, companyId: co_acme, entity: customers, fileName: customers-sep.csv, fingerprint: 'sha256:9f8e2b…', rows: 120, valid: 117, errors: 2, duplicates: 1, status: Dry-run, mapping: { 'Customer Name': name, GSTIN: gstin, State: state, 'Credit Limit': creditLimit }, errorRows: [{ row: 14, field: gstin, code: FORMAT, message: GSTIN must be 15 characters }, { row: 58, field: state, code: UNKNOWN, message: Unknown Indian state name }, { row: 77, field: gstin, code: DUPLICATE, message: Matches existing customer C-0101 Arlene Traders }], by: Priya Sharma, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+
+ImportCommitted:
+  summary: Committed
+  value: { id: imp_7c1a, companyId: co_acme, entity: customers, fileName: customers-sep.csv, fingerprint: 'sha256:9f8e2b…', rows: 120, valid: 117, errors: 2, duplicates: 1, status: Committed, mapping: { 'Customer Name': name, GSTIN: gstin, State: state, 'Credit Limit': creditLimit }, errorRows: [], summary: { created: 110, updated: 7, skipped: 3 }, committedAt: '2026-09-13T09:20:00Z', by: Priya Sharma, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:20:00Z', version: 2 }
+
+LeadMetro:
+  summary: Proposal-stage lead
+  value: { id: lead_metro, companyId: co_acme, name: Q3 steel supply — Metro Infra, company: Metro Infra Projects Ltd, contactName: Rakesh Jain, email: rakesh@metroinfra.example, phone: '+91 98765 43210', city: Navi Mumbai, stateCode: '27', source: Referral, stage: Proposal, value: 850000, probability: 40, ownerId: usr_vikram, ownerName: Vikram Nair, expectedClose: '2026-10-15', nextStep: Send revised quotation, tags: [infra, steel], createdAt: '2026-08-20T09:00:00Z', updatedAt: '2026-09-10T09:00:00Z', version: 4 }
+
+LeadWon:
+  summary: Won and converted
+  value: { id: lead_sunrise, companyId: co_acme, name: Annual tea supply — Sunrise Hotels, company: Sunrise Hotels, contactName: Neha Kapoor, source: Existing customer, stage: Won, value: 1200000, probability: 100, ownerId: usr_priya, ownerName: Priya Sharma, customerId: cust_sunrise, quotationId: qt_00031, quotationNumber: QT/2026-27/00031, wonAt: '2026-09-01T10:00:00Z', createdAt: '2026-07-01T09:00:00Z', updatedAt: '2026-09-01T10:00:00Z', version: 6 }
+
+ActivityFollowUp:
+  summary: Open follow-up call
+  value: { id: act_1, companyId: co_acme, type: Call, subject: Follow up on overdue INV/2026-27/00031, customerId: cust_arlene, customerName: Arlene Traders, invoiceId: inv_00031, invoiceNumber: INV/2026-27/00031, dueAt: '2026-09-16T10:00:00Z', status: Open, ownerId: usr_priya, ownerName: Priya Sharma, overdue: false, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }
+
+ActivityPromise:
+  summary: Promise to pay (done)
+  value: { id: act_2, companyId: co_acme, type: Promise to pay, subject: "Arlene promised ₹50,000 by 20 Sep", customerId: cust_arlene, customerName: Arlene Traders, invoiceId: inv_00031, invoiceNumber: INV/2026-27/00031, promiseAmount: 50000, promiseDate: '2026-09-20', status: Done, doneAt: '2026-09-13T11:00:00Z', outcome: Customer promised payment by 20 Sep, ownerId: usr_priya, ownerName: Priya Sharma, overdue: false, createdAt: '2026-09-13T10:00:00Z', updatedAt: '2026-09-13T11:00:00Z', version: 2 }

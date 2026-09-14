@@ -1,0 +1,389 @@
+# Generic document model shared by every transactional document (src/store/types.ts:573-728)
+# plus the posting consequences (Journal, OpenItem, StockMovement, Reservation) and ActionResult.
+
+DocLineInput:
+  type: object
+  description: Writable fields of a document line. Server recomputes `taxable`, `taxAmt`, `taxComponents`, `amount` via `computeDocument`.
+  required: [qty, rate]
+  properties:
+    id: { $ref: './common.yaml#/ID', description: Client line id (kept stable across saves; new lines may omit it). }
+    itemId: { type: string, description: Item master id. Omit for free-text / account-only lines., example: item_stl4 }
+    itemName: { type: string, description: Required when `itemId` is omitted., example: Steel Rod 4mm }
+    description: { type: string, example: "TMT 4mm, 12 m lengths" }
+    hsn: { type: string, example: '7214' }
+    qty: { $ref: './common.yaml#/Quantity' }
+    uom: { type: string, example: KG }
+    rate: { $ref: './common.yaml#/Money', description: Unit rate (before discount). }
+    overrideReason: { type: string, description: Required when `rate` differs from the resolved price-list rate beyond policy., example: Negotiated annual contract }
+    discountPct: { type: number, minimum: 0, maximum: 100, default: 0 }
+    discountAmt: { type: number, minimum: 0, default: 0 }
+    taxRateId: { type: string, example: tax_gst18 }
+    taxInclusive: { type: boolean, default: false }
+    reverseCharge: { type: boolean }
+    warehouseId: { type: string, example: wh_main }
+    batch: { type: string, example: B-2409-07 }
+    serials: { type: array, items: { type: string }, example: [SN-00121, SN-00122] }
+    dimensions: { $ref: './common.yaml#/KeyValue' }
+    accountId: { type: string, description: Override revenue/expense account (defaults from item / company defaults)., example: acc_4000 }
+    sourceLineId: { type: string, description: Line of the source document (order → delivery → invoice)., example: ln_so_1 }
+    sourceDocId: { type: string, example: so_00087 }
+
+DocLine:
+  allOf:
+    - $ref: '#/DocLineInput'
+    - type: object
+      required: [id, itemName, qty, uom, rate, discountPct, discountAmt, taxable, taxRate, taxAmt, taxComponents, amount]
+      properties:
+        itemCode: { type: string, readOnly: true, example: STL-4 }
+        baseQty: { type: number, readOnly: true, description: Quantity in the item base UOM. }
+        listRate: { type: number, readOnly: true, description: Resolved price-list rate. }
+        priceListName: { type: string, readOnly: true, example: Wholesale INR }
+        taxable: { type: number, readOnly: true, example: 100000 }
+        taxRate: { type: number, readOnly: true, example: 18 }
+        taxAmt: { type: number, readOnly: true, example: 18000 }
+        taxComponents:
+          type: object
+          readOnly: true
+          additionalProperties: { type: number }
+          example: { CGST: 9000, SGST: 9000 }
+        taxTreatment: { type: string, readOnly: true, example: Registered }
+        amount: { type: number, readOnly: true, description: taxable + tax, example: 118000 }
+        sourceQty: { type: number, readOnly: true }
+        remainingQty: { type: number, readOnly: true }
+        deliveredQty: { type: number, readOnly: true }
+        invoicedQty: { type: number, readOnly: true }
+        returnedQty: { type: number, readOnly: true }
+        receivedQty: { type: number, readOnly: true }
+        acceptedQty: { type: number, readOnly: true }
+        rejectedQty: { type: number, readOnly: true }
+        reservedQty: { type: number, readOnly: true }
+
+TaxBreakupRow:
+  type: object
+  required: [component, rate, hsn, taxable, tax]
+  properties:
+    component: { type: string, example: CGST }
+    rate: { type: number, example: 9 }
+    hsn: { type: string, example: '7214' }
+    taxable: { type: number, example: 100000 }
+    tax: { type: number, example: 9000 }
+
+DocTotals:
+  type: object
+  readOnly: true
+  description: Server-computed totals ladder (document currency; `baseTotal` in company base currency).
+  required: [subtotal, discount, taxable, tax, components, breakup, charges, tds, roundOff, total, paid, credited, writtenOff, due, baseTotal]
+  properties:
+    subtotal: { type: number, example: 100000 }
+    discount: { type: number, example: 0 }
+    taxable: { type: number, example: 100000 }
+    tax: { type: number, example: 18000 }
+    components: { type: object, additionalProperties: { type: number }, example: { CGST: 9000, SGST: 9000 } }
+    breakup: { type: array, items: { $ref: '#/TaxBreakupRow' } }
+    charges: { type: number, example: 0 }
+    tds: { type: number, example: 0 }
+    tdsSection: { type: string, example: 194C }
+    roundOff: { type: number, example: 0 }
+    total: { type: number, example: 118000 }
+    paid: { type: number, example: 0 }
+    credited: { type: number, example: 0 }
+    writtenOff: { type: number, example: 0 }
+    due: { type: number, example: 118000 }
+    baseTotal: { type: number, example: 118000 }
+
+PartySnapshot:
+  type: object
+  readOnly: true
+  description: Party details frozen at posting time (name, tax ids, addresses, terms).
+  required: [name]
+  properties:
+    name: { type: string, example: Arlene Traders }
+    gstin: { type: string, example: 27AAPFU0939F1ZV }
+    pan: { type: string, example: AAPFU0939F }
+    taxTreatment: { type: string, example: Registered }
+    state: { type: string, example: Maharashtra }
+    stateCode: { type: string, example: '27' }
+    billingAddress: { $ref: './common.yaml#/Address' }
+    shippingAddress: { $ref: './common.yaml#/Address' }
+    contact: { $ref: './common.yaml#/Contact' }
+    priceListName: { type: string, example: Wholesale INR }
+    paymentTerms: { type: string, example: Net 30 }
+    currency: { type: string, example: INR }
+
+StatutoryInfo:
+  type: object
+  readOnly: true
+  description: e-Invoice (IRN) and e-Way bill state written by the Taxation integrations.
+  properties:
+    irn: { type: string, example: 35054cc24d97033afc24f49ec4444dbab81f542c999a4f3f4e7a6f6a4a5b1c2d }
+    ackNo: { type: string, example: '112010036563789' }
+    ackDate: { type: string, format: date-time }
+    signedQr: { type: string, description: Signed QR payload (base64). }
+    eInvoiceStatus: { type: string, enum: [Not Applicable, Pending, Queued, Submitted, Accepted, Rejected, Cancelled, Failed] }
+    eInvoiceError: { type: string }
+    eInvoiceSubmittedAt: { type: string, format: date-time }
+    eInvoiceCancelledAt: { type: string, format: date-time }
+    ewbNo: { type: string, example: '271000123456' }
+    ewbStatus: { type: string, enum: [Not Applicable, Pending, Generated, Cancelled, Expired, Failed] }
+    ewbValidUpto: { type: string, format: date-time }
+    ewbError: { type: string }
+    vehicleNo: { type: string, example: MH02AB1234 }
+    transporterId: { type: string, example: 27AABCT1332L1ZU }
+    distanceKm: { type: number, example: 120 }
+
+Charge:
+  type: object
+  required: [name, amount]
+  properties:
+    id: { $ref: './common.yaml#/ID' }
+    name: { type: string, example: Freight }
+    amount: { $ref: './common.yaml#/Money' }
+    taxRateId: { type: string, example: tax_gst18 }
+    accountId: { type: string, example: acc_5030 }
+
+DocHeaderInput:
+  type: object
+  description: Writable header fields common to all documents.
+  properties:
+    date: { $ref: './common.yaml#/DateOnly' }
+    dueDate: { $ref: './common.yaml#/DateOnly', description: Defaults from party payment terms. }
+    branchId: { type: string, description: Defaults from `X-Branch-Id`., example: br_ho }
+    currency: { $ref: './common.yaml#/CurrencyCode', description: Defaults from the party; must be a permitted company currency. }
+    rate: { type: number, description: Exchange rate to base. Defaults from the approved rate on `date`; explicit values are audited., example: 1 }
+    rateType: { type: string, enum: [Spot, Closing, Average, Manual, Historical, Imported] }
+    partyId: { type: string, example: cust_arlene }
+    reference: { type: string, description: Customer PO / external reference., example: PO-ARL-2291 }
+    sourceType: { type: string, description: Source document type when created from another document., example: Sales Order }
+    sourceId: { type: string, example: so_00087 }
+    lines: { type: array, minItems: 1, items: { $ref: '#/DocLineInput' } }
+    charges: { type: array, items: { $ref: '#/Charge' } }
+    notes: { type: string }
+    terms: { type: string }
+    dimensions: { $ref: './common.yaml#/KeyValue' }
+    placeOfSupplyCode: { type: string, example: '27' }
+    salespersonId: { type: string, example: sp_vikram }
+    paymentTerms: { type: string, example: Net 30 }
+    priceListId: { type: string, example: pl_wholesale }
+    warehouseId: { type: string, example: wh_main }
+    templateId: { type: string }
+    validUntil: { $ref: './common.yaml#/DateOnly', description: Quotations only. }
+    attachmentIds: { type: array, items: { type: string } }
+    idempotencyKey: { type: string, description: Optional client key stored on the document (in addition to the header). }
+
+DocHeader:
+  description: Full document as returned by the API — writable input plus server-owned state.
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/DocHeaderInput'
+    - type: object
+      required: [number, docType, date, branchId, status, currency, rate, lines, totals]
+      properties:
+        number: { type: string, readOnly: true, description: Allocated by the number series on save or post (`DRAFT-…` before allocation)., example: INV/2026-27/00042 }
+        docType: { type: string, readOnly: true, example: Sales Invoice }
+        status: { type: string, readOnly: true, example: Posted }
+        rateSource: { type: string, readOnly: true, example: 'Closing rate 2026-09-13 (RBI)' }
+        partyType: { type: string, readOnly: true, enum: [Customer, Supplier, Employee, None] }
+        partyName: { type: string, readOnly: true, example: Arlene Traders }
+        partySnapshot: { $ref: '#/PartySnapshot' }
+        sourceNumber: { type: string, readOnly: true, example: SO/2026-27/00087 }
+        lines: { type: array, items: { $ref: '#/DocLine' } }
+        totals: { $ref: '#/DocTotals' }
+        journalId: { type: string, readOnly: true, example: jnl_01j8k4 }
+        journalNumber: { type: string, readOnly: true, example: JV/2026-27/00311 }
+        approvalId: { type: string, readOnly: true, example: apr_6c1d }
+        postedAt: { type: string, format: date-time, readOnly: true }
+        postedBy: { type: string, readOnly: true, example: Rahul Mehta }
+        submittedAt: { type: string, format: date-time, readOnly: true }
+        submittedBy: { type: string, readOnly: true }
+        reversalOfId: { type: string, readOnly: true }
+        reversedById: { type: string, readOnly: true }
+        reversalReason: { type: string, readOnly: true }
+        cancelReason: { type: string, readOnly: true }
+        placeOfSupply: { type: string, readOnly: true, example: Maharashtra }
+        statutory: { $ref: '#/StatutoryInfo' }
+        templateVersion: { type: integer, readOnly: true }
+        fy: { type: string, readOnly: true, example: '2026-27' }
+        period: { type: string, readOnly: true, example: '2026-09' }
+        correlationId: { type: string, readOnly: true }
+        revisionOfId: { type: string, readOnly: true }
+        revision: { type: integer, readOnly: true, example: 1 }
+
+# ── posting consequences ──────────────────────────────────────────────────
+
+JournalLineInput:
+  type: object
+  required: [accountId]
+  properties:
+    accountId: { type: string, example: acc_1100 }
+    dr: { type: number, minimum: 0, default: 0, example: 118000 }
+    cr: { type: number, minimum: 0, default: 0, example: 0 }
+    currency: { $ref: './common.yaml#/CurrencyCode' }
+    partyType: { type: string, enum: [Customer, Supplier, Employee], description: Required on control accounts (AR/AP/Employee). }
+    partyId: { type: string, example: cust_arlene }
+    dimensions: { $ref: './common.yaml#/KeyValue' }
+    narration: { type: string }
+    taxComponent: { type: string, example: CGST }
+
+JournalLine:
+  allOf:
+    - $ref: '#/JournalLineInput'
+    - type: object
+      required: [id, accountCode, accountName, dr, cr, drBase, crBase, dimensions]
+      properties:
+        id: { $ref: './common.yaml#/ID', readOnly: true }
+        accountCode: { type: string, readOnly: true, example: '1100' }
+        accountName: { type: string, readOnly: true, example: Accounts Receivable }
+        drBase: { type: number, readOnly: true }
+        crBase: { type: number, readOnly: true }
+        partyName: { type: string, readOnly: true }
+
+Journal:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [number, date, period, fy, branchId, currency, rate, status, type, sourceType, narration, lines, totalDr, totalCr, correlationId]
+      properties:
+        number: { type: string, example: JV/2026-27/00311 }
+        date: { $ref: './common.yaml#/DateOnly' }
+        period: { type: string, example: '2026-09' }
+        fy: { type: string, example: '2026-27' }
+        branchId: { type: string, example: br_ho }
+        currency: { $ref: './common.yaml#/CurrencyCode' }
+        rate: { type: number, example: 1 }
+        status: { type: string, enum: [Draft, Submitted, Approved, Rejected, Posted, Reversed] }
+        type: { type: string, enum: [Auto, Manual, Recurring, Opening, Reversal, Revaluation, Closing, Consolidation] }
+        sourceType: { type: string, example: Sales Invoice }
+        sourceId: { type: string, example: inv_01j8k3 }
+        sourceNumber: { type: string, example: INV/2026-27/00042 }
+        narration: { type: string, example: Sales invoice INV/2026-27/00042 — Arlene Traders }
+        lines: { type: array, items: { $ref: '#/JournalLine' } }
+        totalDr: { type: number, example: 118000 }
+        totalCr: { type: number, example: 118000 }
+        reversalOfId: { type: string }
+        reversedById: { type: string }
+        reversalReason: { type: string }
+        idempotencyKey: { type: string, example: 'inv_01j8k3:post' }
+        payloadHash: { type: string, readOnly: true }
+        postedAt: { $ref: './common.yaml#/Timestamp' }
+        postedBy: { type: string }
+        approvalId: { type: string }
+        recurringId: { type: string }
+        correlationId: { type: string }
+
+Settlement:
+  type: object
+  required: [id, date, docType, docId, docNumber, amount, baseAmount, rate, fxGainLoss]
+  properties:
+    id: { $ref: './common.yaml#/ID' }
+    date: { $ref: './common.yaml#/DateOnly' }
+    docType: { type: string, example: Receipt }
+    docId: { type: string, example: rcp_00210 }
+    docNumber: { type: string, example: RCP/2026-27/00210 }
+    amount: { type: number, example: 50000 }
+    baseAmount: { type: number, example: 50000 }
+    rate: { type: number, example: 1 }
+    fxGainLoss: { type: number, description: Realised FX gain (+) / loss (−) in base currency., example: 0 }
+
+OpenItem:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [partyType, partyId, partyName, docType, docId, docNumber, date, dueDate, currency, originalAmount, baseAmount, rate, outstanding, baseOutstanding, direction, status, settlements, branchId]
+      properties:
+        partyType: { type: string, enum: [Customer, Supplier, Employee] }
+        partyId: { type: string, example: cust_arlene }
+        partyName: { type: string, example: Arlene Traders }
+        docType: { type: string, example: Sales Invoice }
+        docId: { type: string, example: inv_01j8k3 }
+        docNumber: { type: string, example: INV/2026-27/00042 }
+        date: { $ref: './common.yaml#/DateOnly' }
+        dueDate: { $ref: './common.yaml#/DateOnly' }
+        currency: { $ref: './common.yaml#/CurrencyCode' }
+        originalAmount: { type: number, example: 118000 }
+        baseAmount: { type: number, example: 118000 }
+        rate: { type: number, example: 1 }
+        outstanding: { type: number, example: 68000 }
+        baseOutstanding: { type: number, example: 68000 }
+        direction: { type: string, enum: [Debit, Credit], description: '+ve = receivable/payable; Credit = credit note / advance / unapplied receipt' }
+        status: { type: string, enum: [Open, Partially Settled, Settled, Written Off] }
+        settlements: { type: array, items: { $ref: '#/Settlement' } }
+        branchId: { type: string, example: br_ho }
+
+StockMovement:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [date, itemId, itemCode, itemName, warehouseId, qty, uom, baseQty, rate, value, type, sourceType, sourceId, sourceNumber]
+      properties:
+        date: { $ref: './common.yaml#/DateOnly' }
+        itemId: { type: string, example: item_stl4 }
+        itemCode: { type: string, example: STL-4 }
+        itemName: { type: string, example: Steel Rod 4mm }
+        warehouseId: { type: string, example: wh_main }
+        warehouseName: { type: string, example: Main Warehouse }
+        bin: { type: string, example: A-01 }
+        qty: { type: number, description: Signed (+in / −out)., example: -50 }
+        uom: { type: string, example: KG }
+        baseQty: { type: number, example: -50 }
+        batch: { type: string }
+        serials: { type: array, items: { type: string } }
+        rate: { type: number, description: Valuation rate (AVCO)., example: 52.4 }
+        value: { type: number, description: Signed value = qty × rate., example: -2620 }
+        type: { type: string, enum: [Opening, GRN, Delivery, Adjustment, Transfer Out, Transfer In, POS Sale, POS Return, Sales Return, Purchase Return, Production Issue, Production Receipt, Count, Scrap, Subcontract Out, Subcontract In, Landed Cost] }
+        sourceType: { type: string, example: Sales Invoice }
+        sourceId: { type: string, example: inv_01j8k3 }
+        sourceNumber: { type: string, example: INV/2026-27/00042 }
+        reversalOfId: { type: string }
+        journalId: { type: string, description: COGS / inventory journal. }
+        balanceAfter: { type: number, example: 70 }
+        expiryDate: { $ref: './common.yaml#/DateOnly' }
+
+Reservation:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [itemId, warehouseId, qty, fulfilledQty, sourceType, sourceId, sourceNumber, lineId, status]
+      properties:
+        itemId: { type: string, example: item_crate }
+        warehouseId: { type: string, example: wh_main }
+        qty: { type: number, example: 80 }
+        fulfilledQty: { type: number, example: 30 }
+        sourceType: { type: string, example: Sales Order }
+        sourceId: { type: string, example: so_00087 }
+        sourceNumber: { type: string, example: SO/2026-27/00087 }
+        lineId: { type: string, example: ln_so_1 }
+        status: { type: string, enum: [Reserved, Partially Fulfilled, Fulfilled, Released, Expired, Cancelled] }
+        expiresAt: { $ref: './common.yaml#/Timestamp' }
+
+ActionResult:
+  type: object
+  description: |
+    Returned by every state-changing document action. `document` is the affected document (typed per
+    operation); the remaining fields carry the accounting / stock / workflow consequences so callers
+    never have to guess what happened.
+  required: [document, warnings]
+  properties:
+    document: { type: object, additionalProperties: true }
+    outcome: { type: string, description: "Short outcome label (e.g. `routed-for-approval`, `approved`, `posted`, `reversed`).", example: posted }
+    journal: { $ref: '#/Journal' }
+    journals: { type: array, items: { $ref: '#/Journal' }, description: "When more than one journal is posted (e.g. invoice + COGS, receipt + FX)." }
+    stockMovements: { type: array, items: { $ref: '#/StockMovement' } }
+    openItems: { type: array, items: { $ref: '#/OpenItem' } }
+    reservations: { type: array, items: { $ref: '#/Reservation' } }
+    approval: { $ref: './approvals.yaml#/ApprovalRequest' }
+    relatedDocuments:
+      type: array
+      description: Other documents created or updated (reversal doc, sales return, generated invoices …).
+      items:
+        type: object
+        required: [collection, id, number, status]
+        properties:
+          collection: { type: string, example: salesReturns }
+          id: { type: string, example: sret_0012 }
+          number: { type: string, example: SRN/2026-27/00012 }
+          status: { type: string, example: Posted }
+    integrationLogId: { type: string, description: When a provider call was made (IRP / EWB / e-mail). }
+    warnings:
+      type: array
+      items: { type: string }
+      example: ['Credit exposure 91% of limit', 'Line 2: price 8% below list']

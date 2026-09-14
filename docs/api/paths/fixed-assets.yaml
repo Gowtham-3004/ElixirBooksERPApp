@@ -1,0 +1,674 @@
+# Fixed assets (tag: Fixed Assets). src/modules/fixed-assets/actions.ts (capitalize, computeRun, postDepreciation, reverseDepreciation, transferAsset, revalueAsset, disposeAsset).
+
+/fixed-assets/categories:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Fixed Assets]
+    summary: Asset categories
+    operationId: listAssetCategories
+    x-permission: fixed-assets.asset.view
+    x-frd: [FR-AST-001]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IncludeInactive'
+    responses:
+      '200':
+        description: Categories
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/fixed-assets.yaml#/AssetCategory' } } } }
+            examples:
+              list: { summary: Categories, value: { data: [{ id: cat_pm, companyId: co_acme, code: PM, name: Plant & machinery, method: WDV, ratePct: 15, usefulLifeYears: 15, assetAccountId: acc_1610, depreciationAccountId: acc_5700, accumulatedAccountId: acc_1690, status: Active, assetCount: 12, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }, { id: cat_it, companyId: co_acme, code: IT, name: Computers & laptops, method: SLM, ratePct: 33.33, usefulLifeYears: 3, assetAccountId: acc_1620, depreciationAccountId: acc_5700, accumulatedAccountId: acc_1691, status: Active, assetCount: 16, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 }] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Fixed Assets]
+    summary: Create a category
+    operationId: createAssetCategory
+    x-permission: fixed-assets.asset.create
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/fixed-assets.yaml#/AssetCategoryCreate' }
+          examples:
+            vehicles: { summary: Vehicles (WDV 30%), value: { code: VH, name: Vehicles, method: WDV, ratePct: 30, usefulLifeYears: 8, assetAccountId: acc_1630, depreciationAccountId: acc_5700, accumulatedAccountId: acc_1692 } }
+    responses:
+      '201':
+        description: Created
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/fixed-assets.yaml#/AssetCategory' }
+            examples:
+              created: { summary: Created, value: { id: cat_vh, companyId: co_acme, code: VH, name: Vehicles, method: WDV, ratePct: 30, usefulLifeYears: 8, assetAccountId: acc_1630, depreciationAccountId: acc_5700, accumulatedAccountId: acc_1692, status: Active, assetCount: 0, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+
+/fixed-assets/categories/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Fixed Assets]
+    summary: Get a category
+    operationId: getAssetCategory
+    x-permission: fixed-assets.asset.view
+    responses:
+      '200':
+        description: Category
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/fixed-assets.yaml#/AssetCategory' }
+            examples:
+              pm: { summary: Plant & machinery, value: { id: cat_pm, companyId: co_acme, code: PM, name: Plant & machinery, method: WDV, ratePct: 15, usefulLifeYears: 15, assetAccountId: acc_1610, depreciationAccountId: acc_5700, accumulatedAccountId: acc_1690, status: Active, assetCount: 12, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-01T09:00:00Z', version: 1 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Fixed Assets]
+    summary: Update a category (rate changes apply to future runs only)
+    operationId: updateAssetCategory
+    x-permission: fixed-assets.asset.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/fixed-assets.yaml#/AssetCategoryPatch' }
+          examples:
+            rate: { summary: New rate, value: { expectedVersion: 1, ratePct: 18 } }
+            deactivate: { summary: Deactivate, value: { expectedVersion: 1, status: Inactive } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/fixed-assets.yaml#/AssetCategory' }
+            examples:
+              updated: { summary: Updated, value: { id: cat_pm, companyId: co_acme, code: PM, name: Plant & machinery, method: WDV, ratePct: 18, usefulLifeYears: 15, assetAccountId: acc_1610, depreciationAccountId: acc_5700, accumulatedAccountId: acc_1690, status: Active, assetCount: 12, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-13T09:12:04Z', version: 2 } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Fixed Assets]
+    summary: Delete an unused category
+    operationId: deleteAssetCategory
+    x-permission: fixed-assets.asset.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+# ── assets ────────────────────────────────────────────────────────────────
+
+/fixed-assets/assets:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Fixed Assets]
+    summary: Asset register
+    description: "Tabs → All · Active · Fully depreciated · Disposed · Draft/New. Query examples — `?categoryId=cat_pm` · `?branchId=br_pune` · `?custodianId=emp_suresh` · `?q=lathe`."
+    operationId: listAssets
+    x-permission: fixed-assets.asset.view
+    x-frd: [FR-AST-002]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Q'
+      - $ref: '../components/parameters.yaml#/Status'
+      - { name: categoryId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/BranchFilter'
+      - { name: custodianId, in: query, schema: { type: string } }
+    responses:
+      '200':
+        description: Assets
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/fixed-assets.yaml#/Asset' } }
+                    totals: { type: object, properties: { cost: { type: number }, accumulated: { type: number }, nbv: { type: number } } }
+            examples:
+              firstPage: { summary: Assets, value: { data: [{ $ref: '#/components/examples/AssetLathe/value' }], totals: { cost: 12400000, accumulated: 3180000, nbv: 9220000 }, meta: { nextCursor: null, limit: 25, total: 31, counts: { All: 31, Active: 27, 'Fully depreciated': 2, Disposed: 1, 'Draft/New': 1 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/fixed-assets/assets/capitalizable-lines:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Fixed Assets]
+    summary: Posted vendor-invoice lines not yet capitalised
+    operationId: listCapitalizableLines
+    x-permission: fixed-assets.asset.view
+    parameters:
+      - { name: capitalOnly, in: query, schema: { type: boolean, default: false } }
+    responses:
+      '200':
+        description: Lines
+        content:
+          application/json:
+            schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '../components/schemas/fixed-assets.yaml#/CapitalizableLine' } } } }
+            examples:
+              lines: { summary: Two candidates, value: { data: [{ docId: vi_00204, docNumber: VI/2026-27/00204, docDate: '2026-09-08', supplierId: sup_precision, supplierName: Precision Tools Ltd, lineId: ln_vi_204_1, itemId: item_lathe, itemName: CNC lathe LX-200, accountId: acc_1650, qty: 1, amount: 1850000, capital: true }, { docId: vi_00206, docNumber: VI/2026-27/00206, docDate: '2026-09-09', supplierId: sup_office, supplierName: Office Mart, lineId: ln_vi_206_3, itemName: Stationery, accountId: acc_5450, qty: 10, amount: 4200, capital: false }] } }
+              none: { summary: None, value: { data: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/fixed-assets/assets/capitalize:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  post:
+    tags: [Fixed Assets]
+    summary: Capitalise an asset (manual, or from a vendor-invoice line)
+    operationId: capitalizeAsset
+    x-permission: fixed-assets.asset.create
+    x-frd: [FR-AST-002]
+    x-idempotent: true
+    x-events: [DocumentCreated, JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/fixed-assets.yaml#/CapitalizeRequest' }
+          examples:
+            fromVendorInvoice: { summary: From a posted vendor-invoice line (CWIP → PPE), value: { name: CNC lathe LX-200, categoryId: cat_pm, location: Pune plant — Bay 3, branchId: br_pune, custodianId: emp_suresh, acquisitionDate: '2026-09-08', capitalizationDate: '2026-09-10', inServiceDate: '2026-09-12', cost: 1850000, residual: 92500, serialNo: LX200-2026-0417, warrantyUntil: '2028-09-08', sourceType: Vendor Invoice, sourceId: vi_00204, lineId: ln_vi_204_1, postJournal: true } }
+            manual: { summary: Manual (credit bank), value: { name: MacBook Pro 16 — Design, categoryId: cat_it, location: HO — Design, branchId: br_ho, custodianId: emp_neha, acquisitionDate: '2026-09-13', capitalizationDate: '2026-09-13', inServiceDate: '2026-09-13', cost: 245000, residual: 0, usefulLifeYears: 3, method: SLM, ratePct: 33.33, creditAccountId: acc_1310, dimensions: { Department: dim_design }, postJournal: true } }
+            noJournal: { summary: Opening asset (books already carry it), value: { name: Office building — Andheri, categoryId: cat_bld, location: Andheri, branchId: br_andheri, acquisitionDate: '2019-06-01', capitalizationDate: '2019-06-01', inServiceDate: '2019-06-01', cost: 42000000, residual: 4200000, postJournal: false, notes: Opening accumulated set via opening balances } }
+    responses:
+      '201':
+        description: Asset created (Active)
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/fixed-assets.yaml#/Asset' }
+            examples:
+              withJournal: { summary: Journal posted, value: { document: { $ref: '#/components/examples/AssetLathe/value' }, outcome: posted, journal: { id: jnl_fa_31, companyId: co_acme, number: JV/2026-27/00406, date: '2026-09-10', period: '2026-09', fy: '2026-27', branchId: br_pune, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Asset, sourceId: fa_0031, sourceNumber: FA/2026-27/00031, narration: Capitalisation FA/2026-27/00031 CNC lathe LX-200 from VI/2026-27/00204, lines: [{ id: j1, accountId: acc_1610, accountCode: '1610', accountName: Plant & machinery, dr: 1850000, cr: 0, drBase: 1850000, crBase: 0, dimensions: { Branch: br_pune } }, { id: j2, accountId: acc_1650, accountCode: '1650', accountName: Capital work in progress, dr: 0, cr: 1850000, drBase: 0, crBase: 1850000, dimensions: { Branch: br_pune } }], totalDr: 1850000, totalCr: 1850000, postedAt: '2026-09-13T09:12:04Z', postedBy: Priya Sharma, correlationId: corr_fa31, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }, warnings: [] } }
+              noJournal: { summary: Registered only, value: { document: { $ref: '#/components/examples/AssetLathe/value' }, outcome: created, warnings: ['No journal posted — ensure the asset account already carries the cost'] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Conflict
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              lineUsed: { summary: Line already capitalised, value: { code: DUPLICATE, message: 'VI/2026-27/00204 line 1 is already capitalised as FA/2026-27/00031', details: { assetId: fa_0031 }, correlationId: corr_9f1c2e7a } }
+      '422':
+        description: Validation
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              residual: { summary: Residual ≥ cost, value: { code: VALIDATION, message: Residual value must be below cost, field: residual, correlationId: corr_9f1c2e7a } }
+              category: { summary: No category, value: { code: VALIDATION, message: Choose an asset category, field: categoryId, correlationId: corr_9f1c2e7a } }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/fixed-assets/assets/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Fixed Assets]
+    summary: Get an asset
+    operationId: getAsset
+    x-permission: fixed-assets.asset.view
+    responses:
+      '200':
+        description: Asset
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/fixed-assets.yaml#/Asset' }
+            examples:
+              active: { $ref: '../components/examples/fixed-assets.yaml#/AssetLathe' }
+              disposed: { summary: Disposed, value: { id: fa_0009, companyId: co_acme, number: FA/2026-27/00009, name: Forklift FL-2, categoryId: cat_pm, categoryName: Plant & machinery, location: Main Warehouse, branchId: br_ho, acquisitionDate: '2022-05-01', capitalizationDate: '2022-05-01', inServiceDate: '2022-05-01', cost: 900000, residual: 45000, usefulLifeYears: 15, method: WDV, ratePct: 15, openingAccumulated: 421000, postedDepreciation: 36000, revaluation: 0, impairment: 0, accumulated: 457000, nbv: 0, assetAccountId: acc_1610, depreciationAccountId: acc_5700, accumulatedAccountId: acc_1690, dimensions: {}, status: Disposed, disposal: { date: '2026-09-30', proceeds: 120000, buyer: Scrap Traders Co, reason: Obsolete — replaced by FL-3, nbvAtDisposal: 443000, accumulatedAtDisposal: 457000, gainLoss: -323000, journalId: jnl_fa_9d, journalNumber: JV/2026-27/00420, receiptAccountId: acc_1310 }, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-30T10:00:00Z', version: 9 } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+  patch:
+    tags: [Fixed Assets]
+    summary: Update descriptive fields
+    operationId: updateAsset
+    x-permission: fixed-assets.asset.edit
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/fixed-assets.yaml#/AssetPatch' }
+          examples:
+            warranty: { summary: Warranty + serial, value: { expectedVersion: 2, serialNo: LX200-2026-0417, warrantyUntil: '2029-09-08' } }
+    responses:
+      '200':
+        description: Updated
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/fixed-assets.yaml#/Asset' }
+            examples:
+              updated: { $ref: '../components/examples/fixed-assets.yaml#/AssetLathe' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+  delete:
+    tags: [Fixed Assets]
+    summary: Delete a Draft / New asset with no journal
+    operationId: deleteAsset
+    x-permission: fixed-assets.asset.delete
+    responses:
+      '204': { $ref: '../components/responses.yaml#/NoContent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/fixed-assets/assets/{id}/schedule:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Fixed Assets]
+    summary: Depreciation schedule (posted + projected to residual)
+    operationId: getAssetSchedule
+    x-permission: fixed-assets.asset.view
+    x-frd: [FR-AST-003]
+    responses:
+      '200':
+        description: Schedule
+        content:
+          application/json:
+            schema: { type: object, required: [assetId, method, ratePct, data], properties: { assetId: { type: string }, method: { $ref: '../components/schemas/fixed-assets.yaml#/DepMethod' }, ratePct: { type: number }, data: { type: array, items: { $ref: '../components/schemas/fixed-assets.yaml#/AssetScheduleRow' } } } }
+            examples:
+              wdv: { summary: "WDV, first period pro-rated", value: { assetId: fa_0031, method: WDV, ratePct: 15, data: [{ period: '2026-09', openingNbv: 1850000, depreciation: 14370, closingNbv: 1835630, status: Posted, runId: dep_0006, runNumber: DEP/2026-27/00006 }, { period: '2026-10', openingNbv: 1835630, depreciation: 23385, closingNbv: 1812245, status: Projected }, { period: '2026-11', openingNbv: 1812245, depreciation: 22336, closingNbv: 1789909, status: Projected }] } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/fixed-assets/assets/{id}/transfer:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Fixed Assets]
+    summary: Transfer location / branch / custodian
+    operationId: transferAsset
+    x-permission: fixed-assets.asset.edit
+    x-frd: [FR-AST-004]
+    x-workflow-doc-type: Asset Transfer
+    x-events: [DocumentSubmitted]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/fixed-assets.yaml#/AssetTransferRequest' }
+          examples:
+            immediate: { summary: Applied now, value: { date: '2026-09-13', location: Andheri store — Basement, branchId: br_andheri, reason: Bay 3 refit } }
+            custodian: { summary: "New custodian, with approval", value: { date: '2026-09-13', custodianId: emp_meena, reason: Suresh on leave, requireApproval: true } }
+    responses:
+      '200':
+        description: Event
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/fixed-assets.yaml#/Asset' }
+                    event: { $ref: '../components/schemas/fixed-assets.yaml#/AssetEvent' }
+                    outcome: { type: string, enum: [applied, routed-for-approval] }
+            examples:
+              applied: { summary: outcome = applied, value: { document: { $ref: '#/components/examples/AssetLathe/value' }, outcome: applied, event: { id: aev_71, companyId: co_acme, assetId: fa_0031, assetNumber: FA/2026-27/00031, assetName: CNC lathe LX-200, type: Transferred, date: '2026-09-13', detail: 'Pune plant — Bay 3 → Andheri store — Basement', from: Pune plant — Bay 3, to: Andheri store — Basement, reason: Bay 3 refit, by: Priya Sharma, status: Posted, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }, warnings: [] } }
+              routed: { summary: outcome = routed-for-approval, value: { document: { $ref: '#/components/examples/AssetLathe/value' }, outcome: routed-for-approval, event: { id: aev_72, companyId: co_acme, assetId: fa_0031, assetNumber: FA/2026-27/00031, assetName: CNC lathe LX-200, type: Transferred, date: '2026-09-13', detail: 'Custodian Suresh Patel → Meena Joshi', from: Suresh Patel, to: Meena Joshi, reason: Suresh on leave, by: Priya Sharma, approvalId: apr_aev_72, status: Pending, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }, warnings: [] } }
+      '400':
+        description: Validation
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              nothingChanged: { summary: Nothing changed, value: { code: VALIDATION, message: 'Nothing changed — choose a new location, branch or custodian', correlationId: corr_9f1c2e7a } }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+
+/fixed-assets/assets/{id}/revalue:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Fixed Assets]
+    summary: Revalue (up) or impair (down) the carrying amount
+    operationId: revalueAsset
+    x-permission: fixed-assets.asset.post
+    x-frd: [FR-AST-004]
+    x-idempotent: true
+    x-events: [JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/fixed-assets.yaml#/AssetRevalueRequest' }
+          examples:
+            revaluation: { summary: Revaluation (Dr asset / Cr revaluation reserve), value: { kind: Revaluation, amount: 150000, date: '2026-09-30', reason: Independent valuation Sep 2026 } }
+            impairment: { summary: Impairment (Dr impairment loss / Cr asset), value: { kind: Impairment, amount: 200000, date: '2026-09-30', reason: Damage in flood — partially repairable } }
+    responses:
+      '200':
+        description: Applied
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/fixed-assets.yaml#/Asset' }
+                    event: { $ref: '../components/schemas/fixed-assets.yaml#/AssetEvent' }
+            examples:
+              impaired: { summary: Impairment posted, value: { document: { $ref: '#/components/examples/AssetLathe/value' }, outcome: posted, event: { id: aev_73, companyId: co_acme, assetId: fa_0031, assetNumber: FA/2026-27/00031, assetName: CNC lathe LX-200, type: Impaired, date: '2026-09-30', detail: 'Impairment ₹2,00,000', amount: 200000, reason: Damage in flood — partially repairable, journalId: jnl_fa_31i, journalNumber: JV/2026-27/00421, by: Priya Sharma, status: Posted, createdAt: '2026-09-30T10:00:00Z', updatedAt: '2026-09-30T10:00:00Z', version: 1 }, journal: { id: jnl_fa_31i, companyId: co_acme, number: JV/2026-27/00421, date: '2026-09-30', period: '2026-09', fy: '2026-27', branchId: br_pune, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Asset, sourceId: fa_0031, sourceNumber: FA/2026-27/00031, narration: Impairment FA/2026-27/00031 — Damage in flood, lines: [{ id: j1, accountId: acc_5710, accountCode: '5710', accountName: Impairment loss, dr: 200000, cr: 0, drBase: 200000, crBase: 0, dimensions: {} }, { id: j2, accountId: acc_1610, accountCode: '1610', accountName: Plant & machinery, dr: 0, cr: 200000, drBase: 0, crBase: 200000, dimensions: {} }], totalDr: 200000, totalCr: 200000, postedAt: '2026-09-30T10:00:00Z', postedBy: Priya Sharma, correlationId: corr_fa31i, createdAt: '2026-09-30T10:00:00Z', updatedAt: '2026-09-30T10:00:00Z', version: 1 }, warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/fixed-assets/assets/{id}/dispose:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Fixed Assets]
+    summary: Dispose (sale / scrap) — posts proceeds, derecognises cost & accumulated, books gain/loss
+    operationId: disposeAsset
+    x-permission: fixed-assets.asset.post
+    x-frd: [FR-AST-005]
+    x-idempotent: true
+    x-events: [JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/fixed-assets.yaml#/AssetDisposeRequest' }
+          examples:
+            sale: { summary: Sold for cash, value: { date: '2026-09-30', proceeds: 120000, buyer: Scrap Traders Co, reason: Obsolete — replaced by FL-3, receiptAccountId: acc_1310 } }
+            scrap: { summary: Scrapped (no proceeds), value: { date: '2026-09-30', proceeds: 0, reason: Beyond repair, receiptAccountId: acc_1310 } }
+    responses:
+      '200':
+        description: Disposed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/fixed-assets.yaml#/Asset' }
+            examples:
+              loss: { summary: Loss on disposal, value: { document: { id: fa_0009, companyId: co_acme, number: FA/2026-27/00009, name: Forklift FL-2, categoryId: cat_pm, categoryName: Plant & machinery, location: Main Warehouse, branchId: br_ho, acquisitionDate: '2022-05-01', capitalizationDate: '2022-05-01', inServiceDate: '2022-05-01', cost: 900000, residual: 45000, usefulLifeYears: 15, method: WDV, ratePct: 15, openingAccumulated: 421000, postedDepreciation: 36000, revaluation: 0, impairment: 0, accumulated: 457000, nbv: 0, assetAccountId: acc_1610, depreciationAccountId: acc_5700, accumulatedAccountId: acc_1690, dimensions: {}, status: Disposed, disposal: { date: '2026-09-30', proceeds: 120000, buyer: Scrap Traders Co, reason: Obsolete — replaced by FL-3, nbvAtDisposal: 443000, accumulatedAtDisposal: 457000, gainLoss: -323000, journalId: jnl_fa_9d, journalNumber: JV/2026-27/00420, receiptAccountId: acc_1310 }, createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-09-30T10:00:00Z', version: 9 }, outcome: posted, journal: { id: jnl_fa_9d, companyId: co_acme, number: JV/2026-27/00420, date: '2026-09-30', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Asset, sourceId: fa_0009, sourceNumber: FA/2026-27/00009, narration: Disposal FA/2026-27/00009 Forklift FL-2 — Obsolete, lines: [{ id: j1, accountId: acc_1310, accountCode: '1310', accountName: HDFC Bank — CA 0042, dr: 120000, cr: 0, drBase: 120000, crBase: 0, dimensions: {} }, { id: j2, accountId: acc_1690, accountCode: '1690', accountName: Accumulated depreciation — P&M, dr: 457000, cr: 0, drBase: 457000, crBase: 0, dimensions: {} }, { id: j3, accountId: acc_5720, accountCode: '5720', accountName: Loss on disposal of assets, dr: 323000, cr: 0, drBase: 323000, crBase: 0, dimensions: {} }, { id: j4, accountId: acc_1610, accountCode: '1610', accountName: Plant & machinery, dr: 0, cr: 900000, drBase: 0, crBase: 900000, dimensions: {} }], totalDr: 900000, totalCr: 900000, postedAt: '2026-09-30T10:00:00Z', postedBy: Priya Sharma, correlationId: corr_fa9d, createdAt: '2026-09-30T10:00:00Z', updatedAt: '2026-09-30T10:00:00Z', version: 1 }, warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: Already disposed
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              disposed: { summary: Already disposed, value: { code: INVALID_STATE, message: Asset already disposed, correlationId: corr_9f1c2e7a } }
+      '422': { $ref: '../components/responses.yaml#/Unprocessable' }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+# ── depreciation runs ─────────────────────────────────────────────────────
+
+/fixed-assets/depreciation-runs:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Fixed Assets]
+    summary: Depreciation runs
+    operationId: listDepreciationRuns
+    x-permission: fixed-assets.depreciation.view
+    x-frd: [FR-AST-003]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Status'
+      - $ref: '../components/parameters.yaml#/FiscalYear'
+    responses:
+      '200':
+        description: Runs
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/fixed-assets.yaml#/DepreciationRun' } }
+            examples:
+              firstPage: { summary: Runs, value: { data: [{ $ref: '#/components/examples/DepreciationRunSep/value' }], meta: { nextCursor: null, limit: 25, total: 6, counts: { Posted: 6, Reversed: 0, Draft: 0 } }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+  post:
+    tags: [Fixed Assets]
+    summary: Run depreciation for a period (dryRun previews; otherwise posts)
+    description: One run per period; reverse the existing run before re-running (`409 DUPLICATE_PERIOD`). Journal — Dr depreciation expense (by asset dimensions) / Cr accumulated depreciation per category.
+    operationId: createDepreciationRun
+    x-permission: fixed-assets.depreciation.post
+    x-idempotent: true
+    x-events: [JournalPosted]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/fixed-assets.yaml#/DepreciationRunRequest' }
+          examples:
+            preview: { summary: Preview, value: { period: '2026-10', dryRun: true } }
+            post: { summary: Post, value: { period: '2026-10' } }
+    responses:
+      '200':
+        description: Preview (dryRun)
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/fixed-assets.yaml#/DepreciationRun' }
+            examples:
+              preview: { summary: Preview, value: { id: preview, companyId: co_acme, number: DEP/2026-27/00007, period: '2026-10', fy: '2026-27', status: Draft, lines: [{ assetId: fa_0031, assetNumber: FA/2026-27/00031, assetName: CNC lathe LX-200, categoryName: Plant & machinery, method: WDV, ratePct: 15, openingNbv: 1835630, depreciation: 23385, closingNbv: 1812245, daysInService: 31, daysInPeriod: 31, dimensions: { Branch: br_pune }, depreciationAccountId: acc_5700, accumulatedAccountId: acc_1690 }], total: 188900, assetCount: 31, createdAt: '2026-10-31T09:00:00Z', updatedAt: '2026-10-31T09:00:00Z', version: 0 } }
+      '201':
+        description: Posted
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/fixed-assets.yaml#/DepreciationRun' }
+            examples:
+              posted: { summary: Posted, value: { document: { $ref: '#/components/examples/DepreciationRunSep/value' }, outcome: posted, journal: { id: jnl_dep_6, companyId: co_acme, number: JV/2026-27/00407, date: '2026-09-30', period: '2026-09', fy: '2026-27', branchId: br_ho, currency: INR, rate: 1, status: Posted, type: Auto, sourceType: Depreciation Run, sourceId: dep_0006, sourceNumber: DEP/2026-27/00006, narration: Depreciation September 2026 — 31 assets, lines: [{ id: j1, accountId: acc_5700, accountCode: '5700', accountName: Depreciation, dr: 184320, cr: 0, drBase: 184320, crBase: 0, dimensions: {} }, { id: j2, accountId: acc_1690, accountCode: '1690', accountName: Accumulated depreciation — P&M, dr: 0, cr: 121300, drBase: 0, crBase: 121300, dimensions: {} }, { id: j3, accountId: acc_1691, accountCode: '1691', accountName: Accumulated depreciation — IT, dr: 0, cr: 63020, drBase: 0, crBase: 63020, dimensions: {} }], totalDr: 184320, totalCr: 184320, postedAt: '2026-09-30T18:00:00Z', postedBy: Priya Sharma, correlationId: corr_dep6, createdAt: '2026-09-30T18:00:00Z', updatedAt: '2026-09-30T18:00:00Z', version: 1 }, warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409':
+        description: Already posted
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              duplicate: { summary: Period already run, value: { code: DUPLICATE_PERIOD, message: Depreciation for 2026-09 is already posted (DEP/2026-27/00006) — reverse it before re-running, details: { runId: dep_0006 }, correlationId: corr_9f1c2e7a } }
+      '422':
+        description: Nothing to depreciate
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              empty: { summary: Empty, value: { code: EMPTY, message: Nothing to depreciate in this period, correlationId: corr_9f1c2e7a } }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+/fixed-assets/depreciation-runs/{id}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  get:
+    tags: [Fixed Assets]
+    summary: Get a run (with lines)
+    operationId: getDepreciationRun
+    x-permission: fixed-assets.depreciation.view
+    responses:
+      '200':
+        description: Run
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/fixed-assets.yaml#/DepreciationRun' }
+            examples:
+              posted: { $ref: '../components/examples/fixed-assets.yaml#/DepreciationRunSep' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+/fixed-assets/depreciation-runs/{id}/reverse:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - $ref: '../components/parameters.yaml#/Id'
+  post:
+    tags: [Fixed Assets]
+    summary: Reverse a run (latest first)
+    operationId: reverseDepreciationRun
+    x-permission: fixed-assets.depreciation.reverse
+    x-idempotent: true
+    x-events: [JournalReversed]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/common.yaml#/Reason' }
+          examples:
+            reason: { summary: Reason, value: { reason: Lathe was capitalised with the wrong in-service date } }
+    responses:
+      '200':
+        description: Reversed
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/document.yaml#/ActionResult'
+                - type: object
+                  properties:
+                    document: { $ref: '../components/schemas/fixed-assets.yaml#/DepreciationRun' }
+            examples:
+              reversed: { summary: Reversed, value: { document: { id: dep_0006, companyId: co_acme, number: DEP/2026-27/00006, period: '2026-09', fy: '2026-27', status: Reversed, lines: [], total: 184320, assetCount: 31, journalId: jnl_dep_6, journalNumber: JV/2026-27/00407, reversedById: jnl_dep_6r, reversalReason: Lathe was capitalised with the wrong in-service date, postedAt: '2026-09-30T18:00:00Z', postedBy: Priya Sharma, createdAt: '2026-09-30T18:00:00Z', updatedAt: '2026-10-02T09:00:00Z', version: 2 }, outcome: reversed, warnings: [] } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: State conflict
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+            examples:
+              notPosted: { summary: Not posted, value: { code: INVALID_STATE, message: Only posted runs can be reversed, correlationId: corr_9f1c2e7a } }
+              order: { summary: Later run exists, value: { code: ORDER, message: Reverse DEP/2026-27/00007 (2026-10) first — runs must be reversed in reverse order, details: { laterRunId: dep_0007 }, correlationId: corr_9f1c2e7a } }
+      '423': { $ref: '../components/responses.yaml#/PeriodLocked' }
+
+# ── events & reports ──────────────────────────────────────────────────────
+
+/fixed-assets/events:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+  get:
+    tags: [Fixed Assets]
+    summary: Asset event log (created / transferred / revalued / disposed …)
+    operationId: listAssetEvents
+    x-permission: fixed-assets.asset.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - { name: assetId, in: query, schema: { type: string } }
+      - { name: type, in: query, schema: { type: string, enum: [Created, Capitalized, Depreciated, Transferred, Revalued, Impaired, Disposed, Reversed] } }
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+    responses:
+      '200':
+        description: Events
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/ListEnvelope'
+                - type: object
+                  properties:
+                    data: { type: array, items: { $ref: '../components/schemas/fixed-assets.yaml#/AssetEvent' } }
+            examples:
+              events: { summary: Events, value: { data: [{ id: aev_70, companyId: co_acme, assetId: fa_0031, assetNumber: FA/2026-27/00031, assetName: CNC lathe LX-200, type: Capitalized, date: '2026-09-10', detail: 'Capitalised ₹18,50,000 from VI/2026-27/00204', amount: 1850000, journalId: jnl_fa_31, journalNumber: JV/2026-27/00406, by: Priya Sharma, status: Posted, createdAt: '2026-09-13T09:12:04Z', updatedAt: '2026-09-13T09:12:04Z', version: 1 }, { id: aev_71, companyId: co_acme, assetId: fa_0031, assetNumber: FA/2026-27/00031, assetName: CNC lathe LX-200, type: Transferred, date: '2026-09-13', detail: 'Pune plant — Bay 3 → Andheri store — Basement', from: Pune plant — Bay 3, to: Andheri store — Basement, reason: Bay 3 refit, by: Priya Sharma, status: Posted, createdAt: '2026-09-13T09:30:00Z', updatedAt: '2026-09-13T09:30:00Z', version: 1 }], meta: { nextCursor: null, limit: 25, total: 2 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-13T09:12:04Z' } } }
+              empty: { $ref: '../components/examples/common.yaml#/EmptyList' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+
+/fixed-assets/reports/{report}:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CompanyId'
+    - { name: report, in: path, required: true, schema: { type: string, enum: [register, schedule, disposals] } }
+  get:
+    tags: [Fixed Assets]
+    summary: Asset register / depreciation schedule / disposals report
+    operationId: getAssetReport
+    x-permission: fixed-assets.asset.view
+    parameters:
+      - $ref: '../components/parameters.yaml#/AsOf'
+      - $ref: '../components/parameters.yaml#/FiscalYear'
+      - { name: categoryId, in: query, schema: { type: string } }
+      - $ref: '../components/parameters.yaml#/BranchFilter'
+    responses:
+      '200':
+        description: Report
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/fixed-assets.yaml#/AssetReport' }
+            examples:
+              register: { summary: Register as of date, value: { report: register, asOf: '2026-09-30', fy: '2026-27', rows: [{ assetId: fa_0031, number: FA/2026-27/00031, name: CNC lathe LX-200, category: Plant & machinery, location: Pune plant — Bay 3, branchId: br_pune, custodianName: Suresh Patel, capitalizationDate: '2026-09-10', cost: 1850000, additions: 0, revaluation: 0, impairment: 0, accumulated: 14370, depreciationFy: 14370, nbv: 1835630, status: Active }], totals: { cost: 12400000, additions: 1850000, accumulated: 3194370, nbv: 9205630 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-30T00:00:00Z' } } }
+              disposals: { summary: Disposals in FY, value: { report: disposals, asOf: '2026-09-30', fy: '2026-27', rows: [{ assetId: fa_0009, number: FA/2026-27/00009, name: Forklift FL-2, category: Plant & machinery, location: Main Warehouse, capitalizationDate: '2022-05-01', cost: 900000, accumulated: 457000, nbv: 443000, status: Disposed }], totals: { cost: 900000, accumulated: 457000, nbv: 443000, proceeds: 120000, gainLoss: -323000 }, scope: { companyId: co_acme, currency: INR, asOf: '2026-09-30T00:00:00Z' } } }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }

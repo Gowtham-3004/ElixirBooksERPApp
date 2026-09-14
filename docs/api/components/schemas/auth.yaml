@@ -1,0 +1,375 @@
+# Authentication, current user, registration and onboarding (src/store/session.ts, src/modules/auth/*)
+
+LoginRequest:
+  type: object
+  required: [email, password]
+  properties:
+    email: { type: string, format: email, example: priya@acme.example }
+    password: { type: string, format: password, writeOnly: true, example: 'S3cure!pass' }
+    acceptTerms: { type: boolean, description: Required on first login after a terms update. }
+    deviceToken: { type: string, description: Trusted-device token from a previous `rememberDevice` MFA verification (skips MFA for 30 days)., example: dev_trust_9a1f }
+
+TokenPair:
+  type: object
+  required: [accessToken, refreshToken, expiresIn, tokenType]
+  properties:
+    accessToken: { type: string, example: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9… }
+    refreshToken: { type: string, example: rt_4f1c9e… }
+    expiresIn: { type: integer, description: Seconds until the access token expires., example: 900 }
+    tokenType: { type: string, const: Bearer }
+
+CompanySummary:
+  type: object
+  required: [id, code, legalName, baseCurrency, country, status]
+  properties:
+    id: { type: string, example: co_acme }
+    code: { type: string, example: ACME }
+    legalName: { type: string, example: Acme Trading Pvt Ltd }
+    tradeName: { type: string, example: Acme Trading }
+    baseCurrency: { type: string, example: INR }
+    country: { type: string, example: IN }
+    status: { type: string, enum: [Active, Inactive] }
+    profiles: { type: array, items: { type: string }, example: [Trading] }
+    onboardingComplete: { type: boolean }
+
+Context:
+  type: object
+  description: Active scope for the session (mirrors the company / branch / period switchers).
+  required: [companyId]
+  properties:
+    companyId: { type: string, example: co_acme }
+    branchId: { type: string, example: br_ho }
+    fy: { type: string, example: '2026-27' }
+    periodCode: { type: string, example: '2026-09' }
+
+TenantSummary:
+  type: object
+  required: [id, name, planCode, subscriptionState]
+  properties:
+    id: { type: string, example: tnt_acme }
+    name: { type: string, example: Acme Group }
+    planCode: { type: string, example: GROWTH }
+    planTier: { type: string, enum: [Lite, Growth, Enterprise, Pro] }
+    subscriptionState: { type: string, enum: [Trial, Active, Grace, Suspended, Expired, Cancelled] }
+    trialEndsAt: { type: string, format: date }
+    renewsAt: { type: string, format: date }
+    graceUntil: { type: string, format: date }
+    entitledModules: { type: array, items: { type: string }, example: [home, approvals, crm, sales, purchase, inventory, accounting, banking, taxation, reports, masters, admin] }
+
+Me:
+  type: object
+  description: Everything the shell needs after sign-in — user, roles, effective permissions, companies, tenant/plan state and current context.
+  required: [user, roles, permissions, companies, tenant, context]
+  properties:
+    user: { $ref: './admin.yaml#/User' }
+    roles: { type: array, items: { $ref: './admin.yaml#/Role' } }
+    permissions: { type: array, items: { type: string }, description: Effective permission strings (wildcards preserved)., example: ['sales.*', 'masters.customers.view', 'reports.*'] }
+    companies: { type: array, items: { $ref: '#/CompanySummary' } }
+    branches: { type: array, items: { $ref: './admin.yaml#/Branch' }, description: Branches the user may act in for the active company. }
+    tenant: { $ref: '#/TenantSummary' }
+    context: { $ref: '#/Context' }
+    isTenantOwner: { type: boolean }
+    isPlatformAdmin: { type: boolean }
+    banner: { type: string, description: "Subscription banner to show (trial ending, grace, suspended).", example: Your trial ends in 5 days }
+
+LoginResult:
+  description: Discriminated by `next` — what the client must do next.
+  oneOf:
+    - $ref: '#/LoginApp'
+    - $ref: '#/LoginMfa'
+    - $ref: '#/LoginChooseCompany'
+    - $ref: '#/LoginOnboarding'
+  discriminator:
+    propertyName: next
+    mapping:
+      app: '#/LoginApp'
+      mfa: '#/LoginMfa'
+      choose-company: '#/LoginChooseCompany'
+      onboarding: '#/LoginOnboarding'
+
+LoginApp:
+  type: object
+  required: [next, tokens, me]
+  properties:
+    next: { type: string, const: app }
+    tokens: { $ref: '#/TokenPair' }
+    me: { $ref: '#/Me' }
+
+LoginMfa:
+  type: object
+  description: Password accepted; MFA challenge pending. Exchange `mfaToken` + code at `/auth/mfa/verify`.
+  required: [next, mfaToken, expiresIn, method]
+  properties:
+    next: { type: string, const: mfa }
+    mfaToken: { type: string, example: mfa_7d2e91… }
+    expiresIn: { type: integer, example: 300 }
+    method: { type: string, enum: [totp, sms, email], example: totp }
+    maskedTarget: { type: string, description: For sms/email methods., example: '+91 98xxx xx345' }
+
+LoginChooseCompany:
+  type: object
+  description: User belongs to more than one company — pick one with `PUT /me/context`.
+  required: [next, tokens, companies]
+  properties:
+    next: { type: string, const: choose-company }
+    tokens: { $ref: '#/TokenPair' }
+    companies: { type: array, items: { $ref: '#/CompanySummary' } }
+
+LoginOnboarding:
+  type: object
+  description: Workspace exists but the setup wizard is incomplete.
+  required: [next, tokens, me, onboarding]
+  properties:
+    next: { type: string, const: onboarding }
+    tokens: { $ref: '#/TokenPair' }
+    me: { $ref: '#/Me' }
+    onboarding: { $ref: '#/OnboardingState' }
+
+MfaVerifyRequest:
+  type: object
+  required: [mfaToken, code]
+  properties:
+    mfaToken: { type: string, example: mfa_7d2e91… }
+    code: { type: string, pattern: '^\d{6}$', example: '482913' }
+    rememberDevice: { type: boolean, default: false, description: Issue a 30-day trusted-device token. }
+
+MfaVerifyResult:
+  allOf:
+    - $ref: '#/LoginApp'
+    - type: object
+      properties:
+        deviceToken: { type: string, description: Present when `rememberDevice` was true., example: dev_trust_9a1f }
+
+RefreshRequest:
+  type: object
+  required: [refreshToken]
+  properties:
+    refreshToken: { type: string }
+
+ForgotPasswordRequest:
+  type: object
+  required: [email]
+  properties:
+    email: { type: string, format: email, example: priya@acme.example }
+
+ResetPasswordRequest:
+  type: object
+  required: [token, password]
+  properties:
+    token: { type: string, example: rst_3b7c… }
+    password: { type: string, format: password, writeOnly: true, minLength: 8, description: 'Strength ≥ 3: at least 8 chars, an uppercase letter and a digit.', example: 'N3wPass!word' }
+
+PasswordPolicyError:
+  type: object
+  description: '`details` carried by `400 VALIDATION` when the password is too weak.'
+  properties:
+    strength: { type: integer, example: 1 }
+    required: { type: integer, example: 3 }
+    missing: { type: array, items: { type: string }, example: [uppercase, digit] }
+
+Invitation:
+  type: object
+  required: [token, email, roles, companies, expiresAt, invitedBy, status]
+  properties:
+    token: { type: string, example: inv_tok_8f2a… }
+    email: { type: string, format: email, example: anil@acme.example }
+    name: { type: string, example: Anil Kumar }
+    roles: { type: array, items: { type: object, properties: { id: { type: string }, name: { type: string } } }, example: [{ id: role_accountant, name: Accountant }] }
+    companies: { type: array, items: { $ref: '#/CompanySummary' } }
+    invitedBy: { type: string, example: Rahul Mehta }
+    invitedAt: { type: string, format: date-time }
+    expiresAt: { type: string, format: date-time, description: 14 days after the invitation. }
+    status: { type: string, enum: [Valid, Expired, Accepted, Revoked] }
+
+AcceptInvitationRequest:
+  type: object
+  required: [name, password]
+  properties:
+    name: { type: string, example: Anil Kumar }
+    password: { type: string, format: password, writeOnly: true, minLength: 8 }
+    acceptTerms: { type: boolean }
+
+RegisterRequest:
+  type: object
+  description: Self-service registration (two-step form flattened). Creates a 14-day Growth trial tenant.
+  required: [fullName, email, password, companyName, country, nature, acceptTerms]
+  properties:
+    fullName: { type: string, example: Rahul Mehta }
+    email: { type: string, format: email, example: rahul@acme.example }
+    password: { type: string, format: password, writeOnly: true, minLength: 8 }
+    companyName: { type: string, example: Acme Trading Pvt Ltd }
+    country: { type: string, enum: [IN, AE, GB, SG, US], description: Drives currency / time zone / locale / localization pack / FY start. }
+    nature: { type: string, enum: [Trading, Services, Manufacturing, Hybrid] }
+    acceptTerms: { type: boolean, const: true }
+
+RegisterResult:
+  type: object
+  required: [next, tokens, tenant, company, branch, user]
+  properties:
+    next: { type: string, const: onboarding }
+    tokens: { $ref: '#/TokenPair' }
+    tenant: { $ref: './platform.yaml#/Tenant' }
+    company: { $ref: './admin.yaml#/Company' }
+    branch: { $ref: './admin.yaml#/Branch' }
+    user: { $ref: './admin.yaml#/User' }
+    periodsCreated: { type: integer, example: 12 }
+    numberSeriesCreated: { type: integer, example: 18 }
+
+MeUpdate:
+  type: object
+  properties:
+    name: { type: string }
+    phone: { type: string }
+    locale: { type: string, example: en-IN }
+    timeZone: { type: string, example: Asia/Kolkata }
+
+UserSession:
+  type: object
+  required: [id, device, at]
+  properties:
+    id: { type: string, example: s_1a2b }
+    device: { type: string, example: Chrome on Windows }
+    at: { type: string, format: date-time }
+    ip: { type: string, example: 103.21.58.10 }
+    current: { type: boolean }
+
+MfaEnableResult:
+  type: object
+  required: [secret, otpauthUrl, recoveryCodes]
+  properties:
+    secret: { type: string, example: JBSWY3DPEHPK3PXP }
+    otpauthUrl: { type: string, example: 'otpauth://totp/ElixirBooks:priya@acme.example?secret=JBSWY3DPEHPK3PXP&issuer=ElixirBooks' }
+    recoveryCodes: { type: array, items: { type: string }, example: [9f3k-2m1p, 7a8c-4e2q] }
+
+ReadinessRow:
+  type: object
+  required: [key, label, status, link]
+  properties:
+    key: { type: string, enum: [nature, legal, address, currency, periods, users, masters, opening, bank, numbering, einvoice] }
+    label: { type: string, example: Legal identity & registrations }
+    status: { type: string, enum: [Done, Pending, Blocked] }
+    detail: { type: string, example: PAN AAPCA1234F · GSTIN on file }
+    link: { type: string, example: admin/company }
+
+OnboardingState:
+  type: object
+  required: [companyId, steps, readiness, complete]
+  properties:
+    companyId: { type: string, example: co_acme }
+    steps:
+      type: object
+      additionalProperties: { type: string, enum: [Done, Pending, Blocked] }
+      example: { nature: Done, legal: Pending, address: Pending, currency: Pending, periods: Done, users: Pending, masters: Pending, opening: Pending, bank: Pending, numbering: Done, einvoice: Pending }
+    readiness: { type: array, items: { $ref: '#/ReadinessRow' } }
+    complete: { type: boolean }
+    template: { $ref: './admin.yaml#/OperatingProfileTemplate' }
+
+OnboardingStepInput:
+  description: Payload per wizard step (`PUT /onboarding/steps/{step}`). Discriminated by the path parameter; each step writes a slice of the Company record and flips its readiness flag.
+  oneOf:
+    - $ref: '#/OnboardingNature'
+    - $ref: '#/OnboardingLegal'
+    - $ref: '#/OnboardingAddress'
+    - $ref: '#/OnboardingCurrency'
+    - $ref: '#/OnboardingPeriods'
+    - $ref: '#/OnboardingUsers'
+    - $ref: '#/OnboardingMasters'
+    - $ref: '#/OnboardingOpening'
+    - $ref: '#/OnboardingBank'
+    - $ref: '#/OnboardingEInvoice'
+
+OnboardingNature:
+  type: object
+  required: [nature]
+  properties:
+    nature: { type: string, enum: [Trading, Services, Manufacturing, Hybrid] }
+    characteristics: { type: array, items: { type: string }, example: [Multi-branch, Export] }
+    templateOverrides:
+      type: object
+      properties:
+        modules: { type: array, items: { type: string } }
+        coaTemplate: { type: string }
+        dimensions: { type: array, items: { type: string } }
+
+OnboardingLegal:
+  type: object
+  properties:
+    legalName: { type: string }
+    tradeName: { type: string }
+    pan: { type: string, pattern: '^[A-Z]{5}[0-9]{4}[A-Z]$', example: AAPCA1234F }
+    cin: { type: string }
+    businessType: { type: string, enum: [Private Limited, Public Limited, LLP, Partnership, Proprietorship, LLC, Branch office, Trust / Society, Other] }
+    registrations: { type: array, items: { $ref: './admin.yaml#/RegistrationInput' } }
+
+OnboardingAddress:
+  type: object
+  required: [address]
+  properties:
+    address: { $ref: './common.yaml#/Address' }
+    phone: { type: string }
+    website: { type: string }
+    branches: { type: array, items: { $ref: './admin.yaml#/BranchInput' } }
+
+OnboardingCurrency:
+  type: object
+  properties:
+    baseCurrency: { type: string, example: INR }
+    reportingCurrency: { type: string }
+    permittedCurrencies: { type: array, items: { type: string }, example: [INR, USD] }
+    timeZone: { type: string, example: Asia/Kolkata }
+    locale: { type: string, example: en-IN }
+    language: { type: string, example: en }
+
+OnboardingPeriods:
+  type: object
+  properties:
+    fiscalYearStartMonth: { type: integer, minimum: 1, maximum: 12, example: 4 }
+    booksFrom: { type: string, format: date }
+    openingBalanceDate: { type: string, format: date }
+
+OnboardingUsers:
+  type: object
+  properties:
+    invites:
+      type: array
+      items:
+        type: object
+        required: [email, roleId]
+        properties:
+          email: { type: string, format: email }
+          roleId: { type: string }
+
+OnboardingMasters:
+  type: object
+  required: [mode]
+  properties:
+    mode: { type: string, enum: [import, start], description: '`import` = will use the import wizard; `start` = create from scratch.' }
+
+OnboardingOpening:
+  type: object
+  required: [mode]
+  properties:
+    mode: { type: string, enum: [import, manual, skip] }
+
+OnboardingBank:
+  type: object
+  properties:
+    bankAccounts:
+      type: array
+      items:
+        type: object
+        required: [name, bankName, accountNumber, ifsc]
+        properties:
+          name: { type: string, example: HDFC Bank — Current A/c }
+          bankName: { type: string, example: HDFC Bank }
+          accountNumber: { type: string, example: '50200012344412' }
+          ifsc: { type: string, example: HDFC0000240 }
+          branch: { type: string, example: Nariman Point }
+          currency: { type: string, example: INR }
+          openingBalance: { type: number, example: 250000 }
+
+OnboardingEInvoice:
+  type: object
+  properties:
+    skip: { type: boolean }
+    credentials: { type: array, items: { $ref: './admin.yaml#/ProviderCredentialInput' } }

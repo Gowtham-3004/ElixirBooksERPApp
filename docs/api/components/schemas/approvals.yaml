@@ -1,0 +1,179 @@
+# Workflow & approvals (src/store/types.ts:847-916, engine.ts:785-944)
+
+WorkflowDocType:
+  type: string
+  description: Document types that can be routed through a workflow rule (admin/shared.tsx DOC_TYPES).
+  enum: [Sales Invoice, Credit Note, Quotation, Sales Order, Delivery, Sales Return, Receipt, Purchase Order, Requisition, RFQ, GRN, Vendor Invoice, Debit Note, Purchase Return, Payment, Payment Batch, Journal, Bank Voucher, Stock Adjustment, Stock Transfer, Stock Count, POS Bill, POS Return, Expense Claim, Payroll Run, Asset, Contract, Project, Timesheet, BOM, Production Order, Material Issue, Production Receipt, Quality Inspection, Subcontract Order, Exchange Rate, Supplier Bank Detail, Period Reopen, Profile Change]
+
+WorkflowCondition:
+  type: object
+  required: [field, op, value]
+  properties:
+    field: { type: string, enum: [amount, branchId, department, project, exception, docType, partyId] }
+    op: { type: string, enum: ['>', '>=', '<', '<=', '=', '!=', in] }
+    value:
+      oneOf:
+        - { type: string }
+        - { type: number }
+        - { type: array, items: { type: string } }
+      example: 100000
+
+WorkflowStep:
+  type: object
+  required: [order, name, mode, approverType, approverRef, commentRequired, slaHours, canDelegate]
+  properties:
+    order: { type: integer, example: 1 }
+    name: { type: string, example: Finance review }
+    mode: { type: string, enum: [Sequential, Parallel] }
+    approverType: { type: string, enum: [Role, User, Group, Manager] }
+    approverRef: { type: string, description: Role code / user id / group code; ignored for Manager., example: role_finadmin }
+    approverLabel: { type: string, example: Finance Admin }
+    commentRequired: { type: boolean }
+    slaHours: { type: integer, example: 24 }
+    canDelegate: { type: boolean }
+
+WorkflowRuleInput:
+  type: object
+  properties:
+    code: { type: string, example: WF-SI-100K }
+    name: { type: string, example: Sales invoices above ₹1 lakh }
+    docType: { $ref: '#/WorkflowDocType' }
+    conditions: { type: array, items: { $ref: '#/WorkflowCondition' } }
+    steps: { type: array, minItems: 1, items: { $ref: '#/WorkflowStep' } }
+    escalation:
+      type: object
+      properties:
+        afterHours: { type: integer, example: 48 }
+        toRole: { type: string, example: role_owner }
+        notify: { type: boolean }
+    reminders:
+      type: object
+      properties:
+        afterHours: { type: integer, example: 24 }
+    materialChangeFields: { type: array, items: { type: string }, example: [lines, totals.total, partyId] }
+    allowSelfApproval: { type: boolean, default: false }
+    priority: { type: integer, description: Lower wins when several rules match., example: 10 }
+
+WorkflowRule:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - $ref: '#/WorkflowRuleInput'
+    - type: object
+      required: [code, name, docType, conditions, steps, ruleVersion, status, materialChangeFields, allowSelfApproval, priority]
+      properties:
+        ruleVersion: { type: integer, readOnly: true, example: 2 }
+        status: { type: string, enum: [Draft, Active, Retired], readOnly: true }
+        versions:
+          type: array
+          readOnly: true
+          items:
+            type: object
+            properties:
+              ruleVersion: { type: integer }
+              at: { $ref: './common.yaml#/Timestamp' }
+              by: { type: string }
+              conditions: { type: array, items: { $ref: '#/WorkflowCondition' } }
+              steps: { type: array, items: { $ref: '#/WorkflowStep' } }
+              note: { type: string }
+
+ApprovalStepState:
+  type: object
+  required: [order, name, approverType, approverRef, approverLabel, status, commentRequired]
+  properties:
+    order: { type: integer, example: 1 }
+    name: { type: string, example: Finance review }
+    approverType: { type: string, example: Role }
+    approverRef: { type: string, example: role_finadmin }
+    approverLabel: { type: string, example: Finance Admin }
+    status: { type: string, enum: [Pending, Approved, Rejected, Returned, Skipped, Delegated, Escalated] }
+    actedBy: { type: string, example: Rahul Mehta }
+    actedById: { type: string, example: usr_rahul }
+    actedAt: { $ref: './common.yaml#/Timestamp' }
+    comment: { type: string }
+    delegatedTo: { type: string }
+    commentRequired: { type: boolean }
+    dueAt: { $ref: './common.yaml#/Timestamp' }
+
+ApprovalHistoryEntry:
+  type: object
+  required: [at, by, action]
+  properties:
+    at: { $ref: './common.yaml#/Timestamp' }
+    by: { type: string, example: Priya Sharma }
+    action: { type: string, example: Submitted }
+    comment: { type: string }
+    step: { type: integer }
+
+ApprovalRequest:
+  allOf:
+    - $ref: './common.yaml#/BaseRecord'
+    - type: object
+      required: [docType, collection, docId, docNumber, amount, currency, branchId, requesterId, requesterName, steps, currentStep, status, submittedAt, history]
+      properties:
+        docType: { $ref: '#/WorkflowDocType' }
+        collection: { type: string, example: salesInvoices }
+        docId: { type: string, example: inv_01j8k3 }
+        docNumber: { type: string, example: INV/2026-27/00042 }
+        amount: { type: number, example: 118000 }
+        currency: { type: string, example: INR }
+        branchId: { type: string, example: br_ho }
+        requesterId: { type: string, example: usr_priya }
+        requesterName: { type: string, example: Priya Sharma }
+        ruleId: { type: string, example: wf_si_100k }
+        ruleName: { type: string, example: Sales invoices above ₹1 lakh }
+        ruleVersion: { type: integer, example: 2 }
+        steps: { type: array, items: { $ref: '#/ApprovalStepState' } }
+        currentStep: { type: integer, example: 0 }
+        status: { type: string, enum: [Pending, Approved, Rejected, Returned, Cancelled, Recalled] }
+        submittedAt: { $ref: './common.yaml#/Timestamp' }
+        completedAt: { $ref: './common.yaml#/Timestamp' }
+        history: { type: array, items: { $ref: '#/ApprovalHistoryEntry' } }
+        summary: { type: string, example: 'Arlene Traders · 3 lines · ₹1,18,000' }
+        canAct: { type: boolean, readOnly: true, description: Whether the caller may act on the current step. }
+        cannotActReason: { type: string, readOnly: true, example: You submitted this request (self-approval is not allowed) }
+        ageingHours: { type: number, readOnly: true, example: 30.5 }
+        slaBreached: { type: boolean, readOnly: true }
+
+ApprovalAction:
+  type: object
+  required: [action]
+  properties:
+    action: { type: string, enum: [Approve, Reject, Return, Delegate, Recall] }
+    comment: { type: string, maxLength: 1000, description: "Required when the step has `commentRequired`, and always for Reject / Return." }
+    delegateToUserId: { type: string, description: Required for Delegate., example: usr_anita }
+
+BulkApprovalAction:
+  type: object
+  required: [ids, action]
+  properties:
+    ids: { type: array, minItems: 1, maxItems: 200, items: { type: string } }
+    action: { type: string, enum: [Approve, Reject] }
+    comment: { type: string }
+
+WorkflowTestRequest:
+  type: object
+  required: [docType, amount]
+  properties:
+    docType: { $ref: '#/WorkflowDocType' }
+    amount: { type: number, example: 250000 }
+    branchId: { type: string, example: br_ho }
+    department: { type: string }
+    project: { type: string }
+    partyId: { type: string }
+    exception: { type: boolean }
+
+WorkflowTestResult:
+  type: object
+  required: [matched]
+  properties:
+    matched: { type: boolean }
+    rule: { $ref: '#/WorkflowRule' }
+    resolvedSteps:
+      type: array
+      items:
+        type: object
+        properties:
+          order: { type: integer }
+          name: { type: string }
+          approvers: { type: array, items: { type: string }, example: [Rahul Mehta, Anita Rao] }
+    reason: { type: string, description: Why no rule matched., example: No Active rule for Sales Invoice with amount ≥ 250000 }
