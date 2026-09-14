@@ -8,7 +8,10 @@ import type { ComponentType } from 'react';
 import { useIsMobile, useIsTablet } from '../lib/useMedia';
 import { Avatar, Badge, Button, Banner, Kbd, TwoLine } from './ui/primitives';
 import { Modal } from './ui/overlays';
+import { Segmented } from './ui/fields';
 import { fmtDateTime, fmtMoney, fmtPeriod } from '../lib/format';
+
+type Density = 'comfortable' | 'compact';
 
 interface AppShellProps {
   children: ReactNode;
@@ -27,6 +30,9 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
   const [helpOpen, setHelpOpen] = useState(false);
   const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.innerWidth < 1440);
   const [railPinned, setRailPinned] = useState<boolean | null>(() => { try { const v = localStorage.getItem('eb-sidebar'); return v === null ? null : v === 'expanded'; } catch { return null; } });
+  // display density — read by CSS through data-density on the shell root ([data-density="compact"] rules in index.css)
+  const [density, setDensityState] = useState<Density>(() => { try { return localStorage.getItem('eb-density') === 'compact' ? 'compact' : 'comfortable'; } catch { return 'comfortable'; } });
+  const setDensity = (d: Density) => { setDensityState(d); try { localStorage.setItem('eb-density', d); } catch { /* ignore */ } };
   const isMobile = useIsMobile();
   // below the laptop breakpoint the company/branch/period controls move to a strip under the header
   const compact = useIsTablet();
@@ -171,14 +177,14 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
 
   if (fullBleed) {
     return (
-      <div style={{ height: '100%', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
+      <div data-density={density} style={{ height: '100%', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
         {children}
       </div>
     );
   }
 
   return (
-    <div className="shell">
+    <div className="shell" data-density={density}>
       {isMobile && navOpen && <div className="sidebar-scrim" onClick={() => setNavOpen(false)} />}
       {/* Sidebar — fixed rail on desktop/tablet, off-canvas drawer on phones */}
       <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${navOpen ? 'open' : ''}`} aria-label="Sidebar" aria-hidden={isMobile && !navOpen ? true : undefined}>
@@ -333,6 +339,13 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
                   <span style={{ color: 'var(--ink-3)' }}>{fmtDateTime(ss.at)}</span>
                 </div>
               ))}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div>
+                <div className="section-label">Display density</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 2 }}>Compact fits more rows on screen</div>
+              </div>
+              <Segmented value={density} onChange={setDensity} options={[{ value: 'comfortable', label: 'Comfortable' }, { value: 'compact', label: 'Compact' }]} />
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
               <Button variant="secondary" onClick={() => { setUserOpen(false); nav.go(`admin/users/${s.user?.id}`); }}>Profile & security</Button>

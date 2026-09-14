@@ -42,6 +42,7 @@ export interface DataTableProps<T> {
   showTotals?: boolean;
   style?: CSSProperties;
   maxHeight?: number | string;
+  /** headers stick inside a scrolling wrapper by default; pass false to opt out */
   stickyHeader?: boolean;
 }
 
@@ -79,8 +80,8 @@ export function DataTable<T extends Record<string, any>>({ rows, columns, rowKey
   }
   return (
     <div className="card table-scroll" style={{ maxHeight, ...style }}>
-      <table className={`data-table ${dense ? 'dense' : ''} ${compact ? 'compact' : ''}`}>
-        <thead style={stickyHeader ? { position: 'sticky', top: 0, zIndex: 1 } : undefined}>
+      <table className={`data-table ${dense ? 'dense' : ''} ${compact ? 'compact' : ''} ${stickyHeader === false ? 'no-sticky' : ''}`}>
+        <thead>
           <tr>
             {selectable && (
               <th style={{ width: 40 }}>

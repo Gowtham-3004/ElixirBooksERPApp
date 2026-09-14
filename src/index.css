@@ -240,10 +240,11 @@ html, body, #root {
 .filter-tab:hover { color: var(--ink); }
 .filter-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
-/* Table */
+/* Table — 48px rows (comfortable), hairline dividers, header sticks inside a scrolling wrapper.
+   The header rule is an inset shadow because a collapsed border does not travel with a sticky cell. */
 .data-table { width: 100%; border-collapse: collapse; }
 .data-table th {
-  background: var(--surface-2);
+  background: var(--surface);
   padding: 0 16px;
   height: 40px;
   text-align: left;
@@ -252,14 +253,18 @@ html, body, #root {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--ink-3);
-  border-bottom: 1px solid var(--line);
+  box-shadow: inset 0 -1px 0 var(--line);
   white-space: nowrap;
   font-variant-numeric: normal;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
+.data-table.no-sticky th { position: static; }
 .data-table th.right { text-align: right; }
 .data-table td {
   padding: 0 16px;
-  height: 56px;
+  height: 48px;
   border-bottom: 1px solid var(--hairline);
   font-size: 14px;
   color: var(--ink);
@@ -272,6 +277,19 @@ html, body, #root {
 /* Dense table (line grid) */
 .data-table.dense td { height: 40px; padding: 0 12px; }
 .data-table.dense th { padding: 0 12px; }
+
+/* Statement rows: a rule above subtotals, a double rule under the net line (accounting convention) */
+.data-table tbody tr.row-total td { background: var(--surface-2); border-top: 1px solid var(--ink-2); font-weight: 600; }
+.data-table tbody tr.row-net td { background: var(--surface-2); border-top: 1px solid var(--ink-2); border-bottom: 3px double var(--ink-2); font-weight: 600; }
+
+/* Display density — localStorage 'eb-density', set as data-density on the shell root (see AppShell).
+   Compact drops every row one step; phones keep 48px for touch. */
+[data-density="compact"] .data-table td { height: 40px; }
+[data-density="compact"] .data-table th { height: 36px; }
+[data-density="compact"] .data-table.compact td, [data-density="compact"] .data-table.dense td { height: 36px; }
+[data-density="compact"] .data-table tfoot td { height: 40px; }
+[data-density="compact"] .kpi-tile { padding: 16px 20px; }
+[data-density="compact"] .page { gap: 12px; }
 
 /* Money — md is inline; lg/xl are hero sizes with muted minor units */
 .money { font-variant-numeric: tabular-nums; }

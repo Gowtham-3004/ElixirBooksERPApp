@@ -80,7 +80,8 @@ input[type=number].field-input { -moz-appearance: textfield; }
 .data-table tr.muted td { opacity: .6; }
 .data-table tr.muted td .badge { opacity: 1; }
 .data-table tr.error-row td:first-child { box-shadow: inset 2px 0 0 var(--danger); }
-.data-table tfoot td { background: var(--surface-2); font-weight: 600; height: 44px; border-top: 1px solid var(--line); }
+.data-table tfoot td { background: var(--surface-2); font-weight: 600; height: 44px; border-top: 1px solid var(--ink-2); }
+.data-table tfoot tr:last-child td { border-bottom: 3px double var(--ink-2); }
 .data-table.compact td { height: 44px; }
 .link { color: var(--accent); cursor: pointer; text-decoration: none; }
 .link:hover { text-decoration: underline; }
@@ -308,7 +309,7 @@ div:has(> table.data-table) { overflow-x: auto !important; -webkit-overflow-scro
 
   /* tables */
   .data-table th { padding: 0 12px; height: 36px; }
-  .data-table td { padding: 0 12px; height: 48px; font-size: 13px; }
+  .data-table td, [data-density="compact"] .data-table td, [data-density="compact"] .data-table.dense td { padding: 0 12px; height: 48px; font-size: 13px; }
   .data-table.dense td, .data-table.dense th { padding: 0 8px; }
 
   /* inline flex rows (page headers, action groups, meta lines) wrap instead of overflowing; deliberate
