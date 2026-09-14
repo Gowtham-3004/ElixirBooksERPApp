@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { XIcon, MoreVertIcon, ArrowsSwapIcon, PackageIcon, FlagIcon, PieChartIcon, CheckIcon, AlertTriangleIcon, MailIcon, HashIcon, InfoCircleIcon, ChevronDownIcon, CircleDotIcon } from '../Icons';
 import { Button, Spinner, type ButtonVariant, type ButtonTone } from './primitives';
 import { ReasonField } from './fields';
+import { StorysetAnimated } from './storyset';
 import { nav } from '../../store';
 
 // ── Drawer ─────────────────────────────────────────────────────────────────
@@ -265,7 +266,16 @@ export function useAction() {
   };
 }
 
-export function LoadingOverlay({ label = 'Working…', style }: { label?: string; style?: CSSProperties }) {
+/** Inline spinner + label; `art` turns it into a centred block with the Storyset "loading" scene for long-running work. */
+export function LoadingOverlay({ label = 'Working…', style, art }: { label?: string; style?: CSSProperties; art?: boolean }) {
+  if (art) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: 24, fontSize: 13, color: 'var(--ink-3)', ...style }} role="status" aria-live="polite">
+        <StorysetAnimated name="loading" width={140} bg={false} />
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Spinner /> {label}</span>
+      </div>
+    );
+  }
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink-3)', ...style }}>
       <Spinner /> {label}

@@ -69,7 +69,7 @@ function RoleEditor({ id }: { id: string }) {
   const [perms, setPerms] = useState<string[] | null>(null);
   const [meta, setMeta] = useState<{ name: string; description: string; dataScope: Role['dataScope'] } | null>(null);
   const [del, setDel] = useState(false);
-  if (!role) return <div className="page"><EmptyState icon="🔒" title="Role not found" action={<Button variant="secondary" onClick={() => nav.go('admin/roles')}>Back to roles</Button>} /></div>;
+  if (!role) return <div className="page"><EmptyState illustration="not-found" title="Role not found" action={<Button variant="secondary" onClick={() => nav.go('admin/roles')}>Back to roles</Button>} /></div>;
   const current = perms ?? role.permissions;
   const m = meta ?? { name: role.name, description: role.description, dataScope: role.dataScope };
   const readOnly = role.isSystem || !(s.can('admin.roles.edit') || s.can('admin.roles.*') || s.isTenantOwner);

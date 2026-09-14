@@ -1,9 +1,15 @@
 // Appearance preference. The resolved theme is stamped on <html data-theme="light|dark"> so every token
 // in index.css (and the auth screens outside the shell) follows it; 'system' tracks prefers-color-scheme.
+import { useSyncExternalStore } from 'react';
+
 export type ThemePref = 'light' | 'dark' | 'system';
 
 const KEY = 'eb-theme';
 const media = () => (typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null);
+
+// the resolved theme, for components that must branch on it (GIF vs SVG art) rather than just read tokens
+let resolved: 'light' | 'dark' = 'light';
+const subscribers = new Set<() => void>();
 
 export function readTheme(): ThemePref {
   try { const v = localStorage.getItem(KEY); return v === 'dark' || v === 'light' ? v : 'system'; } catch { return 'system'; }
@@ -14,10 +20,22 @@ export function resolveTheme(pref: ThemePref): 'light' | 'dark' {
 }
 
 export function applyTheme(pref: ThemePref) {
-  const resolved = resolveTheme(pref);
+  const next = resolveTheme(pref);
   const root = document.documentElement;
-  root.dataset.theme = resolved;
-  root.style.colorScheme = resolved;
+  root.dataset.theme = next;
+  root.style.colorScheme = next;
+  setResolved(next);
+}
+
+function setResolved(next: 'light' | 'dark') {
+  if (next === resolved) return;
+  resolved = next;
+  subscribers.forEach((fn) => fn());
+}
+
+/** The theme currently applied to <html>; re-renders when the preference or the OS setting changes. */
+export function useResolvedTheme(): 'light' | 'dark' {
+  return useSyncExternalStore((cb) => { subscribers.add(cb); return () => { subscribers.delete(cb); }; }, () => resolved, () => 'light');
 }
 
 export function setTheme(pref: ThemePref) {

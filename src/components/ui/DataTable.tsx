@@ -1,6 +1,7 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { SortIcon, SearchIcon, FilterIcon, DownloadIcon, ColumnsIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon, XIcon } from '../Icons';
 import { Button, CountBadge, EmptyState } from './primitives';
+import type { IllustrationKind } from './illustrations';
 import { ActionMenu, type MenuAction } from './overlays';
 import { toCSV, downloadText } from '../../lib/format';
 import { db, C, engine } from '../../store';
@@ -35,6 +36,9 @@ export interface DataTableProps<T> {
   emptyTitle?: string;
   emptyDescription?: string;
   emptyAction?: ReactNode;
+  /** Scene for the empty state; defaults to the current module's domain art (see EmptyState). */
+  emptyIllustration?: IllustrationKind;
+  emptyAnimated?: boolean;
   rowClass?: (row: T) => string | undefined;
   sort?: { key: string; dir: 'asc' | 'desc' };
   onSort?: (s: { key: string; dir: 'asc' | 'desc' }) => void;
@@ -46,7 +50,7 @@ export interface DataTableProps<T> {
   stickyHeader?: boolean;
 }
 
-export function DataTable<T extends Record<string, any>>({ rows, columns, rowKey, onRowClick, rowActions, selectable, selected, onSelect, dense, compact, empty, emptyTitle = 'Nothing here yet', emptyDescription, emptyAction, rowClass, sort, onSort, totalsLabel, showTotals, style, maxHeight, stickyHeader }: DataTableProps<T>) {
+export function DataTable<T extends Record<string, any>>({ rows, columns, rowKey, onRowClick, rowActions, selectable, selected, onSelect, dense, compact, empty, emptyTitle = 'Nothing here yet', emptyDescription, emptyAction, emptyIllustration, emptyAnimated, rowClass, sort, onSort, totalsLabel, showTotals, style, maxHeight, stickyHeader }: DataTableProps<T>) {
   const [localSort, setLocalSort] = useState<{ key: string; dir: 'asc' | 'desc' } | undefined>();
   const s = sort ?? localSort;
   const setS = onSort ?? setLocalSort;
@@ -74,7 +78,7 @@ export function DataTable<T extends Record<string, any>>({ rows, columns, rowKey
   if (rows.length === 0) {
     return (
       <div className="card" style={{ overflow: 'hidden', ...style }}>
-        {empty ?? <EmptyState title={emptyTitle} description={emptyDescription} action={emptyAction} />}
+        {empty ?? <EmptyState title={emptyTitle} description={emptyDescription} action={emptyAction} illustration={emptyIllustration} animated={emptyAnimated} />}
       </div>
     );
   }
@@ -321,6 +325,7 @@ export function RegisterPage<T extends Record<string, any>>(props: RegisterProps
         onSelect={setSelected}
         emptyTitle={q || activeFilterCount ? `No ${entity ?? 'records'} match these filters` : tableProps.emptyTitle ?? `No ${entity ?? 'records'} yet`}
         emptyAction={q || activeFilterCount ? <Button variant="link" onClick={() => { setQ(''); setFv({}); }}>Clear filters</Button> : tableProps.emptyAction ?? (primaryAction ? <Button variant="primary" onClick={primaryAction.onClick}>+ {primaryAction.label}</Button> : undefined)}
+        emptyIllustration={q || activeFilterCount ? 'search' : tableProps.emptyIllustration}
         totalsLabel={`Totals for ${filtered.length} filtered row${filtered.length === 1 ? '' : 's'}`}
       />
       {filtered.length > 0 && (

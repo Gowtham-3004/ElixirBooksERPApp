@@ -1,9 +1,10 @@
 // Module shell, page header, import wizard, checklist, period banner.
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { db, C, engine, nav, useRoute, useSession } from '../../store';
 import type { ImportJob } from '../../store';
 import { Button, Badge, Meter, Banner, SummaryBlock } from './primitives';
 import { Drawer } from './overlays';
+import { Illustration, type IllustrationKind } from './illustrations';
 import { CheckboxField, SelectField } from './fields';
 import { toCSV, downloadText } from '../../lib/format';
 import type { SubNavItem } from '../../modules/subnav';
@@ -282,5 +283,23 @@ export function ImportWizard({ open, onClose, entity, fields, duplicateKeys = []
         </div>
       )}
     </Drawer>
+  );
+}
+
+// ── Illustrated card (first-run hero, Help hero) ───────────────────────────
+/** Copy + actions on the left, a Storyset scene on the right (hidden on phones). */
+export function IllustratedCard({ kind, animated, title, description, actions, children, artWidth = 200, label, style }: { kind: IllustrationKind; animated?: boolean; title: ReactNode; description?: ReactNode; actions?: ReactNode; children?: ReactNode; artWidth?: number; label?: string; style?: CSSProperties }) {
+  return (
+    <div className="card illustrated-card" style={{ padding: '20px 24px', ...style }}>
+      <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--ink)', letterSpacing: '-0.01em', lineHeight: 1.3 }}>{title}</h2>
+          {description && <p style={{ fontSize: 13, color: 'var(--ink-3)', marginTop: 4, lineHeight: 1.5, maxWidth: 560 }}>{description}</p>}
+        </div>
+        {children}
+        {actions && <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{actions}</div>}
+      </div>
+      <Illustration kind={kind} width={artWidth} animated={animated} label={label} />
+    </div>
   );
 }

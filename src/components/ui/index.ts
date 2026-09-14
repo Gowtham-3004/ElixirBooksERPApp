@@ -8,3 +8,4 @@ export * from './printsheet';
 export * from './composites';
 export * from './charts';
 export * from './illustrations';
+export * from './storyset';

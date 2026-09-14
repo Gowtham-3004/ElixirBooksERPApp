@@ -1,7 +1,8 @@
 import type { ComponentType, CSSProperties, ReactNode } from 'react';
 import { fmtMoney, fmtMoneyCompact, splitMoney, fmtDate, fmtDateTime } from '../../lib/format';
 import { Sparkline } from './charts';
-import { Illustration, type IllustrationKind } from './illustrations';
+import { Illustration, moduleKind, type IllustrationKind } from './illustrations';
+import { useRoute } from '../../store';
 import { AlertCircleIcon, AlertTriangleIcon, ArrowsSwapIcon, BarChartIcon, BookOpenIcon, BuildingIcon, CheckCircleIcon, ClipboardIcon, ClockIcon, CompassIcon, CornerUpLeftIcon, FileTextIcon, FolderIcon, GitBranchIcon, InfoCircleIcon, LayersIcon, LockIcon, ReceiptIcon, RefreshIcon, ScissorsIcon, SearchIcon, ShieldCheckIcon, TrendingUpIcon, UsersIcon, WalletIcon, XIcon, ZapIcon } from '../Icons';
 
 // ── Status badge (design-system §8 taxonomy → badge class) ─────────────────
@@ -214,16 +215,8 @@ export function KpiTile({ label, value, amount, currency, compact, tone, delta, 
   );
 }
 
-// Call sites historically passed an emoji as `icon`; resolve those to the matching line icon so no emoji renders.
-const EMOJI_ICONS: Record<string, ComponentType<{ size?: number }>> = {
-  '📋': ClipboardIcon, '🔒': LockIcon, '🧭': CompassIcon, '📊': BarChartIcon, '👥': UsersIcon, '📄': FileTextIcon, '🧾': ReceiptIcon,
-  '🔍': SearchIcon, '✓': CheckCircleIcon, '⚡': ZapIcon, '🕘': ClockIcon, '⏱️': ClockIcon, '✂': ScissorsIcon, '🏛': BuildingIcon, '🏢': BuildingIcon,
-  '⇄': ArrowsSwapIcon, '🔁': RefreshIcon, '📘': BookOpenIcon, '📈': TrendingUpIcon, '💰': WalletIcon, '📁': FolderIcon, '🌳': GitBranchIcon,
-  '📐': LayersIcon, '🛡️': ShieldCheckIcon, '📦': LayersIcon, '📥': FolderIcon, '↩': CornerUpLeftIcon,
-};
-
-// which illustration a full-size empty state gets, from the icon the call site asked for
-const ILLUSTRATION_FOR: Record<string, IllustrationKind> = { '🔒': 'no-access', '🧭': 'not-found', '✓': 'all-done', '🔍': 'search' };
+// Call sites historically passed an emoji (or a line icon) as `icon`; it only hints which scene to draw now.
+const ILLUSTRATION_FOR: Record<string, IllustrationKind> = { '🔒': 'no-access', '🧭': 'not-found', '✓': 'all-done', '🔍': 'search', '⚡': 'upgrade' };
 function illustrationFor(icon: ReactNode): IllustrationKind {
   if (typeof icon === 'string') return ILLUSTRATION_FOR[icon] ?? 'no-data';
   if (icon && typeof icon === 'object' && 'type' in icon) {
@@ -232,16 +225,23 @@ function illustrationFor(icon: ReactNode): IllustrationKind {
     if (t === CompassIcon) return 'not-found';
     if (t === CheckCircleIcon) return 'all-done';
     if (t === SearchIcon) return 'search';
+    if (t === ZapIcon) return 'upgrade';
   }
   return 'no-data';
 }
 
-/** Full-size empty states draw a small illustration; `compact` (inside cards and panels) keeps the icon tile. */
-export function EmptyState({ title, description, action, icon, compact, illustration }: { title: string; description?: string; action?: ReactNode; icon?: ReactNode; compact?: boolean; illustration?: IllustrationKind }) {
-  const Glyph = typeof icon === 'string' ? (EMOJI_ICONS[icon] ?? ClipboardIcon) : icon === undefined ? ClipboardIcon : null;
+/**
+ * Empty states draw a Storyset scene: an explicit `illustration` wins, then the legacy `icon` hint, and a plain
+ * "nothing here" falls back to the current module's domain art. `compact` (inside cards and panels) draws a smaller
+ * scene without the background blob; `animated` swaps in the GIF export where one exists.
+ */
+export function EmptyState({ title, description, action, icon, compact, illustration, animated }: { title: string; description?: string; action?: ReactNode; icon?: ReactNode; compact?: boolean; illustration?: IllustrationKind; animated?: boolean }) {
+  const route = useRoute();
+  const hinted = illustrationFor(icon);
+  const kind = illustration ?? (hinted === 'no-data' ? moduleKind(route.module) : hinted);
   return (
-    <div className="empty-state" style={compact ? { padding: '24px 16px' } : undefined}>
-      {compact ? <div className="empty-state-icon">{Glyph ? <Glyph size={20} /> : icon}</div> : <div style={{ marginBottom: 4 }}><Illustration kind={illustration ?? illustrationFor(icon)} /></div>}
+    <div className="empty-state" style={compact ? { padding: '20px 16px', gap: 6 } : undefined}>
+      <Illustration kind={kind} width={compact ? 72 : 168} bg={!compact} animated={animated && !compact} />
       <h3>{title}</h3>
       {description && <p style={{ fontSize: 13, maxWidth: 380 }}>{description}</p>}
       {action && <div style={{ marginTop: 4, display: 'flex', gap: 8 }}>{action}</div>}

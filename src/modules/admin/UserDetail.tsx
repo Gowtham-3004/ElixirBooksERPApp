@@ -19,7 +19,7 @@ export default function UserDetail({ id }: { id: string }) {
   const [name, setName] = useState(u?.name ?? '');
   const [phone, setPhone] = useState(u?.phone ?? '');
   const conflicts = useMemo(() => sodConflicts(u?.roleIds ?? []), [u?.roleIds]);
-  if (!u) return <div className="page"><EmptyState icon="🔒" title="User not found" description="The link may be stale, or you may not have access to this user." action={<Button variant="secondary" onClick={() => nav.go('admin/users')}>Back to users</Button>} /></div>;
+  if (!u) return <div className="page"><EmptyState illustration="not-found" title="User not found" description="The link may be stale, or you may not have access to this user." action={<Button variant="secondary" onClick={() => nav.go('admin/users')}>Back to users</Button>} /></div>;
   const isSelf = u.id === s.user?.id;
   const canEdit = s.can('admin.users.edit') || s.can('admin.users.*') || s.isTenantOwner;
   const canSecurity = canEdit || isSelf;
