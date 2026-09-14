@@ -115,6 +115,35 @@ input[type=number].field-input { -moz-appearance: textfield; }
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 48px 24px; color: var(--ink-3); text-align: center; }
 .empty-state h3 { font-size: 16px; font-weight: 600; color: var(--ink); }
 .empty-state-icon { width: 44px; height: 44px; border-radius: 12px; background: var(--surface-3); color: var(--ink-3); display: flex; align-items: center; justify-content: center; font-size: 20px; }
+/* Storyset illustrations — <Storyset> inlines a token-coloured SVG; <StorysetAnimated> swaps in a GIF where one exists */
+.storyset { display: inline-block; line-height: 0; flex-shrink: 0; vertical-align: middle; }
+.storyset > svg { width: 100%; height: 100%; display: block; }
+.storyset [data-layer="background-simple"] { opacity: var(--illus-bg-opacity); }
+.storyset--no-bg [data-layer="background-simple"] { display: none; }
+.storyset-gif { display: block; object-fit: contain; flex-shrink: 0; }
+/* on a saturated accent surface (sign-up rail) the art is drawn in white */
+.storyset--on-accent { --illus-primary: #fff; --illus-ink: rgba(255,255,255,.92); --illus-paper: rgba(255,255,255,.85); --illus-bg-tint: transparent;
+  --illus-n1: rgba(255,255,255,.28); --illus-n2: rgba(255,255,255,.32); --illus-n3: rgba(255,255,255,.38); --illus-n4: rgba(255,255,255,.45); --illus-n5: rgba(255,255,255,.55); --illus-n6: rgba(255,255,255,.65); }
+.empty-state .storyset, .empty-state .storyset-gif { margin-bottom: 2px; }
+.illustrated-card { display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: center; }
+.illustrated-card .storyset, .illustrated-card .storyset-gif { justify-self: end; }
+/* decorative art: a faint per-module scene under the workspace (see AppShell), a scene behind the auth cards */
+.shell { isolation: isolate; }
+.shell-watermark { position: fixed; right: 24px; bottom: 12px; width: 360px; height: 360px; z-index: -1; opacity: var(--illus-watermark-opacity); filter: grayscale(1); pointer-events: none; user-select: none; }
+.shell[data-decor="off"] .shell-watermark { display: none; }
+.sidebar-promo { margin: 4px 8px 6px; padding: 12px 12px 10px; border-radius: var(--r-lg); background: var(--surface); box-shadow: 0 0 0 1px var(--hairline), var(--shadow-sm); position: relative; display: flex; flex-direction: column; gap: 6px; }
+.sidebar-promo .btn-icon { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; color: var(--ink-4); }
+.auth-backdrop { position: relative; overflow: hidden; }
+.auth-backdrop > * { position: relative; z-index: 1; }
+.auth-backdrop-art { position: absolute !important; right: -48px; bottom: -48px; width: 520px; height: 520px; opacity: .08; filter: grayscale(.35); pointer-events: none; z-index: 0 !important; }
+:root[data-theme="dark"] .auth-backdrop-art { opacity: .1; }
+:root[data-decor="off"] .auth-backdrop-art { display: none; }
+.auth-attrib { position: fixed; right: 16px; bottom: 12px; font-size: 11px; color: var(--ink-5); z-index: 1; }
+.auth-attrib a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+@media (max-width: 1023px), print { .shell-watermark, .auth-backdrop-art { display: none !important; } }
+@media (max-width: 767px) { .illustrated-card { grid-template-columns: 1fr; } .illustrated-card .storyset, .illustrated-card .storyset-gif { display: none; } }
+@media (max-width: 899px) { .auth-attrib { position: static; text-align: center; padding: 12px 0 0; } }
+@media (max-height: 719px) { .auth-rail-art { display: none !important; } }
 .checklist-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--hairline); font-size: 13px; }
 .checklist-row:last-child { border-bottom: none; }
 .meter { height: 6px; background: var(--surface-3); border-radius: 9999px; overflow: hidden; }

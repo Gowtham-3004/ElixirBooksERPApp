@@ -45,6 +45,15 @@
   --hover: rgba(15,17,21,.05);
   --scrim: rgba(15,17,21,.32);
   --ease: cubic-bezier(.2,.8,.2,1); --dur-fast: 120ms; --dur: 180ms;
+  /* Storyset illustrations (src/assets/storyset) — scripts/storyset-fetch.mjs rewrites every fill onto these */
+  --illus-primary: var(--accent);
+  --illus-ink: #263238;   /* no-token: Storyset line ink */
+  --illus-paper: #FFFFFF; /* no-token: opaque white shapes */
+  --illus-bg-tint: #FFFFFF; /* no-token: white overlay inside the background blob */
+  --illus-n1: #E0E0E0; --illus-n2: #E6E6E6; --illus-n3: #EBEBEB; /* no-token: Storyset neutrals, darkest → lightest */
+  --illus-n4: #F0F0F0; --illus-n5: #F5F5F5; --illus-n6: #FAFAFA; /* no-token */
+  --illus-bg-opacity: 1;
+  --illus-watermark-opacity: .06;
 }
 
 /* Dark appearance — set on <html> by lib/theme.ts. Only the tokens change; surfaces stay one warm neutral. */
@@ -80,6 +89,13 @@
   --ring: 0 0 0 3px rgba(107,133,242,.28);
   --hover: rgba(255,255,255,.06);
   --scrim: rgba(0,0,0,.55);
+  --illus-ink: #E6E8EC;   /* no-token */
+  --illus-paper: #D9DCE2; /* no-token: paper reads as paper, not a white flash */
+  --illus-bg-tint: var(--surface);
+  --illus-n1: #23262C; --illus-n2: #272A31; --illus-n3: #2C2F36; /* no-token */
+  --illus-n4: #31343C; --illus-n5: #363A42; --illus-n6: #3B3F48; /* no-token */
+  --illus-bg-opacity: .45;
+  --illus-watermark-opacity: .08;
 }
 
 :root {
