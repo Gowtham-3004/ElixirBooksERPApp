@@ -18,7 +18,6 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
   const route = useRoute();
   const [notifOpen, setNotifOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
-  const [companyOpen, setCompanyOpen] = useState(false);
   const [sidebarCompanyOpen, setSidebarCompanyOpen] = useState(false);
   const [branchOpen, setBranchOpen] = useState(false);
   const [periodOpen, setPeriodOpen] = useState(false);
@@ -71,27 +70,9 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
   const periodTone = s.period?.status === 'Open' ? { bg: '#E0F9EC', fg: '#12784E' } : s.period?.status === 'Locked' ? { bg: '#E7E9EB', fg: '#3C4043' } : { bg: '#FEF4EC', fg: '#8A4B0F' };
   const isWin = typeof navigator !== 'undefined' && /Win/.test(navigator.platform);
 
-  // company · branch · FY · period — in the header on desktop, in a scrollable strip under it on phones
+  // branch · FY · period — in the header on desktop, in a scrollable strip under it on phones
   const contextControls = (
     <>
-            {s.companies.length > 0 && (
-              <span style={{ position: 'relative' }}>
-                <button type="button" className="btn-secondary btn-sm" style={{ gap: 6, fontFeatureSettings: 'normal' }} onClick={() => setCompanyOpen(!companyOpen)}>
-                  <span style={{ maxWidth: compact ? 150 : undefined, overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.company?.legalName ?? 'Select company'}</span> <ChevronDownIcon size={12} />
-                </button>
-                {companyOpen && (
-                  <Dropdown onClose={() => setCompanyOpen(false)} sheet={compact}>
-                    <div className="section-label" style={{ padding: '6px 10px' }}>Switch company</div>
-                    {s.companies.map((c) => (
-                      <button key={c.id} type="button" className="menu-item" style={{ height: 'auto', padding: '6px 10px', background: c.id === s.company?.id ? '#F2F5FF' : undefined }} onClick={() => { session.switchCompany(c.id); setCompanyOpen(false); nav.go('home'); }}>
-                        <TwoLine primary={c.legalName} secondary={`${c.country} · ${c.baseCurrency} · ${c.nature}`} />
-                      </button>
-                    ))}
-                    {s.isTenantOwner && (<><div className="menu-sep" /><button type="button" className="menu-item" style={{ color: '#325CFF' }} onClick={() => { setCompanyOpen(false); nav.go('admin/companies'); }}>+ Add company</button></>)}
-                  </Dropdown>
-                )}
-              </span>
-            )}
             {s.branches.length > 1 && (
               <span style={{ position: 'relative' }}>
                 <button type="button" className="btn-secondary btn-sm" style={{ gap: 6, fontFeatureSettings: 'normal' }} onClick={() => setBranchOpen(!branchOpen)}>
