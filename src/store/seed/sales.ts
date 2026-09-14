@@ -172,7 +172,7 @@ export function seedSales(): Partial<DB> {
 
   const invoices: any[] = [
     inv('inv_0098', '0098', '2026-04-02', IDS.cVimal, [{ item: IDS.iSteel4, qty: 1, batch: 'HR-2603-A' }, { item: IDS.iSteel6, qty: 1, batch: 'CR-2603-B' }], { ref: 'VC/PO/2201', sp: IDS.spSuresh }),
-    inv('inv_0101', '0101', '2026-04-03', IDS.cGlobalTech, [{ item: IDS.iConsult, qty: 30, rate: 2528.25, override: 'Negotiated project rate', desc: 'ERP advisory · March 2026' }], { ref: 'GTS-WO-118', extra: { roundTotal: true, dimensions: { Project: IDS.dimPrj051, Department: IDS.dimDeptSales } } }),
+    inv('inv_0101', '0101', '2026-04-03', IDS.cGlobalTech, [{ item: IDS.iConsult, qty: 30, rate: 2528.25, override: 'Negotiated project rate', desc: 'ERP advisory · March 2026' }], { ref: 'GTS-WO-118', extra: { roundTotal: true, templateId: IDS.tplInvoiceModern, templateVersion: 1, dimensions: { Project: IDS.dimPrj051, Department: IDS.dimDeptSales } } }),
     inv('inv_0102', '0102', '2026-04-04', IDS.cSunrise, [{ item: IDS.iCrate, qty: 20 }, { item: IDS.iBox, qty: 100 }], { ref: 'SI/PO/0410', sp: IDS.spSuresh }),
     inv('inv_0105', '0105', '2026-04-06', IDS.cArlene, [{ item: IDS.iBolt, qty: 200 }, { item: IDS.iGrind, qty: 10 }, { item: IDS.iGrease, qty: 1 }], { ref: 'PO-ARLENE-0039' }),
     inv('inv_0108', '0108', '2026-04-09', IDS.cRajesh, [{ item: IDS.iSteel6, qty: 1, batch: 'CR-2603-B' }, { item: IDS.iElectrode, qty: 10 }], { ref: 'RE/PO/1188' }),

@@ -10,7 +10,7 @@ export type Row = BaseRecord & Record<string, any>;
 export type DB = Record<string, Row[]>;
 
 const STORAGE_KEY = 'elixir-books-db';
-export const SEED_VERSION = 'v3';
+export const SEED_VERSION = 'v4';
 
 let state: DB = {};
 let seedFn: (() => DB) | null = null;
@@ -35,6 +35,17 @@ function migrateV1ToV2(raw: DB): DB {
   });
   const tenants = (raw.tenants ?? []).map((tenant) => tenant.planId === 'plan_pro' ? { ...tenant, planId: 'plan_ent' } : tenant);
   return { ...raw, plans, tenants };
+}
+
+/**
+ * v4: document template layouts. Additive only — appends seeded templates that are
+ * missing (by id) so the new invoice layouts appear without touching tenant data.
+ */
+function migrateV3ToV4(raw: DB): DB {
+  const fresh = seedFn ? seedFn() : {};
+  const have = new Set((raw.templates ?? []).map((r) => r.id));
+  const added = (fresh.templates ?? []).filter((t) => !have.has(t.id));
+  return { ...raw, templates: [...(raw.templates ?? []), ...added] };
 }
 
 function persist() {
@@ -94,8 +105,13 @@ export const db = {
           state = parsed.state;
           return;
         }
+        if (parsed?.v === 'v3' && parsed.state && typeof parsed.state === 'object') {
+          state = migrateV3ToV4(parsed.state);
+          persist();
+          return;
+        }
         if ((parsed?.v === 'v1' || parsed?.v === 'v2') && parsed.state && typeof parsed.state === 'object') {
-          state = migrateV1ToV2(parsed.state);
+          state = migrateV3ToV4(migrateV1ToV2(parsed.state));
           persist();
           return;
         }

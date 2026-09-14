@@ -122,9 +122,21 @@ input[type=number].field-input { -moz-appearance: textfield; }
 .dim-chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--dot, #325CFF); }
 .currency-tag { display: inline-flex; padding: 0 6px; border-radius: 4px; background: #F3F5F5; font-size: 11px; font-weight: 500; color: #3C4043; letter-spacing: .02em; }
 .kbd { display: inline-flex; padding: 0 5px; height: 18px; align-items: center; border-radius: 4px; background: #F3F5F5; font-size: 11px; color: #5F6368; border: 1px solid #EAEAEA; }
-.print-sheet { background: #FFF; color: #0A0A0A; padding: 40px 48px; width: 794px; margin: 0 auto; border: 1px solid #EAEAEA; font-size: 12px; line-height: 1.5; }
+/* Print sheet — width/padding/type come from CSS variables set per template layout (see lib/templates.ts),
+   so the responsive and @media print overrides below still win by setting the properties directly. */
+.print-sheet { background: #FFF; color: #0A0A0A; padding: var(--sheet-pad, 40px 48px); width: var(--sheet-w, 794px); margin: 0 auto; border: 1px solid #EAEAEA; font-size: var(--sheet-fs, 12px); line-height: var(--sheet-lh, 1.5); print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 .print-sheet table { width: 100%; border-collapse: collapse; }
 .print-sheet th, .print-sheet td { border: 1px solid #DADCE0; padding: 6px 8px; font-size: 11px; }
+/* layout variants — classic keeps the base rules above */
+.print-sheet[data-layout="modern"] th, .print-sheet[data-layout="modern"] td { border: none; padding: 7px 10px; }
+.print-sheet[data-layout="modern"] thead th { background: var(--accent, #0A0A0A); color: #FFF; }
+.print-sheet[data-layout="modern"] tbody td { border-bottom: 1px solid #EEF0F2; }
+.print-sheet[data-layout="modern"] tbody tr:nth-child(even) td { background: #F7F8FA; }
+.print-sheet[data-layout="compact"] th, .print-sheet[data-layout="compact"] td { padding: 3px 6px; font-size: 10px; }
+.print-sheet[data-layout="compact"] thead th { background: #F3F5F5; }
+.print-sheet[data-layout="minimal"] th, .print-sheet[data-layout="minimal"] td { border: none; padding: 9px 6px; }
+.print-sheet[data-layout="minimal"] thead th { border-bottom: 1px solid #0A0A0A; font-weight: 500; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: #5F6368; }
+.print-sheet[data-layout="minimal"] tbody td { border-bottom: 1px solid #EEEEEE; }
 
 @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
 @keyframes slideIn { from { transform: translateX(40px); opacity: 0 } to { transform: none; opacity: 1 } }
@@ -364,4 +376,5 @@ div:has(> table.data-table) { overflow-x: auto !important; -webkit-overflow-scro
 @media print {
   aside, header, .doc-footer, .tab-bar, .toolbar, .no-print, .shell-context, .sidebar-scrim, .doc-rail-toggle { display: none !important; }
   .print-sheet { border: none; width: auto; padding: 0; }
+  @page { margin: 12mm; }
 }

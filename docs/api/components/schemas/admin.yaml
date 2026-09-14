@@ -477,6 +477,16 @@ DocumentTemplateInput:
     showBankDetails: { type: boolean }
     showSignatory: { type: boolean }
     status: { type: string, enum: [Active, Inactive] }
+    # Layout & style — optional; omitted fields fall back to the layout preset (missing layout ⇒ classic).
+    layout: { type: string, enum: [classic, modern, compact, minimal], default: classic, description: Visual preset that changes composition and typography of the rendered sheet. }
+    accentColor: { type: string, pattern: '^#[0-9A-Fa-f]{6}$', example: '#325CFF', description: Hex accent. Omit to use the company brand colour (Classic prints in black). }
+    showLogo: { type: boolean, description: Brand tile using the company logo text. }
+    showHsn: { type: boolean }
+    showDiscount: { type: boolean }
+    showTaxColumn: { type: boolean, description: Per-line tax column. }
+    showTaxBreakup: { type: boolean, description: Component / rate breakup table under the lines. }
+    showAmountInWords: { type: boolean }
+    paperSize: { type: string, enum: [A4, Letter], default: A4 }
 
 DocumentTemplatePatch:
   allOf:

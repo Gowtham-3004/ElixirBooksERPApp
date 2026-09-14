@@ -4,4 +4,5 @@ export * from './fields';
 export * from './overlays';
 export * from './DataTable';
 export * from './document';
+export * from './printsheet';
 export * from './composites';

@@ -261,7 +261,7 @@ ProjectedJournal:
 PdfRequest:
   type: object
   properties:
-    templateId: { type: string, description: "Document template (default: company default for the doc type)." }
+    templateId: { type: string, description: "Any Active document template of the same doc type. Render-time override only — the document keeps its stamped templateId/templateVersion (default: the stamped template, else the company default for the doc type)." }
     copy: { type: string, enum: [Original, Duplicate, Triplicate], default: Original }
     language: { type: string, example: en-IN }
 

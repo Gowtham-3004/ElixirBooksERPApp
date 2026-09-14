@@ -3,9 +3,10 @@
 // quick customer create. Used by every register / form / detail page.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { db, C, engine, nav, useCollection, useSession, ConflictError } from '../../store';
-import type { BaseRecord, Customer, DocHeader, DocLine, OpenItem, PaymentTerm, PriceList, Salesperson, TdsSection, Item, Reservation } from '../../store';
+import type { BaseRecord, Customer, DocHeader, DocLine, DocumentTemplate, OpenItem, PaymentTerm, PriceList, Salesperson, TdsSection, Item, Reservation } from '../../store';
 import { Badge, Banner, Button, Card, KV, Pill, SnapshotTag, Money, Modal, Drawer, TextField, SelectField, DateField, NumberField, MoneyField, TextArea, EntityPicker, useCustomerOptions, useDimensionOptions, useTaxRateOptions, LineItemGrid, TotalsLadder, TaxBreakup, RailSection, PartyRail, PrintSheet, AttachmentsPanel, IdentifierField, useToast, Explain } from '../../components/ui';
 import { fmtDate, fmtDateTime, fmtMoney, fmtQty, INDIA_STATES, daysBetween, today, uid } from '../../lib/format';
+import { layoutLabel } from '../../lib/templates';
 import { ArrowsSwapIcon, PrintIcon, SendIcon, ShieldCheckIcon } from '../../components/Icons';
 import { recompute, applyCustomer, duplicateReference, emailDocument, docLinkFor, stockMovesForDoc } from './actions';
 import { salesSettingsOf } from './types';
@@ -27,6 +28,16 @@ export function useSalesSettings() {
 
 export function usePaymentTermOptions() {
   return useCollection<PaymentTerm>(C.paymentTerms).filter((t) => t.status === 'Active').map((t) => ({ value: t.name, label: `${t.name}${t.days ? ` · ${t.days} days` : ''}` }));
+}
+
+/** Active print templates for a document type (plus `includeId` even if inactive, so a stamped template stays selectable). */
+export function useTemplateOptions(docType: string, includeId?: string) {
+  const rows = useCollection<DocumentTemplate>(C.templates);
+  const s = useSession();
+  return useMemo(() => rows
+    .filter((t) => t.docType === docType && (t.companyId === s.state.companyId || !t.companyId) && (t.status === 'Active' || t.id === includeId))
+    .sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || a.name.localeCompare(b.name))
+    .map((t) => ({ value: t.id, label: `${t.name} · ${layoutLabel(t)} · v${t.templateVersion}${t.isDefault ? ' · default' : ''}${t.status !== 'Active' ? ' (inactive)' : ''}` })), [rows, docType, includeId, s.state.companyId]);
 }
 
 export function useSalespersonOptions() {
@@ -413,6 +424,7 @@ export function docHeaderRows(doc: DocHeader): { k: ReactNode; v: ReactNode }[] 
     { k: 'Branch', v: branch?.name ?? '—' },
     { k: 'Currency', v: `${doc.currency}${doc.rate && doc.rate !== 1 ? ` @ ${doc.rate} (${doc.rateType ?? ''})` : ''}` },
     ...(doc.priceListId ? [{ k: 'Price list', v: db.find<PriceList>(C.priceLists, doc.priceListId)?.name ?? '—' }] : []),
+    ...(doc.templateId ? [{ k: 'Print template', v: (() => { const t = db.find<DocumentTemplate>(C.templates, doc.templateId); return t ? `${t.name} · ${layoutLabel(t)} · v${doc.templateVersion ?? t.templateVersion}` : '—'; })() }] : []),
     ...(doc.warehouseId ? [{ k: 'Warehouse', v: db.find<any>(C.warehouses, doc.warehouseId)?.name ?? '—' }] : []),
   ];
 }
@@ -441,9 +453,25 @@ export function overdueDays(doc: DocHeader): number {
 // ── PDF preview + email dialog (FR-SAL-035) ────────────────────────────────
 
 export function PdfPreviewModal({ open, onClose, doc, title, partyLabel }: { open: boolean; onClose: () => void; doc: DocHeader; title: string; partyLabel?: string }) {
+  // Print-time template switch is a preview-only override: the document keeps its stamped template/version (FR-DOC-006).
+  const opts = useTemplateOptions(doc.docType, doc.templateId);
+  const [tplId, setTplId] = useState<string | undefined>(doc.templateId);
+  useEffect(() => { if (open) setTplId(doc.templateId); }, [open, doc.id, doc.templateId]);
+  const tpl = db.find<DocumentTemplate>(C.templates, tplId);
+  const overridden = !!tpl && tpl.id !== doc.templateId;
+  const print = () => {
+    engine.audit({ action: `${doc.docType.toLowerCase().replace(/\s+/g, '_')}.pdf_generated`, objectType: doc.docType, objectId: doc.id, objectNumber: doc.number, detail: `Template ${tpl?.code ?? '—'} v${tpl?.templateVersion ?? doc.templateVersion ?? 1}${overridden ? ` · print-time override (document stamped v${doc.templateVersion ?? 1})` : ''}` });
+    window.print();
+  };
   return (
-    <Modal open={open} onClose={onClose} title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>Preview · {doc.number} <Badge status={doc.status} /></span>} width={880} footer={<><Button variant="secondary" onClick={onClose}>Close preview</Button><Button variant="primary" icon={<PrintIcon size={14} />} onClick={() => { engine.audit({ action: `${doc.docType.toLowerCase().replace(/\s+/g, '_')}.pdf_generated`, objectType: doc.docType, objectId: doc.id, objectNumber: doc.number, detail: `Template v${doc.templateVersion ?? 1}` }); window.print(); }}>Print / Save as PDF</Button></>}>
-      <div style={{ background: '#F3F5F5', padding: 16, maxHeight: '65vh', overflow: 'auto' }}><PrintSheet doc={doc} title={title} partyLabel={partyLabel} /></div>
+    <Modal open={open} onClose={onClose} title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>Preview · {doc.number} <Badge status={doc.status} /></span>} width={920} footer={<><Button variant="secondary" onClick={onClose}>Close preview</Button><Button variant="primary" icon={<PrintIcon size={14} />} onClick={print}>Print / Save as PDF</Button></>}>
+      {opts.length >= 2 && (
+        <div className="no-print" style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
+          <SelectField size="sm" label={undefined} value={tplId ?? ''} onChange={(v) => setTplId(v || undefined)} options={opts} placeholder={doc.templateId ? "As stamped on the document" : "Company default template"} style={{ width: 360 }} />
+          <span style={{ fontSize: 12, color: '#5F6368' }}>{overridden ? `Preview only — the document keeps its stamped template v${doc.templateVersion ?? 1}.` : 'Switch the layout for this print without changing the document.'}</span>
+        </div>
+      )}
+      <div style={{ background: '#F3F5F5', padding: 16, maxHeight: '65vh', overflow: 'auto' }}><PrintSheet doc={doc} title={title} partyLabel={partyLabel} template={tpl} /></div>
     </Modal>
   );
 }

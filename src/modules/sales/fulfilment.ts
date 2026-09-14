@@ -4,7 +4,7 @@ import type { ApprovalRequest, Customer, DocLine, Item, Reservation, StockMoveme
 import { addDays, fmtMoney, round, today, uid } from '../../lib/format';
 import type { Delivery, Quotation, SalesInvoice, SalesOrder } from './types';
 import { salesSettingsOf } from './types';
-import { assertValid, recompute, refreshOrderStatus, validateSalesDoc } from './core';
+import { assertValid, defaultTemplateFor, recompute, refreshOrderStatus, validateSalesDoc } from './core';
 
 // ── Quotations (FR-SAL-001..004) ───────────────────────────────────────────
 
@@ -499,7 +499,7 @@ export function invoiceFromSource(src: SalesOrder | Delivery, kind: 'order' | 'd
   const terms = src.paymentTerms ?? cust?.paymentTerms ?? s.salesDefaultTerms;
   const date = today();
   const lines = kind === 'order' ? invoiceLinesFromOrder(src as SalesOrder) : invoiceLinesFromDelivery(src as Delivery);
-  const base = engine.newDocHeader('Sales Invoice', { date, dueDate: engine.dueDateFor(date, terms), paymentTerms: terms, branchId: src.branchId, currency: src.currency, rate: src.rate, rateType: src.rateType, partyType: 'Customer', partyId: src.partyId, partyName: src.partyName, partySnapshot: src.partySnapshot, placeOfSupply: src.placeOfSupply, placeOfSupplyCode: src.placeOfSupplyCode, salespersonId: src.salespersonId ?? cust?.salespersonId, priceListId: src.priceListId ?? cust?.priceListId, reference: src.reference, terms: src.terms, notes: src.notes, dimensions: src.dimensions, charges: kind === 'order' ? src.charges : undefined, warehouseId: src.warehouseId, sourceType: kind === 'order' ? 'Sales Order' : 'Delivery', sourceId: src.id, sourceNumber: src.number, lines, correlationId: src.correlationId });
+  const base = engine.newDocHeader('Sales Invoice', { date, dueDate: engine.dueDateFor(date, terms), paymentTerms: terms, branchId: src.branchId, currency: src.currency, rate: src.rate, rateType: src.rateType, partyType: 'Customer', partyId: src.partyId, partyName: src.partyName, partySnapshot: src.partySnapshot, placeOfSupply: src.placeOfSupply, placeOfSupplyCode: src.placeOfSupplyCode, salespersonId: src.salespersonId ?? cust?.salespersonId, priceListId: src.priceListId ?? cust?.priceListId, reference: src.reference, terms: src.terms, notes: src.notes, dimensions: src.dimensions, charges: kind === 'order' ? src.charges : undefined, warehouseId: src.warehouseId, sourceType: kind === 'order' ? 'Sales Order' : 'Delivery', sourceId: src.id, sourceNumber: src.number, lines, correlationId: src.correlationId, ...defaultTemplateFor('Sales Invoice') });
   const inv: SalesInvoice = { ...base, tdsSectionId: cust?.tdsSectionId, roundTotal: true, deliveryIds: kind === 'delivery' ? [src.id] : undefined };
   return recompute(inv);
 }

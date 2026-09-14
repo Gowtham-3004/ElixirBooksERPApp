@@ -4,6 +4,7 @@ import { db, C, engine, useCollection, useSession, ConflictError } from '../../s
 import type { Company, CompanyDefaults, PriceList, PaymentTerm, DocumentTemplate } from '../../store';
 import { PageHeader, Card, Button, SelectField, EntityPicker, useAccountOptions, useWarehouseOptions, useTaxRateOptions, NumberField, PercentField, Toggle, RadioCards, Banner, useToast } from '../../components/ui';
 import { useCompany } from './shared';
+import { layoutLabel } from '../../lib/templates';
 
 export default function Defaults() {
   const s = useSession();
@@ -47,7 +48,7 @@ export default function Defaults() {
             <SelectField label="Default payment terms" value={d.paymentTerms ?? ''} onChange={(v) => set({ paymentTerms: v })} options={terms.map((t) => ({ value: t.name, label: `${t.name} · ${t.days} days` }))} disabled={!canEdit} allowEmpty />
             <SelectField label="Default sales price list" value={d.priceListId ?? ''} onChange={(v) => set({ priceListId: v || undefined })} options={priceLists.filter((p) => p.type === 'Sales').map((p) => ({ value: p.id, label: `${p.name} · ${p.currency}` }))} disabled={!canEdit} allowEmpty placeholder="— Item master price —" />
             <SelectField label="Default tax rate" value={d.taxRateId ?? ''} onChange={(v) => set({ taxRateId: v || undefined })} options={taxRates} disabled={!canEdit} allowEmpty />
-            <SelectField label="Default invoice template" value={d.templateId ?? ''} onChange={(v) => set({ templateId: v || undefined })} options={templates.map((t) => ({ value: t.id, label: `${t.name} · v${t.templateVersion}` }))} disabled={!canEdit} allowEmpty />
+            <SelectField label="Default invoice template" value={d.templateId ?? ''} onChange={(v) => set({ templateId: v || undefined })} options={templates.map((t) => ({ value: t.id, label: `${t.name} · ${layoutLabel(t)} · v${t.templateVersion}` }))} disabled={!canEdit} allowEmpty />
           </div>
         </Card>
         <Card title="Control accounts">

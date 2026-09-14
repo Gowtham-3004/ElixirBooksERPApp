@@ -2,7 +2,7 @@
 // validation and order-status derivation. Imported by actions.ts and
 // fulfilment.ts (kept separate to avoid circular imports).
 import { db, C, engine, ValidationError, IDS } from '../../store';
-import type { Customer, DocHeader, DocLine, Item, TaxRate } from '../../store';
+import type { Customer, DocHeader, DocLine, DocumentTemplate, ID, Item, TaxRate } from '../../store';
 import { round } from '../../lib/format';
 import type { SalesInvoice, SalesOrder } from './types';
 import { salesSettingsOf } from './types';
@@ -95,6 +95,17 @@ export function assertValid(doc: DocHeader, opts?: { requireLines?: boolean }) {
 }
 
 /** Duplicate customer reference check (FR-SAL-036). */
+/**
+ * Template stamped on a new document: the company default when it matches the document type,
+ * otherwise the type's default template. Documents keep this snapshot (FR-DOC-006).
+ */
+export function defaultTemplateFor(docType: string): { templateId?: ID; templateVersion?: number } {
+  const co = engine.ctx().company;
+  const preferred = db.find<DocumentTemplate>(C.templates, co?.defaults.templateId);
+  const tpl = preferred && preferred.docType === docType && preferred.status === 'Active' ? preferred : db.findBy<DocumentTemplate>(C.templates, (t) => t.docType === docType && t.isDefault && t.status === 'Active' && (t.companyId === co?.id || !t.companyId));
+  return tpl ? { templateId: tpl.id, templateVersion: tpl.templateVersion } : {};
+}
+
 export function duplicateReference(inv: Pick<SalesInvoice, 'id' | 'partyId' | 'reference'>): SalesInvoice | undefined {
   if (!inv.reference?.trim()) return undefined;
   const ref = inv.reference.trim().toLowerCase();

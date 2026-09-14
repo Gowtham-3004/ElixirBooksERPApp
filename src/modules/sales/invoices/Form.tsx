@@ -1,11 +1,11 @@
 // Sales invoice form (FR-SAL-030..036, FR-TAX, FR-DOC-006). Full page, not a drawer.
 import { useEffect, useMemo, useState } from 'react';
 import { db, C, engine, nav, useSession } from '../../../store';
-import type { Customer, DocHeader, Item } from '../../../store';
+import type { Customer, DocHeader, DocumentTemplate, Item } from '../../../store';
 import { PageHeader, Button, Banner, Card, DateField, TextField, SelectField, TextArea, NumberField, CheckboxField, LineItemGrid, TotalsLadder, TaxBreakup, ConfirmDialog, Modal, AttachmentsPanel, useToast, Badge, Explain, PeriodBanner } from '../../../components/ui';
 import { fmtDate, fmtMoney, fmtQty, stateNameOf } from '../../../lib/format';
 import type { SalesInvoice, SalesOrder, Delivery } from '../types';
-import { useDocDraft, CustomerField, PlaceOfSupplyField, CurrencyRateFields, DimensionsFields, ChargesEditor, TdsField, FormFooter, ErrorSummary, DuplicateReferenceNote, usePaymentTermOptions, useSalespersonOptions, usePriceListOptions, useSalesSettings } from '../common';
+import { useDocDraft, CustomerField, PlaceOfSupplyField, CurrencyRateFields, DimensionsFields, ChargesEditor, TdsField, FormFooter, ErrorSummary, DuplicateReferenceNote, usePaymentTermOptions, useSalespersonOptions, usePriceListOptions, useSalesSettings, useTemplateOptions } from '../common';
 import { newInvoice, saveInvoice, submitInvoice, postInvoice, invoiceNeedsWorkflow, validateSalesDoc, creditCheckFor, stockIssuesFor, invoiceJournalLines, invoiceFromSource, ordersEligibleForInvoice, deliveriesEligibleForInvoice, duplicateReference, recompute } from '../actions';
 
 export default function InvoiceForm({ id, sourceOrderId, sourceDeliveryId }: { id?: string; sourceOrderId?: string; sourceDeliveryId?: string }) {
@@ -25,6 +25,7 @@ export default function InvoiceForm({ id, sourceOrderId, sourceDeliveryId }: { i
     return newInvoice();
   }, { collection: C.salesInvoices, save: (d, v) => saveInvoice(d, { expectedVersion: v }), autosave: true });
   const { doc, set, setLines, setCustomer } = draft;
+  const tplOpts = useTemplateOptions('Sales Invoice', doc.templateId);
   const editable = doc.status === 'Draft' || doc.status === 'Returned' || doc.status === 'Rejected' || doc.status === 'Approved';
   const cust = db.find<Customer>(C.customers, doc.partyId);
   const errors = useMemo(() => validateSalesDoc(doc), [doc]);
@@ -98,6 +99,7 @@ export default function InvoiceForm({ id, sourceOrderId, sourceDeliveryId }: { i
             <TextField label="Customer reference / PO" value={doc.reference ?? ''} onChange={(v) => set({ reference: v })} placeholder="PO-ARLENE-0042" />
             <DuplicateReferenceNote inv={doc} />
           </div>
+          <SelectField label="Print template" value={doc.templateId ?? ''} onChange={(v) => set({ templateId: v || undefined, templateVersion: db.find<DocumentTemplate>(C.templates, v || undefined)?.templateVersion })} options={tplOpts} placeholder="Company default" help="Layout used for the PDF · can also be switched at print time" />
           <CurrencyRateFields doc={doc} onChange={(p) => set(p as Partial<SalesInvoice>)} disabled={!!cust && cust.currency !== doc.currency && false} />
         </div>
       </Card>

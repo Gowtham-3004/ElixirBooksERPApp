@@ -332,11 +332,14 @@ export const MODULE_SETTINGS: { module: string; id: string; label: string }[] = 
  */
 export function settingsNav(s: Scope, visibleModules: string[]): SubNavItem[] {
   const has = (m: string) => visibleModules.includes(m);
-  const notifications = adminNav(s).some((i) => i.id === 'notifications' && !i.hidden);
+  const admin = adminNav(s);
+  const notifications = admin.some((i) => i.id === 'notifications' && !i.hidden);
+  const templates = has('admin') && admin.some((i) => i.id === 'templates' && !i.hidden);
   return [
     ...(s.user ? [{ id: `admin/users/${s.user.id}`, label: 'Profile & security', group: 'You' }] : []),
     ...(notifications ? [{ id: 'admin/notifications', label: 'Notification settings', group: 'You' }] : []),
     ...MODULE_SETTINGS.filter((p) => has(p.module)).map((p) => ({ id: p.id, label: p.label, group: 'Modules' })),
+    ...(templates ? [{ id: 'admin/templates', label: 'Invoice & document templates', group: 'Documents' }] : []),
     ...(has('admin') ? [{ id: 'admin', label: 'Company administration →', group: 'Organisation' }] : []),
   ];
 }

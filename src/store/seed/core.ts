@@ -8,6 +8,7 @@ import type {
   LocalizationPack, NumberSeries, OperatingProfileTemplate, PaymentTerm, Period, Plan, PriceList, PriceListEntry,
   ReasonCode, Role, Salesperson, Supplier, TaxRate, TdsSection, Tenant, Uom, User, Warehouse, WorkflowRule, DocumentTemplate,
 } from '../types';
+import { LAYOUT_PRESETS } from '../../lib/templates';
 import { C } from '../collections';
 
 export const SEED_NOW = '2026-09-13T09:00:00.000Z';
@@ -208,6 +209,9 @@ export const IDS = {
   dimPrj051: 'dim_prj_051',
   // templates
   tplInvoice: 'tpl_invoice',
+  tplInvoiceModern: 'tpl_invoice_modern',
+  tplInvoiceCompact: 'tpl_invoice_compact',
+  tplInvoiceMinimal: 'tpl_invoice_minimal',
   tplPO: 'tpl_po',
   tplReceipt: 'tpl_receipt',
   tplQuote: 'tpl_quote',
@@ -364,6 +368,10 @@ export function seedOrg(): Partial<DB> {
 
   const templates: DocumentTemplate[] = [
     rec<DocumentTemplate>(IDS.tplInvoice, { companyId: IDS.acme, code: 'TPL-INV', name: 'Tax Invoice — Standard', docType: 'Sales Invoice', templateVersion: 3, header: '{{company.legalName}} · GSTIN {{company.gstin}}', footer: 'Subject to Mumbai jurisdiction · E&OE', declaration: 'We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.', showBankDetails: true, showSignatory: true, variables: ['company.legalName', 'company.gstin', 'doc.number', 'doc.date', 'party.name', 'party.gstin', 'totals.total', 'totals.words', 'statutory.irn', 'statutory.qr'], status: 'Active', isDefault: true }),
+    // Layout variants of the invoice template (seed v4). Same governed content as TPL-INV; only layout/style differ.
+    rec<DocumentTemplate>(IDS.tplInvoiceModern, { companyId: IDS.acme, code: 'TPL-INV-MODERN', name: 'Tax Invoice — Modern', docType: 'Sales Invoice', templateVersion: 1, header: '{{company.legalName}} · GSTIN {{company.gstin}}', footer: 'Subject to Mumbai jurisdiction · E&OE', declaration: 'We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.', showBankDetails: true, showSignatory: true, variables: ['company.legalName', 'company.gstin'], status: 'Active', isDefault: false, layout: 'modern', paperSize: 'A4', ...LAYOUT_PRESETS.modern }),
+    rec<DocumentTemplate>(IDS.tplInvoiceCompact, { companyId: IDS.acme, code: 'TPL-INV-COMPACT', name: 'Tax Invoice — Compact', docType: 'Sales Invoice', templateVersion: 1, header: '{{company.legalName}} · GSTIN {{company.gstin}}', footer: 'Subject to Mumbai jurisdiction · E&OE', declaration: 'We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.', showBankDetails: true, showSignatory: true, variables: ['company.legalName', 'company.gstin'], status: 'Active', isDefault: false, layout: 'compact', paperSize: 'A4', ...LAYOUT_PRESETS.compact }),
+    rec<DocumentTemplate>(IDS.tplInvoiceMinimal, { companyId: IDS.acme, code: 'TPL-INV-MINIMAL', name: 'Tax Invoice — Minimal', docType: 'Sales Invoice', templateVersion: 1, header: '', footer: 'Thank you for your business', declaration: '', showBankDetails: true, showSignatory: false, variables: [], status: 'Active', isDefault: false, layout: 'minimal', accentColor: '#1F7A5C', paperSize: 'Letter', ...LAYOUT_PRESETS.minimal }),
     rec<DocumentTemplate>(IDS.tplPO, { companyId: IDS.acme, code: 'TPL-PO', name: 'Purchase Order — Standard', docType: 'Purchase Order', templateVersion: 2, header: '{{company.legalName}}', footer: 'Please quote PO number on all correspondence', declaration: '', showBankDetails: false, showSignatory: true, variables: ['company.legalName', 'doc.number', 'doc.date', 'party.name', 'totals.total'], status: 'Active', isDefault: true }),
     rec<DocumentTemplate>(IDS.tplReceipt, { companyId: IDS.acme, code: 'TPL-RCPT', name: 'Receipt Voucher', docType: 'Receipt', templateVersion: 1, header: '{{company.legalName}}', footer: 'Thank you for your payment', declaration: '', showBankDetails: false, showSignatory: true, variables: ['doc.number', 'doc.date', 'party.name', 'totals.total'], status: 'Active', isDefault: true }),
     rec<DocumentTemplate>(IDS.tplQuote, { companyId: IDS.acme, code: 'TPL-QT', name: 'Quotation — Branded', docType: 'Quotation', templateVersion: 2, header: '{{company.tradeName}}', footer: 'Prices valid until {{doc.validUntil}}', declaration: '', showBankDetails: false, showSignatory: true, variables: ['doc.number', 'doc.date', 'doc.validUntil', 'party.name', 'totals.total'], status: 'Active', isDefault: true }),

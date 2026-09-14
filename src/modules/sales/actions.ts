@@ -7,7 +7,7 @@ import type { DocHeader, DocLine, Item, OpenItem, ApprovalRequest, ID } from '..
 import { fmtMoney, round, today, uid } from '../../lib/format';
 import type { CreditNote, Receipt, SalesInvoice, SalesOrder, Delivery, SalesReturn } from './types';
 import { salesSettingsOf } from './types';
-import { ACC, arAccountFor, salesAccountFor, taxAccountFor, taxContextForDoc, recompute, assertValid, validateSalesDoc, refreshOrderStatus, duplicateReference } from './core';
+import { ACC, arAccountFor, salesAccountFor, taxAccountFor, taxContextForDoc, recompute, assertValid, validateSalesDoc, refreshOrderStatus, duplicateReference, defaultTemplateFor } from './core';
 
 export * from './core';
 export * from './fulfilment';
@@ -138,7 +138,7 @@ function applySourceInvoicing(inv: SalesInvoice, sign: 1 | -1, issued: StockIssu
 export function newInvoice(partial: Partial<SalesInvoice> = {}): SalesInvoice {
   const s = salesSettingsOf(engine.ctx().company?.defaults);
   const date = partial.date ?? today();
-  const base = engine.newDocHeader('Sales Invoice', { date, dueDate: engine.dueDateFor(date, s.salesDefaultTerms), paymentTerms: s.salesDefaultTerms, partyType: 'Customer', warehouseId: engine.ctx().company?.defaults.warehouseId, templateId: engine.ctx().company?.defaults.templateId, templateVersion: db.find<any>(C.templates, engine.ctx().company?.defaults.templateId)?.templateVersion, ...partial });
+  const base = engine.newDocHeader('Sales Invoice', { date, dueDate: engine.dueDateFor(date, s.salesDefaultTerms), paymentTerms: s.salesDefaultTerms, partyType: 'Customer', warehouseId: engine.ctx().company?.defaults.warehouseId, ...defaultTemplateFor('Sales Invoice'), ...partial });
   return { ...base, status: 'Draft', roundTotal: true } as SalesInvoice;
 }
 

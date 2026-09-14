@@ -3,7 +3,7 @@
 import { useMemo, useState, type ReactNode, useEffect, useRef } from 'react';
 import { db, C, engine, nav, useCollection, useSession } from '../../store';
 import type { ApprovalRequest, Attachment, AuditEvent, DocHeader, DocLine, DocTotals, Journal, Item } from '../../store';
-import { fmtMoney, fmtDateTime, fmtQty, amountInWords, fmtDate, uid } from '../../lib/format';
+import { fmtMoney, fmtDateTime, fmtQty, fmtDate, uid } from '../../lib/format';
 import { Badge, Button, Money, SnapshotTag, TwoLine, Identifier, EmptyState, Pill } from './primitives';
 import { EntityPicker, NumberField, SelectField, useItemOptions, useTaxRateOptions, useWarehouseOptions, TextField } from './fields';
 import { Explain, ActionMenu } from './overlays';
@@ -573,101 +573,6 @@ export function PartyRail({ snapshot, name, link }: { snapshot?: DocHeader['part
       <div style={{ fontSize: 12, color: '#3C4043', marginTop: 6, lineHeight: 1.5 }}>
         {tab === 'contact' ? (snapshot?.contact ? <>{snapshot.contact.name}<br />{snapshot.contact.email}<br />{snapshot.contact.phone}</> : '—') : addr ? <>{addr.line1}{addr.line2 ? <><br />{addr.line2}</> : null}<br />{addr.city}, {addr.state} {addr.pin}</> : '—'}
       </div>
-    </div>
-  );
-}
-
-// ── Print / PDF sheet (design §7.22) ──────────────────────────────────────
-
-export function PrintSheet({ doc, title, partyLabel = 'Billed to', extraHeader }: { doc: DocHeader; title: string; partyLabel?: string; extraHeader?: ReactNode }) {
-  const scope = useSession();
-  const co = scope.company;
-  const branch = db.find<any>(C.branches, doc.branchId);
-  const tpl = db.find<any>(C.templates, doc.templateId) ?? db.findBy<any>(C.templates, (t) => t.docType === doc.docType && t.isDefault);
-  const cur = doc.currency;
-  return (
-    <div className="print-sheet">
-      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #0A0A0A', paddingBottom: 12, marginBottom: 12 }}>
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>{co?.legalName}</div>
-          <div>{co?.address.line1}, {co?.address.city}, {co?.address.state} {co?.address.pin}</div>
-          {branch?.gstin && <div>GSTIN {branch.gstin} · PAN {co?.pan}</div>}
-          <div>{co?.email} · {co?.phone}</div>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 16, fontWeight: 700, textTransform: 'uppercase' }}>{title}</div>
-          <div style={{ fontFeatureSettings: '"tnum" 1' }}>{doc.number}</div>
-          <div>Date {fmtDate(doc.date)}{doc.dueDate ? ` · Due ${fmtDate(doc.dueDate)}` : ''}</div>
-          {doc.sourceNumber && <div>Ref {doc.sourceNumber}</div>}
-          {doc.reference && <div>Your ref {doc.reference}</div>}
-          {extraHeader}
-        </div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
-        <div>
-          <div style={{ fontWeight: 700, textTransform: 'uppercase', fontSize: 10 }}>{partyLabel}</div>
-          <div>{doc.partySnapshot?.name ?? doc.partyName}</div>
-          {doc.partySnapshot?.billingAddress && <div>{doc.partySnapshot.billingAddress.line1}, {doc.partySnapshot.billingAddress.city}, {doc.partySnapshot.billingAddress.state} {doc.partySnapshot.billingAddress.pin}</div>}
-          {doc.partySnapshot?.gstin && <div>GSTIN {doc.partySnapshot.gstin}</div>}
-        </div>
-        <div>
-          <div style={{ fontWeight: 700, textTransform: 'uppercase', fontSize: 10 }}>Shipped to</div>
-          {doc.partySnapshot?.shippingAddress ? <div>{doc.partySnapshot.shippingAddress.line1}, {doc.partySnapshot.shippingAddress.city}, {doc.partySnapshot.shippingAddress.state} {doc.partySnapshot.shippingAddress.pin}</div> : <div>As billed</div>}
-        </div>
-        <div>
-          <div style={{ fontWeight: 700, textTransform: 'uppercase', fontSize: 10 }}>Place of supply</div>
-          <div>{doc.placeOfSupply ?? doc.partySnapshot?.state ?? '—'}{doc.placeOfSupplyCode ? ` (${doc.placeOfSupplyCode})` : ''}</div>
-          {doc.paymentTerms && <div style={{ marginTop: 4 }}>Terms: {doc.paymentTerms}</div>}
-        </div>
-      </div>
-      <table>
-        <thead><tr><th>#</th><th style={{ textAlign: 'left' }}>Description</th><th>HSN/SAC</th><th style={{ textAlign: 'right' }}>Qty</th><th style={{ textAlign: 'right' }}>Rate</th><th style={{ textAlign: 'right' }}>Disc</th><th style={{ textAlign: 'right' }}>Taxable</th><th style={{ textAlign: 'right' }}>Tax</th><th style={{ textAlign: 'right' }}>Total</th></tr></thead>
-        <tbody>
-          {doc.lines.map((l, i) => (
-            <tr key={l.id}><td>{i + 1}</td><td>{l.itemName}{l.description ? <div style={{ color: '#5F6368' }}>{l.description}</div> : null}</td><td style={{ textAlign: 'center' }}>{l.hsn ?? ''}</td><td style={{ textAlign: 'right' }}>{fmtQty(l.qty, l.uom)}</td><td style={{ textAlign: 'right' }}>{fmtMoney(l.rate, cur)}</td><td style={{ textAlign: 'right' }}>{l.discountPct ? `${l.discountPct}%` : ''}</td><td style={{ textAlign: 'right' }}>{fmtMoney(l.taxable, cur)}</td><td style={{ textAlign: 'right' }}>{fmtMoney(l.taxAmt, cur)} ({l.taxRate}%)</td><td style={{ textAlign: 'right' }}>{fmtMoney(l.amount, cur)}</td></tr>
-          ))}
-        </tbody>
-      </table>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, gap: 24 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, fontSize: 10, textTransform: 'uppercase' }}>Amount in words</div>
-          <div>{amountInWords(doc.totals.total, cur)}</div>
-          {doc.totals.breakup.length > 0 && (
-            <table style={{ marginTop: 8, width: 'auto' }}>
-              <thead><tr><th>Component</th><th>Rate</th><th>Taxable</th><th>Tax</th></tr></thead>
-              <tbody>{doc.totals.breakup.map((b, i) => <tr key={i}><td>{b.component}</td><td>{b.rate}%</td><td style={{ textAlign: 'right' }}>{fmtMoney(b.taxable, cur)}</td><td style={{ textAlign: 'right' }}>{fmtMoney(b.tax, cur)}</td></tr>)}</tbody>
-            </table>
-          )}
-          {doc.statutory?.irn && (
-            <div style={{ marginTop: 8, border: '1px solid #DADCE0', padding: 8 }}>
-              <div style={{ fontWeight: 700, fontSize: 10 }}>e-INVOICE</div>
-              <div style={{ fontSize: 10, wordBreak: 'break-all' }}>IRN {doc.statutory.irn}</div>
-              <div style={{ fontSize: 10 }}>Ack {doc.statutory.ackNo} · {fmtDate(doc.statutory.ackDate)}</div>
-              <div style={{ width: 90, height: 90, background: 'repeating-conic-gradient(#0A0A0A 0 25%, #fff 0 50%) 50% / 12px 12px', marginTop: 6 }} title="Signed QR" />
-            </div>
-          )}
-          {doc.statutory?.ewbNo && <div style={{ fontSize: 10, marginTop: 4 }}>e-Way bill {doc.statutory.ewbNo} · valid until {fmtDate(doc.statutory.ewbValidUpto)}</div>}
-        </div>
-        <div style={{ width: 260 }}>
-          {[['Subtotal', doc.totals.subtotal], ['Discount', -doc.totals.discount], ['Taxable', doc.totals.taxable], ...Object.entries(doc.totals.components), ['Charges', doc.totals.charges], ['TDS', -doc.totals.tds], ['Round-off', doc.totals.roundOff]].filter(([, v]) => v !== 0).map(([k, v]) => (
-            <div key={String(k)} style={{ display: 'flex', justifyContent: 'space-between' }}><span>{k}</span><span>{fmtMoney(v as number, cur)}</span></div>
-          ))}
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, borderTop: '1px solid #0A0A0A', marginTop: 4, paddingTop: 4, fontSize: 13 }}><span>Total</span><span>{fmtMoney(doc.totals.total, cur)}</span></div>
-        </div>
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24, borderTop: '1px solid #DADCE0', paddingTop: 12, fontSize: 10 }}>
-        <div style={{ maxWidth: 400 }}>
-          {tpl?.showBankDetails && co?.defaults.bankAccountId && (() => { const b = db.find<any>(C.accounts, co.defaults.bankAccountId)?.bankDetails; return b ? <div>Bank: {b.bankName} · A/c •••• {String(b.accountNumber).slice(-4)} · IFSC {b.ifsc}</div> : null; })()}
-          {tpl?.declaration && <div style={{ marginTop: 4 }}>{tpl.declaration}</div>}
-          {doc.terms && <div style={{ marginTop: 4 }}>{doc.terms}</div>}
-          {doc.notes && <div style={{ marginTop: 4 }}>{doc.notes}</div>}
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div>For {co?.legalName}</div>
-          <div style={{ marginTop: 28 }}>Authorised signatory</div>
-        </div>
-      </div>
-      <div style={{ textAlign: 'center', fontSize: 9, color: '#6E6E71', marginTop: 12 }}>{tpl?.footer} · Template {tpl?.code ?? '—'} v{doc.templateVersion ?? tpl?.templateVersion ?? 1}</div>
     </div>
   );
 }

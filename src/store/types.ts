@@ -553,6 +553,10 @@ export interface Salesperson extends BaseRecord {
   status: 'Active' | 'Inactive';
 }
 
+/** Visual preset for printed documents; resolved defaults live in lib/templates.ts. */
+export type TemplateLayout = 'classic' | 'modern' | 'compact' | 'minimal';
+export type PaperSize = 'A4' | 'Letter';
+
 export interface DocumentTemplate extends BaseRecord {
   code: string;
   name: string;
@@ -566,6 +570,19 @@ export interface DocumentTemplate extends BaseRecord {
   variables: string[];
   status: 'Active' | 'Inactive';
   isDefault: boolean;
+  // Layout & style — all optional so pre-layout templates keep rendering as Classic.
+  /** undefined ⇒ 'classic' */
+  layout?: TemplateLayout;
+  /** hex; undefined ⇒ company.brandColor (Classic falls back to black) */
+  accentColor?: string;
+  showLogo?: boolean;
+  showHsn?: boolean;
+  showDiscount?: boolean;
+  showTaxColumn?: boolean;
+  showTaxBreakup?: boolean;
+  showAmountInWords?: boolean;
+  /** undefined ⇒ 'A4' */
+  paperSize?: PaperSize;
 }
 
 // ── Documents (generic) ────────────────────────────────────────────────────
