@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { CheckIcon, ChevronRightIcon } from '../../components/Icons';
 import { db, C, session, useSession, engine, nav } from '../../store';
-import type { Company, Registration, Address, Role, User, Tenant, Plan } from '../../store';
+import type { Company, Registration, Address, Role, User, Tenant, Plan, GstinDetails } from '../../store';
 import { fiscalYearOf, periodCodeOf, today, uid, stateNameOf } from '../../lib/format';
 import { Backdrop, BrandMark } from './Frame';
 import { Storyset, type StorysetName } from '../../components/ui/storyset';
@@ -31,6 +31,8 @@ export interface WizardState {
   overrides: Record<string, string[]>;
   legalName: string; tradeName: string; businessType: string; pan: string; cin: string;
   registrations: Registration[];
+  /** GSTIN lookup applied to the legal / address steps (from registration or fetched in the wizard) */
+  gstinLookup: GstinDetails | null;
   address: Address; phone: string; email: string; website: string;
   extraBranches: { id: string; name: string; type: 'Office' | 'Warehouse' | 'Store' | 'Factory'; city: string; stateCode?: string }[];
   baseCurrency: string; reportingCurrency: string; permitted: string[]; timeZone: string; locale: string; fyStart: number;
@@ -45,6 +47,7 @@ function initialState(co: Company | undefined): WizardState {
     nature: co?.nature ?? '', characteristics: co?.characteristics ?? [], overrides: {},
     legalName: co?.legalName ?? '', tradeName: co?.tradeName ?? '', businessType: co?.businessType ?? 'Private Limited', pan: co?.pan ?? '', cin: co?.cin ?? '',
     registrations: co?.registrations ?? [],
+    gstinLookup: co?.gstinLookup ?? null,
     address: co?.address ?? { line1: '', city: '', state: '', pin: '', country: co?.country ?? 'IN' }, phone: co?.phone ?? '', email: co?.email ?? '', website: co?.website ?? '',
     extraBranches: [],
     baseCurrency: co?.baseCurrency ?? 'INR', reportingCurrency: co?.reportingCurrency ?? '', permitted: co?.permittedCurrencies ?? ['INR'], timeZone: co?.timeZone ?? 'Asia/Kolkata', locale: co?.locale ?? 'en-IN', fyStart: co?.fiscalYearStartMonth ?? 4,
@@ -105,7 +108,7 @@ export default function Onboarding({ onComplete }: { onComplete?: () => void }) 
         saveOnboardingStep(cid, { nature: s.nature, profiles: next, characteristics: s.characteristics, profileHistory: JSON.stringify(prev) === JSON.stringify(next) ? company.profileHistory : [...company.profileHistory, { at: new Date().toISOString(), by: sess.user?.name ?? 'owner', from: prev, to: next, reason: 'Onboarding wizard' }] }, { nature: 'Done' });
         engine.audit({ action: 'onboarding.nature', objectType: 'Company', objectId: cid, detail: `${s.nature} · ${s.characteristics.join(', ') || 'no secondary characteristics'}${Object.keys(s.overrides).length ? ' · overrides: ' + Object.keys(s.overrides).join(', ') : ''}` });
       }
-      if (step === 2) saveOnboardingStep(cid, { legalName: s.legalName.trim(), tradeName: s.tradeName.trim() || s.legalName.trim(), businessType: s.businessType, pan: s.pan || undefined, cin: s.cin || undefined, registrations: s.registrations, logoText: (s.tradeName || s.legalName).trim().charAt(0).toUpperCase() }, { legal: 'Done' });
+      if (step === 2) saveOnboardingStep(cid, { legalName: s.legalName.trim(), tradeName: s.tradeName.trim() || s.legalName.trim(), businessType: s.businessType, pan: s.pan || undefined, cin: s.cin || undefined, registrations: s.registrations, gstinLookup: s.gstinLookup ?? undefined, logoText: (s.tradeName || s.legalName).trim().charAt(0).toUpperCase() }, { legal: 'Done' });
       if (step === 3) {
         saveOnboardingStep(cid, { address: s.address, phone: s.phone || undefined, email: s.email || undefined, website: s.website || undefined }, { address: 'Done' });
         db.transaction(() => {

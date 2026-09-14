@@ -74,6 +74,28 @@ export interface Registration {
   isSez?: boolean;
 }
 
+/** Result of a GSTIN lookup (GST portal or simulated). Kept on the company as a verify trail. */
+export interface GstinDetails {
+  gstin: string;
+  legalName: string;
+  tradeName: string;
+  pan: string;
+  stateCode: string;
+  state: string;
+  /** Mapped to a BUSINESS_TYPES value ('Private Limited', 'Partnership', …) */
+  constitution: string;
+  status: 'Active' | 'Cancelled' | 'Suspended';
+  taxpayerType: 'Regular' | 'Composition' | 'SEZ Unit' | 'SEZ Developer' | 'Casual' | 'Non-resident';
+  /** yyyy-mm-dd */
+  registrationDate?: string;
+  address: Address;
+  isSez: boolean;
+  /** 'GSTN (simulated)' | 'GSTN' */
+  provider: string;
+  /** ISO timestamp of the fetch */
+  fetchedAt: string;
+}
+
 export interface CompanyDefaults {
   warehouseId?: ID;
   salesAccountId?: ID;
@@ -182,6 +204,8 @@ export interface Company extends BaseRecord {
   onboarding: Record<string, 'Done' | 'Pending' | 'Blocked'>;
   /** secondary business characteristics chosen at onboarding (FR-BIZ-002) */
   characteristics?: string[];
+  /** last GSTIN lookup applied at registration / onboarding — optional, additive */
+  gstinLookup?: GstinDetails;
 }
 
 export interface Branch extends BaseRecord {

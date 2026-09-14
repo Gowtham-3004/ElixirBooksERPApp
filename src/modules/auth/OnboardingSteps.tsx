@@ -2,14 +2,15 @@
 import { useMemo, useState } from 'react';
 import { CheckIcon, ShoppingCartIcon, BriefcaseIcon, FactoryIcon, ZapIcon, UploadIcon, StarIcon, EditIcon, SkipForwardIcon, BuildingIcon, MapPinIcon, WalletIcon, CalendarIcon, UsersIcon } from '../../components/Icons';
 import type { ComponentType } from 'react';
-import { db, C, useCollection, useSession } from '../../store';
-import type { Company, OperatingProfileTemplate, Registration, Role, Plan, Tenant } from '../../store';
+import { db, C, engine, useCollection, useSession } from '../../store';
+import type { Company, GstinDetails, OperatingProfileTemplate, Registration, Role, Plan, Tenant } from '../../store';
 import { INDIA_STATES, stateNameOf, fmtDate, uid, validateGSTIN } from '../../lib/format';
 import { TextField, SelectField, IdentifierField, ChipGroup, CheckboxField, DateField, Segmented } from '../../components/ui/fields';
-import { Badge, Button, Checklist, Pill } from '../../components/ui';
+import { Badge, Banner, Button, Checklist, Pill } from '../../components/ui';
 import { StorysetAnimated } from '../../components/ui/storyset';
 import type { WizardState } from './Onboarding';
 import { BUSINESS_TYPES, CURRENCIES, LOCALES, TIME_ZONES, buildFyPeriods, readinessFor } from './provision';
+import GstinLookup from './GstinLookup';
 
 interface StepProps { s: WizardState; set: (p: Partial<WizardState>) => void; company: Company; template?: OperatingProfileTemplate; hasPostedJournal: boolean }
 
@@ -99,9 +100,23 @@ export function StepLegal({ s, set, company }: StepProps) {
   const regs = s.registrations;
   const setReg = (id: string, patch: Partial<Registration>) => set({ registrations: regs.map((r) => (r.id === id ? { ...r, ...patch } : r)) });
   const addReg = () => set({ registrations: [...regs, { id: uid('reg'), type: isIN ? 'GSTIN' : 'TRN', number: '', status: 'Active', isSez: false }] });
+  // Prefill-to-verify: the fetched record replaces the identity fields, the matching GSTIN row (empty rows are
+  // dropped) and the registered address shown on the next step; the user edits inline before continuing.
+  const applyLookup = (d: GstinDetails) => {
+    const existing = regs.find((r) => r.type === 'GSTIN' && r.number === d.gstin);
+    const kept = regs.filter((r) => !(r.type === 'GSTIN' && (!r.number || r.number === d.gstin)));
+    const reg: Registration = { id: existing?.id ?? uid('reg'), type: 'GSTIN', number: d.gstin, state: d.state, stateCode: d.stateCode, branchId: existing?.branchId, status: 'Active', isSez: d.isSez };
+    set({ gstinLookup: d, legalName: d.legalName, tradeName: d.tradeName, businessType: d.constitution, pan: d.pan, registrations: [reg, ...kept], address: { ...s.address, ...d.address, country: s.address.country } });
+    engine.audit({ action: 'onboarding.gstin-lookup', objectType: 'Company', objectId: company.id, detail: `${d.gstin} · ${d.legalName} · ${d.status} · ${d.provider}` });
+  };
   return (
     <div>
       <H title="Legal identity" sub="Used on every statutory document — invoices, challans and returns. Identifiers are validated by the localization pack (FR-ORG-007)." />
+      {isIN && (
+        <GstinLookup style={{ maxWidth: 720, marginBottom: 20 }} value={s.gstinLookup} onFetched={applyLookup} onClear={() => set({ gstinLookup: null })}
+          initialGstin={regs.find((r) => r.type === 'GSTIN' && r.number)?.number}
+          note="Replaces legal name, trade name, business type, PAN, the matching GSTIN row and the registered address on the next step." />
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, maxWidth: 720 }}>
         <TextField label="Legal name" required value={s.legalName} onChange={(v) => set({ legalName: v })} placeholder="Elixir Business Solution Pvt Ltd" autoFocus />
         <TextField label="Trade name" value={s.tradeName} onChange={(v) => set({ tradeName: v })} placeholder="Elixir Business Solution" help="Shown in the sidebar and on documents when set" />
@@ -146,6 +161,9 @@ export function StepAddress({ s, set, company }: StepProps) {
   return (
     <div>
       <H title="Registered address & branches" sub="Printed on tax invoices and returns. Your head office is created as the default branch; add stores, warehouses or offices now or later under Company administration." />
+      {s.gstinLookup && (
+        <Banner tone="info" style={{ maxWidth: 720, marginBottom: 16 }}>Registered address prefilled from GSTIN <span className="identifier">{s.gstinLookup.gstin}</span> — check it matches your GST certificate before continuing.</Banner>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, maxWidth: 720 }}>
         <TextField label="Address line 1" required value={a.line1} onChange={(v) => setA({ line1: v })} placeholder="Plot 14, Andheri Industrial Estate" autoFocus style={{ gridColumn: '1 / -1' }} />
         <TextField label="Address line 2" value={a.line2 ?? ''} onChange={(v) => setA({ line2: v })} style={{ gridColumn: '1 / -1' }} />

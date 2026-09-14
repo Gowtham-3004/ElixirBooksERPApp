@@ -3,11 +3,12 @@
 import { useState } from 'react';
 import { EyeIcon, ChevronDownIcon, ShoppingCartIcon, BriefcaseIcon, FactoryIcon, ZapIcon } from '../../components/Icons';
 import { db, C, session } from '../../store';
-import type { User } from '../../store';
+import type { GstinDetails, User } from '../../store';
 import { validateEmail, fiscalYearOf, periodCodeOf, today } from '../../lib/format';
 import { Backdrop, BrandMark, GoogleMark, MicrosoftMark, PasswordMeter, passwordStrength } from './Frame';
 import { Storyset } from '../../components/ui/storyset';
 import { COUNTRY_OPTIONS, createWorkspace } from './provision';
+import GstinLookup from './GstinLookup';
 
 interface Props {
   onCreated?: () => void;
@@ -30,6 +31,7 @@ export default function Register({ onCreated, onSignIn }: Props) {
   const [company, setCompany] = useState('');
   const [country, setCountry] = useState('IN');
   const [nature, setNature] = useState<'Trading' | 'Services' | 'Manufacturing' | 'Hybrid' | ''>('');
+  const [gstin, setGstin] = useState<GstinDetails | null>(null);
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +53,7 @@ export default function Register({ onCreated, onSignIn }: Props) {
     setError(null);
     setTimeout(() => {
       try {
-        const { company: co, user, tenant, branch } = createWorkspace({ fullName: fullName.trim(), email, companyName: company.trim(), country, nature });
+        const { company: co, user, tenant, branch } = createWorkspace({ fullName: fullName.trim(), email, companyName: company.trim(), country, nature, gstin: gstin ?? undefined });
         session.setAuth('onboarding', { userId: user.id, tenantId: tenant.id, companyId: co.id, branchId: branch.id, fy: fiscalYearOf(today(), co.fiscalYearStartMonth), periodCode: periodCodeOf(today()), loginBanner: undefined });
         onCreated?.();
       } catch (err: any) {
@@ -152,14 +154,19 @@ export default function Register({ onCreated, onSignIn }: Props) {
                 <p style={{ fontSize: 14, color: 'var(--ink-3)' }}>This creates your first workspace and guides the onboarding.</p>
               </div>
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {country === 'IN' && (
+                  <GstinLookup value={gstin} onFetched={(d) => { setGstin(d); setCompany(d.tradeName || d.legalName); }} onClear={() => setGstin(null)}
+                    note="Optional. We prefill your legal name, PAN, registered address and GST registration — you verify them in the setup wizard." />
+                )}
                 <div>
                   <label className="section-label" style={{ display: 'block', marginBottom: 6 }}>Company / Trade Name *</label>
                   <input className="field-input" required value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Elixir Business Solution Pvt Ltd" autoFocus />
+                  {gstin && <div className="field-help">Prefilled from GSTIN {gstin.gstin} — edit if you trade under a different name.</div>}
                 </div>
                 <div>
                   <label className="section-label" style={{ display: 'block', marginBottom: 6 }}>Country *</label>
                   <div style={{ position: 'relative' }}>
-                    <select className="field-input" value={country} onChange={(e) => setCountry(e.target.value)} style={{ appearance: 'none', paddingRight: 36 }}>
+                    <select className="field-input" value={country} onChange={(e) => { setCountry(e.target.value); if (e.target.value !== 'IN') setGstin(null); }} style={{ appearance: 'none', paddingRight: 36 }}>
                       {COUNTRY_OPTIONS.map((c) => <option key={c.code} value={c.code}>{c.name} · {c.currency}</option>)}
                     </select>
                     <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', display: 'flex' }}><ChevronDownIcon size={14} color="var(--ink-3)" /></span>

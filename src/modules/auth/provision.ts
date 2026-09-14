@@ -2,7 +2,7 @@
 // onboarding persistence helpers. All writes go through the store so the wizard,
 // company admin and home checklist see the same records.
 import { db, C, engine, IDS } from '../../store';
-import type { Branch, Company, NumberSeries, OperatingProfileTemplate, Period, Tenant, User, Role } from '../../store';
+import type { Branch, Company, GstinDetails, NumberSeries, OperatingProfileTemplate, Period, Tenant, User, Role } from '../../store';
 import { addDays, fiscalYearOf, today, uid } from '../../lib/format';
 
 export const COUNTRY_OPTIONS = [
@@ -87,6 +87,8 @@ export interface CreateWorkspaceInput {
   companyName: string;
   country: string; // ISO code
   nature: Company['nature'];
+  /** GSTIN lookup applied on the registration screen — prefills legal identity, registration and address for the wizard to verify. */
+  gstin?: GstinDetails;
 }
 
 /** Registration: tenant (14-day trial) + company + default branch + FY periods + owner user + number series. */
@@ -94,22 +96,30 @@ export function createWorkspace(input: CreateWorkspaceInput): { tenant: Tenant; 
   const c = COUNTRY_OPTIONS.find((x) => x.code === input.country) ?? COUNTRY_OPTIONS[0];
   const now = new Date().toISOString();
   const code = input.companyName.replace(/[^A-Za-z0-9]/g, '').slice(0, 6).toUpperCase() || 'CO';
+  // Ids are fixed up front so the company's registration and the head-office branch can reference each other in one pass.
+  const d = input.gstin;
+  const regId = d ? uid('reg') : undefined;
+  const branchId = uid('br');
+  const emptyAddress = { line1: '', city: '', state: '', stateCode: undefined, pin: '', country: c.code };
+  const address = d ? { ...d.address, country: c.code } : emptyAddress;
   return db.transaction(() => {
     const tenant = db.insert<Tenant>(C.tenants, {
       companyId: undefined, name: input.companyName, planId: IDS.planGrowth, subscriptionState: 'Trial', trialEndsAt: addDays(today(), 14), ownerUserId: '',
       usage: { users: 1, companies: 1, invoicesPerMonth: 0, storageMb: 0 }, country: c.code,
     });
     const company = db.insert<Company>(C.companies, {
-      companyId: undefined, tenantId: tenant.id, code, legalName: input.companyName, tradeName: input.companyName, country: c.code, baseCurrency: c.currency, reportingCurrency: undefined,
+      companyId: undefined, tenantId: tenant.id, code, legalName: d?.legalName ?? input.companyName, tradeName: input.companyName, country: c.code, baseCurrency: c.currency, reportingCurrency: undefined,
       permittedCurrencies: Array.from(new Set([c.currency, 'USD'])), timeZone: c.timeZone, locale: c.locale, language: 'en', fiscalYearStartMonth: c.fyStart,
-      booksFrom: today(), openingBalanceDate: today(), nature: input.nature, profiles: profilesForNature(input.nature), profileHistory: [], businessType: 'Private Limited',
-      address: { line1: '', city: '', state: '', stateCode: undefined, pin: '', country: c.code }, email: input.email, logoText: input.companyName.trim().charAt(0).toUpperCase() || 'E', brandColor: '#325CFF',
-      localizationPack: c.pack, localizationVersion: c.pack === 'IN' ? '1.4' : '1.0', registrations: [],
+      booksFrom: today(), openingBalanceDate: today(), nature: input.nature, profiles: profilesForNature(input.nature), profileHistory: [], businessType: d?.constitution ?? 'Private Limited',
+      pan: d?.pan, address, email: input.email, logoText: input.companyName.trim().charAt(0).toUpperCase() || 'E', brandColor: '#325CFF',
+      localizationPack: c.pack, localizationVersion: c.pack === 'IN' ? '1.4' : '1.0',
+      registrations: d && regId ? [{ id: regId, type: 'GSTIN', number: d.gstin, state: d.state, stateCode: d.stateCode, branchId, status: 'Active', isSez: d.isSez }] : [],
+      gstinLookup: d,
       defaults: { allowNegativeStock: false, valuationMethod: 'AVCO', matchingMode: '3-way', matchTolerancePct: 2, matchToleranceAmt: 500, creditPolicy: 'Warn', directInvoiceStock: true, paymentTerms: 'Net 30' },
       status: 'Active',
       onboarding: { nature: 'Done', legal: 'Pending', address: 'Pending', currency: 'Pending', periods: 'Pending', users: 'Pending', masters: 'Pending', opening: 'Pending', bank: 'Pending', numbering: 'Done', einvoice: 'Pending' },
     });
-    const branch = db.insert<Branch>(C.branches, { companyId: company.id, code: 'BR-001', name: 'Head Office', type: 'Office', address: { line1: '', city: '', state: '', pin: '', country: c.code }, status: 'Active', isDefault: true });
+    const branch = db.insert<Branch>(C.branches, { id: branchId, companyId: company.id, code: 'BR-001', name: 'Head Office', type: 'Office', address, gstin: d?.gstin, registrationId: regId, status: 'Active', isDefault: true });
     const ownerRole = db.find<Role>(C.roles, IDS.rOwner);
     const user = db.insert<User>(C.users, {
       companyId: company.id, tenantId: tenant.id, name: input.fullName, email: input.email.trim().toLowerCase(), roleIds: ownerRole ? [ownerRole.id] : [], companyIds: [company.id], branchIds: [],
@@ -119,7 +129,7 @@ export function createWorkspace(input: CreateWorkspaceInput): { tenant: Tenant; 
     buildFyPeriods(company.id, c.fyStart).forEach((p) => db.insert<Period>(C.periods, { ...p, id: `per_${company.id.replace(/^co_/, '')}_${p.code}` }));
     ensureDefaultSeries(company.id, c.fyStart);
     db.update<Company>(C.companies, company.id, { onboarding: { ...company.onboarding, periods: 'Done' } });
-    db.insert(C.audit, { companyId: company.id, tenantId: tenant.id, at: now, actor: user.name, actorId: user.id, action: 'tenant.created', objectType: 'Tenant', objectId: tenant.id, objectNumber: tenant.name, result: 'Success', correlationId: 'corr_' + Date.now().toString(36).toUpperCase(), channel: 'web', detail: `Trial (14 days) · ${input.nature} · ${c.name} · ${c.currency}` });
+    db.insert(C.audit, { companyId: company.id, tenantId: tenant.id, at: now, actor: user.name, actorId: user.id, action: 'tenant.created', objectType: 'Tenant', objectId: tenant.id, objectNumber: tenant.name, result: 'Success', correlationId: 'corr_' + Date.now().toString(36).toUpperCase(), channel: 'web', detail: `Trial (14 days) · ${input.nature} · ${c.name} · ${c.currency}${d ? ` · GSTIN ${d.gstin} via ${d.provider}` : ''}` });
     db.insert(C.notifications, { companyId: company.id, userId: user.id, at: now, type: 'system', title: `Welcome to Elixir Books, ${input.fullName.split(' ')[0]}`, body: 'Your 14-day Growth trial has started. Finish the setup wizard to go live.', link: 'home', read: false, status: 'delivered', channel: 'in-app' });
     return { tenant, company, branch, user };
   });
