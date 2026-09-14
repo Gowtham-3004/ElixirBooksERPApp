@@ -150,6 +150,7 @@ export function runMatching(v: VendorInvoice): MatchResult {
 /** Submit: run matching, raise exceptions (assigned to purchase manager), then Approved (posts on Post) or Submitted (blocked). */
 export function submitVendorInvoice(input: VendorInvoice): { invoice: VendorInvoice; result: MatchResult } {
   const saved = saveVendorInvoice(input);
+  if (saved.totals.total <= 0) throw new ValidationError('Invoice total must be greater than zero', 'VALIDATION', 'lines');
   return db.transaction(() => {
     const result = runMatching(saved);
     // close previous open exceptions for this invoice (re-run supersedes)
@@ -171,6 +172,7 @@ export function openExceptions(invoiceId: string): MatchException[] {
 export function postingBlockReason(v: VendorInvoice): string | undefined {
   if (v.status === 'Posted' || v.status === 'Reversed' || v.status === 'Cancelled') return `Invoice is ${v.status}`;
   if (v.status === 'Draft') return 'Submit the invoice first (runs matching)';
+  if (v.totals.total <= 0) return 'Invoice total must be greater than zero';
   const open = openExceptions(v.id);
   if (open.length && purchaseSettings().blockOnException) return `${open.length} unresolved matching exception(s) — resolve in the exceptions workbench`;
   const chk = engine.postingCheck(v.date);
@@ -190,7 +192,10 @@ export function vendorInvoiceJournalLines(v: VendorInvoice): engine.PostLine[] {
   v.lines.forEach((l) => {
     const item = db.find<Item>(C.items, l.itemId);
     if (l.grnId) {
-      const accrued = r2(l.qty * (l.poRate ?? l.rate));
+      // clear exactly what the receipt accrued per unit (net of line discount), never the gross PO rate
+      const gl = db.find<Grn>(C.grns, l.grnId)?.lines.find((x) => x.id === l.grnLineId);
+      const unitAccrued = gl && gl.acceptedQty > 0 ? gl.taxable / gl.acceptedQty : (l.poRate ?? l.rate) * (1 - (l.discountPct || 0) / 100);
+      const accrued = r2(l.qty * unitAccrued);
       accrual = r2(accrual + accrued);
       const diff = r2(l.taxable - accrued);
       if (diff !== 0) lines.push({ accountId: c.company?.defaults.purchaseAccountId ?? IDS.accPurchases, dr: diff > 0 ? diff : undefined, cr: diff < 0 ? -diff : undefined, dimensions: dims, narration: 'Invoice price variance' });
@@ -266,7 +271,7 @@ export function reverseVendorInvoice(id: string, reason: string): VendorInvoice 
     engine.assertPostable(date);
     if (v.journalId) engine.reverseJournal(v.journalId, { reason, date });
     engine.reverseStockMovements(v.id, { date, reason, sourceType: 'Vendor Invoice Reversal', sourceNumber: v.number });
-    if (oi) db.update<OpenItem>(C.openItems, oi.id, { status: 'Settled', outstanding: 0, baseOutstanding: 0 });
+    if (oi && oi.outstanding > 0.005) engine.settleOpenItem(oi.id, { amount: oi.outstanding, docType: 'Vendor Invoice Reversal', docId: v.id, docNumber: v.number, date, rate: oi.rate, postFx: false });
     const po = db.find<PurchaseOrder>(C.purchaseOrders, v.poId);
     if (po) { db.update<PurchaseOrder>(C.purchaseOrders, po.id, { lines: po.lines.map((pl) => { const q = v.lines.filter((l) => l.poLineId === pl.id).reduce((x, l) => x + l.qty, 0); return q ? { ...pl, invoicedQty: r2((pl.invoicedQty ?? 0) - q) } : pl; }) }); refreshPoStatus(po.id); }
     v.grnIds.forEach((gid) => { const g = db.find<Grn>(C.grns, gid); if (g) db.update<Grn>(C.grns, gid, { lines: g.lines.map((gl) => { const q = v.lines.filter((l) => l.grnLineId === gl.id).reduce((x, l) => x + l.qty, 0); return q ? { ...gl, invoicedQty: r2((gl.invoicedQty ?? 0) - q) } : gl; }) }); });
@@ -396,7 +401,7 @@ export function postDebitNote(input: DebitNote): DebitNote {
       prtId = prt.id;
       d.lines.forEach((l) => {
         const item = db.find<Item>(C.items, l.itemId);
-        if (item?.isStock && item.type !== 'Service') engine.moveStock({ date: d.date, itemId: item.id, warehouseId: l.warehouseId ?? d.returnWarehouseId!, qty: -l.qty, uom: l.uom, rate: r2(l.rate * d.rate), type: 'Purchase Return', sourceType: 'Purchase Return', sourceId: prt.id, sourceNumber: prtNumber!, batch: l.batch, serials: l.serials });
+        if (item?.isStock && item.type !== 'Service') engine.moveStock({ date: d.date, itemId: item.id, warehouseId: l.warehouseId ?? d.returnWarehouseId!, qty: -l.qty, uom: l.uom, rate: r2((l.qty ? l.taxable / l.qty : l.rate) * d.rate), type: 'Purchase Return', sourceType: 'Purchase Return', sourceId: prt.id, sourceNumber: prtNumber!, batch: l.batch, serials: l.serials });
       });
     }
     d.lines.forEach((l) => {
@@ -415,11 +420,33 @@ export function postDebitNote(input: DebitNote): DebitNote {
     const invOi = d.invoiceId ? db.findBy<OpenItem>(C.openItems, (o) => o.docId === d.invoiceId && o.direction === 'Debit') : undefined;
     if (invOi && invOi.outstanding > 0.005) { const amt = Math.min(remaining, invOi.outstanding); engine.settleOpenItem(invOi.id, { amount: amt, docType: 'Debit Note', docId: saved.id, docNumber: number, date: d.date, rate: d.rate, postFx: false }); remaining = r2(remaining - amt); settled = true; }
     if (remaining > 0.005) { const oi = engine.createOpenItem({ partyType: 'Supplier', partyId: d.partyId!, partyName: d.partyName!, docType: 'Debit Note', docId: saved.id, docNumber: number, date: d.date, dueDate: d.date, currency: d.currency, originalAmount: remaining, baseAmount: r2(remaining * d.rate), rate: d.rate, direction: 'Credit', branchId: d.branchId, companyId: d.companyId }); oiId = oi.id; }
-    // returned qty on GRN / PO
-    if (d.grnId) { const g = db.find<Grn>(C.grns, d.grnId); if (g) { db.update<Grn>(C.grns, g.id, { lines: g.lines.map((gl) => { const q = d.lines.filter((l) => l.sourceLineId === gl.id || (l.itemId === gl.itemId && !d.invoiceId)).reduce((x, l) => x + l.qty, 0); return q && d.goodsReturn ? { ...gl, returnedQty: r2((gl.returnedQty ?? 0) + q) } : gl; }) }); const po = db.find<PurchaseOrder>(C.purchaseOrders, g.poId); if (po && d.goodsReturn) db.update<PurchaseOrder>(C.purchaseOrders, po.id, { lines: po.lines.map((pl) => { const q = d.lines.filter((l) => l.itemId === pl.itemId).reduce((x, l) => x + l.qty, 0); return q ? { ...pl, returnedQty: r2((pl.returnedQty ?? 0) + q) } : pl; }) }); } }
+    if (d.goodsReturn) applyReturnedQty(d, 1);
     const out = db.update<DebitNote>(C.debitNotes, saved.id, { status: 'Posted', number, journalId: j.id, journalNumber: j.number, purchaseReturnId: prtId, purchaseReturnNumber: prtNumber, settledAgainstInvoice: settled, openItemId: oiId, postedAt: new Date().toISOString(), postedBy: c.userName });
     engine.audit({ action: 'debit_note.posted', objectType: 'Debit Note', objectId: out.id, objectNumber: number, detail: `${d.partyName} · ${d.totals.total} · ${settled ? 'settled against ' + d.invoiceNumber : 'credit on account'}`, correlationId: d.correlationId });
     return out;
+  });
+}
+
+/**
+ * Stamp goods returned on the GRN and PO lines a debit note relates to. A note raised from a vendor
+ * invoice references GRN lines through the invoice line (`grnId` / `grnLineId`); one raised from a
+ * receipt references them directly (`sourceLineId`). `sign` −1 undoes a reversal.
+ */
+function applyReturnedQty(d: DebitNote, sign: 1 | -1) {
+  const lines = d.lines as (DocLine & { grnId?: string; grnLineId?: string; poLineId?: string })[];
+  const grnIds = new Set<string>(lines.map((l) => l.grnId).filter((x): x is string => !!x));
+  if (d.grnId) grnIds.add(d.grnId);
+  const poIds = new Set<string>();
+  grnIds.forEach((gid) => {
+    const g = db.find<Grn>(C.grns, gid);
+    if (!g) return;
+    db.update<Grn>(C.grns, g.id, { lines: g.lines.map((gl) => { const q = lines.filter((l) => (l.grnLineId ? l.grnLineId === gl.id : l.sourceLineId === gl.id || (!d.invoiceId && l.itemId === gl.itemId))).reduce((x, l) => x + l.qty, 0); return q ? { ...gl, returnedQty: r2(Math.max(0, (gl.returnedQty ?? 0) + sign * q)) } : gl; }) });
+    if (g.poId) poIds.add(g.poId);
+  });
+  poIds.forEach((pid) => {
+    const po = db.find<PurchaseOrder>(C.purchaseOrders, pid);
+    if (!po) return;
+    db.update<PurchaseOrder>(C.purchaseOrders, po.id, { lines: po.lines.map((pl) => { const q = lines.filter((l) => (l.poLineId ? l.poLineId === pl.id : l.itemId === pl.itemId)).reduce((x, l) => x + l.qty, 0); return q ? { ...pl, returnedQty: r2(Math.max(0, (pl.returnedQty ?? 0) + sign * q)) } : pl; }) });
   });
 }
 
@@ -433,10 +460,10 @@ export function reverseDebitNote(id: string, reason: string): DebitNote {
     const date = today();
     engine.assertPostable(date);
     if (d.journalId) engine.reverseJournal(d.journalId, { reason, date });
-    if (d.purchaseReturnId) { engine.reverseStockMovements(d.purchaseReturnId, { date, reason, sourceType: 'Purchase Return Reversal', sourceNumber: d.purchaseReturnNumber ?? '' }); db.update<PurchaseReturn>(C.purchaseReturns, d.purchaseReturnId, { status: 'Reversed', reversalReason: reason }); }
+    if (d.purchaseReturnId) { engine.reverseStockMovements(d.purchaseReturnId, { date, reason, sourceType: 'Purchase Return Reversal', sourceNumber: d.purchaseReturnNumber ?? '' }); db.update<PurchaseReturn>(C.purchaseReturns, d.purchaseReturnId, { status: 'Reversed', reversalReason: reason }); applyReturnedQty(d, -1); }
     const invOi = d.invoiceId ? db.findBy<OpenItem>(C.openItems, (o) => o.docId === d.invoiceId && o.direction === 'Debit') : undefined;
     if (invOi) engine.unsettleOpenItem(invOi.id, d.id);
-    if (credit) db.update<OpenItem>(C.openItems, credit.id, { status: 'Settled', outstanding: 0, baseOutstanding: 0 });
+    if (credit && credit.outstanding > 0.005) engine.settleOpenItem(credit.id, { amount: credit.outstanding, docType: 'Debit Note Reversal', docId: d.id, docNumber: d.number, date, rate: credit.rate, postFx: false });
     const out = db.update<DebitNote>(C.debitNotes, id, { status: 'Reversed', reversalReason: reason });
     engine.audit({ action: 'debit_note.reversed', objectType: 'Debit Note', objectId: id, objectNumber: d.number, detail: reason });
     return out;

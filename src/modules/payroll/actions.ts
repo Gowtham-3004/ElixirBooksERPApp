@@ -1,6 +1,7 @@
 // Payroll run lifecycle (FR-PAY-002..005): calculate → finalize (freeze inputs, payslips) → post (journal) → bank file / reverse / off-cycle.
 import { db, C, engine, ValidationError } from '../../store';
-import type { Employee, Company } from '../../store';
+import type { Employee, Company, OpenItem } from '../../store';
+import { IDS } from '../../store';
 import { round, today, toCSV, downloadText, fiscalYearOf } from '../../lib/format';
 import type { PayrollRun, PayrollInput, SalaryStructure, Payslip, Loan, PayrollLine } from './types';
 import { computeLine, sumLines, DEFAULT_PAYROLL_SETTINGS, periodLabel, daysInPeriod } from './calc';
@@ -120,6 +121,8 @@ export function postRun(run: PayrollRun, paymentDate = today()): PayrollRun {
     const j = engine.postJournal({ date, branchId: run.branchId, sourceType: 'Payroll Run', sourceId: run.id, sourceNumber: run.number, narration: `Payroll ${periodLabel(run.period)}${run.type === 'Off-cycle' ? ' (off-cycle' + (run.label ? ': ' + run.label : '') + ')' : ''} · ${run.lines.length} employees`, lines: payrollPostingLines(run), idempotencyKey: `${run.id}:post`, correlationId: run.correlationId });
     // employee open items for net pay (settled by the bank file / payment)
     run.lines.forEach((l) => { if (l.net > 0) engine.createOpenItem({ partyType: 'Employee', partyId: l.employeeId, partyName: l.employeeName, docType: 'Payroll', docId: run.id, docNumber: `${run.number}/${l.employeeCode}`, date, dueDate: date, currency: c.currency, originalAmount: l.net, baseAmount: l.net, rate: 1, direction: 'Debit', branchId: run.branchId ?? c.branchId }); });
+    // expense claims paid through this run: the journal just relieved employee payable, so settle their open items too
+    claimsPaidBy(run).forEach((claim) => { const oi = db.find<OpenItem>(C.openItems, claim.openItemId); if (oi && oi.outstanding > 0.005) engine.settleOpenItem(oi.id, { amount: oi.outstanding, docType: 'Payroll', docId: run.id, docNumber: run.number, date, rate: 1, postFx: false }); });
     const out = db.update<PayrollRun>(C.payrollRuns, run.id, { status: 'Posted', journalId: j.id, journalNumber: j.number, postedAt: new Date().toISOString(), postedBy: c.userName, paymentDate: date });
     engine.audit({ action: 'payroll.run.posted', objectType: 'Payroll Run', objectId: run.id, objectNumber: run.number, detail: `${j.number} · Dr ${j.totalDr} / Cr ${j.totalCr}`, correlationId: run.correlationId });
     engine.notify({ type: 'system', title: `Payroll ${periodLabel(run.period)} posted`, body: `${j.number} · net ${run.totals.net.toLocaleString('en-IN')}`, link: `payroll/runs/${run.id}` });
@@ -128,16 +131,24 @@ export function postRun(run: PayrollRun, paymentDate = today()): PayrollRun {
 }
 
 export function reverseRun(run: PayrollRun, reason: string): PayrollRun {
-  if (run.status !== 'Posted' && run.status !== 'Finalized') throw new ValidationError('Only finalized or posted runs can be reversed', 'INVALID_STATE');
+  if (run.status !== 'Posted' && run.status !== 'Finalized' && run.status !== 'Paid') throw new ValidationError('Only finalized, posted or paid runs can be reversed', 'INVALID_STATE');
   return db.transaction(() => {
     let rev: PayrollRun | undefined;
+    const date = today();
+    if (run.status === 'Paid' && run.paymentJournalId) {
+      const pj = engine.reverseJournal(run.paymentJournalId, { reason: `Reversal of ${run.number}: ${reason}`, date });
+      db.where<OpenItem>(C.openItems, (o) => o.docType === 'Payroll' && o.docId === run.id).forEach((o) => engine.unsettleOpenItem(o.id, run.id));
+      engine.audit({ action: 'payroll.run.payment_reversed', objectType: 'Payroll Run', objectId: run.id, objectNumber: run.number, detail: `${pj.number} · ${reason}`, correlationId: run.correlationId });
+    }
     if (run.journalId) {
       const rj = engine.reverseJournal(run.journalId, { reason });
       rev = db.insert<PayrollRun>(C.payrollRuns, { number: `${run.number}-R`, period: run.period, fy: run.fy, type: run.type, label: `Reversal of ${run.number}`, branchId: run.branchId, status: 'Posted', employeeCount: run.employeeCount, lines: run.lines.map((l) => ({ ...l, payslipId: undefined })), totals: run.totals, journalId: rj.id, journalNumber: rj.number, postedAt: new Date().toISOString(), postedBy: engine.ctx().userName, reversalOfId: run.id, reversalReason: reason, correlationId: run.correlationId });
-      db.where<any>(C.openItems, (o) => o.docType === 'Payroll' && o.docId === run.id && o.status === 'Open').forEach((o) => db.update<any>(C.openItems, o.id, { status: 'Written Off', outstanding: 0, baseOutstanding: 0 }));
+      db.where<OpenItem>(C.openItems, (o) => o.docType === 'Payroll' && o.docId === run.id && o.outstanding > 0.005).forEach((o) => engine.settleOpenItem(o.id, { amount: o.outstanding, docType: 'Payroll Reversal', docId: run.id, docNumber: run.number, date, rate: 1, postFx: false }));
     }
     run.lines.forEach((l) => { if (l.payslipId) db.update<Payslip>(C.payslips, l.payslipId, { status: 'Void', voidReason: reason }); });
     if (run.type === 'Regular') {
+      // claims marked reimbursed at finalize (and settled at post) go back to awaiting reimbursement
+      claimsPaidBy(run).forEach((claim) => { if (claim.openItemId) engine.unsettleOpenItem(claim.openItemId, run.id); db.update<ExpenseClaim>(C.expenseClaims, claim.id, { status: 'Approved', reimbursedAt: undefined, reimbursementMode: undefined, reimbursementRef: undefined }); });
       db.where<PayrollInput>(C.payrollInputs, (i) => i.period === run.period && i.lockedByRunId === run.id).forEach((i) => db.update<PayrollInput>(C.payrollInputs, i.id, { status: 'Approved', lockedByRunId: undefined }));
       db.where<Loan>(C.loans, (l) => l.schedule.some((r) => r.runId === run.id)).forEach((loan) => { const schedule = loan.schedule.map((r) => (r.runId === run.id ? { ...r, status: 'Pending' as const, runId: undefined } : r)); const recovered = round(loan.recovered - loan.schedule.filter((r) => r.runId === run.id).reduce((s, r) => s + r.emi, 0)); db.update<Loan>(C.loans, loan.id, { schedule, recovered, balance: round(loan.principal - recovered), status: 'Active' }); });
     }
@@ -147,7 +158,39 @@ export function reverseRun(run: PayrollRun, reason: string): PayrollRun {
   });
 }
 
+/** Expense claims whose reimbursement rides on this run (queued via payroll inputs). */
+function claimsPaidBy(run: PayrollRun): ExpenseClaim[] {
+  if (run.type !== 'Regular') return [];
+  const ids = db.where<PayrollInput>(C.payrollInputs, (i) => i.period === run.period && (i.lockedByRunId === run.id || (!i.lockedByRunId && i.reimbursementClaimIds.length > 0))).flatMap((i) => i.reimbursementClaimIds);
+  return Array.from(new Set(ids)).map((id) => db.find<ExpenseClaim>(C.expenseClaims, id)).filter((c): c is ExpenseClaim => !!c);
+}
+
+/**
+ * Record the salary disbursement after the bank file has gone out (FR-PAY-003): one journal
+ * Dr salaries payable (per employee party) · Cr bank, and every employee open item settled.
+ * Until this posts, salaries payable and the employee sub-ledger correctly show the liability.
+ */
+export function payRun(run: PayrollRun, input: { date?: string; bankAccountId?: string; reference?: string } = {}): PayrollRun {
+  if (run.status !== 'Posted') throw new ValidationError(run.status === 'Paid' ? 'Salaries for this run are already paid' : 'Post the run to the ledger before recording payment', 'INVALID_STATE');
+  const date = input.date ?? today();
+  engine.assertPostable(date);
+  const c = engine.ctx();
+  const bank = input.bankAccountId ?? c.company?.defaults.bankAccountId ?? IDS.accHDFC;
+  const ois = db.where<OpenItem>(C.openItems, (o) => o.docType === 'Payroll' && o.docId === run.id && o.outstanding > 0.005);
+  if (!ois.length) throw new ValidationError('Nothing outstanding to pay on this run', 'EMPTY');
+  return db.transaction(() => {
+    const total = round(ois.reduce((s, o) => s + o.outstanding, 0));
+    const j = engine.postJournal({ date, branchId: run.branchId, sourceType: 'Payroll Payment', sourceId: run.id, sourceNumber: run.number, narration: `Salary payment ${periodLabel(run.period)} · ${run.number}${input.reference ? ' · ' + input.reference : ''}`, idempotencyKey: `${run.id}:pay`, correlationId: run.correlationId, lines: [...ois.map((o) => ({ accountId: IDS.accSalaryPayable, dr: o.outstanding, partyType: 'Employee' as const, partyId: o.partyId, partyName: o.partyName, narration: `Net pay ${run.period}` })), { accountId: bank, cr: total, narration: input.reference ?? 'Salary transfer' }] });
+    ois.forEach((o) => engine.settleOpenItem(o.id, { amount: o.outstanding, docType: 'Payroll Payment', docId: run.id, docNumber: j.number, date, rate: 1, postFx: false }));
+    const out = db.update<PayrollRun>(C.payrollRuns, run.id, { status: 'Paid', paidAt: new Date().toISOString(), paidBy: c.userName, paymentDate: date, paymentJournalId: j.id, paymentJournalNumber: j.number, paymentBankAccountId: bank, paymentReference: input.reference });
+    engine.audit({ action: 'payroll.run.paid', objectType: 'Payroll Run', objectId: run.id, objectNumber: run.number, detail: `${ois.length} employees · ${total} · ${j.number}`, correlationId: run.correlationId });
+    engine.notify({ type: 'system', title: `Salaries ${periodLabel(run.period)} paid`, body: `${j.number} · ${total.toLocaleString('en-IN')}`, link: `payroll/runs/${run.id}` });
+    return out;
+  });
+}
+
 export function bankFile(run: PayrollRun, masked = true): string {
+  if (run.status !== 'Posted' && run.status !== 'Paid') throw new ValidationError('Post the run before generating the bank file', 'INVALID_STATE');
   const rows = run.lines.filter((l) => l.net > 0).map((l) => { const emp = db.find<Employee>(C.employees, l.employeeId); const acc = emp?.bankDetail?.accountNumber ?? ''; return { beneficiary: l.employeeName, code: l.employeeCode, bank: emp?.bankDetail?.bankName ?? '', account: masked ? (acc ? '••••' + acc.slice(-4) : '') : acc, ifsc: emp?.bankDetail?.ifsc ?? '', amount: l.net.toFixed(2), narration: `SAL ${run.period} ${l.employeeCode}`, mode: 'NEFT' }; });
   const csv = toCSV(rows);
   downloadText(`bank-file-${run.number}.csv`, csv);

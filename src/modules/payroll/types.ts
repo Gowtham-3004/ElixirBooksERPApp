@@ -129,7 +129,7 @@ export interface PayrollRun extends BaseRecord {
   type: 'Regular' | 'Off-cycle';
   label?: string;
   branchId?: ID;
-  status: 'Draft' | 'Calculated' | 'Finalized' | 'Posted' | 'Reversed';
+  status: 'Draft' | 'Calculated' | 'Finalized' | 'Posted' | 'Paid' | 'Reversed';
   employeeCount: number;
   lines: PayrollLine[];
   totals: PayrollTotals;
@@ -145,6 +145,13 @@ export interface PayrollRun extends BaseRecord {
   reversalReason?: string;
   bankFileGeneratedAt?: string;
   paymentDate?: string;
+  /** salary disbursement (Dr salaries payable · Cr bank) — settles the employee open items */
+  paidAt?: string;
+  paidBy?: string;
+  paymentJournalId?: ID;
+  paymentJournalNumber?: string;
+  paymentBankAccountId?: ID;
+  paymentReference?: string;
   correlationId?: string;
   notes?: string;
 }

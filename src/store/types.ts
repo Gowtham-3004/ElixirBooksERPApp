@@ -627,6 +627,8 @@ export interface DocLine {
   acceptedQty?: number;
   rejectedQty?: number;
   reservedQty?: number;
+  /** stock actually issued by this line when its invoice posted (direct-stock invoicing); reversal uses this, never a recompute */
+  issuedQty?: number;
 }
 
 export interface TaxBreakupRow {

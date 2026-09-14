@@ -518,7 +518,8 @@ export function seedMasters(): Partial<DB> {
     acc(IDS.accAP, '2100', 'Trade Payables (AP Control)', 'ag_cl', 'Liability', { isControl: true, controlType: 'AP', currencyBehaviour: 'Any', openingBalance: 1230400 }),
     // Goods received but not yet invoiced. GRNs accrue here (no party — there is no vendor document
     // yet); the vendor invoice debits it back when it is matched to the GRN (FR-AP-001, 3-way match).
-    acc(IDS.accGRNI, '2110', 'Goods Received Not Invoiced (GRNI)', 'ag_cl', 'Liability', { isControl: true, controlType: 'AP' }),
+    // GRNI is an accrual clearing account (receipt ↔ bill), not a supplier sub-ledger: no party on its lines
+    acc(IDS.accGRNI, '2110', 'Goods Received Not Invoiced (GRNI)', 'ag_cl', 'Liability'),
     acc(IDS.accAdvanceCustomer, '2150', 'Advances from Customers', 'ag_cl', 'Liability', { isControl: true, controlType: 'AR' }),
     acc(IDS.accGSTOutputCGST, '2300', 'Output CGST Payable', 'ag_cl', 'Liability', { controlType: 'Tax', openingBalance: 189000 }),
     acc(IDS.accGSTOutputSGST, '2301', 'Output SGST Payable', 'ag_cl', 'Liability', { controlType: 'Tax', openingBalance: 189000 }),

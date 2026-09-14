@@ -219,15 +219,25 @@ export function receiveTransfer(id: string, received: { lineId: string; received
     const date = today();
     engine.assertPostable(date);
     let lossValue = 0;
+    const lossByAcc: Record<string, number> = {};
     lines.forEach((l) => {
-      engine.moveStock({ date, itemId: l.itemId!, warehouseId: s.transitWarehouseId, qty: -l.qty, uom: l.uom, type: 'Transfer Out', sourceType: 'Stock Transfer', sourceId: t.id, sourceNumber: t.number, batch: l.batch, serials: l.serials, allowNegative: true });
-      if (l.receivedQty! > 0) engine.moveStock({ date, itemId: l.itemId!, warehouseId: t.toWarehouseId, qty: l.receivedQty!, uom: l.uom, rate: l.rate, type: 'Transfer In', sourceType: 'Stock Transfer', sourceId: t.id, sourceNumber: t.number, batch: l.batch, serials: l.serials?.slice(0, Math.round(l.receivedQty!)) });
+      // carry the cost the goods actually left transit at, so destination + loss tie to the transit relief
+      const out = engine.moveStock({ date, itemId: l.itemId!, warehouseId: s.transitWarehouseId, qty: -l.qty, uom: l.uom, type: 'Transfer Out', sourceType: 'Stock Transfer', sourceId: t.id, sourceNumber: t.number, batch: l.batch, serials: l.serials, allowNegative: true });
+      if (l.receivedQty! > 0) engine.moveStock({ date, itemId: l.itemId!, warehouseId: t.toWarehouseId, qty: l.receivedQty!, uom: l.uom, rate: out.rate, type: 'Transfer In', sourceType: 'Stock Transfer', sourceId: t.id, sourceNumber: t.number, batch: l.batch, serials: l.serials?.slice(0, Math.round(l.receivedQty!)) });
       const lost = r3((l.damageQty ?? 0) + (l.shortageQty ?? 0));
-      if (lost > 0) { engine.moveStock({ date, itemId: l.itemId!, warehouseId: s.scrapWarehouseId, qty: lost, uom: l.uom, rate: l.rate, type: 'Scrap', sourceType: 'Stock Transfer', sourceId: t.id, sourceNumber: t.number, batch: l.batch }); lossValue = r2(lossValue + lost * l.rate); }
+      if (lost > 0) {
+        // damaged / short goods are written off: the scrap yard holds quantity only (zero value), the
+        // item's own inventory account is relieved — valuation and GL move together (FR-INV-008)
+        engine.moveStock({ date, itemId: l.itemId!, warehouseId: s.scrapWarehouseId, qty: lost, uom: l.uom, rate: 0, type: 'Scrap', sourceType: 'Stock Transfer', sourceId: t.id, sourceNumber: t.number, batch: l.batch });
+        const value = r2(lost * out.rate);
+        const acc = db.find<Item>(C.items, l.itemId)?.inventoryAccountId ?? IDS.accInvFG;
+        lossByAcc[acc] = r2((lossByAcc[acc] ?? 0) + value);
+        lossValue = r2(lossValue + value);
+      }
     });
     let journalId: string | undefined;
     if (lossValue > 0) {
-      const j = engine.postJournal({ date, branchId: t.branchId, sourceType: 'Stock Transfer', sourceId: t.id, sourceNumber: t.number, narration: `Transit shortage / damage on ${t.number}`, idempotencyKey: `${t.id}:loss`, lines: [{ accountId: IDS.accScrap, dr: lossValue }, { accountId: IDS.accInvFG, cr: lossValue }] });
+      const j = engine.postJournal({ date, branchId: t.branchId, sourceType: 'Stock Transfer', sourceId: t.id, sourceNumber: t.number, narration: `Transit shortage / damage on ${t.number}`, idempotencyKey: `${t.id}:loss`, lines: [{ accountId: IDS.accScrap, dr: lossValue }, ...Object.entries(lossByAcc).map(([accountId, cr]) => ({ accountId, cr }))] });
       journalId = j.id;
     }
     const res = db.update<StockTransfer>(C.stockTransfers, id, { lines, status: 'Completed', receivedAt: new Date().toISOString(), receivedBy: engine.ctx().userName, journalId });

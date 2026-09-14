@@ -7,6 +7,7 @@ import type { DocHeader, DocLine, Item, OpenItem, Journal, Account } from '../..
 import { fmtMoney, round, today, uid } from '../../lib/format';
 import type { BillableExpense, BillingResult, BillingRun, Contract, Milestone, Retainer, RetainerAllocation, Timesheet, UsageRecord } from './types';
 import { ACC } from './types';
+import { refreshInvoiceTotals } from '../sales/actions';
 import { addMonths, billRateFor, billableExpenses, companyRows, contractOf, costRateFor, customerOf, hourEntries, itemOf, milestonesOf, projectOf, projectsOfContract, resourceOf, settings, usageOf, toBaseAmount, weekDays } from './data';
 
 const now = () => new Date().toISOString();
@@ -300,8 +301,8 @@ export function allocateRetainer(retainerId: string, invoiceId: string, amount: 
     const alloc: RetainerAllocation = pending ? { ...pending, date, journalId: j.id, journalNumber: j.number, status: 'Settled' } : { id: allocId, invoiceId: inv.id, invoiceNumber: inv.number, amount, date, journalId: j.id, journalNumber: j.number, status: 'Settled' };
     const allocations = pending ? r.allocations.map((a) => (a.id === pending.id ? alloc : a)) : [...r.allocations, alloc];
     const allocated = round(allocations.filter((a) => a.status !== 'Reversed').reduce((s, a) => s + a.amount, 0));
-    const paid = round((inv.totals.paid ?? 0) + (pending ? 0 : amount));
-    db.update<DocHeader>(C.salesInvoices, inv.id, { totals: { ...inv.totals, paid, due: round(inv.totals.total - paid - (inv.totals.credited ?? 0) - (inv.totals.writtenOff ?? 0)) }, status: inv.totals.total - paid - (inv.totals.credited ?? 0) - (inv.totals.writtenOff ?? 0) <= 0.005 ? 'Settled' : inv.status });
+    // paid / due / status come from the receivable's settlements — the single source every other flow reads
+    refreshInvoiceTotals(inv.id);
     const out = db.update<Retainer>(C.retainers, r.id, { allocations, allocated, remaining: round(r.amount - allocated), status: r.amount - allocated <= 0.005 ? 'Fully allocated' : 'Open' });
     engine.audit({ action: 'retainer.allocated', objectType: 'Retainer', objectId: r.id, objectNumber: r.number, detail: `${fmtMoney(amount, r.currency)} → ${inv.number} · ${j.number}` });
     return out;

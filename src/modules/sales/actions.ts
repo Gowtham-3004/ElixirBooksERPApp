@@ -3,7 +3,7 @@
 // identical everywhere. Fulfilment-side actions (quotation → order → delivery)
 // live in ./fulfilment.ts and are re-exported here.
 import { db, C, engine, ValidationError, IDS } from '../../store';
-import type { DocHeader, DocLine, Item, OpenItem, ApprovalRequest, ID } from '../../store';
+import type { DocHeader, DocLine, Item, OpenItem, ApprovalRequest, ID, StockMovement } from '../../store';
 import { fmtMoney, round, today, uid } from '../../lib/format';
 import type { CreditNote, Receipt, SalesInvoice, SalesOrder, Delivery, SalesReturn } from './types';
 import { salesSettingsOf } from './types';
@@ -172,6 +172,7 @@ export function submitInvoice(id: string): { request: ApprovalRequest | null; in
   if (!inv) throw new ValidationError('Invoice not found', 'NOT_FOUND');
   if (inv.status !== 'Draft' && inv.status !== 'Returned' && inv.status !== 'Rejected') throw new ValidationError(`Invoice is ${inv.status} — only drafts can be submitted`, 'INVALID_STATE');
   assertValid(inv);
+  if (inv.totals.total <= 0) throw new ValidationError('Invoice total must be greater than zero', 'VALIDATION', 'lines');
   engine.assertPostable(inv.date);
   const credit = creditCheckFor(inv);
   if (!credit.ok) throw new ValidationError(credit.message ?? 'Credit check failed', 'CREDIT_BLOCK');
@@ -187,10 +188,11 @@ export function postInvoice(id: string): SalesInvoice {
   return db.transaction(() => {
     const inv = db.find<SalesInvoice>(C.salesInvoices, id);
     if (!inv) throw new ValidationError('Invoice not found', 'NOT_FOUND');
-    if (inv.status === 'Posted') return inv;
+    if (inv.status === 'Posted' || inv.status === 'Settled') return inv; // idempotent — a settled invoice is a posted one
     if (inv.status !== 'Draft' && inv.status !== 'Approved') throw new ValidationError(`Invoice is ${inv.status} — cannot post`, 'INVALID_STATE');
     if (inv.status === 'Draft' && invoiceNeedsWorkflow(inv)) throw new ValidationError('This invoice requires approval — submit it for approval first', 'WORKFLOW_REQUIRED');
     assertValid(inv);
+    if (inv.totals.total <= 0) throw new ValidationError('Invoice total must be greater than zero', 'VALIDATION', 'lines');
     engine.assertPostable(inv.date);
     const credit = creditCheckFor(inv);
     if (!credit.ok) throw new ValidationError(credit.message ?? 'Credit check failed', 'CREDIT_BLOCK');
@@ -216,11 +218,56 @@ export function postInvoice(id: string): SalesInvoice {
     const eInvApplicable = (co?.localizationPack ?? 'IN') === 'IN' && !!inv.partySnapshot?.gstin && inv.partySnapshot?.taxTreatment !== 'Unregistered';
     const hasGoods = inv.lines.some((l) => db.find<Item>(C.items, l.itemId)?.isStock);
     const statutory = { ...(inv.statutory ?? {}), eInvoiceStatus: eInvApplicable ? ('Pending' as const) : ('Not Applicable' as const), ewbStatus: hasGoods && (inv.totals.baseTotal || inv.totals.total) >= 50000 ? ('Pending' as const) : ('Not Applicable' as const) };
-    const out = db.update<SalesInvoice>(C.salesInvoices, inv.id, { status: 'Posted', number, journalId: j.id, journalNumber: j.number, postedAt: new Date().toISOString(), postedBy: engine.ctx().userName, openItemId: oi.id, statutory, idempotencyKey: idem, period: inv.date.slice(0, 7), totals: { ...inv.totals, due: round(inv.totals.total - inv.totals.paid - inv.totals.credited - inv.totals.writtenOff) } });
+    // remember what each line actually issued so a reversal can undo exactly that (FR-3.4)
+    const lines = inv.lines.map((l) => { const p = issues.find((x) => x.line.id === l.id); return p ? { ...l, issuedQty: p.qty } : l; });
+    const out = db.update<SalesInvoice>(C.salesInvoices, inv.id, { status: 'Posted', number, lines, journalId: j.id, journalNumber: j.number, postedAt: new Date().toISOString(), postedBy: engine.ctx().userName, openItemId: oi.id, statutory, idempotencyKey: idem, period: inv.date.slice(0, 7), totals: { ...inv.totals, due: round(inv.totals.total - inv.totals.paid - inv.totals.credited - inv.totals.writtenOff) } });
+    settleRetainerAllocations(out);
     engine.audit({ action: 'invoice.posted', objectType: 'Sales Invoice', objectId: inv.id, objectNumber: number, detail: `${inv.partyName} · ${fmtMoney(inv.totals.total, inv.currency)} · ${j.number}${issues.length ? ` · ${issues.length} stock line(s) issued` : ''}`, correlationId: inv.correlationId });
     engine.notify({ type: 'system', title: `Invoice ${number} posted`, body: `${inv.partyName} · ${fmtMoney(inv.totals.total, inv.currency)}`, link: `sales/invoices/${inv.id}` });
-    return out;
+    return db.find<SalesInvoice>(C.salesInvoices, inv.id) ?? out;
   });
+}
+
+/** What a posted invoice issued from stock, per line — from the stamped `issuedQty`, else from its own stock movements (invoices posted before stamping). */
+function stockIssuedBy(inv: SalesInvoice): StockIssuePlan[] {
+  const stamped = inv.lines.some((l) => l.issuedQty !== undefined);
+  if (stamped) return inv.lines.filter((l) => (l.issuedQty ?? 0) > 0).map((l) => ({ line: l, item: db.find<Item>(C.items, l.itemId)!, warehouseId: l.warehouseId ?? inv.warehouseId ?? IDS.whMain, qty: l.issuedQty! })).filter((p) => !!p.item);
+  const pool = db.where<StockMovement>(C.stockMovements, (m) => m.sourceId === inv.id && m.sourceType === 'Sales Invoice' && !m.reversalOfId && m.baseQty < 0).map((m) => ({ ...m, left: -m.baseQty }));
+  const out: StockIssuePlan[] = [];
+  inv.lines.forEach((l) => {
+    const item = db.find<Item>(C.items, l.itemId);
+    if (!item?.isStock) return;
+    let need = l.qty;
+    pool.filter((m) => m.itemId === l.itemId && m.left > 0).forEach((m) => { if (need <= 0) return; const take = round(Math.min(need, m.left), 3); m.left = round(m.left - take, 3); need = round(need - take, 3); out.push({ line: l, item, warehouseId: m.warehouseId, qty: take }); });
+  });
+  return out;
+}
+
+/**
+ * Settle retainer allocations a billing run applied to this invoice while it was still a draft:
+ * Dr retainer liability · Cr AR per allocation, then settle both open items. The draft carried the
+ * retainer as `paid`, so the receivable must be relieved the moment it exists (FR-PRJ-012).
+ */
+function settleRetainerAllocations(inv: SalesInvoice) {
+  const retainers = db.where<any>(C.retainers, (r) => r.customerId === inv.partyId && r.status !== 'Reversed' && (r.allocations ?? []).some((a: any) => a.invoiceId === inv.id && a.status === 'Pending'));
+  if (!retainers.length) return;
+  const oi = db.find<OpenItem>(C.openItems, inv.openItemId) ?? db.findBy<OpenItem>(C.openItems, (o) => o.docId === inv.id && o.direction === 'Debit');
+  if (!oi) return;
+  const retainerAcc = 'acc_2160'; // Retainers Received (projects ACC.retainers)
+  retainers.forEach((r) => {
+    (r.allocations as any[]).filter((a) => a.invoiceId === inv.id && a.status === 'Pending').forEach((a) => {
+      const amount = round(Math.min(a.amount, db.find<OpenItem>(C.openItems, oi.id)!.outstanding));
+      if (amount <= 0) return;
+      const j = engine.postJournal({ date: inv.date, branchId: inv.branchId, currency: r.currency, rate: r.rate, sourceType: 'Retainer Allocation', sourceId: r.id, sourceNumber: r.number, narration: `Retainer ${r.number} applied to ${inv.number} · ${r.customerName}`, idempotencyKey: `ret:${r.id}:alloc:${inv.id}:${a.id}`, correlationId: inv.correlationId, lines: [{ accountId: retainerAcc, dr: amount, partyType: 'Customer', partyId: r.customerId, partyName: r.customerName }, { accountId: arAccountFor(inv.partyId), cr: amount, partyType: 'Customer', partyId: r.customerId, partyName: r.customerName, narration: inv.number }] });
+      engine.settleOpenItem(oi.id, { amount, docType: 'Retainer', docId: r.id, docNumber: r.number, date: inv.date, rate: r.rate, postFx: false });
+      const roi = db.find<OpenItem>(C.openItems, r.openItemId);
+      if (roi && roi.outstanding >= amount - 0.005) engine.settleOpenItem(roi.id, { amount, docType: 'Sales Invoice', docId: inv.id, docNumber: inv.number, date: inv.date, rate: r.rate, postFx: false });
+      const fresh = db.find<any>(C.retainers, r.id);
+      db.update<any>(C.retainers, r.id, { allocations: fresh.allocations.map((x: any) => (x.id === a.id ? { ...x, amount, date: inv.date, journalId: j.id, journalNumber: j.number, status: 'Settled' } : x)) });
+      engine.audit({ action: 'retainer.allocated', objectType: 'Retainer', objectId: r.id, objectNumber: r.number, detail: `${fmtMoney(amount, r.currency)} → ${inv.number} · ${j.number} (settled on invoice post)` });
+    });
+  });
+  refreshInvoiceTotals(inv.id);
 }
 
 export function cancelInvoice(id: string, reason: string): SalesInvoice {
@@ -274,7 +321,7 @@ export function reverseInvoice(id: string, reason: string): SalesInvoice {
     engine.reverseCogsJournal(inv.id, { reason, date });
     const oi = db.find<OpenItem>(C.openItems, inv.openItemId) ?? db.findBy<OpenItem>(C.openItems, (o) => o.docId === inv.id);
     if (oi && oi.outstanding > 0) engine.settleOpenItem(oi.id, { amount: oi.outstanding, docType: 'Sales Invoice Reversal', docId: inv.id, docNumber: number, date, rate: oi.rate, postFx: false });
-    applySourceInvoicing(inv, -1, stockIssuesFor(inv));
+    applySourceInvoicing(inv, -1, stockIssuedBy(inv));
     const neg = (n: number) => round(-n);
     const t = inv.totals;
     const reversal = db.insert<SalesInvoice>(C.salesInvoices, {
@@ -303,7 +350,7 @@ export function writeOffInvoice(id: string, reason: string): SalesInvoice {
     const j = engine.postJournal({ date, branchId: inv.branchId, currency: inv.currency, rate: inv.rate || 1, sourceType: 'Write-off', sourceId: inv.id, sourceNumber: inv.number, narration: `Write-off ${inv.number}: ${reason}`, idempotencyKey: `inv:${inv.id}:writeoff`, lines: [{ accountId: ACC.badDebts, dr: amt }, { accountId: arAccountFor(inv.partyId), cr: amt, partyType: 'Customer', partyId: inv.partyId, partyName: inv.partyName }], correlationId: inv.correlationId });
     engine.settleOpenItem(oi.id, { amount: amt, docType: 'Write-off', docId: j.id, docNumber: j.number, date, rate: oi.rate, postFx: false });
     db.update<OpenItem>(C.openItems, oi.id, { status: 'Written Off' });
-    const out = db.update<SalesInvoice>(C.salesInvoices, inv.id, { writeOffReason: reason, totals: { ...inv.totals, writtenOff: round(inv.totals.writtenOff + amt), due: 0 } });
+    const out = db.update<SalesInvoice>(C.salesInvoices, inv.id, { status: 'Settled', writeOffReason: reason, totals: { ...inv.totals, writtenOff: round(inv.totals.writtenOff + amt), due: 0 } });
     engine.audit({ action: 'invoice.written_off', objectType: 'Sales Invoice', objectId: inv.id, objectNumber: inv.number, detail: `${fmtMoney(amt, inv.currency)} · ${j.number} · ${reason}`, correlationId: inv.correlationId });
     return out;
   });
@@ -315,7 +362,7 @@ export function refreshInvoiceTotals(invoiceId: string) {
   if (!inv) return;
   const oi = db.find<OpenItem>(C.openItems, inv.openItemId) ?? db.findBy<OpenItem>(C.openItems, (o) => o.docId === inv.id && o.docType === 'Sales Invoice');
   if (!oi) return;
-  const paid = round(oi.settlements.filter((s) => s.docType === 'Receipt' || s.docType === 'Advance' || s.docType === 'POS Bill').reduce((s, x) => s + x.amount, 0));
+  const paid = round(oi.settlements.filter((s) => s.docType === 'Receipt' || s.docType === 'Advance' || s.docType === 'POS Bill' || s.docType === 'Retainer').reduce((s, x) => s + x.amount, 0));
   const credited = round(oi.settlements.filter((s) => s.docType === 'Credit Note').reduce((s, x) => s + x.amount, 0));
   const writtenOff = round(oi.settlements.filter((s) => s.docType === 'Write-off').reduce((s, x) => s + x.amount, 0));
   const due = round(Math.max(0, oi.outstanding));

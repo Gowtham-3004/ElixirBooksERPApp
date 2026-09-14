@@ -19,6 +19,13 @@ export interface CapitalizeInput {
   creditAccountId?: string; postJournal: boolean;
 }
 
+/** Account the source vendor-invoice line was booked to (when the caller identified the line via notes `line:<id>`). */
+function sourceLineAccount(input: CapitalizeInput): string | undefined {
+  const doc = db.find<DocHeader>(C.vendorInvoices, input.sourceId);
+  const lineId = input.notes?.match(/^line:(.+)$/)?.[1];
+  return doc?.lines.find((l) => l.id === lineId)?.accountId;
+}
+
 export function capitalize(input: CapitalizeInput): Asset {
   const cat = db.find<AssetCategory>(C.assetCategories, input.categoryId);
   if (!cat) throw new ValidationError('Choose an asset category', 'VALIDATION', 'categoryId');
@@ -32,7 +39,9 @@ export function capitalize(input: CapitalizeInput): Asset {
     const dims = { CostCentre: IDS.dimCCMumbai, ...(input.dimensions ?? {}) };
     let journal: { id: string; number: string } | undefined;
     if (input.postJournal) {
-      const credit = input.creditAccountId ?? (input.sourceType === 'Vendor Invoice' ? IDS.accAP : IDS.accWIP);
+      // a vendor-invoice source is a reclassification out of the expense the bill was booked to — the payable
+      // already exists from the bill itself, so AP must never be credited a second time (no open item would back it)
+      const credit = input.creditAccountId ?? (input.sourceType === 'Vendor Invoice' ? sourceLineAccount(input) ?? IDS.accPurchases : IDS.accWIP);
       const creditAcc = db.find<any>(C.accounts, credit);
       journal = engine.postJournal({ date: input.capitalizationDate, branchId: input.branchId, sourceType: 'Asset Capitalization', sourceNumber: number, narration: `Capitalize ${number} · ${input.name}${input.sourceNumber ? ' · ' + input.sourceNumber : ''}`, lines: [{ accountId: cat.assetAccountId, dr: input.cost, dimensions: dims, narration: input.name }, { accountId: credit, cr: input.cost, partyType: creditAcc?.controlType === 'AP' ? 'Supplier' : undefined, partyId: creditAcc?.controlType === 'AP' ? input.supplierId : undefined, partyName: creditAcc?.controlType === 'AP' ? input.supplierName : undefined, narration: input.sourceType === 'Vendor Invoice' ? 'Reclassified from purchases' : 'Capitalized' }], idempotencyKey: `asset:${number}:capitalize` });
     }

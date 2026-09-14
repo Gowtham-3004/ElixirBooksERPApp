@@ -10,7 +10,7 @@ export type Row = BaseRecord & Record<string, any>;
 export type DB = Record<string, Row[]>;
 
 const STORAGE_KEY = 'elixir-books-db';
-export const SEED_VERSION = 'v4';
+export const SEED_VERSION = 'v5';
 
 let state: DB = {};
 let seedFn: (() => DB) | null = null;
@@ -46,6 +46,16 @@ function migrateV3ToV4(raw: DB): DB {
   const have = new Set((raw.templates ?? []).map((r) => r.id));
   const added = (fresh.templates ?? []).filter((t) => !have.has(t.id));
   return { ...raw, templates: [...(raw.templates ?? []), ...added] };
+}
+
+/**
+ * v5: GRNI (2110) stops being an AP-control account. Its lines never carry a supplier (the bill has
+ * not arrived yet), so as a control it forced parties onto manual true-ups and inflated the AP
+ * control total against the supplier sub-ledger. Data-only: flags on one account record.
+ */
+function migrateV4ToV5(raw: DB): DB {
+  const accounts = (raw.accounts ?? []).map((a) => (a.code === '2110' && a.controlType === 'AP' ? { ...a, isControl: false, controlType: undefined } : a));
+  return { ...raw, accounts };
 }
 
 function persist() {
@@ -105,13 +115,18 @@ export const db = {
           state = parsed.state;
           return;
         }
+        if (parsed?.v === 'v4' && parsed.state && typeof parsed.state === 'object') {
+          state = migrateV4ToV5(parsed.state);
+          persist();
+          return;
+        }
         if (parsed?.v === 'v3' && parsed.state && typeof parsed.state === 'object') {
-          state = migrateV3ToV4(parsed.state);
+          state = migrateV4ToV5(migrateV3ToV4(parsed.state));
           persist();
           return;
         }
         if ((parsed?.v === 'v1' || parsed?.v === 'v2') && parsed.state && typeof parsed.state === 'object') {
-          state = migrateV3ToV4(migrateV1ToV2(parsed.state));
+          state = migrateV4ToV5(migrateV3ToV4(migrateV1ToV2(parsed.state)));
           persist();
           return;
         }
@@ -260,12 +275,21 @@ export const db = {
     emit();
   },
 
-  /** Batch several writes and notify listeners once. */
+  /**
+   * Batch several writes and notify listeners once. Every write replaces `state` with a new
+   * object, so the pre-transaction reference is a complete snapshot: if `fn` throws, state is
+   * restored to it and nothing that happened inside (numbers allocated, stock moved, journals
+   * inserted) survives. Nested transactions roll back only their own writes.
+   */
   transaction<R>(fn: () => R): R {
     let result: R;
+    const before = state;
     suppress++;
     try {
       result = fn();
+    } catch (e) {
+      state = before;
+      throw e;
     } finally {
       suppress--;
     }

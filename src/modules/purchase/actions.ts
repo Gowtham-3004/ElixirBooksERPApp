@@ -383,7 +383,8 @@ export function newGrn(po?: PurchaseOrder): Grn {
   const base = engine.newDocHeader('GRN');
   const lines: GrnLine[] = (po ? poRemainingLines(po) : []).map((l) => {
     const remaining = r2(l.qty - (l.acceptedQty ?? 0) - (l.rejectedQty ?? 0) - (l.cancelledQty ?? 0));
-    return { ...l, id: uid('gl'), poLineId: l.id, sourceLineId: l.id, sourceDocId: po!.id, sourceQty: l.qty, remainingQty: remaining, orderedQty: l.qty, qty: remaining, receivedQty: remaining, acceptedQty: remaining, rejectedQty: 0, heldQty: 0, warehouseId: l.warehouseId ?? c.company?.defaults.warehouseId, bin: undefined, batch: undefined, serials: undefined };
+    // the PO line carries its own running counters (invoicedQty / returnedQty / cancelledQty); a new receipt starts from zero
+    return { ...l, id: uid('gl'), poLineId: l.id, sourceLineId: l.id, sourceDocId: po!.id, sourceQty: l.qty, remainingQty: remaining, orderedQty: l.qty, qty: remaining, receivedQty: remaining, acceptedQty: remaining, rejectedQty: 0, heldQty: 0, invoicedQty: 0, returnedQty: 0, cancelledQty: undefined, warehouseId: l.warehouseId ?? c.company?.defaults.warehouseId, bin: undefined, batch: undefined, serials: undefined };
   });
   return { ...base, docType: 'GRN', status: 'Draft', qcStatus: 'Pending', poId: po?.id, poNumber: po?.number, sourceType: po ? 'Purchase Order' : undefined, sourceId: po?.id, sourceNumber: po?.number, partyType: 'Supplier', partyId: po?.partyId, partyName: po?.partyName, partySnapshot: po?.partySnapshot, currency: po?.currency ?? c.currency, rate: po?.rate ?? 1, warehouseId: lines[0]?.warehouseId ?? c.company?.defaults.warehouseId, receivedBy: c.userName, lines, dimensions: po?.dimensions } as Grn;
 }
@@ -437,12 +438,14 @@ export function postGrn(input: Grn): Grn {
     g.lines.forEach((l) => {
       const item = db.find<Item>(C.items, l.itemId);
       if (!item) return;
+      // net unit cost after line discount (l.taxable is computed on acceptedQty) — stock ledger and accrual must agree to the rupee (FR-INV-008)
+      const unitCost = l.acceptedQty > 0 ? l.taxable / l.acceptedQty : l.rate * (1 - (l.discountPct || 0) / 100);
       if (item.isStock && item.type !== 'Service') {
-        if (l.acceptedQty > 0) engine.moveStock({ date: g.date, itemId: item.id, warehouseId: l.warehouseId!, qty: l.acceptedQty, uom: l.uom, rate: r2(l.rate * g.rate), type: 'GRN', sourceType: 'GRN', sourceId: saved.id, sourceNumber: number, batch: l.batch, serials: l.serials, bin: l.bin, expiryDate: l.expiryDate });
-        if (l.heldQty > 0) engine.moveStock({ date: g.date, itemId: item.id, warehouseId: l.warehouseId!, qty: l.heldQty, uom: l.uom, rate: r2(l.rate * g.rate), type: 'GRN', sourceType: 'GRN', sourceId: saved.id, sourceNumber: number, batch: l.batch, bin: 'QC-HOLD', expiryDate: l.expiryDate });
+        if (l.acceptedQty > 0) engine.moveStock({ date: g.date, itemId: item.id, warehouseId: l.warehouseId!, qty: l.acceptedQty, uom: l.uom, rate: r2(unitCost * g.rate), type: 'GRN', sourceType: 'GRN', sourceId: saved.id, sourceNumber: number, batch: l.batch, serials: l.serials, bin: l.bin, expiryDate: l.expiryDate });
+        if (l.heldQty > 0) engine.moveStock({ date: g.date, itemId: item.id, warehouseId: l.warehouseId!, qty: l.heldQty, uom: l.uom, rate: r2(unitCost * g.rate), type: 'GRN', sourceType: 'GRN', sourceId: saved.id, sourceNumber: number, batch: l.batch, bin: 'QC-HOLD', expiryDate: l.expiryDate });
       }
       if (l.acceptedQty > 0) {
-        const value = r2(l.acceptedQty * l.rate * (1 - (l.discountPct || 0) / 100));
+        const value = r2(l.taxable);
         journalLines.push({ accountId: item.isStock ? item.inventoryAccountId ?? IDS.accInvFG : item.purchaseAccountId ?? c.company!.defaults.purchaseAccountId!, dr: value, dimensions: l.dimensions ?? g.dimensions });
         accrual = r2(accrual + value);
       }
