@@ -7,32 +7,32 @@
    from the dark sidebar (see .sidebar in ui.css), so they stay readable over the rail. */
 :root, .sidebar .menu {
   /* ink (text) */
-  --ink: #0A0A0A;
-  --ink-2: #3C4043;
-  --ink-3: #5F6368;
-  --ink-4: #6E6E71;
-  --ink-5: #B0B5BF;
-  /* lines */
-  --line-strong: #DADCE0;
-  --line: #EAEAEA;
-  --hairline: #EFEFEF;
-  /* surfaces */
-  --bg: #F7F7F7;
+  --ink: #0F1115;
+  --ink-2: #3B3F47;
+  --ink-3: #5C6068;
+  --ink-4: #73767D;
+  --ink-5: #A9ACB3;
+  /* lines — alpha so they read the same over any surface */
+  --line-strong: #D9DBDF;
+  --line: rgba(15,17,21,.08);
+  --hairline: rgba(15,17,21,.06);
+  /* surfaces — one warm neutral, no blue cast */
+  --bg: #F5F5F4;
   --surface: #FFFFFF;
-  --surface-2: #F9FBFC;
-  --surface-3: #F3F5F5;
-  --neutral-bg: #E7E9EB;
-  /* accent — links, active tabs, focus, selection, notification badges */
+  --surface-2: #F8F8F7;
+  --surface-3: #F1F1F0;
+  --neutral-bg: #E8E9EB;
+  /* accent — links, active tabs, focus, selection, notification badges (never primary buttons) */
   --accent: #325CFF;
-  --accent-hover: #2E55EB;
-  --accent-soft: #F2F5FF;
-  --accent-tint: #F2F7FF;
-  --accent-line: #DCE5FF;
+  --accent-hover: #2A50E6;
+  --accent-soft: #EEF2FF;
+  --accent-tint: #F5F7FF;
+  --accent-line: #D6E0FF;
   /* semantic */
-  --good: #12784E;   --good-bg: #E0F9EC;   --good-line: #3FA97A;
-  --warn: #8A4B0F;   --warn-bg: #FEF4EC;   --warn-line: #E29A4B;
-  --danger: #C0393F; --danger-hover: #A8323A; --danger-bg: #FFE8EA; --danger-line: #E0455A;
-  --info: #3E5BA5;   --info-bg: #EBF7FF;
+  --good: #12784E;   --good-bg: #E6F7EE;   --good-line: #3FA97A;
+  --warn: #8A4B0F;   --warn-bg: #FCF1E6;   --warn-line: #E29A4B;
+  --danger: #C0393F; --danger-hover: #A8323A; --danger-bg: #FCEBEC; --danger-line: #E0455A;
+  --info: #3E5BA5;   --info-bg: #EAF2FB;
   /* ink button states */
   --ink-hover: #262A33;
   --ink-active: #000000;
@@ -48,6 +48,9 @@
 :root {
   font-family: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
+  /* Inter stylistic sets: single-storey a, open-tail digits. Descendants set font-variant-numeric
+     (not font-feature-settings) so they don't discard these. */
+  font-feature-settings: "cv11" 1, "ss01" 1;
   color: var(--ink);
 }
 
@@ -118,19 +121,19 @@ html, body, #root {
   gap: 6px;
   padding: 0 16px;
   height: 40px;
-  background: var(--accent);
+  background: var(--ink);
   color: #FFFFFF;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--r-md);
   font-size: 14px;
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.12s;
+  transition: background var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
-.btn-primary:hover { background: var(--accent-hover); }
-.btn-primary:active { background: var(--accent-hover); }
+.btn-primary:hover { background: var(--ink-hover); }
+.btn-primary:active { background: var(--ink-active); }
 
 .btn-secondary {
   display: inline-flex;
@@ -147,7 +150,7 @@ html, body, #root {
   font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.12s, border-color 0.12s;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
 .btn-secondary:hover { background: var(--surface-2); border-color: var(--line-strong); }
 
@@ -166,7 +169,7 @@ html, body, #root {
   font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.12s;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .btn-ghost:hover { background: var(--surface-3); color: var(--ink); }
 
@@ -208,7 +211,7 @@ html, body, #root {
   font-weight: 500;
   color: var(--ink-3);
   cursor: pointer;
-  transition: background 0.1s, color 0.1s;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
   user-select: none;
   font-variant-numeric: normal;
 }
@@ -231,7 +234,7 @@ html, body, #root {
   cursor: pointer;
   white-space: nowrap;
   border-bottom: 2px solid transparent;
-  transition: color 0.1s, border-color 0.1s;
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
   font-variant-numeric: normal;
 }
 .filter-tab:hover { color: var(--ink); }
@@ -280,7 +283,7 @@ html, body, #root {
 .cell-secondary { font-size: 12px; font-weight: 400; color: var(--ink-4); line-height: 16px; }
 
 /* Identifier style */
-.identifier { font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+.identifier { font-variant-numeric: tabular-nums slashed-zero; letter-spacing: 0.02em; }
 
 /* Input */
 .field-input {
@@ -294,9 +297,9 @@ html, body, #root {
   font-family: inherit;
   color: var(--ink);
   outline: none;
-  transition: border-color 0.12s;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
-.field-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(50,92,255,0.12); }
+.field-input:focus { border-color: var(--accent); box-shadow: var(--ring); }
 .field-input::placeholder { color: var(--ink-5); }
 
 /* Section label */
@@ -335,7 +338,7 @@ html, body, #root {
   font-family: inherit;
   cursor: pointer;
   border-bottom: 2px solid transparent;
-  transition: color 0.1s, border-color 0.1s;
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
   font-variant-numeric: normal;
 }
 .doc-tab:hover { color: var(--ink); }
@@ -369,17 +372,19 @@ html, body, #root {
 
 /* KPI tile */
 .kpi-tile {
-  background: #FFFFFF;
-  border: 1px solid var(--line);
-  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
   padding: 20px 24px;
 }
 
 /* Card */
 .card {
-  background: #FFFFFF;
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 /* Search input */
