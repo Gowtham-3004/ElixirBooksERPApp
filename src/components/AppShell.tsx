@@ -3,7 +3,7 @@ import { db, C, nav, session, useCollection, useSession, useRoute, engine, usePr
 import type { Notification, Period } from '../store';
 import { MODULES, GROUP_ORDER, SIDEBAR_GROUPS, moduleById, visibleModuleIds } from '../modules/registry';
 import { activeSubNav, useSubNavs, type SubNavItem } from '../modules/subnav';
-import { SETUP_MODULES, rememberSetupReturn, useSetupSections } from '../modules/setup/sections';
+import { isSetupPath, rememberSetupReturn, useSetupSections } from '../modules/setup/sections';
 import { lixi, useLixi } from '../store/lixi';
 import LixiPanel from './lixi/LixiPanel';
 import LixiMark from './lixi/LixiMark';
@@ -57,13 +57,11 @@ export default function AppShell({ children, fullBleed }: AppShellProps) {
 
   const visibleModules = useMemo(() => { const ids = visibleModuleIds(s); return MODULES.filter((m) => ids.includes(m.id)); }, [s]);
 
-  // inside Setup (the hub, company admin, masters, platform) the sidebar shows the settings tree instead of the app nav
-  const setupMode = SETUP_MODULES.has(route.module);
+  // inside Setup (the hub, company admin, masters, platform, module settings) the sidebar shows the settings tree instead of the app nav
+  const setupMode = isSetupPath(route.path);
   const setupSections = useSetupSections();
-  const lastAppPath = useRef(route.path);
-  useEffect(() => {
-    if (setupMode) rememberSetupReturn(lastAppPath.current); else lastAppPath.current = route.path;
-  }, [setupMode, route.path]);
+  // every app page visited becomes the "Close Settings" target; setup pages are skipped by the helper
+  useEffect(() => { if (!setupMode) rememberSetupReturn(route.path); }, [setupMode, route.path]);
 
   // one sidebar entry; with sub-pages it opens a flyout (hover peeks, click pins; phones expand inline), without them it navigates
   const sidebarEntry = (key: string, label: string, Icon: ComponentType<{ size?: number }>, o: { items: SubNavItem[]; active: boolean; activeId?: string; go: (id: string) => void; fallback?: () => void; badge?: number }) => {

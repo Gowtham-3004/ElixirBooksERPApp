@@ -81,14 +81,26 @@ export function useSetupSections(): SetupSection[] {
 
 /** Modules that render inside the Setup navigation rather than the app sidebar. */
 export const SETUP_MODULES = new Set(['setup', 'admin', 'masters', 'platform']);
+/** Pages in ordinary modules that the hub links to (module settings, opening balances) — they stay
+ *  inside the Setup navigation too, otherwise opening one from All Settings bounces the sidebar back
+ *  to the app tree. */
+const SETUP_PATHS = [...MODULE_SETTINGS.map((p) => p.id), 'accounting/opening-balances'];
+export function isSetupPath(path: string): boolean {
+  const p = path.replace(/^#?\/?/, '').split('?')[0];
+  if (SETUP_MODULES.has(p.split('/')[0])) return true;
+  return SETUP_PATHS.some((x) => p === x || p.startsWith(`${x}/`));
+}
+
 const RETURN_KEY = 'eb-setup-return';
 
-/** Remember where the user came from so "Close Settings" lands back on their page. */
+/** Remember the last app page so "Close Settings" lands back on it. Setup pages are never stored —
+ *  a refresh inside Setup would otherwise make the hub its own return target and Close a no-op. */
 export function rememberSetupReturn(path: string) {
+  if (isSetupPath(path)) return;
   try { sessionStorage.setItem(RETURN_KEY, path); } catch { /* ignore */ }
 }
 export function closeSetup() {
-  let to = 'home';
-  try { to = sessionStorage.getItem(RETURN_KEY) || 'home'; } catch { /* ignore */ }
-  nav.go(to);
+  let to: string | null = null;
+  try { to = sessionStorage.getItem(RETURN_KEY); } catch { /* ignore */ }
+  nav.go(to && !isSetupPath(to) ? to : 'home');
 }
